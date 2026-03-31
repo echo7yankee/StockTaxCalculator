@@ -141,7 +141,7 @@ function parseSellTrades(pageTexts: string[]): PdfSellTrade[] {
       const isin = cols[isinIdx];
 
       // After ISIN: type, currency, then numeric fields
-      let afterIsin = cols.slice(isinIdx + 1);
+      const afterIsin = cols.slice(isinIdx + 1);
 
       // Extract non-numeric fields first (type, currency, transaction currency)
       const instrumentType = afterIsin.find(c => /^(Stock|ETF|Fund)$/i.test(c)) || 'Stock';
@@ -236,7 +236,6 @@ function parseDividendRows(pageTexts: string[], sectionKeyword: string): PdfDivi
 
       // Expected order: eligibleHoldings, (time), grossPerShare, grossAmount, fxRate, grossAmountUsd, (whtRate%), whtUsd, netUsd
       // Filter out time-like values
-      const timeIdx = afterIsin.findIndex(c => /^\d{2}:\d{2}$/.test(c));
       const numericValues = nums.filter(n => !isNaN(n));
 
       if (numericValues.length < 4) continue;

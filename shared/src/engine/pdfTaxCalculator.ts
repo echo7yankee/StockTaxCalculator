@@ -15,7 +15,7 @@
 
 import type { TaxCalculationResult, SecurityBreakdown } from '../types/tax.js';
 import type { CountryTaxConfig } from '../types/country.js';
-import type { PdfParseResult, PdfSellTrade, PdfDividend } from '../parsers/trading212Pdf.js';
+import type { PdfParseResult, PdfDividend } from '../parsers/trading212Pdf.js';
 
 export interface PdfTaxEngineResult {
   taxResult: TaxCalculationResult;

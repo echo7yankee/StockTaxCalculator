@@ -1,5 +1,6 @@
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Heart, Percent, FileText } from 'lucide-react';
+import { ArrowLeft, TrendingUp, DollarSign, Heart, Percent, FileText, Save, Check } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
 import { useCountry } from '../contexts/CountryContext';
 
@@ -7,6 +8,37 @@ export default function ResultsPage() {
   const navigate = useNavigate();
   const { taxResult, securities, fileName, taxYear, transactions } = useUpload();
   const { countryConfig } = useCountry();
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const handleSave = useCallback(async () => {
+    if (!taxResult || !taxYear) return;
+    setSaving(true);
+    setSaveError(null);
+
+    try {
+      const res = await fetch('/api/uploads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          year: taxYear,
+          country: countryConfig?.code ?? 'RO',
+          broker: 'trading212',
+          fileName,
+          taxResult,
+          securities,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to save');
+      setSaved(true);
+    } catch {
+      setSaveError('Failed to save. Is the server running?');
+    } finally {
+      setSaving(false);
+    }
+  }, [taxResult, taxYear, countryConfig, fileName, securities]);
 
   if (!taxResult) {
     return (
@@ -43,8 +75,23 @@ export default function ResultsPage() {
           <h1 className="text-3xl font-bold">Tax Results — {taxYear}</h1>
           <p className="text-gray-600 dark:text-slate-400 mt-1">
             <FileText className="w-4 h-4 inline mr-1" />
-            {fileName} — {transactions.length} transactions
+            {fileName} — {transactions.length > 0 ? `${transactions.length} transactions` : 'PDF statement'}
           </p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <button
+            onClick={handleSave}
+            disabled={saving || saved}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              saved
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                : 'btn-primary'
+            }`}
+          >
+            {saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+            {saving ? 'Saving...' : saved ? 'Saved to Dashboard' : 'Save to Dashboard'}
+          </button>
+          {saveError && <p className="text-xs text-red-500">{saveError}</p>}
         </div>
       </div>
 

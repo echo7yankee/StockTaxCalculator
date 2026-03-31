@@ -46,10 +46,33 @@ export default function UploadPage() {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear() - 1);
 
   const [exchangeRate, setExchangeRate] = useState<number>(4.7);
+  const [rateLoading, setRateLoading] = useState(false);
+  const [rateSource, setRateSource] = useState<string | null>(null);
 
   // Store parsed data for calculate step
   const [csvRows, setCsvRows] = useState<RawCsvRow[]>([]);
   const [pdfData, setPdfData] = useState<PdfParseResult | null>(null);
+
+  const fetchBnrRate = useCallback((year: number, currency: string) => {
+    if (!countryConfig || currency === countryConfig.currency) return;
+
+    setRateLoading(true);
+    setRateSource(null);
+
+    fetch(`/api/exchange-rates/${year}/average?currency=${currency}`)
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch rate');
+        return res.json();
+      })
+      .then(data => {
+        setExchangeRate(data.rate);
+        setRateSource(`BNR ${year} average`);
+      })
+      .catch(() => {
+        setRateSource(null);
+      })
+      .finally(() => setRateLoading(false));
+  }, [countryConfig]);
 
   const processCsv = useCallback((file: File) => {
     Papa.parse(file, {
@@ -117,11 +140,16 @@ export default function UploadPage() {
         currency: parsed.overview.currency,
       });
       setProcessing(false);
+
+      // Auto-fetch BNR exchange rate
+      if (parsed.overview.currency) {
+        fetchBnrRate(parsed.year, parsed.overview.currency);
+      }
     } catch (err) {
       setError(`Failed to parse PDF: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setProcessing(false);
     }
-  }, []);
+  }, [fetchBnrRate]);
 
   const processFile = useCallback((file: File) => {
     setError(null);
@@ -378,9 +406,19 @@ export default function UploadPage() {
                   1 {preview.currency} = {exchangeRate} {countryConfig.currency}
                 </div>
               </div>
-              <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">
-                Use the average BNR exchange rate for {preview.year}. For exact calculations, use the BNR rate on each transaction date.
-              </p>
+              {rateLoading && (
+                <p className="text-xs text-accent mt-2">Fetching BNR exchange rate...</p>
+              )}
+              {rateSource && !rateLoading && (
+                <p className="text-xs text-green-600 dark:text-green-400 mt-2">
+                  Rate auto-fetched from {rateSource}. You can override it above.
+                </p>
+              )}
+              {!rateSource && !rateLoading && (
+                <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">
+                  Enter the average BNR exchange rate for {preview.year}.
+                </p>
+              )}
             </div>
           )}
 
