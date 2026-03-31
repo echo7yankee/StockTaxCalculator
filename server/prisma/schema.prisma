@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  name      String?
+  googleId  String?   @unique
+  plan      String    @default("free")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  taxYears  TaxYear[]
+}
+
+model TaxYear {
+  id          String       @id @default(uuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  year        Int
+  country     String       @default("RO")
+  status      String       @default("draft")
+  createdAt   DateTime     @default(now())
+  csvUploads  CsvUpload[]
+  transactions Transaction[]
+  calculation TaxCalculation?
+
+  @@unique([userId, year])
+}
+
+model CsvUpload {
+  id           String        @id @default(uuid())
+  taxYearId    String
+  taxYear      TaxYear       @relation(fields: [taxYearId], references: [id])
+  broker       String
+  filename     String?
+  uploadedAt   DateTime      @default(now())
+  processed    Boolean       @default(false)
+  rowCount     Int?
+  transactions Transaction[]
+}
+
+model Transaction {
+  id                     String   @id @default(uuid())
+  csvUploadId            String
+  csvUpload              CsvUpload @relation(fields: [csvUploadId], references: [id])
+  taxYearId              String
+  taxYear                TaxYear  @relation(fields: [taxYearId], references: [id])
+  action                 String
+  transactionDate        DateTime
+  isin                   String?
+  ticker                 String?
+  securityName           String?
+  shares                 Float?
+  pricePerShare          Float?
+  priceCurrency          String?
+  totalAmountOriginal    Float?
+  exchangeRateToLocal    Float?
+  totalAmountLocal       Float?
+  withholdingTaxOriginal Float?
+  withholdingTaxCurrency String?
+  withholdingTaxLocal    Float?
+  brokerTransactionId    String?
+  createdAt              DateTime @default(now())
+}
+
+model BnrRate {
+  id       Int      @id @default(autoincrement())
+  rateDate DateTime
+  currency String
+  rate     Float
+
+  @@unique([rateDate, currency])
+}
+
+model TaxCalculation {
+  id                     String   @id @default(uuid())
+  taxYearId              String   @unique
+  taxYear                TaxYear  @relation(fields: [taxYearId], references: [id])
+  totalCapitalGains      Float?
+  totalCapitalLosses     Float?
+  netCapitalGains        Float?
+  capitalGainsTax        Float?
+  totalDividendsGross    Float?
+  totalWithholdingTax    Float?
+  dividendTaxOwed        Float?
+  totalNonSalaryIncome   Float?
+  cassOwed               Float?
+  cassThresholdHit       String?
+  totalTaxOwed           Float?
+  earlyFilingDiscount    Float?
+  calculatedAt           DateTime @default(now())
+  securities             SecurityCalculation[]
+}
+
+model SecurityCalculation {
+  id                 String         @id @default(uuid())
+  taxCalculationId   String
+  taxCalculation     TaxCalculation @relation(fields: [taxCalculationId], references: [id])
+  isin               String?
+  ticker             String?
+  securityName       String?
+  totalBoughtShares  Float?
+  totalSoldShares    Float?
+  remainingShares    Float?
+  weightedAvgCost    Float?
+  totalProceeds      Float?
+  totalCostBasis     Float?
+  realizedGainLoss   Float?
+  totalDividends     Float?
+  totalWithholdingTax Float?
+}

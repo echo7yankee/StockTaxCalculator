@@ -1,0 +1,12 @@
+Action,Time,ISIN,Ticker,Name,No. of shares,Price / share,Currency (Price / share),Exchange rate,Result (EUR),Total (EUR),Withholding tax,Currency (Withholding tax),Notes,ID
+Market buy,2024-01-15 10:30:00,US0378331005,AAPL,Apple Inc,10,185.50,USD,0.92,,1706.60,,,,"TX001"
+Market buy,2024-03-10 14:20:00,US0378331005,AAPL,Apple Inc,5,172.00,USD,0.91,,782.60,,,,"TX002"
+Market sell,2024-06-20 09:45:00,US0378331005,AAPL,Apple Inc,8,195.00,USD,0.93,,1450.80,,,,"TX003"
+Market buy,2024-02-05 11:00:00,US5949181045,MSFT,Microsoft Corp,3,405.00,USD,0.92,,1117.80,,,,"TX004"
+Market sell,2024-08-15 16:30:00,US5949181045,MSFT,Microsoft Corp,3,420.00,USD,0.91,,1146.60,,,,"TX005"
+Dividend (Ordinary),2024-03-15 00:00:00,US0378331005,AAPL,Apple Inc,0,0.24,USD,0.92,,2.21,0.33,USD,,"TX006"
+Dividend (Ordinary),2024-06-15 00:00:00,US0378331005,AAPL,Apple Inc,0,0.25,USD,0.93,,2.33,0.35,USD,,"TX007"
+Dividend (Ordinary),2024-04-10 00:00:00,US5949181045,MSFT,Microsoft Corp,0,0.75,USD,0.91,,2.05,0.31,USD,,"TX008"
+Deposit,2024-01-01 08:00:00,,,,,,EUR,,,5000.00,,,,"TX009"
+Market buy,2024-04-01 12:00:00,IE00B4L5Y983,VWCE,Vanguard FTSE All-World,20,108.50,EUR,1.00,,2170.00,,,,"TX010"
+Market sell,2024-11-01 10:00:00,IE00B4L5Y983,VWCE,Vanguard FTSE All-World,10,115.20,EUR,1.00,,1152.00,,,,"TX011"

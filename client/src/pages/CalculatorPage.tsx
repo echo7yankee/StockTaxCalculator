@@ -1,0 +1,106 @@
+import { useState } from 'react';
+import { useCountry } from '../contexts/CountryContext';
+import type { ManualCalculatorInput } from '@shared/types/tax';
+import type { CountryTaxConfig } from '@shared/types/country';
+
+function calculateTax(input: ManualCalculatorInput, config: CountryTaxConfig) {
+  const capitalGainsTax = Math.max(0, input.capitalGains * config.capitalGainsTaxRate);
+  const grossDividendTax = input.dividends * config.dividendTaxRate;
+  const dividendTax = Math.max(0, grossDividendTax - input.withholdingTaxPaid);
+
+  const totalNonSalary = input.capitalGains + input.dividends + input.otherNonSalaryIncome;
+  let healthContribution = 0;
+  let bracketLabel = 'none';
+  for (const bracket of config.healthContributionBrackets) {
+    if (totalNonSalary >= bracket.minIncome && (bracket.maxIncome === null || totalNonSalary < bracket.maxIncome)) {
+      healthContribution = bracket.fixedAmount;
+      bracketLabel = bracket.label;
+      break;
+    }
+  }
+
+  const totalOwed = capitalGainsTax + dividendTax + healthContribution;
+  const earlyFilingDiscount = (capitalGainsTax + dividendTax) * config.earlyFilingDiscountRate;
+
+  return { capitalGainsTax, dividendTax, healthContribution, bracketLabel, totalOwed, earlyFilingDiscount };
+}
+
+export default function CalculatorPage() {
+  const { countryConfig } = useCountry();
+  const [input, setInput] = useState<ManualCalculatorInput>({
+    capitalGains: 0,
+    dividends: 0,
+    withholdingTaxPaid: 0,
+    otherNonSalaryIncome: 0,
+    country: 'RO',
+  });
+  const [result, setResult] = useState<ReturnType<typeof calculateTax> | null>(null);
+
+  if (!countryConfig) return <div className="p-8 text-center">Country not supported yet.</div>;
+
+  const handleCalculate = () => {
+    setResult(calculateTax(input, countryConfig));
+  };
+
+  const updateField = (field: keyof ManualCalculatorInput, value: string) => {
+    setInput(prev => ({ ...prev, [field]: parseFloat(value) || 0 }));
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 py-12">
+      <h1 className="text-3xl font-bold mb-2">Tax Calculator</h1>
+      <p className="text-gray-600 dark:text-slate-400 mb-8">
+        Enter your investment income to estimate your tax liability. Free, no account required.
+      </p>
+
+      <div className="card space-y-5">
+        <div>
+          <label className="block text-sm font-medium mb-1.5">Net Capital Gains ({countryConfig.currency})</label>
+          <input type="number" className="input" placeholder="0" onChange={e => updateField('capitalGains', e.target.value)} />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1.5">Gross Dividends ({countryConfig.currency})</label>
+          <input type="number" className="input" placeholder="0" onChange={e => updateField('dividends', e.target.value)} />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1.5">Withholding Tax Already Paid ({countryConfig.currency})</label>
+          <input type="number" className="input" placeholder="0" onChange={e => updateField('withholdingTaxPaid', e.target.value)} />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1.5">Other Non-Salary Income ({countryConfig.currency})</label>
+          <input type="number" className="input" placeholder="0" onChange={e => updateField('otherNonSalaryIncome', e.target.value)} />
+          <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">Rental income, crypto gains, freelance, etc.</p>
+        </div>
+        <button onClick={handleCalculate} className="btn-primary w-full text-lg py-3">
+          Calculate
+        </button>
+      </div>
+
+      {result && (
+        <div className="card mt-8 space-y-4">
+          <h2 className="text-xl font-bold">Results</h2>
+          <div className="space-y-3">
+            <Row label={`Capital gains tax (${(countryConfig.capitalGainsTaxRate * 100).toFixed(0)}%)`} amount={result.capitalGainsTax} currency={countryConfig.currency} />
+            <Row label={`Dividend tax (${(countryConfig.dividendTaxRate * 100).toFixed(0)}% minus withholding)`} amount={result.dividendTax} currency={countryConfig.currency} />
+            <Row label={`Health contribution (bracket: ${result.bracketLabel})`} amount={result.healthContribution} currency={countryConfig.currency} />
+            <div className="border-t border-gray-200 dark:border-navy-500 pt-3">
+              <Row label="Total tax owed" amount={result.totalOwed} currency={countryConfig.currency} bold />
+            </div>
+            <div className="text-sm text-green-600 dark:text-green-400">
+              File by {countryConfig.earlyFilingDeadline} to save {result.earlyFilingDiscount.toFixed(2)} {countryConfig.currency} ({(countryConfig.earlyFilingDiscountRate * 100).toFixed(0)}% discount on income tax)
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Row({ label, amount, currency, bold }: { label: string; amount: number; currency: string; bold?: boolean }) {
+  return (
+    <div className={`flex justify-between ${bold ? 'font-bold text-lg' : ''}`}>
+      <span className="text-gray-600 dark:text-slate-400">{label}</span>
+      <span>{amount.toFixed(2)} {currency}</span>
+    </div>
+  );
+}

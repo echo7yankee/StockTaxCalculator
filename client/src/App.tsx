@@ -1,0 +1,23 @@
+import { Routes, Route } from 'react-router-dom';
+import Layout from './components/layout/Layout';
+import Landing from './pages/Landing';
+import CalculatorPage from './pages/CalculatorPage';
+import Dashboard from './pages/Dashboard';
+import UploadPage from './pages/UploadPage';
+import ResultsPage from './pages/ResultsPage';
+import SettingsPage from './pages/SettingsPage';
+
+export default function App() {
+  return (
+    <Routes>
+      <Route element={<Layout />}>
+        <Route path="/" element={<Landing />} />
+        <Route path="/calculator" element={<CalculatorPage />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/upload" element={<UploadPage />} />
+        <Route path="/results" element={<ResultsPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+      </Route>
+    </Routes>
+  );
+}

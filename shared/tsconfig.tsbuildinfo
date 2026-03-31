@@ -1,0 +1,1 @@
+{"root":["./src/index.ts","./src/engine/taxcalculator.ts","./src/parsers/trading212.ts","./src/taxrules/index.ts","./src/taxrules/romania.ts","./src/types/country.ts","./src/types/tax.ts","./src/types/transaction.ts"],"version":"5.9.3"}
