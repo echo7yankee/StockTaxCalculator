@@ -215,42 +215,37 @@ function parseDividendRows(pageTexts: string[], sectionKeyword: string): PdfDivi
       const instrument = cols.slice(0, isinIdx).join(' ').trim();
       const isin = cols[isinIdx];
 
+      // Columns after ISIN follow a fixed layout:
+      // CURRENCY | COUNTRY | HOLDINGS | PAY DATE | GROSS/SHARE | GROSS | FX RATE | GROSS(USD) | WHT RATE | WHT(USD) | NET(USD)
       const afterIsin = cols.slice(isinIdx + 1);
 
-      // Extract currencies and country
-      const currencies = afterIsin.filter(c => /^(USD|EUR|GBP|RON)$/i.test(c));
+      const instrumentCurrency = afterIsin.find(c => /^(USD|EUR|GBP|RON)$/i.test(c)) || 'USD';
       const country = afterIsin.find(c => /^[A-Z]{2}$/.test(c) && !/^(USD|EUR|GBP|RON)$/i.test(c)) || '';
-      const instrumentCurrency = currencies[0] || 'USD';
-
-      // Find date field
-      const dateCol = afterIsin.find(c => /^\d{2}\.\d{2}\.\d{4}/.test(c));
-      const payDate = dateCol || '';
-
-      // Get all numeric values
-      const numericCols = afterIsin
-        .filter(c => !/^(USD|EUR|GBP|RON|[A-Z]{2})$/i.test(c))
-        .filter(c => !/^\d{2}\.\d{2}\.\d{4}/.test(c))
-        .filter(c => c !== '-' && c !== '');
-
-      const nums = numericCols.map(c => parseNum(c));
-
-      // Expected order: eligibleHoldings, (time), grossPerShare, grossAmount, fxRate, grossAmountUsd, (whtRate%), whtUsd, netUsd
-      // Filter out time-like values
-      const numericValues = nums.filter(n => !isNaN(n));
-
-      if (numericValues.length < 4) continue;
-
-      // The last value is net amount, second to last is WHT
-      const netAmountUsd = numericValues[numericValues.length - 1];
-      const whtUsd = numericValues.length > 5 ? numericValues[numericValues.length - 2] : 0;
+      const payDate = afterIsin.find(c => /^\d{2}\.\d{2}\.\d{4}/.test(c)) || '';
       const whtRateCol = afterIsin.find(c => c.includes('%')) || '-';
 
-      // First numeric is eligible holdings, then gross per share, gross, fx rate, gross USD
-      const eligibleHoldings = numericValues[0] || 0;
-      const grossPerShare = numericValues.length > 4 ? numericValues[1] : 0;
-      const grossAmount = numericValues.length > 4 ? numericValues[2] : numericValues[1] || 0;
-      const fxRate = numericValues.length > 5 ? numericValues[3] : 1;
-      const grossAmountUsd = numericValues.length > 5 ? numericValues[4] : grossAmount;
+      // Find the index of the whtRate column to anchor positions
+      const whtRateIdx = afterIsin.findIndex(c => c.includes('%') || (c === '-' && afterIsin.indexOf(c) > 5));
+
+      // Use positional parsing: from the end, columns are NET | WHT(USD) | WHT RATE | GROSS(USD) | FX RATE | GROSS | GROSS/SHARE | PAY DATE | HOLDINGS | COUNTRY | CURRENCY
+      // Work from end backwards for reliability
+      const lastIdx = afterIsin.length - 1;
+      const netAmountUsd = parseNum(afterIsin[lastIdx] || '0');
+      const whtUsd = parseNum(afterIsin[lastIdx - 1] || '0');
+      // whtRate is at lastIdx - 2 (already captured above)
+      const grossAmountUsd = parseNum(afterIsin[lastIdx - 3] || '0');
+      const fxRate = parseNum(afterIsin[lastIdx - 4] || '1') || 1;
+      const grossAmount = parseNum(afterIsin[lastIdx - 5] || '0');
+      const grossPerShare = parseNum(afterIsin[lastIdx - 6] || '0');
+
+      // eligibleHoldings: find first numeric value after currency/country
+      const holdingsIdx = afterIsin.findIndex(c => {
+        const n = parseFloat(c.replace(/,/g, ''));
+        return !isNaN(n) && !/^[A-Z]{2,3}$/i.test(c);
+      });
+      const eligibleHoldings = holdingsIdx >= 0 ? parseNum(afterIsin[holdingsIdx]) : 0;
+
+      if (grossAmountUsd === 0 && grossAmount === 0) continue;
 
       dividends.push({
         instrument,
@@ -262,7 +257,7 @@ function parseDividendRows(pageTexts: string[], sectionKeyword: string): PdfDivi
         grossAmountPerShare: grossPerShare,
         grossAmount,
         fxRate,
-        grossAmountUsd,
+        grossAmountUsd: grossAmountUsd || grossAmount,
         whtRate: whtRateCol,
         whtUsd,
         netAmountUsd: netAmountUsd || grossAmountUsd,
