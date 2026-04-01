@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import UploadPage from './pages/UploadPage';
 import ResultsPage from './pages/ResultsPage';
 import SettingsPage from './pages/SettingsPage';
+import StatusPage from './pages/StatusPage';
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
         <Route path="/upload" element={<UploadPage />} />
         <Route path="/results" element={<ResultsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/status" element={<StatusPage />} />
       </Route>
     </Routes>
   );
