@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Upload, Calculator, FileText, ArrowRight } from 'lucide-react';
 
 const steps = [
-  { icon: Upload, title: 'Upload CSV', description: 'Export your transactions from Trading212, Revolut, or IBKR and upload the CSV.' },
+  { icon: Upload, title: 'Upload Statement', description: 'Upload your annual statement (PDF) or transaction export (CSV) from your broker.' },
   { icon: Calculator, title: 'We Calculate', description: 'Automatic tax computation using official exchange rates and tax rules.' },
   { icon: FileText, title: 'You File', description: 'Get the exact numbers you need for your annual tax declaration.' },
 ];
@@ -18,14 +18,14 @@ export default function Landing() {
           <br />in 2 minutes
         </h1>
         <p className="mt-6 text-lg sm:text-xl text-gray-600 dark:text-slate-400 max-w-2xl mx-auto">
-          Upload your broker CSV, get tax-ready numbers. No spreadsheets, no accountant, no headaches.
+          Upload your broker statement, get tax-ready numbers. No spreadsheets, no accountant, no headaches.
         </p>
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link to="/calculator" className="btn-primary text-lg px-8 py-3 flex items-center gap-2">
             Try Free Calculator <ArrowRight className="w-5 h-5" />
           </Link>
           <Link to="/upload" className="btn-secondary text-lg px-8 py-3">
-            Upload CSV
+            Upload Statement
           </Link>
         </div>
       </section>
