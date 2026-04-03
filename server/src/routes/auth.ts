@@ -101,9 +101,9 @@ if (process.env.GOOGLE_CLIENT_ID) {
 
   authRouter.get(
     '/google/callback',
-    passport.authenticate('google', { failureRedirect: '/login?error=google' }),
+    passport.authenticate('google', { failureRedirect: 'http://localhost:5173/login?error=google' }),
     (_req, res) => {
-      res.redirect('/dashboard');
+      res.redirect('http://localhost:5173/dashboard');
     },
   );
 }
