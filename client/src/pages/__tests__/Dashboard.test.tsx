@@ -18,6 +18,19 @@ vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => mockAuth,
 }));
 
+vi.mock('../../contexts/UploadContext', () => ({
+  useUpload: () => ({
+    setUploadData: vi.fn(),
+    clearUpload: vi.fn(),
+    parseResult: null,
+    transactions: [],
+    taxResult: null,
+    securities: [],
+    fileName: '',
+    taxYear: 2025,
+  }),
+}));
+
 const mockTaxYears = [
   {
     id: '1',
