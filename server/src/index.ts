@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { sessionMiddleware, requireAuth } from './middleware/auth.js';
 import passport from './config/passport.js';
 import { authRouter } from './routes/auth.js';
@@ -12,7 +13,13 @@ import { taxYearsRouter } from './routes/taxYears.js';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }));
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+}));
 app.use(express.json({ limit: '10mb' }));
 
 // Session + Passport

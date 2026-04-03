@@ -86,7 +86,6 @@ taxYearsRouter.delete('/:id', async (req, res) => {
   try {
     const taxYear = await prisma.taxYear.findUnique({
       where: { id: req.params.id },
-      include: { calculation: true, csvUploads: true },
     });
 
     if (!taxYear || taxYear.userId !== req.user!.id) {
@@ -94,15 +93,7 @@ taxYearsRouter.delete('/:id', async (req, res) => {
       return;
     }
 
-    // Delete in order: securities -> calculation -> transactions -> uploads -> taxYear
-    if (taxYear.calculation) {
-      await prisma.securityCalculation.deleteMany({
-        where: { taxCalculationId: taxYear.calculation.id },
-      });
-      await prisma.taxCalculation.delete({ where: { id: taxYear.calculation.id } });
-    }
-    await prisma.transaction.deleteMany({ where: { taxYearId: taxYear.id } });
-    await prisma.csvUpload.deleteMany({ where: { taxYearId: taxYear.id } });
+    // Cascade deletes handle children (securities, calculation, transactions, uploads)
     await prisma.taxYear.delete({ where: { id: taxYear.id } });
 
     res.json({ deleted: true });

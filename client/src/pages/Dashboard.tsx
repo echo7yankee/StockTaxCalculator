@@ -20,6 +20,21 @@ interface SavedTaxYear {
   broker: string | null;
 }
 
+interface ApiSecurityCalculation {
+  isin: string | null;
+  ticker: string | null;
+  securityName: string | null;
+  totalBoughtShares: number | null;
+  totalSoldShares: number | null;
+  remainingShares: number | null;
+  weightedAvgCost: number | null;
+  totalProceeds: number | null;
+  totalCostBasis: number | null;
+  realizedGainLoss: number | null;
+  totalDividends: number | null;
+  totalWithholdingTax: number | null;
+}
+
 export default function Dashboard() {
   const { t } = useTranslation(['dashboard', 'common']);
   const { user, loading: authLoading } = useAuth();
@@ -80,7 +95,7 @@ export default function Dashboard() {
         calculatedAt: new Date(calc.calculatedAt),
       };
 
-      const securities: SecurityBreakdown[] = (calc.securities ?? []).map((sec: any) => ({
+      const securities: SecurityBreakdown[] = (calc.securities ?? []).map((sec: ApiSecurityCalculation) => ({
         isin: sec.isin ?? '',
         ticker: sec.ticker ?? '',
         securityName: sec.securityName ?? '',
@@ -118,7 +133,7 @@ export default function Dashboard() {
       if (!res.ok) throw new Error('Delete failed');
       setTaxYears(prev => prev.filter(ty => ty.id !== id));
     } catch {
-      // silently fail
+      setError(t('dashboard:deleteError', 'Failed to delete calculation'));
     }
   };
 

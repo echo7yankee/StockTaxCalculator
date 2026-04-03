@@ -29,7 +29,7 @@ model Session {
 model TaxYear {
   id          String       @id @default(uuid())
   userId      String
-  user        User         @relation(fields: [userId], references: [id])
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   year        Int
   country     String       @default("RO")
   status      String       @default("draft")
@@ -39,26 +39,29 @@ model TaxYear {
   calculation TaxCalculation?
 
   @@unique([userId, year])
+  @@index([userId])
 }
 
 model CsvUpload {
   id           String        @id @default(uuid())
   taxYearId    String
-  taxYear      TaxYear       @relation(fields: [taxYearId], references: [id])
+  taxYear      TaxYear       @relation(fields: [taxYearId], references: [id], onDelete: Cascade)
   broker       String
   filename     String?
   uploadedAt   DateTime      @default(now())
   processed    Boolean       @default(false)
   rowCount     Int?
   transactions Transaction[]
+
+  @@index([taxYearId])
 }
 
 model Transaction {
   id                     String   @id @default(uuid())
   csvUploadId            String
-  csvUpload              CsvUpload @relation(fields: [csvUploadId], references: [id])
+  csvUpload              CsvUpload @relation(fields: [csvUploadId], references: [id], onDelete: Cascade)
   taxYearId              String
-  taxYear                TaxYear  @relation(fields: [taxYearId], references: [id])
+  taxYear                TaxYear  @relation(fields: [taxYearId], references: [id], onDelete: Cascade)
   action                 String
   transactionDate        DateTime
   isin                   String?
@@ -75,6 +78,9 @@ model Transaction {
   withholdingTaxLocal    Float?
   brokerTransactionId    String?
   createdAt              DateTime @default(now())
+
+  @@index([taxYearId])
+  @@index([csvUploadId])
 }
 
 model BnrRate {
@@ -89,7 +95,7 @@ model BnrRate {
 model TaxCalculation {
   id                     String   @id @default(uuid())
   taxYearId              String   @unique
-  taxYear                TaxYear  @relation(fields: [taxYearId], references: [id])
+  taxYear                TaxYear  @relation(fields: [taxYearId], references: [id], onDelete: Cascade)
   totalCapitalGains      Float?
   totalCapitalLosses     Float?
   netCapitalGains        Float?
@@ -109,7 +115,7 @@ model TaxCalculation {
 model SecurityCalculation {
   id                 String         @id @default(uuid())
   taxCalculationId   String
-  taxCalculation     TaxCalculation @relation(fields: [taxCalculationId], references: [id])
+  taxCalculation     TaxCalculation @relation(fields: [taxCalculationId], references: [id], onDelete: Cascade)
   isin               String?
   ticker             String?
   securityName       String?

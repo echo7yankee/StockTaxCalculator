@@ -6,11 +6,17 @@ import prisma from '../lib/prisma.js';
 export const sessionMiddleware = session({
   cookie: {
     httpOnly: true,
-    secure: false, // set true in production with HTTPS
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   },
-  secret: process.env.SESSION_SECRET || 'dev-fallback-secret',
+  secret: (() => {
+    const secret = process.env.SESSION_SECRET;
+    if (!secret && process.env.NODE_ENV === 'production') {
+      throw new Error('SESSION_SECRET must be set in production');
+    }
+    return secret || 'dev-fallback-secret';
+  })(),
   resave: false,
   saveUninitialized: false,
   store: new PrismaSessionStore(prisma, {

@@ -47,7 +47,8 @@ export default function UploadPage() {
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear() - 1);
 
-  const [exchangeRate, setExchangeRate] = useState<number>(4.7);
+  const DEFAULT_EXCHANGE_RATE_EUR_RON = 4.97;
+  const [exchangeRate, setExchangeRate] = useState<number>(DEFAULT_EXCHANGE_RATE_EUR_RON);
   const [rateLoading, setRateLoading] = useState(false);
   const [rateSource, setRateSource] = useState<string | null>(null);
 
