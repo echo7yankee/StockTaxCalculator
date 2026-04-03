@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { CountryProvider } from './contexts/CountryContext';
 import { UploadProvider } from './contexts/UploadContext';
@@ -10,13 +11,15 @@ import './index.css';
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
-      <ThemeProvider>
-        <CountryProvider>
-          <UploadProvider>
-            <App />
-          </UploadProvider>
-        </CountryProvider>
-      </ThemeProvider>
+      <AuthProvider>
+        <ThemeProvider>
+          <CountryProvider>
+            <UploadProvider>
+              <App />
+            </UploadProvider>
+          </CountryProvider>
+        </ThemeProvider>
+      </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>,
 );

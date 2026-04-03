@@ -6,6 +6,18 @@ import { useEffect, useRef } from 'react';
 import { UploadProvider, useUpload } from '../../contexts/UploadContext';
 import { CountryProvider } from '../../contexts/CountryContext';
 import ResultsPage from '../ResultsPage';
+
+// Mock useAuth to simulate logged-in user
+vi.mock('../../contexts/AuthContext', () => ({
+  useAuth: () => ({
+    user: { id: 'test-id', email: 'test@test.com', name: 'Test', plan: 'free' },
+    loading: false,
+    login: vi.fn(),
+    signup: vi.fn(),
+    loginWithGoogle: vi.fn(),
+    logout: vi.fn(),
+  }),
+}));
 import type { TaxCalculationResult, SecurityBreakdown } from '@shared/index';
 
 const mockTaxResult: TaxCalculationResult = {

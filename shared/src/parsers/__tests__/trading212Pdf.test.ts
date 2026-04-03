@@ -121,4 +121,90 @@ describe('parseTrading212AnnualStatement', () => {
     expect(result.dividends).toHaveLength(0);
     expect(result.distributions).toHaveLength(0);
   });
+
+  // ─── Romanian PDF support ─────────────────────────────────────────────
+
+  describe('Romanian PDF parsing', () => {
+    function roOverviewPage(): string {
+      return [
+        'Declarație anuală - 2025',
+        'Prezentare generală',
+        'Trading 212 Invest',
+        'ID cont: 21047390',
+        'Rezultat închis\tRON 0.00',
+        'Profit\tRON 0.00',
+        'Pierdere\tRON 0.00',
+        'Dividende nete\tRON 5.16',
+        'Dividende brute\tRON 5.22',
+        'Taxe reținute\tRON 0.06',
+        'Rezultat deschis\tRON 1150.63',
+        'Valoarea contului\tRON 4551.14',
+      ].join('\n');
+    }
+
+    function roDividendPage(): string {
+      return [
+        'Cont Invest - Prezentare generală a dividendelor',
+        'Dividende după țară',
+        'Dividende după instrument',
+        'INSTRUMENT\tISIN\tMONEDA\tȚARA\tPARTICIPAȚII\tDATA\tBRUT/ACȚIUNE\tBRUT\tCURS\tBRUT (RON)\tRATĂ WHT\tWHT (RON)\tNET (RON)',
+        'Alphabet (Class A)\tUS02079K3059\tUSD\tUS\t0.0635448\t17.03.2025 16:19\t0.2\t0.01\t4.371369\t0.06\t10%\t0.01\t0.05',
+        'Nvidia\tUS67066G1040\tUSD\tUS\t0.2318665\t02.04.2025 16:31\t0.01\t0\t4.79203\t0.01\t10%\t0\t0.01',
+        'Alphabet (Class A)\tUS02079K3059\tUSD\tUS\t0.1299994\t16.06.2025 15:47\t0.21\t0.03\t4.477025\t0.12\t10%\t0.01\t0.11',
+        'Alphabet (Class A)\tUS02079K3059\tUSD\tUS\t0.19476835\t15.09.2025 15:35\t0.21\t0.04\t4.346501\t0.18\t10%\t0.02\t0.16',
+      ].join('\n');
+    }
+
+    function roDistributionPage(): string {
+      return [
+        'Cont Invest - prezentare generală a distribuțiilor',
+        'Distribuții după țară',
+        'Distribuții după instrument',
+        'INSTRUMENT\tISIN\tMONEDA\tȚARA\tPARTICIPAȚII\tDATA\tBRUT/ACȚIUNE\tBRUT\tCURS\tBRUT (RON)\tRATĂ WHT\tWHT (RON)\tNET (RON)',
+        'Vanguard S&P 500 (Dist)\tIE00B3XXRP09\tUSD\tIE\t0.390883\t02.04.2025 17:49\t0.32063\t0.13\t4.627826\t0.58\t-\t-\t0.58',
+        'Vanguard S&P 500 (Dist)\tIE00B3XXRP09\tUSD\tIE\t0.5922259\t02.07.2025 15:53\t0.31292\t0.19\t4.316873\t0.8\t-\t-\t0.8',
+        'Vanguard S&P 500 (Dist)\tIE00B3XXRP09\tUSD\tIE\t1.06823692\t01.10.2025 15:17\t0.301175\t0.32\t4.3138\t1.39\t-\t-\t1.39',
+        'Vanguard S&P 500 (Dist)\tIE00B3XXRP09\tUSD\tIE\t1.43210714\t31.12.2025 17:33\t0.299086\t0.43\t4.3439\t1.86\t-\t-\t1.86',
+      ].join('\n');
+    }
+
+    it('detects year from Romanian title "Declarație anuală - 2025"', () => {
+      const result = parseTrading212AnnualStatement([roOverviewPage()]);
+      expect(result.year).toBe(2025);
+    });
+
+    it('parses Romanian overview with RON currency', () => {
+      const result = parseTrading212AnnualStatement([roOverviewPage()]);
+      expect(result.overview.currency).toBe('RON');
+      expect(result.overview.netDividends).toBe(5.16);
+      expect(result.overview.grossDividends).toBe(5.22);
+      expect(result.overview.taxWithheld).toBe(0.06);
+      expect(result.overview.openResult).toBe(1150.63);
+      expect(result.overview.accountValue).toBe(4551.14);
+    });
+
+    it('parses Romanian dividend rows', () => {
+      const result = parseTrading212AnnualStatement([roOverviewPage(), '', '', roDividendPage()]);
+      expect(result.dividends.length).toBeGreaterThanOrEqual(3);
+      const alphabetDivs = result.dividends.filter(d => d.isin === 'US02079K3059');
+      expect(alphabetDivs.length).toBeGreaterThanOrEqual(2);
+      expect(alphabetDivs[0].instrumentCurrency).toBe('USD');
+      expect(alphabetDivs[0].issuingCountry).toBe('US');
+    });
+
+    it('parses Romanian ETF distribution rows', () => {
+      const result = parseTrading212AnnualStatement([roOverviewPage(), '', '', '', roDistributionPage()]);
+      expect(result.distributions).toHaveLength(4);
+      const vanguard = result.distributions[0];
+      expect(vanguard.isin).toBe('IE00B3XXRP09');
+      expect(vanguard.instrument).toContain('Vanguard');
+      expect(vanguard.issuingCountry).toBe('IE');
+      expect(vanguard.grossAmountUsd).toBeGreaterThan(0);
+    });
+
+    it('warns about missing sell trades in Romanian PDF without sales', () => {
+      const result = parseTrading212AnnualStatement([roOverviewPage()]);
+      expect(result.warnings.some(w => w.includes('No sell trades'))).toBe(true);
+    });
+  });
 });

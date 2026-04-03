@@ -1,16 +1,44 @@
-import { Link, useLocation } from 'react-router-dom';
-import { Sun, Moon, Settings, TrendingUp } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Sun, Moon, Settings, TrendingUp, LogOut, User } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const navLinks = [
   { to: '/', label: 'Home' },
   { to: '/calculator', label: 'Calculator' },
   { to: '/dashboard', label: 'Dashboard' },
+  { to: '/filing-guide', label: 'Filing Guide' },
 ];
 
 export default function Header() {
   const { theme, toggleTheme } = useTheme();
+  const { user, loading, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleLogout = async () => {
+    setMenuOpen(false);
+    await logout();
+    navigate('/');
+  };
+
+  const initials = user?.name
+    ? user.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+    : user?.email?.[0]?.toUpperCase() ?? '?';
 
   return (
     <header className="sticky top-0 z-50 bg-white/80 dark:bg-navy-900/80 backdrop-blur-md border-b border-gray-200 dark:border-navy-500">
@@ -55,6 +83,60 @@ export default function Header() {
             >
               <Settings className="w-5 h-5" />
             </Link>
+
+            {/* Auth */}
+            {!loading && !user && (
+              <div className="hidden sm:flex items-center gap-2 ml-2">
+                <Link
+                  to="/login"
+                  className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 transition-colors"
+                >
+                  Log in
+                </Link>
+                <Link
+                  to="/signup"
+                  className="btn-primary text-sm px-3 py-1.5"
+                >
+                  Sign up
+                </Link>
+              </div>
+            )}
+
+            {!loading && user && (
+              <div className="relative ml-2" ref={menuRef}>
+                <button
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  className="w-8 h-8 rounded-full bg-accent text-white text-sm font-bold flex items-center justify-center hover:bg-accent-hover transition-colors"
+                  title={user.email}
+                >
+                  {initials}
+                </button>
+
+                {menuOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 rounded-xl shadow-lg py-2 z-50">
+                    <div className="px-4 py-2 border-b border-gray-100 dark:border-navy-700">
+                      <p className="text-sm font-medium truncate">{user.name || 'User'}</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-500 truncate">{user.email}</p>
+                    </div>
+                    <Link
+                      to="/dashboard"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-navy-700"
+                    >
+                      <User className="w-4 h-4" />
+                      Dashboard
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-navy-700"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Log out
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

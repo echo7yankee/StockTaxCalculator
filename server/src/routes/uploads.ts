@@ -3,19 +3,7 @@ import prisma from '../lib/prisma.js';
 
 export const uploadsRouter = Router();
 
-const ANON_USER_EMAIL = 'anonymous@local';
-
-async function getOrCreateAnonUser() {
-  let user = await prisma.user.findUnique({ where: { email: ANON_USER_EMAIL } });
-  if (!user) {
-    user = await prisma.user.create({
-      data: { email: ANON_USER_EMAIL, name: 'Anonymous', plan: 'free' },
-    });
-  }
-  return user;
-}
-
-// POST /api/uploads — save a tax calculation
+// POST /api/uploads — save a tax calculation (requires auth)
 uploadsRouter.post('/', async (req, res) => {
   try {
     const { year, country, broker, fileName, taxResult, securities } = req.body;
@@ -25,11 +13,11 @@ uploadsRouter.post('/', async (req, res) => {
       return;
     }
 
-    const user = await getOrCreateAnonUser();
+    const userId = req.user!.id;
 
     // Upsert tax year (replace existing calculation for same year)
     let taxYear = await prisma.taxYear.findUnique({
-      where: { userId_year: { userId: user.id, year } },
+      where: { userId_year: { userId, year } },
       include: { calculation: true },
     });
 
@@ -46,7 +34,7 @@ uploadsRouter.post('/', async (req, res) => {
     if (!taxYear) {
       taxYear = await prisma.taxYear.create({
         data: {
-          userId: user.id,
+          userId,
           year,
           country: country || 'RO',
           status: 'calculated',
