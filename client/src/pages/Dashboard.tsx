@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Upload, Calculator, FileText, Trash2, ClipboardList, LogIn } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Upload, Calculator, FileText, Trash2, ClipboardList, LogIn, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useUpload } from '../contexts/UploadContext';
+import type { TaxCalculationResult, SecurityBreakdown } from '@shared/types/tax';
 
 interface SavedTaxYear {
   id: string;
@@ -19,8 +21,11 @@ interface SavedTaxYear {
 
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
+  const { setUploadData } = useUpload();
+  const navigate = useNavigate();
   const [taxYears, setTaxYears] = useState<SavedTaxYear[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -36,7 +41,76 @@ export default function Dashboard() {
       .finally(() => setLoading(false));
   }, [user]);
 
-  const handleDelete = async (id: string) => {
+  const handleRowClick = async (ty: SavedTaxYear) => {
+    setLoadingId(ty.id);
+    try {
+      const res = await fetch(`/api/tax-years/${ty.id}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to load');
+      const data = await res.json();
+      const calc = data.calculation;
+      if (!calc) throw new Error('No calculation data');
+
+      const taxResult: TaxCalculationResult = {
+        taxYearId: data.id,
+        capitalGains: {
+          totalProceeds: calc.totalCapitalGains ?? 0,
+          totalCostBasis: (calc.totalCapitalGains ?? 0) - (calc.netCapitalGains ?? 0),
+          netGains: calc.netCapitalGains ?? 0,
+          losses: calc.totalCapitalLosses ?? 0,
+          taxRate: 0.10,
+          taxOwed: calc.capitalGainsTax ?? 0,
+        },
+        dividends: {
+          grossTotal: calc.totalDividendsGross ?? 0,
+          withholdingTaxPaid: calc.totalWithholdingTax ?? 0,
+          taxOwed: calc.dividendTaxOwed ?? 0,
+        },
+        healthContribution: {
+          totalNonSalaryIncome: calc.totalNonSalaryIncome ?? 0,
+          thresholdHit: calc.cassThresholdHit ?? 'none',
+          amountOwed: calc.cassOwed ?? 0,
+        },
+        totals: {
+          totalTaxOwed: calc.totalTaxOwed ?? 0,
+          earlyFilingDiscount: calc.earlyFilingDiscount ?? 0,
+          totalAfterDiscount: (calc.totalTaxOwed ?? 0) - (calc.earlyFilingDiscount ?? 0),
+        },
+        calculatedAt: new Date(calc.calculatedAt),
+      };
+
+      const securities: SecurityBreakdown[] = (calc.securities ?? []).map((sec: any) => ({
+        isin: sec.isin ?? '',
+        ticker: sec.ticker ?? '',
+        securityName: sec.securityName ?? '',
+        totalBoughtShares: sec.totalBoughtShares ?? 0,
+        totalSoldShares: sec.totalSoldShares ?? 0,
+        remainingShares: sec.remainingShares ?? 0,
+        weightedAvgCostLocal: sec.weightedAvgCost ?? 0,
+        totalProceeds: sec.totalProceeds ?? 0,
+        totalCostBasis: sec.totalCostBasis ?? 0,
+        realizedGainLoss: sec.realizedGainLoss ?? 0,
+        totalDividends: sec.totalDividends ?? 0,
+        totalWithholdingTax: sec.totalWithholdingTax ?? 0,
+      }));
+
+      setUploadData({
+        taxResult,
+        securities,
+        taxYear: data.year,
+        fileName: data.csvUploads?.[0]?.filename ?? '',
+        transactions: [],
+      });
+
+      navigate('/results');
+    } catch {
+      setError('Failed to load calculation.');
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
     try {
       const res = await fetch(`/api/tax-years/${id}`, { method: 'DELETE', credentials: 'include' });
       if (!res.ok) throw new Error('Delete failed');
@@ -138,8 +212,14 @@ export default function Dashboard() {
               </thead>
               <tbody>
                 {taxYears.map(ty => (
-                  <tr key={ty.id} className="border-b border-gray-100 dark:border-navy-700 hover:bg-navy-700/50">
-                    <td className="py-3 px-2 font-bold text-lg">{ty.year}</td>
+                  <tr
+                    key={ty.id}
+                    onClick={() => handleRowClick(ty)}
+                    className="border-b border-gray-100 dark:border-navy-700 hover:bg-navy-700/50 cursor-pointer transition-colors"
+                  >
+                    <td className="py-3 px-2 font-bold text-lg">
+                      {loadingId === ty.id ? <Loader2 className="w-5 h-5 animate-spin text-accent" /> : ty.year}
+                    </td>
                     <td className="py-3 px-2">
                       <p className="text-gray-600 dark:text-slate-400 truncate max-w-[180px]">{ty.fileName || '-'}</p>
                     </td>
@@ -152,7 +232,7 @@ export default function Dashboard() {
                     </td>
                     <td className="text-right py-3 px-2">
                       <button
-                        onClick={() => handleDelete(ty.id)}
+                        onClick={(e) => handleDelete(e, ty.id)}
                         className="p-1 text-gray-400 hover:text-red-500 transition-colors"
                         title="Delete"
                       >
