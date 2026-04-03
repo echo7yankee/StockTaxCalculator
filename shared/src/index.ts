@@ -11,3 +11,5 @@ export { parseTrading212AnnualStatement } from './parsers/trading212Pdf.js';
 export type { PdfParseResult, PdfOverview, PdfSellTrade, PdfDividend } from './parsers/trading212Pdf.js';
 export { calculateTaxesFromPdf } from './engine/pdfTaxCalculator.js';
 export type { PdfTaxEngineResult } from './engine/pdfTaxCalculator.js';
+export { calculateQuickTax } from './engine/quickCalculator.js';
+export type { QuickTaxInput, QuickTaxResult } from './engine/quickCalculator.js';

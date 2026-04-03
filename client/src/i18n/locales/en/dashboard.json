@@ -22,5 +22,6 @@
   "colCass": "CASS",
   "colTotalTax": "Total Tax",
   "colCalculated": "Calculated",
-  "deleteTitle": "Delete"
+  "deleteTitle": "Delete",
+  "deleteError": "Failed to delete calculation."
 }

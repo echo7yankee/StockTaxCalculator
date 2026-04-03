@@ -22,5 +22,6 @@
   "colCass": "CASS",
   "colTotalTax": "Total impozit",
   "colCalculated": "Calculat",
-  "deleteTitle": "\u0218terge"
+  "deleteTitle": "\u0218terge",
+  "deleteError": "Nu s-a putut \u0219terge calculul."
 }

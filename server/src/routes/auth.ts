@@ -1,7 +1,38 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
+import { z } from 'zod/v4';
 import passport from '../config/passport.js';
 import prisma from '../lib/prisma.js';
+
+const signupSchema = z.object({
+  email: z.email(),
+  password: z.string().min(8).max(128),
+  name: z.string().max(100).optional(),
+});
+
+const loginSchema = z.object({
+  email: z.email(),
+  password: z.string().min(1),
+});
+
+const isProd = process.env.NODE_ENV === 'production';
+
+const signupLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isProd ? 5 : 50,
+  message: { error: 'Too many signup attempts, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isProd ? 10 : 100,
+  message: { error: 'Too many login attempts, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 export const authRouter = Router();
 
@@ -10,20 +41,15 @@ function sanitizeUser(user: Express.User) {
 }
 
 // POST /api/auth/signup
-authRouter.post('/signup', async (req, res, next) => {
+authRouter.post('/signup', signupLimiter, async (req, res, next) => {
   try {
-    const { email, password, name } = req.body;
-
-    if (!email || !password) {
-      res.status(400).json({ error: 'Email and password are required' });
+    const parsed = signupSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0].message });
       return;
     }
 
-    if (password.length < 8) {
-      res.status(400).json({ error: 'Password must be at least 8 characters' });
-      return;
-    }
-
+    const { email, password, name } = parsed.data;
     const normalizedEmail = email.toLowerCase().trim();
 
     // Check existing user
@@ -60,7 +86,13 @@ authRouter.post('/signup', async (req, res, next) => {
 });
 
 // POST /api/auth/login
-authRouter.post('/login', (req, res, next) => {
+authRouter.post('/login', loginLimiter, (req, res, next) => {
+  const parsed = loginSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0].message });
+    return;
+  }
+
   passport.authenticate('local', (err: Error | null, user: Express.User | false, info: { message: string }) => {
     if (err) return next(err);
     if (!user) {
@@ -101,9 +133,9 @@ if (process.env.GOOGLE_CLIENT_ID) {
 
   authRouter.get(
     '/google/callback',
-    passport.authenticate('google', { failureRedirect: 'http://localhost:5173/login?error=google' }),
+    passport.authenticate('google', { failureRedirect: `${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=google` }),
     (_req, res) => {
-      res.redirect('http://localhost:5173/dashboard');
+      res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/dashboard`);
     },
   );
 }

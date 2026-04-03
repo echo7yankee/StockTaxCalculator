@@ -1,30 +1,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCountry } from '../contexts/CountryContext';
+import { calculateQuickTax } from '@shared/engine/quickCalculator';
+import type { QuickTaxResult } from '@shared/engine/quickCalculator';
 import type { ManualCalculatorInput } from '@shared/types/tax';
-import type { CountryTaxConfig } from '@shared/types/country';
-
-function calculateTax(input: ManualCalculatorInput, config: CountryTaxConfig) {
-  const capitalGainsTax = Math.max(0, input.capitalGains * config.capitalGainsTaxRate);
-  const grossDividendTax = input.dividends * config.dividendTaxRate;
-  const dividendTax = Math.max(0, grossDividendTax - input.withholdingTaxPaid);
-
-  const totalNonSalary = input.capitalGains + input.dividends + input.otherNonSalaryIncome;
-  let healthContribution = 0;
-  let bracketLabel = 'none';
-  for (const bracket of config.healthContributionBrackets) {
-    if (totalNonSalary >= bracket.minIncome && (bracket.maxIncome === null || totalNonSalary < bracket.maxIncome)) {
-      healthContribution = bracket.fixedAmount;
-      bracketLabel = bracket.label;
-      break;
-    }
-  }
-
-  const totalOwed = capitalGainsTax + dividendTax + healthContribution;
-  const earlyFilingDiscount = (capitalGainsTax + dividendTax) * config.earlyFilingDiscountRate;
-
-  return { capitalGainsTax, dividendTax, healthContribution, bracketLabel, totalOwed, earlyFilingDiscount };
-}
 
 export default function CalculatorPage() {
   const { t } = useTranslation('calculator');
@@ -36,12 +15,12 @@ export default function CalculatorPage() {
     otherNonSalaryIncome: 0,
     country: 'RO',
   });
-  const [result, setResult] = useState<ReturnType<typeof calculateTax> | null>(null);
+  const [result, setResult] = useState<QuickTaxResult | null>(null);
 
   if (!countryConfig) return <div className="p-8 text-center">{t('countryNotSupported')}</div>;
 
   const handleCalculate = () => {
-    setResult(calculateTax(input, countryConfig));
+    setResult(calculateQuickTax(input, countryConfig));
   };
 
   const updateField = (field: keyof ManualCalculatorInput, value: string) => {
