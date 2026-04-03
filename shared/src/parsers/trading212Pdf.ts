@@ -1,6 +1,9 @@
 /**
  * Parser for Trading212 Annual Statement PDF.
  *
+ * Supports both English and Romanian PDF versions (Trading 212 generates
+ * localized PDFs based on the user's language setting).
+ *
  * Expects page texts where each line has tab-separated columns
  * (from positional text extraction).
  *
@@ -12,6 +15,41 @@
  *   - Page 5: Distribution overview (ETF distributions)
  *   - Page 6: Glossary
  */
+
+/**
+ * Multilingual keyword map: each key maps to all known translations.
+ * Trading 212 localizes PDF labels based on user language settings.
+ * Add new languages here as needed (e.g., Bulgarian, German, etc.)
+ */
+const KEYWORDS = {
+  // Overview labels
+  closedResult: ['closed result', 'rezultat închis', 'rezultat inchis'],
+  profit: ['profit'],
+  loss: ['loss', 'pierdere'],
+  netDividends: ['net dividends', 'dividende nete'],
+  grossDividends: ['gross dividends', 'dividende brute'],
+  taxWithheld: ['tax withheld', 'taxe reținute', 'taxe retinute'],
+  openResult: ['open result', 'rezultat deschis'],
+  accountValue: ['account value', 'valoarea contului'],
+
+  // Section headers
+  sellTrades: ['sell trades', 'closed position', 'tranzacții de vânzare', 'tranzactii de vanzare', 'poziție închisă', 'pozitie inchisa'],
+  dividendOverview: ['dividend overview', 'prezentare generală a dividendelor', 'prezentare generala a dividendelor'],
+  distributionOverview: ['distribution overview', 'prezentare generală a distribuțiilor', 'prezentare generala a distributiilor'],
+  byInstrument: ['by instrument', 'după instrument', 'dupa instrument'],
+
+  // Year detection
+  annualStatement: ['annual statement', 'declarație anuală', 'declaratie anuala'],
+
+  // Instrument types
+  instrumentTypes: ['stock', 'etf', 'fund', 'acțiune', 'actiune'],
+} as const;
+
+/** Check if text contains any of the keyword variants (case-insensitive) */
+function matchesAny(text: string, variants: readonly string[]): boolean {
+  const lower = text.toLowerCase();
+  return variants.some(v => lower.includes(v));
+}
 
 export interface PdfOverview {
   closedResult: number;
@@ -66,13 +104,16 @@ export interface PdfParseResult {
 
 function parseNum(s: string): number {
   if (!s || s === '-' || s.trim() === '' || s.trim() === '-') return 0;
-  const cleaned = s.replace(/[$€£,]/g, '').replace(/[()]/g, '-').trim();
+  // Strip currency symbols and codes (USD, EUR, GBP, RON) + common separators
+  const cleaned = s.replace(/[$€£,]/g, '').replace(/\b(USD|EUR|GBP|RON)\b/gi, '').replace(/[()]/g, '-').trim();
   return parseFloat(cleaned) || 0;
 }
 
 function detectCurrency(text: string): string {
   if (text.includes('(EUR)')) return 'EUR';
   if (text.includes('(GBP)')) return 'GBP';
+  // Romanian PDFs use "RON" prefix (e.g., "RON 5.16")
+  if (/\bRON\s+\d/.test(text)) return 'RON';
   if (text.includes('$')) return 'USD';
   if (text.includes('€')) return 'EUR';
   if (text.includes('£')) return 'GBP';
@@ -99,15 +140,38 @@ function parseOverview(text: string): PdfOverview {
     return 0;
   };
 
+  /** Try multiple keyword variants, return first match */
+  const getValMulti = (variants: readonly string[]): number => {
+    for (const keyword of variants) {
+      const val = getVal(keyword);
+      if (val !== 0) return val;
+    }
+    // Check for explicit zero values (e.g., "Closed result 0.00")
+    for (const keyword of variants) {
+      for (const line of lines) {
+        if (line.toLowerCase().includes(keyword.toLowerCase())) {
+          const parts = line.split('\t');
+          for (let i = parts.length - 1; i >= 0; i--) {
+            const trimmed = parts[i].trim();
+            if (trimmed === '0' || trimmed === '0.00' || /^[A-Z]{3}\s+0\.00$/.test(trimmed)) {
+              return 0;
+            }
+          }
+        }
+      }
+    }
+    return 0;
+  };
+
   return {
-    closedResult: getVal('Closed result'),
-    profit: getVal('Profit'),
-    loss: getVal('Loss'),
-    netDividends: getVal('Net Dividends'),
-    grossDividends: getVal('Gross Dividends'),
-    taxWithheld: getVal('Tax Withheld'),
-    openResult: getVal('Open result'),
-    accountValue: getVal('Account value'),
+    closedResult: getValMulti(KEYWORDS.closedResult),
+    profit: getValMulti(KEYWORDS.profit),
+    loss: getValMulti(KEYWORDS.loss),
+    netDividends: getValMulti(KEYWORDS.netDividends),
+    grossDividends: getValMulti(KEYWORDS.grossDividends),
+    taxWithheld: getValMulti(KEYWORDS.taxWithheld),
+    openResult: getValMulti(KEYWORDS.openResult),
+    accountValue: getValMulti(KEYWORDS.accountValue),
     currency,
   };
 }
@@ -121,8 +185,7 @@ function parseSellTrades(pageTexts: string[]): PdfSellTrade[] {
   const trades: PdfSellTrade[] = [];
 
   for (const text of pageTexts) {
-    const lower = text.toLowerCase();
-    if (!lower.includes('sell trades') && !lower.includes('closed position')) continue;
+    if (!matchesAny(text, KEYWORDS.sellTrades)) continue;
 
     const lines = text.split('\n');
     for (const line of lines) {
@@ -144,14 +207,15 @@ function parseSellTrades(pageTexts: string[]): PdfSellTrade[] {
       const afterIsin = cols.slice(isinIdx + 1);
 
       // Extract non-numeric fields first (type, currency, transaction currency)
-      const instrumentType = afterIsin.find(c => /^(Stock|ETF|Fund)$/i.test(c)) || 'Stock';
+      const instrumentTypePattern = /^(Stock|ETF|Fund|Acțiune|Actiune)$/i;
+      const instrumentType = afterIsin.find(c => instrumentTypePattern.test(c)) || 'Stock';
       const currencies = afterIsin.filter(c => /^(USD|EUR|GBP|RON)$/i.test(c));
       const instrumentCurrency = currencies[0] || 'USD';
       const transactionCurrency = currencies[1] || currencies[0] || 'USD';
 
       // Extract all numeric values
       const numericValues = afterIsin
-        .filter(c => !/^(Stock|ETF|Fund|USD|EUR|GBP|RON)$/i.test(c))
+        .filter(c => !instrumentTypePattern.test(c) && !/^(USD|EUR|GBP|RON)$/i.test(c))
         .map(c => parseNum(c))
         .filter(n => !isNaN(n));
 
@@ -188,14 +252,18 @@ function parseSellTrades(pageTexts: string[]): PdfSellTrade[] {
  * Parse dividend/distribution table rows.
  * Each row contains an ISIN and has tab-separated columns.
  */
-function parseDividendRows(pageTexts: string[], sectionKeyword: string): PdfDividend[] {
+function parseDividendRows(pageTexts: string[], sectionKeywords: readonly string[]): PdfDividend[] {
   const dividends: PdfDividend[] = [];
 
   for (const text of pageTexts) {
-    if (!text.toLowerCase().includes(sectionKeyword)) continue;
+    if (!matchesAny(text, sectionKeywords)) continue;
 
-    // Find the "by instrument" section
-    const byInstrumentIdx = text.toLowerCase().indexOf('by instrument');
+    // Find the "by instrument" section (EN: "by instrument", RO: "după instrument")
+    let byInstrumentIdx = -1;
+    for (const variant of KEYWORDS.byInstrument) {
+      const idx = text.toLowerCase().indexOf(variant);
+      if (idx >= 0) { byInstrumentIdx = idx; break; }
+    }
     if (byInstrumentIdx < 0) continue;
 
     const sectionText = text.substring(byInstrumentIdx);
@@ -269,11 +337,12 @@ function parseDividendRows(pageTexts: string[], sectionKeyword: string): PdfDivi
 }
 
 function detectYear(text: string): number {
-  const match = text.match(/Annual Statement\s*[-–]\s*(\d{4})/i);
+  // EN: "Annual Statement - 2025", RO: "Declarație anuală - 2025"
+  const match = text.match(/(?:Annual Statement|Declarație anuală|Declaratie anuala)\s*[-–]\s*(\d{4})/i);
   if (match) return parseInt(match[1]);
 
-  // Look for date range pattern
-  const rangeMatch = text.match(/(\d{2}\.\d{2}\.\d{4}).*?to.*?(\d{2}\.\d{2}\.\d{4})/i);
+  // Look for date range pattern (EN: "to", RO uses " - " between dates)
+  const rangeMatch = text.match(/(\d{2}\.\d{2}\.\d{4}).*?(?:to|-|–)\s*(\d{2}\.\d{2}\.\d{4})/i);
   if (rangeMatch) {
     return parseInt(rangeMatch[2].split('.')[2]);
   }
@@ -292,18 +361,18 @@ export function parseTrading212AnnualStatement(pageTexts: string[]): PdfParseRes
   const year = detectYear(fullText);
   const overview = parseOverview(pageTexts[0] ?? fullText);
   const sellTrades = parseSellTrades(pageTexts);
-  const dividends = parseDividendRows(pageTexts, 'dividend overview');
-  const distributions = parseDividendRows(pageTexts, 'distribution overview');
+  const dividends = parseDividendRows(pageTexts, KEYWORDS.dividendOverview);
+  const distributions = parseDividendRows(pageTexts, KEYWORDS.distributionOverview);
 
   if (sellTrades.length === 0) {
-    if (fullText.toLowerCase().includes('sell trades')) {
+    if (matchesAny(fullText, KEYWORDS.sellTrades)) {
       warnings.push('Sell trades section found but no rows could be parsed. The PDF format may differ from expected.');
     } else {
       warnings.push('No sell trades section found in the PDF.');
     }
   }
 
-  if (dividends.length === 0 && fullText.toLowerCase().includes('dividend overview')) {
+  if (dividends.length === 0 && matchesAny(fullText, KEYWORDS.dividendOverview)) {
     warnings.push('Dividend section found but no rows could be parsed.');
   }
 

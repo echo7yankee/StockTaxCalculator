@@ -1,22 +1,53 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import express from 'express';
 import { Server } from 'http';
+import prisma from '../../lib/prisma.js';
 import { uploadsRouter } from '../uploads.js';
 import { taxYearsRouter } from '../taxYears.js';
+
+const TEST_USER_ID = 'test-user-auth-00000';
+const TEST_USER_EMAIL = 'test-auth@test.com';
 
 let server: Server;
 const PORT = 3099;
 const BASE = `http://localhost:${PORT}`;
 
-beforeAll(() => {
+beforeAll(async () => {
+  // Create test user
+  await prisma.user.upsert({
+    where: { email: TEST_USER_EMAIL },
+    update: {},
+    create: { id: TEST_USER_ID, email: TEST_USER_EMAIL, name: 'Test User', plan: 'free' },
+  });
+
   const app = express();
   app.use(express.json({ limit: '10mb' }));
+
+  // Mock auth middleware — simulate authenticated user
+  app.use((req, _res, next) => {
+    (req as any).user = { id: TEST_USER_ID, email: TEST_USER_EMAIL, name: 'Test User', plan: 'free' };
+    (req as any).isAuthenticated = () => true;
+    next();
+  });
+
   app.use('/api/uploads', uploadsRouter);
   app.use('/api/tax-years', taxYearsRouter);
   server = app.listen(PORT);
 });
 
-afterAll(() => {
+afterAll(async () => {
+  // Clean up test data
+  const taxYears = await prisma.taxYear.findMany({ where: { userId: TEST_USER_ID } });
+  for (const ty of taxYears) {
+    if (ty.id) {
+      await prisma.securityCalculation.deleteMany({ where: { taxCalculation: { taxYearId: ty.id } } });
+      await prisma.taxCalculation.deleteMany({ where: { taxYearId: ty.id } });
+      await prisma.transaction.deleteMany({ where: { taxYearId: ty.id } });
+      await prisma.csvUpload.deleteMany({ where: { taxYearId: ty.id } });
+    }
+  }
+  await prisma.taxYear.deleteMany({ where: { userId: TEST_USER_ID } });
+  await prisma.user.deleteMany({ where: { id: TEST_USER_ID } });
   server?.close();
 });
 

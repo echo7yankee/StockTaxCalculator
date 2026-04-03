@@ -8,14 +8,22 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  name      String?
-  googleId  String?   @unique
-  plan      String    @default("free")
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  taxYears  TaxYear[]
+  id           String    @id @default(uuid())
+  email        String    @unique
+  name         String?
+  passwordHash String?
+  googleId     String?   @unique
+  plan         String    @default("free")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  taxYears     TaxYear[]
+}
+
+model Session {
+  id        String   @id
+  sid       String   @unique
+  data      String
+  expiresAt DateTime
 }
 
 model TaxYear {

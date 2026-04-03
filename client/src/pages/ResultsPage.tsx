@@ -1,18 +1,24 @@
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, DollarSign, Heart, Percent, FileText, Save, Check } from 'lucide-react';
+import { ArrowLeft, TrendingUp, DollarSign, Heart, Percent, FileText, Save, Check, ClipboardList, LogIn } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
 import { useCountry } from '../contexts/CountryContext';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function ResultsPage() {
   const navigate = useNavigate();
   const { taxResult, securities, fileName, taxYear, transactions } = useUpload();
   const { countryConfig } = useCountry();
+  const { user } = useAuth();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const handleSave = useCallback(async () => {
+    if (!user) {
+      navigate('/login', { state: { from: { pathname: '/results' } } });
+      return;
+    }
     if (!taxResult || !taxYear) return;
     setSaving(true);
     setSaveError(null);
@@ -21,6 +27,7 @@ export default function ResultsPage() {
       const res = await fetch('/api/uploads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           year: taxYear,
           country: countryConfig?.code ?? 'RO',
@@ -38,7 +45,7 @@ export default function ResultsPage() {
     } finally {
       setSaving(false);
     }
-  }, [taxResult, taxYear, countryConfig, fileName, securities]);
+  }, [taxResult, taxYear, countryConfig, fileName, securities, user, navigate]);
 
   if (!taxResult) {
     return (
@@ -88,11 +95,35 @@ export default function ResultsPage() {
                 : 'btn-primary'
             }`}
           >
-            {saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-            {saving ? 'Saving...' : saved ? 'Saved to Dashboard' : 'Save to Dashboard'}
+            {!user ? (
+              <><LogIn className="w-4 h-4" /> Log in to Save</>
+            ) : saved ? (
+              <><Check className="w-4 h-4" /> Saved to Dashboard</>
+            ) : saving ? (
+              <><Save className="w-4 h-4" /> Saving...</>
+            ) : (
+              <><Save className="w-4 h-4" /> Save to Dashboard</>
+            )}
           </button>
           {saveError && <p className="text-xs text-red-500">{saveError}</p>}
         </div>
+      </div>
+
+      {/* Filing guide banner */}
+      <div className="mb-8 p-4 bg-accent/5 dark:bg-accent/10 border border-accent/20 rounded-xl flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold">Ready to file your tax return?</h3>
+          <p className="text-sm text-gray-600 dark:text-slate-400">
+            Use the Filing Guide to copy values directly into your tax form.
+          </p>
+        </div>
+        <button
+          onClick={() => navigate('/filing-guide')}
+          className="btn-primary flex items-center gap-2 whitespace-nowrap"
+        >
+          <ClipboardList className="w-4 h-4" />
+          Filing Guide
+        </button>
       </div>
 
       {/* Summary cards */}
@@ -172,7 +203,7 @@ export default function ResultsPage() {
             </thead>
             <tbody>
               {securities.map((sec) => (
-                <tr key={sec.isin || sec.ticker} className="border-b border-gray-100 dark:border-navy-700 hover:bg-gray-50 dark:hover:bg-navy-750">
+                <tr key={sec.isin || sec.ticker} className="border-b border-gray-100 dark:border-navy-700 hover:bg-navy-700/50">
                   <td className="py-3 px-2">
                     <p className="font-medium">{sec.ticker}</p>
                     <p className="text-xs text-gray-500 dark:text-slate-500 truncate max-w-[180px]">{sec.securityName}</p>

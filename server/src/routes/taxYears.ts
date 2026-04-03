@@ -3,10 +3,13 @@ import prisma from '../lib/prisma.js';
 
 export const taxYearsRouter = Router();
 
-// GET /api/tax-years — list all saved calculations
-taxYearsRouter.get('/', async (_req, res) => {
+// GET /api/tax-years — list current user's saved calculations
+taxYearsRouter.get('/', async (req, res) => {
   try {
+    const userId = req.user!.id;
+
     const taxYears = await prisma.taxYear.findMany({
+      where: { userId },
       include: {
         calculation: {
           select: {
@@ -49,7 +52,7 @@ taxYearsRouter.get('/', async (_req, res) => {
   }
 });
 
-// GET /api/tax-years/:id — detailed view
+// GET /api/tax-years/:id — detailed view (ownership checked)
 taxYearsRouter.get('/:id', async (req, res) => {
   try {
     const taxYear = await prisma.taxYear.findUnique({
@@ -66,7 +69,7 @@ taxYearsRouter.get('/:id', async (req, res) => {
       },
     });
 
-    if (!taxYear) {
+    if (!taxYear || taxYear.userId !== req.user!.id) {
       res.status(404).json({ error: 'Tax year not found' });
       return;
     }
@@ -78,7 +81,7 @@ taxYearsRouter.get('/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/tax-years/:id — delete a saved calculation
+// DELETE /api/tax-years/:id — delete a saved calculation (ownership checked)
 taxYearsRouter.delete('/:id', async (req, res) => {
   try {
     const taxYear = await prisma.taxYear.findUnique({
@@ -86,7 +89,7 @@ taxYearsRouter.delete('/:id', async (req, res) => {
       include: { calculation: true, csvUploads: true },
     });
 
-    if (!taxYear) {
+    if (!taxYear || taxYear.userId !== req.user!.id) {
       res.status(404).json({ error: 'Tax year not found' });
       return;
     }

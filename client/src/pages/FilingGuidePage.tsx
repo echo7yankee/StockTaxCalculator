@@ -1,0 +1,252 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Copy, CheckCircle, ClipboardList, Download } from 'lucide-react';
+import { useUpload } from '../contexts/UploadContext';
+import { useCountry } from '../contexts/CountryContext';
+import { d212Sections, formatD212Summary } from '@shared/taxRules/d212Fields';
+import type { D212Field } from '@shared/taxRules/d212Fields';
+import type { TaxCalculationResult } from '@shared/types/tax';
+
+// Romania-specific filing context
+const romaniaFiling = {
+  formName: 'Declarația Unică (D212)',
+  portalName: 'ANAF SPV',
+  portalFullName: 'Spațiul Privat Virtual',
+  steps: (taxYear: number) => [
+    { text: 'Log into ', bold: 'ANAF SPV', suffix: ' (Spațiul Privat Virtual)' },
+    { text: 'Open ', bold: 'Declarația Unică (D212)', suffix: ` for tax year ${taxYear}` },
+    { text: 'Navigate to each section listed below' },
+    { text: 'Click the copy button next to each value and paste it into the matching field' },
+  ],
+};
+
+export default function FilingGuidePage() {
+  const navigate = useNavigate();
+  const { taxResult, taxYear } = useUpload();
+  const { countryConfig } = useCountry();
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [allCopied, setAllCopied] = useState(false);
+
+  if (!taxResult) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <h1 className="text-3xl font-bold mb-2">Tax Filing Guide</h1>
+        <p className="text-gray-600 dark:text-slate-400 mb-8">
+          No tax calculation loaded. Upload a statement or load a saved calculation first.
+        </p>
+        <div className="card text-center py-16">
+          <ClipboardList className="w-12 h-12 text-gray-300 dark:text-slate-600 mx-auto mb-4" />
+          <p className="text-gray-500 dark:text-slate-500 text-lg">No data available</p>
+          <div className="flex gap-3 justify-center mt-6">
+            <button onClick={() => navigate('/upload')} className="btn-primary">
+              Upload Statement
+            </button>
+            <button onClick={() => navigate('/dashboard')} className="btn-secondary">
+              View Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const isRomania = (countryConfig?.code ?? 'RO') === 'RO';
+  const filing = romaniaFiling;
+  const sym = countryConfig?.currencySymbol ?? 'RON';
+  const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const copyValue = async (field: D212Field) => {
+    const value = fmt(field.getValue(taxResult));
+    await navigator.clipboard.writeText(value);
+    setCopiedId(field.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const copyAll = async () => {
+    const text = formatD212Summary(taxResult);
+    await navigator.clipboard.writeText(text);
+    setAllCopied(true);
+    setTimeout(() => setAllCopied(false), 2000);
+  };
+
+  const pageTitle = isRomania ? `Filing Guide — D212 — ${taxYear}` : `Tax Filing Guide — ${taxYear}`;
+  const subtitle = isRomania
+    ? `Copy these values into ${filing.portalName} when filing ${filing.formName}`
+    : 'Use these values when filing your tax return';
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-12">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <button
+            onClick={() => navigate('/results')}
+            className="flex items-center gap-1 text-sm text-gray-500 dark:text-slate-400 hover:text-accent mb-2 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" /> Back to Results
+          </button>
+          <h1 className="text-3xl font-bold">{pageTitle}</h1>
+          <p className="text-gray-600 dark:text-slate-400 mt-1">{subtitle}</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={copyAll} className="btn-secondary flex items-center gap-2">
+            {allCopied ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+            {allCopied ? 'Copied!' : 'Copy All'}
+          </button>
+          <button
+            onClick={() => {
+              import('../utils/pdfExport').then(({ generateTaxSummaryPdf }) => {
+                generateTaxSummaryPdf(taxResult, taxYear, sym);
+              });
+            }}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Download PDF
+          </button>
+        </div>
+      </div>
+
+      {/* How to use — Romania-specific steps */}
+      {isRomania && (
+        <div className="mb-8 p-4 bg-accent/5 dark:bg-accent/10 border border-accent/20 rounded-xl">
+          <h3 className="font-semibold text-accent mb-2">How to use this</h3>
+          <ol className="text-sm text-gray-600 dark:text-slate-400 space-y-1 list-decimal list-inside">
+            {filing.steps(taxYear).map((step, i) => (
+              <li key={i}>
+                {step.text}
+                {step.bold && <strong>{step.bold}</strong>}
+                {step.suffix ?? ''}
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {/* Filing sections */}
+      <div className="space-y-6">
+        {d212Sections.map((section) => (
+          <FilingSectionCard
+            key={section.id}
+            title={section.title}
+            localTitle={section.roTitle}
+            description={section.description}
+            sectionLabel={section.fields[0]?.section ?? ''}
+            fields={section.fields}
+            taxResult={taxResult}
+            sym={sym}
+            fmt={fmt}
+            copiedId={copiedId}
+            onCopy={copyValue}
+          />
+        ))}
+      </div>
+
+      {/* Totals */}
+      <div className="card mt-6">
+        <h2 className="text-xl font-semibold mb-4">Summary</h2>
+        <div className="space-y-3">
+          <TotalRow label="Total Tax Owed" value={`${fmt(taxResult.totals.totalTaxOwed)} ${sym}`} bold />
+          {taxResult.totals.earlyFilingDiscount > 0 && (
+            <>
+              <TotalRow
+                label={`Early Filing Discount (${((countryConfig?.earlyFilingDiscountRate ?? 0) * 100)}%)`}
+                value={`-${fmt(taxResult.totals.earlyFilingDiscount)} ${sym}`}
+                className="text-green-600 dark:text-green-400"
+              />
+              <TotalRow
+                label="Total After Discount"
+                value={`${fmt(taxResult.totals.totalAfterDiscount)} ${sym}`}
+                bold
+                className="text-accent"
+              />
+            </>
+          )}
+        </div>
+        <p className="text-xs text-gray-400 dark:text-slate-600 mt-4">
+          Filing deadline: {countryConfig?.finalFilingDeadline}. Early filing by {countryConfig?.earlyFilingDeadline} for discount.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function FilingSectionCard({
+  title, localTitle, description, sectionLabel, fields, taxResult, sym, fmt, copiedId, onCopy,
+}: {
+  title: string;
+  localTitle: string;
+  description: string;
+  sectionLabel: string;
+  fields: D212Field[];
+  taxResult: TaxCalculationResult;
+  sym: string;
+  fmt: (n: number) => string;
+  copiedId: string | null;
+  onCopy: (field: D212Field) => void;
+}) {
+  return (
+    <div className="card">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-mono bg-accent/10 text-accent px-2 py-0.5 rounded">
+              {sectionLabel}
+            </span>
+            <h2 className="text-lg font-semibold">{title}</h2>
+          </div>
+          <p className="text-sm text-gray-500 dark:text-slate-500 italic">{localTitle}</p>
+          <p className="text-xs text-gray-400 dark:text-slate-600 mt-1">{description}</p>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {fields.map((field) => {
+          const value = field.getValue(taxResult);
+          const isCopied = copiedId === field.id;
+          return (
+            <div
+              key={field.id}
+              className="flex items-center justify-between py-3 px-4 bg-navy-700/30 dark:bg-navy-750 rounded-lg group"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">{field.roLabel}</p>
+                <p className="text-xs text-gray-500 dark:text-slate-500">{field.enLabel}</p>
+              </div>
+              <div className="flex items-center gap-3 ml-4">
+                <span className="text-lg font-bold font-mono tabular-nums">
+                  {fmt(value)} <span className="text-sm font-normal text-gray-400 dark:text-slate-500">{sym}</span>
+                </span>
+                <button
+                  onClick={() => onCopy(field)}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isCopied
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                      : 'text-gray-400 hover:text-accent hover:bg-accent/10'
+                  }`}
+                  title={isCopied ? 'Copied!' : `Copy ${field.roLabel}`}
+                >
+                  {isCopied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function TotalRow({ label, value, bold, className }: {
+  label: string;
+  value: string;
+  bold?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={`flex items-center justify-between py-2 ${className ?? ''}`}>
+      <span className={`text-sm ${bold ? 'font-semibold' : 'text-gray-600 dark:text-slate-400'}`}>{label}</span>
+      <span className={`font-mono tabular-nums ${bold ? 'text-xl font-bold' : 'text-lg font-medium'}`}>{value}</span>
+    </div>
+  );
+}

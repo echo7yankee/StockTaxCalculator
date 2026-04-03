@@ -4,6 +4,20 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import Dashboard from '../Dashboard';
 
+// Mock useAuth to simulate logged-in user
+const mockUser = { id: 'test-id', email: 'test@test.com', name: 'Test', plan: 'free' };
+const mockAuth = {
+  user: mockUser,
+  loading: false,
+  login: vi.fn(),
+  signup: vi.fn(),
+  loginWithGoogle: vi.fn(),
+  logout: vi.fn(),
+};
+vi.mock('../../contexts/AuthContext', () => ({
+  useAuth: () => mockAuth,
+}));
+
 const mockTaxYears = [
   {
     id: '1',
@@ -123,7 +137,7 @@ describe('Dashboard', () => {
       expect(screen.queryByText('2025')).not.toBeInTheDocument();
     });
 
-    expect(fetchSpy).toHaveBeenCalledWith('/api/tax-years/1', { method: 'DELETE' });
+    expect(fetchSpy).toHaveBeenCalledWith('/api/tax-years/1', { method: 'DELETE', credentials: 'include' });
   });
 
   it('renders quick action links', async () => {

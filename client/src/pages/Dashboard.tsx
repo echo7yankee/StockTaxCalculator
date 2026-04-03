@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Upload, Calculator, FileText, Trash2 } from 'lucide-react';
+import { Upload, Calculator, FileText, Trash2, ClipboardList, LogIn } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface SavedTaxYear {
   id: string;
@@ -17,13 +18,15 @@ interface SavedTaxYear {
 }
 
 export default function Dashboard() {
+  const { user, loading: authLoading } = useAuth();
   const [taxYears, setTaxYears] = useState<SavedTaxYear[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchTaxYears = () => {
+  useEffect(() => {
+    if (!user) return;
     setLoading(true);
-    fetch('/api/tax-years')
+    fetch('/api/tax-years', { credentials: 'include' })
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch');
         return res.json();
@@ -31,15 +34,11 @@ export default function Dashboard() {
       .then(data => setTaxYears(data))
       .catch(() => setError('Could not load saved calculations. Is the server running?'))
       .finally(() => setLoading(false));
-  };
-
-  useEffect(() => {
-    fetchTaxYears();
-  }, []);
+  }, [user]);
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`/api/tax-years/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/tax-years/${id}`, { method: 'DELETE', credentials: 'include' });
       if (!res.ok) throw new Error('Delete failed');
       setTaxYears(prev => prev.filter(ty => ty.id !== id));
     } catch {
@@ -58,7 +57,7 @@ export default function Dashboard() {
       </p>
 
       {/* Quick actions */}
-      <div className="grid md:grid-cols-2 gap-6 mb-10">
+      <div className="grid md:grid-cols-3 gap-6 mb-10">
         <Link to="/upload" className="card hover:border-accent transition-colors group">
           <Upload className="w-8 h-8 text-accent mb-3" />
           <h3 className="text-lg font-semibold mb-1 group-hover:text-accent transition-colors">Upload Statement</h3>
@@ -70,24 +69,48 @@ export default function Dashboard() {
           <h3 className="text-lg font-semibold mb-1 group-hover:text-accent transition-colors">Quick Calculator</h3>
           <p className="text-sm text-gray-600 dark:text-slate-400">Estimate taxes manually</p>
         </Link>
+
+        <Link to="/filing-guide" className="card hover:border-accent transition-colors group">
+          <ClipboardList className="w-8 h-8 text-accent mb-3" />
+          <h3 className="text-lg font-semibold mb-1 group-hover:text-accent transition-colors">Filing Guide</h3>
+          <p className="text-sm text-gray-600 dark:text-slate-400">Step-by-step tax form filing helper</p>
+        </Link>
       </div>
 
       {/* Saved calculations */}
       <div className="card">
         <h2 className="text-xl font-semibold mb-4">Saved Calculations</h2>
 
-        {loading && (
+        {/* Not logged in — soft prompt */}
+        {!authLoading && !user && (
+          <div className="py-12 text-center">
+            <LogIn className="w-10 h-10 text-gray-300 dark:text-slate-600 mx-auto mb-3" />
+            <p className="text-gray-500 dark:text-slate-500 text-lg">Log in to see saved calculations</p>
+            <p className="text-sm text-gray-400 dark:text-slate-600 mt-1">
+              Your calculations are saved to your account so you can access them anytime.
+            </p>
+            <div className="flex gap-3 justify-center mt-6">
+              <Link to="/login" className="btn-primary">Log in</Link>
+              <Link to="/signup" className="btn-secondary">Sign up</Link>
+            </div>
+          </div>
+        )}
+
+        {/* Logged in — loading */}
+        {user && loading && (
           <div className="py-12 text-center">
             <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-3" />
             <p className="text-gray-500 dark:text-slate-500">Loading...</p>
           </div>
         )}
 
-        {error && !loading && (
+        {/* Logged in — error */}
+        {user && error && !loading && (
           <p className="py-8 text-center text-red-500">{error}</p>
         )}
 
-        {!loading && !error && taxYears.length === 0 && (
+        {/* Logged in — empty */}
+        {user && !loading && !error && taxYears.length === 0 && (
           <div className="py-12 text-center">
             <FileText className="w-10 h-10 text-gray-300 dark:text-slate-600 mx-auto mb-3" />
             <p className="text-gray-500 dark:text-slate-500">No saved calculations yet.</p>
@@ -97,7 +120,8 @@ export default function Dashboard() {
           </div>
         )}
 
-        {!loading && taxYears.length > 0 && (
+        {/* Logged in — data */}
+        {user && !loading && taxYears.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -114,7 +138,7 @@ export default function Dashboard() {
               </thead>
               <tbody>
                 {taxYears.map(ty => (
-                  <tr key={ty.id} className="border-b border-gray-100 dark:border-navy-700 hover:bg-gray-50 dark:hover:bg-navy-750">
+                  <tr key={ty.id} className="border-b border-gray-100 dark:border-navy-700 hover:bg-navy-700/50">
                     <td className="py-3 px-2 font-bold text-lg">{ty.year}</td>
                     <td className="py-3 px-2">
                       <p className="text-gray-600 dark:text-slate-400 truncate max-w-[180px]">{ty.fileName || '-'}</p>
