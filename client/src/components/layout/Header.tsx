@@ -1,19 +1,21 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Sun, Moon, Settings, TrendingUp, LogOut, User } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 
-const navLinks = [
-  { to: '/', label: 'Home' },
-  { to: '/calculator', label: 'Calculator' },
-  { to: '/dashboard', label: 'Dashboard' },
-  { to: '/filing-guide', label: 'Filing Guide' },
-];
-
 export default function Header() {
+  const { t } = useTranslation(['header', 'common']);
   const { theme, toggleTheme } = useTheme();
   const { user, loading, logout } = useAuth();
+
+  const navLinks = [
+    { to: '/', label: t('header:home') },
+    { to: '/calculator', label: t('header:calculator') },
+    { to: '/dashboard', label: t('header:dashboard') },
+    { to: '/filing-guide', label: t('header:filingGuide') },
+  ];
   const location = useLocation();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -72,14 +74,14 @@ export default function Header() {
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors"
-              aria-label="Toggle theme"
+              aria-label={t('header:toggleTheme')}
             >
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
             <Link
               to="/settings"
               className="p-2 rounded-lg text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors"
-              aria-label="Settings"
+              aria-label={t('header:settings')}
             >
               <Settings className="w-5 h-5" />
             </Link>
@@ -91,13 +93,13 @@ export default function Header() {
                   to="/login"
                   className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 transition-colors"
                 >
-                  Log in
+                  {t('common:logIn')}
                 </Link>
                 <Link
                   to="/signup"
                   className="btn-primary text-sm px-3 py-1.5"
                 >
-                  Sign up
+                  {t('common:signUp')}
                 </Link>
               </div>
             )}
@@ -124,14 +126,14 @@ export default function Header() {
                       className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-navy-700"
                     >
                       <User className="w-4 h-4" />
-                      Dashboard
+                      {t('header:dashboard')}
                     </Link>
                     <button
                       onClick={handleLogout}
                       className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-navy-700"
                     >
                       <LogOut className="w-4 h-4" />
-                      Log out
+                      {t('common:logOut')}
                     </button>
                   </div>
                 )}

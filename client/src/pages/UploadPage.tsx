@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Upload, FileText, AlertTriangle, CheckCircle, X } from 'lucide-react';
 import Papa from 'papaparse';
 import {
@@ -34,6 +35,7 @@ interface PreviewData {
 }
 
 export default function UploadPage() {
+  const { t } = useTranslation('upload');
   const navigate = useNavigate();
   const { countryConfig } = useCountry();
   const { setUploadData } = useUpload();
@@ -81,7 +83,7 @@ export default function UploadPage() {
       complete: (results) => {
         const rows = results.data as RawCsvRow[];
         if (rows.length === 0) {
-          setError('CSV file has no data rows.');
+          setError(t('csvNoData'));
           setProcessing(false);
           return;
         }
@@ -115,7 +117,7 @@ export default function UploadPage() {
         setProcessing(false);
       },
       error: (err) => {
-        setError(`Failed to parse CSV: ${err.message}`);
+        setError(t('failedParseCsv', { message: err.message }));
         setProcessing(false);
       },
     });
@@ -146,7 +148,7 @@ export default function UploadPage() {
         fetchBnrRate(parsed.year, parsed.overview.currency);
       }
     } catch (err) {
-      setError(`Failed to parse PDF: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setError(t('failedParsePdf', { message: err instanceof Error ? err.message : 'Unknown error' }));
       setProcessing(false);
     }
   }, [fetchBnrRate]);
@@ -162,12 +164,12 @@ export default function UploadPage() {
     const isPdf = name.endsWith('.pdf');
 
     if (!isCsv && !isPdf) {
-      setError('Please upload a CSV or PDF file.');
+      setError(t('invalidFileType'));
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      setError('File is too large (max 10MB).');
+      setError(t('fileTooLarge'));
       return;
     }
 
@@ -238,9 +240,9 @@ export default function UploadPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
-      <h1 className="text-3xl font-bold mb-2">Upload Broker Statement</h1>
+      <h1 className="text-3xl font-bold mb-2">{t('title')}</h1>
       <p className="text-gray-600 dark:text-slate-400 mb-8">
-        Upload your Trading212 annual statement (PDF) or transaction export (CSV).
+        {t('subtitle')}
       </p>
 
       {/* Drop zone */}
@@ -260,16 +262,16 @@ export default function UploadPage() {
             {processing ? (
               <>
                 <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                <p className="text-lg font-medium">Processing file...</p>
+                <p className="text-lg font-medium">{t('processingFile')}</p>
               </>
             ) : (
               <>
                 <Upload className="w-12 h-12 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
-                <p className="text-lg font-medium mb-1">Drop your file here</p>
-                <p className="text-sm text-gray-500 dark:text-slate-500">or click to browse</p>
+                <p className="text-lg font-medium mb-1">{t('dropHere')}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-500">{t('orClickBrowse')}</p>
                 <div className="mt-4 space-y-1">
                   <p className="text-xs text-gray-400 dark:text-slate-600">
-                    Supports: Trading212 Annual Statement (.pdf) or CSV export (.csv)
+                    {t('supportedFormats')}
                   </p>
                 </div>
               </>
@@ -307,8 +309,8 @@ export default function UploadPage() {
                   <p className="font-semibold">{preview.fileName}</p>
                   <p className="text-sm text-gray-500 dark:text-slate-400">
                     {preview.fileType === 'pdf'
-                      ? `Annual Statement ${preview.year}`
-                      : `${preview.totalRows} transactions parsed`
+                      ? t('annualStatement', { year: preview.year })
+                      : t('transactionsParsed', { count: preview.totalRows })
                     }
                   </p>
                 </div>
@@ -326,7 +328,7 @@ export default function UploadPage() {
               <div className="space-y-3">
                 {preview.closedResult !== undefined && (
                   <div className="bg-gray-50 dark:bg-navy-700/50 rounded-lg p-3">
-                    <p className="text-sm text-gray-500 dark:text-slate-400">Closed Result (from statement)</p>
+                    <p className="text-sm text-gray-500 dark:text-slate-400">{t('closedResultLabel')}</p>
                     <p className="text-2xl font-bold">
                       {preview.closedResult.toLocaleString('en-US', { minimumFractionDigits: 2 })} {preview.currency}
                     </p>
@@ -335,15 +337,15 @@ export default function UploadPage() {
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 text-center">
                     <p className="text-2xl font-bold text-red-600 dark:text-red-400">{preview.sells}</p>
-                    <p className="text-xs text-red-700 dark:text-red-500">Sell Trades</p>
+                    <p className="text-xs text-red-700 dark:text-red-500">{t('sellTrades')}</p>
                   </div>
                   <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center">
                     <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{preview.dividends}</p>
-                    <p className="text-xs text-blue-700 dark:text-blue-500">Dividends</p>
+                    <p className="text-xs text-blue-700 dark:text-blue-500">{t('dividends')}</p>
                   </div>
                   <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 text-center">
                     <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{preview.distributions}</p>
-                    <p className="text-xs text-purple-700 dark:text-purple-500">Distributions</p>
+                    <p className="text-xs text-purple-700 dark:text-purple-500">{t('distributions')}</p>
                   </div>
                 </div>
               </div>
@@ -352,20 +354,20 @@ export default function UploadPage() {
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
                     <p className="text-2xl font-bold text-green-600 dark:text-green-400">{preview.buys}</p>
-                    <p className="text-xs text-green-700 dark:text-green-500">Buys</p>
+                    <p className="text-xs text-green-700 dark:text-green-500">{t('buys')}</p>
                   </div>
                   <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 text-center">
                     <p className="text-2xl font-bold text-red-600 dark:text-red-400">{preview.sells}</p>
-                    <p className="text-xs text-red-700 dark:text-red-500">Sells</p>
+                    <p className="text-xs text-red-700 dark:text-red-500">{t('sells')}</p>
                   </div>
                   <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center">
                     <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{preview.dividends}</p>
-                    <p className="text-xs text-blue-700 dark:text-blue-500">Dividends</p>
+                    <p className="text-xs text-blue-700 dark:text-blue-500">{t('dividends')}</p>
                   </div>
                 </div>
                 {(preview.skipped ?? 0) > 0 && (
                   <p className="text-xs text-gray-500 dark:text-slate-500 mt-3">
-                    {preview.skipped} rows skipped (deposits, withdrawals, or unknown actions)
+                    {t('rowsSkipped', { count: preview.skipped })}
                   </p>
                 )}
               </>
@@ -377,7 +379,7 @@ export default function UploadPage() {
             <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl">
               <div className="flex items-center gap-2 mb-2">
                 <AlertTriangle className="w-4 h-4 text-yellow-600" />
-                <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">Warnings</p>
+                <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">{t('warnings')}</p>
               </div>
               {preview.warnings.map((w, i) => (
                 <p key={i} className="text-sm text-yellow-600 dark:text-yellow-500">{w}</p>
@@ -389,7 +391,7 @@ export default function UploadPage() {
           {preview.fileType === 'pdf' && preview.currency && countryConfig && preview.currency !== countryConfig.currency && (
             <div className="card">
               <label className="block text-sm font-medium mb-1">
-                Exchange Rate ({preview.currency} → {countryConfig.currency})
+                {t('exchangeRateLabel', { from: preview.currency, to: countryConfig.currency })}
               </label>
               <div className="flex items-center gap-3">
                 <div className="flex-1">
@@ -403,20 +405,20 @@ export default function UploadPage() {
                   />
                 </div>
                 <div className="text-sm text-gray-500 dark:text-slate-400">
-                  1 {preview.currency} = {exchangeRate} {countryConfig.currency}
+                  {t('exchangeRateDisplay', { from: preview.currency, rate: exchangeRate, to: countryConfig.currency })}
                 </div>
               </div>
               {rateLoading && (
-                <p className="text-xs text-accent mt-2">Fetching BNR exchange rate...</p>
+                <p className="text-xs text-accent mt-2">{t('fetchingRate')}</p>
               )}
               {rateSource && !rateLoading && (
                 <p className="text-xs text-green-600 dark:text-green-400 mt-2">
-                  Rate auto-fetched from {rateSource}. You can override it above.
+                  {t('rateAutoFetched', { source: rateSource })}
                 </p>
               )}
               {!rateSource && !rateLoading && (
                 <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">
-                  Enter the average BNR exchange rate for {preview.year}.
+                  {t('enterManualRate', { year: preview.year })}
                 </p>
               )}
             </div>
@@ -426,7 +428,7 @@ export default function UploadPage() {
           <div className="card">
             <div className="flex items-center justify-between">
               <div>
-                <label className="block text-sm font-medium mb-1">Tax Year</label>
+                <label className="block text-sm font-medium mb-1">{t('taxYear')}</label>
                 {preview.fileType === 'pdf' ? (
                   <p className="text-lg font-bold">{preview.year}</p>
                 ) : (
@@ -446,12 +448,12 @@ export default function UploadPage() {
                 className="btn-primary flex items-center gap-2 text-lg px-6 py-3"
               >
                 <CheckCircle className="w-5 h-5" />
-                Calculate Taxes
+                {t('calculateTaxes')}
               </button>
             </div>
             {countryConfig && (
               <p className="text-xs text-gray-500 dark:text-slate-500 mt-3">
-                Using {countryConfig.name} tax rules ({(countryConfig.capitalGainsTaxRate * 100)}% capital gains rate)
+                {t('usingTaxRules', { country: countryConfig.name, rate: `${(countryConfig.capitalGainsTaxRate * 100)}%` })}
               </p>
             )}
           </div>

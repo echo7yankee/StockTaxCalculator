@@ -1,0 +1,17 @@
+{
+  "title": "Calculator fiscal",
+  "subtitle": "Introdu veniturile din investi\u021bii pentru a estima obliga\u021biile fiscale. Gratuit, f\u0103r\u0103 cont.",
+  "countryNotSupported": "\u021aara nu este \u00eenc\u0103 suportat\u0103.",
+  "netCapitalGains": "C\u00e2\u0219tiguri nete de capital ({{currency}})",
+  "grossDividends": "Dividende brute ({{currency}})",
+  "withholdingTaxPaid": "Impozit re\u021binut deja pl\u0103tit ({{currency}})",
+  "otherNonSalaryIncome": "Alte venituri non-salariale ({{currency}})",
+  "otherIncomeHint": "Chirii, c\u00e2\u0219tiguri din crypto, freelance etc.",
+  "calculate": "Calculeaz\u0103",
+  "results": "Rezultate",
+  "capitalGainsTax": "Impozit pe c\u00e2\u0219tiguri de capital ({{rate}}%)",
+  "dividendTax": "Impozit pe dividende ({{rate}}% minus re\u021binerea)",
+  "healthContribution": "Contribu\u021bie de s\u0103n\u0103tate (prag: {{bracket}})",
+  "totalTaxOwed": "Total impozit datorat",
+  "earlyFilingDiscount": "Depune p\u00e2n\u0103 la {{deadline}} pentru a economisi {{amount}} {{currency}} (reducere {{rate}}% la impozitul pe venit)"
+}

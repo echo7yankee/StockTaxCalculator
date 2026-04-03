@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Upload, Calculator, FileText, Trash2, ClipboardList, LogIn, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUpload } from '../contexts/UploadContext';
@@ -20,6 +21,7 @@ interface SavedTaxYear {
 }
 
 export default function Dashboard() {
+  const { t } = useTranslation(['dashboard', 'common']);
   const { user, loading: authLoading } = useAuth();
   const { setUploadData } = useUpload();
   const navigate = useNavigate();
@@ -37,7 +39,7 @@ export default function Dashboard() {
         return res.json();
       })
       .then(data => setTaxYears(data))
-      .catch(() => setError('Could not load saved calculations. Is the server running?'))
+      .catch(() => setError(t('dashboard:fetchError')))
       .finally(() => setLoading(false));
   }, [user]);
 
@@ -103,7 +105,7 @@ export default function Dashboard() {
 
       navigate('/results');
     } catch {
-      setError('Failed to load calculation.');
+      setError(t('dashboard:loadError'));
     } finally {
       setLoadingId(null);
     }
@@ -125,47 +127,47 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
-      <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
+      <h1 className="text-3xl font-bold mb-2">{t('dashboard:title')}</h1>
       <p className="text-gray-600 dark:text-slate-400 mb-8">
-        Manage your tax years and calculations.
+        {t('dashboard:subtitle')}
       </p>
 
       {/* Quick actions */}
       <div className="grid md:grid-cols-3 gap-6 mb-10">
         <Link to="/upload" className="card hover:border-accent transition-colors group">
           <Upload className="w-8 h-8 text-accent mb-3" />
-          <h3 className="text-lg font-semibold mb-1 group-hover:text-accent transition-colors">Upload Statement</h3>
-          <p className="text-sm text-gray-600 dark:text-slate-400">Import PDF or CSV from your broker</p>
+          <h3 className="text-lg font-semibold mb-1 group-hover:text-accent transition-colors">{t('dashboard:uploadStatementTitle')}</h3>
+          <p className="text-sm text-gray-600 dark:text-slate-400">{t('dashboard:uploadStatementDesc')}</p>
         </Link>
 
         <Link to="/calculator" className="card hover:border-accent transition-colors group">
           <Calculator className="w-8 h-8 text-accent mb-3" />
-          <h3 className="text-lg font-semibold mb-1 group-hover:text-accent transition-colors">Quick Calculator</h3>
-          <p className="text-sm text-gray-600 dark:text-slate-400">Estimate taxes manually</p>
+          <h3 className="text-lg font-semibold mb-1 group-hover:text-accent transition-colors">{t('dashboard:quickCalculatorTitle')}</h3>
+          <p className="text-sm text-gray-600 dark:text-slate-400">{t('dashboard:quickCalculatorDesc')}</p>
         </Link>
 
         <Link to="/filing-guide" className="card hover:border-accent transition-colors group">
           <ClipboardList className="w-8 h-8 text-accent mb-3" />
-          <h3 className="text-lg font-semibold mb-1 group-hover:text-accent transition-colors">Filing Guide</h3>
-          <p className="text-sm text-gray-600 dark:text-slate-400">Step-by-step tax form filing helper</p>
+          <h3 className="text-lg font-semibold mb-1 group-hover:text-accent transition-colors">{t('dashboard:filingGuideTitle')}</h3>
+          <p className="text-sm text-gray-600 dark:text-slate-400">{t('dashboard:filingGuideDesc')}</p>
         </Link>
       </div>
 
       {/* Saved calculations */}
       <div className="card">
-        <h2 className="text-xl font-semibold mb-4">Saved Calculations</h2>
+        <h2 className="text-xl font-semibold mb-4">{t('dashboard:savedCalculations')}</h2>
 
         {/* Not logged in — soft prompt */}
         {!authLoading && !user && (
           <div className="py-12 text-center">
             <LogIn className="w-10 h-10 text-gray-300 dark:text-slate-600 mx-auto mb-3" />
-            <p className="text-gray-500 dark:text-slate-500 text-lg">Log in to see saved calculations</p>
+            <p className="text-gray-500 dark:text-slate-500 text-lg">{t('dashboard:loginPrompt')}</p>
             <p className="text-sm text-gray-400 dark:text-slate-600 mt-1">
-              Your calculations are saved to your account so you can access them anytime.
+              {t('dashboard:loginPromptDetail')}
             </p>
             <div className="flex gap-3 justify-center mt-6">
-              <Link to="/login" className="btn-primary">Log in</Link>
-              <Link to="/signup" className="btn-secondary">Sign up</Link>
+              <Link to="/login" className="btn-primary">{t('common:logIn')}</Link>
+              <Link to="/signup" className="btn-secondary">{t('common:signUp')}</Link>
             </div>
           </div>
         )}
@@ -174,7 +176,7 @@ export default function Dashboard() {
         {user && loading && (
           <div className="py-12 text-center">
             <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-gray-500 dark:text-slate-500">Loading...</p>
+            <p className="text-gray-500 dark:text-slate-500">{t('dashboard:loadingData')}</p>
           </div>
         )}
 
@@ -187,9 +189,9 @@ export default function Dashboard() {
         {user && !loading && !error && taxYears.length === 0 && (
           <div className="py-12 text-center">
             <FileText className="w-10 h-10 text-gray-300 dark:text-slate-600 mx-auto mb-3" />
-            <p className="text-gray-500 dark:text-slate-500">No saved calculations yet.</p>
+            <p className="text-gray-500 dark:text-slate-500">{t('dashboard:noCalculations')}</p>
             <p className="text-sm text-gray-400 dark:text-slate-600 mt-1">
-              Upload a statement and save the results to see them here.
+              {t('dashboard:noCalculationsDetail')}
             </p>
           </div>
         )}
@@ -200,13 +202,13 @@ export default function Dashboard() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-navy-600">
-                  <th className="text-left py-3 px-2 font-medium">Year</th>
-                  <th className="text-left py-3 px-2 font-medium">File</th>
-                  <th className="text-right py-3 px-2 font-medium">Capital Gains Tax</th>
-                  <th className="text-right py-3 px-2 font-medium">Dividend Tax</th>
-                  <th className="text-right py-3 px-2 font-medium">CASS</th>
-                  <th className="text-right py-3 px-2 font-medium">Total Tax</th>
-                  <th className="text-right py-3 px-2 font-medium">Calculated</th>
+                  <th className="text-left py-3 px-2 font-medium">{t('dashboard:colYear')}</th>
+                  <th className="text-left py-3 px-2 font-medium">{t('dashboard:colFile')}</th>
+                  <th className="text-right py-3 px-2 font-medium">{t('dashboard:colCapitalGainsTax')}</th>
+                  <th className="text-right py-3 px-2 font-medium">{t('dashboard:colDividendTax')}</th>
+                  <th className="text-right py-3 px-2 font-medium">{t('dashboard:colCass')}</th>
+                  <th className="text-right py-3 px-2 font-medium">{t('dashboard:colTotalTax')}</th>
+                  <th className="text-right py-3 px-2 font-medium">{t('dashboard:colCalculated')}</th>
                   <th className="text-right py-3 px-2 font-medium"></th>
                 </tr>
               </thead>
@@ -234,7 +236,7 @@ export default function Dashboard() {
                       <button
                         onClick={(e) => handleDelete(e, ty.id)}
                         className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                        title="Delete"
+                        title={t('dashboard:deleteTitle')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

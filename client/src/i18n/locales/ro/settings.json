@@ -1,0 +1,13 @@
+{
+  "title": "Set\u0103ri",
+  "countryRegion": "\u021aar\u0103 / Regiune",
+  "countryDescription": "Regulile \u0219i cotele de impozitare sunt specifice \u021b\u0103rii tale. Detectat automat din setarea browserului.",
+  "moreComing": "Mai multe \u021b\u0103ri \u00een cur\u00e2nd.",
+  "appearance": "Aspect",
+  "theme": "Tem\u0103",
+  "currentTheme": "Mod curent: {{mode}}",
+  "switchToLight": "Treci la modul luminos",
+  "switchToDark": "Treci la modul \u00eentunecat",
+  "language": "Limb\u0103",
+  "languageDescription": "Alege limba de afi\u0219are a aplica\u021biei."
+}

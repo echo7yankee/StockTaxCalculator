@@ -1,0 +1,17 @@
+{
+  "title": "Tax Calculator",
+  "subtitle": "Enter your investment income to estimate your tax liability. Free, no account required.",
+  "countryNotSupported": "Country not supported yet.",
+  "netCapitalGains": "Net Capital Gains ({{currency}})",
+  "grossDividends": "Gross Dividends ({{currency}})",
+  "withholdingTaxPaid": "Withholding Tax Already Paid ({{currency}})",
+  "otherNonSalaryIncome": "Other Non-Salary Income ({{currency}})",
+  "otherIncomeHint": "Rental income, crypto gains, freelance, etc.",
+  "calculate": "Calculate",
+  "results": "Results",
+  "capitalGainsTax": "Capital gains tax ({{rate}}%)",
+  "dividendTax": "Dividend tax ({{rate}}% minus withholding)",
+  "healthContribution": "Health contribution (bracket: {{bracket}})",
+  "totalTaxOwed": "Total tax owed",
+  "earlyFilingDiscount": "File by {{deadline}} to save {{amount}} {{currency}} ({{rate}}% discount on income tax)"
+}

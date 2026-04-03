@@ -1,0 +1,10 @@
+{
+  "welcomeBack": "Welcome back",
+  "loginSubtitle": "Log in to access your saved calculations",
+  "emailPlaceholder": "you@example.com",
+  "passwordPlaceholder": "Enter your password",
+  "loggingIn": "Logging in...",
+  "continueWithGoogle": "Continue with Google",
+  "noAccount": "Don't have an account?",
+  "loginFailed": "Login failed"
+}

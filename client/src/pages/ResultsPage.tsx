@@ -1,11 +1,13 @@
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, TrendingUp, DollarSign, Heart, Percent, FileText, Save, Check, ClipboardList, LogIn } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
 import { useCountry } from '../contexts/CountryContext';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function ResultsPage() {
+  const { t } = useTranslation(['results', 'common']);
   const navigate = useNavigate();
   const { taxResult, securities, fileName, taxYear, transactions } = useUpload();
   const { countryConfig } = useCountry();
@@ -41,7 +43,7 @@ export default function ResultsPage() {
       if (!res.ok) throw new Error('Failed to save');
       setSaved(true);
     } catch {
-      setSaveError('Failed to save. Is the server running?');
+      setSaveError(t('results:saveError'));
     } finally {
       setSaving(false);
     }
@@ -50,15 +52,15 @@ export default function ResultsPage() {
   if (!taxResult) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-12">
-        <h1 className="text-3xl font-bold mb-2">Tax Results</h1>
+        <h1 className="text-3xl font-bold mb-2">{t('results:title')}</h1>
         <p className="text-gray-600 dark:text-slate-400 mb-8">
-          Upload a CSV first to see your tax calculation results.
+          {t('results:emptySubtitle')}
         </p>
         <div className="card text-center py-16">
-          <p className="text-gray-500 dark:text-slate-500 text-lg">No calculations yet.</p>
-          <p className="text-sm text-gray-400 dark:text-slate-600 mt-2">Upload your broker CSV to get started.</p>
+          <p className="text-gray-500 dark:text-slate-500 text-lg">{t('results:noCalculations')}</p>
+          <p className="text-sm text-gray-400 dark:text-slate-600 mt-2">{t('results:noCalculationsDetail')}</p>
           <button onClick={() => navigate('/upload')} className="btn-primary mt-6">
-            Go to Upload
+            {t('common:goToUpload')}
           </button>
         </div>
       </div>
@@ -77,12 +79,12 @@ export default function ResultsPage() {
             onClick={() => navigate('/upload')}
             className="flex items-center gap-1 text-sm text-gray-500 dark:text-slate-400 hover:text-accent mb-2 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" /> Back to Upload
+            <ArrowLeft className="w-4 h-4" /> {t('common:backToUpload')}
           </button>
-          <h1 className="text-3xl font-bold">Tax Results — {taxYear}</h1>
+          <h1 className="text-3xl font-bold">{t('results:titleWithYear', { year: taxYear })}</h1>
           <p className="text-gray-600 dark:text-slate-400 mt-1">
             <FileText className="w-4 h-4 inline mr-1" />
-            {fileName} — {transactions.length > 0 ? `${transactions.length} transactions` : 'PDF statement'}
+            {fileName} — {transactions.length > 0 ? t('results:transactionsCount', { count: transactions.length }) : t('results:pdfStatement')}
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
@@ -96,13 +98,13 @@ export default function ResultsPage() {
             }`}
           >
             {!user ? (
-              <><LogIn className="w-4 h-4" /> Log in to Save</>
+              <><LogIn className="w-4 h-4" /> {t('results:logInToSave')}</>
             ) : saved ? (
-              <><Check className="w-4 h-4" /> Saved to Dashboard</>
+              <><Check className="w-4 h-4" /> {t('results:savedToDashboard')}</>
             ) : saving ? (
-              <><Save className="w-4 h-4" /> Saving...</>
+              <><Save className="w-4 h-4" /> {t('results:saving')}</>
             ) : (
-              <><Save className="w-4 h-4" /> Save to Dashboard</>
+              <><Save className="w-4 h-4" /> {t('results:saveToDashboard')}</>
             )}
           </button>
           {saveError && <p className="text-xs text-red-500">{saveError}</p>}
@@ -112,9 +114,9 @@ export default function ResultsPage() {
       {/* Filing guide banner */}
       <div className="mb-8 p-4 bg-accent/5 dark:bg-accent/10 border border-accent/20 rounded-xl flex items-center justify-between">
         <div>
-          <h3 className="font-semibold">Ready to file your tax return?</h3>
+          <h3 className="font-semibold">{t('results:readyToFile')}</h3>
           <p className="text-sm text-gray-600 dark:text-slate-400">
-            Use the Filing Guide to copy values directly into your tax form.
+            {t('results:readyToFileDetail')}
           </p>
         </div>
         <button
@@ -122,7 +124,7 @@ export default function ResultsPage() {
           className="btn-primary flex items-center gap-2 whitespace-nowrap"
         >
           <ClipboardList className="w-4 h-4" />
-          Filing Guide
+          {t('common:filingGuide')}
         </button>
       </div>
 
@@ -130,30 +132,30 @@ export default function ResultsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <SummaryCard
           icon={<TrendingUp className="w-6 h-6" />}
-          label="Capital Gains Tax"
+          label={t('results:capitalGainsTax')}
           value={`${fmt(taxResult.capitalGains.taxOwed)} ${sym}`}
-          detail={`${fmt(taxResult.capitalGains.netGains)} net gains @ ${(taxResult.capitalGains.taxRate * 100)}%`}
+          detail={t('results:capitalGainsTaxDetail', { netGains: fmt(taxResult.capitalGains.netGains), rate: `${(taxResult.capitalGains.taxRate * 100)}%` })}
           color="green"
         />
         <SummaryCard
           icon={<DollarSign className="w-6 h-6" />}
-          label="Dividend Tax"
+          label={t('results:dividendTax')}
           value={`${fmt(taxResult.dividends.taxOwed)} ${sym}`}
-          detail={`${fmt(taxResult.dividends.grossTotal)} gross — ${fmt(taxResult.dividends.withholdingTaxPaid)} withholding`}
+          detail={t('results:dividendTaxDetail', { gross: fmt(taxResult.dividends.grossTotal), withholding: fmt(taxResult.dividends.withholdingTaxPaid) })}
           color="blue"
         />
         <SummaryCard
           icon={<Heart className="w-6 h-6" />}
-          label="Health Contribution (CASS)"
+          label={t('results:healthContribution')}
           value={`${fmt(taxResult.healthContribution.amountOwed)} ${sym}`}
-          detail={`Bracket: ${taxResult.healthContribution.thresholdHit} (${fmt(taxResult.healthContribution.totalNonSalaryIncome)} income)`}
+          detail={t('results:healthContributionDetail', { bracket: taxResult.healthContribution.thresholdHit, income: fmt(taxResult.healthContribution.totalNonSalaryIncome) })}
           color="purple"
         />
         <SummaryCard
           icon={<Percent className="w-6 h-6" />}
-          label="Total Tax Owed"
+          label={t('results:totalTaxOwed')}
           value={`${fmt(taxResult.totals.totalTaxOwed)} ${sym}`}
-          detail={`After early filing discount: ${fmt(taxResult.totals.totalAfterDiscount)} ${sym}`}
+          detail={t('results:totalTaxOwedDetail', { amount: fmt(taxResult.totals.totalAfterDiscount), symbol: sym })}
           color="accent"
           highlight
         />
@@ -161,12 +163,12 @@ export default function ResultsPage() {
 
       {/* Capital gains breakdown */}
       <div className="card mb-6">
-        <h2 className="text-xl font-semibold mb-4">Capital Gains Breakdown</h2>
+        <h2 className="text-xl font-semibold mb-4">{t('results:capitalGainsBreakdown')}</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-          <Stat label="Total Proceeds" value={`${fmt(taxResult.capitalGains.totalProceeds)} ${sym}`} />
-          <Stat label="Total Cost Basis" value={`${fmt(taxResult.capitalGains.totalCostBasis)} ${sym}`} />
-          <Stat label="Net Gains" value={`${fmt(taxResult.capitalGains.netGains)} ${sym}`} positive />
-          <Stat label="Losses" value={`${fmt(taxResult.capitalGains.losses)} ${sym}`} negative={taxResult.capitalGains.losses > 0} />
+          <Stat label={t('results:totalProceeds')} value={`${fmt(taxResult.capitalGains.totalProceeds)} ${sym}`} />
+          <Stat label={t('results:totalCostBasis')} value={`${fmt(taxResult.capitalGains.totalCostBasis)} ${sym}`} />
+          <Stat label={t('results:netGains')} value={`${fmt(taxResult.capitalGains.netGains)} ${sym}`} positive />
+          <Stat label={t('results:losses')} value={`${fmt(taxResult.capitalGains.losses)} ${sym}`} negative={taxResult.capitalGains.losses > 0} />
         </div>
       </div>
 
@@ -174,31 +176,30 @@ export default function ResultsPage() {
       {taxResult.totals.earlyFilingDiscount > 0 && (
         <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
           <p className="text-green-700 dark:text-green-400 font-medium">
-            File early to save {fmt(taxResult.totals.earlyFilingDiscount)} {sym}!
+            {t('results:earlyFilingSave', { amount: fmt(taxResult.totals.earlyFilingDiscount), symbol: sym })}
           </p>
           <p className="text-sm text-green-600 dark:text-green-500 mt-1">
-            Submit by {countryConfig?.earlyFilingDeadline} for a {((countryConfig?.earlyFilingDiscountRate ?? 0) * 100)}% discount.
-            Final deadline: {countryConfig?.finalFilingDeadline}.
+            {t('results:earlyFilingDetail', { earlyDeadline: countryConfig?.earlyFilingDeadline, rate: `${((countryConfig?.earlyFilingDiscountRate ?? 0) * 100)}%`, finalDeadline: countryConfig?.finalFilingDeadline })}
           </p>
         </div>
       )}
 
       {/* Per-security table */}
       <div className="card">
-        <h2 className="text-xl font-semibold mb-4">Per-Security Breakdown</h2>
+        <h2 className="text-xl font-semibold mb-4">{t('results:perSecurityBreakdown')}</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 dark:border-navy-600">
-                <th className="text-left py-3 px-2 font-medium">Security</th>
-                <th className="text-right py-3 px-2 font-medium">Bought</th>
-                <th className="text-right py-3 px-2 font-medium">Sold</th>
-                <th className="text-right py-3 px-2 font-medium">Remaining</th>
-                <th className="text-right py-3 px-2 font-medium">Avg Cost</th>
-                <th className="text-right py-3 px-2 font-medium">Proceeds</th>
-                <th className="text-right py-3 px-2 font-medium">Cost Basis</th>
-                <th className="text-right py-3 px-2 font-medium">Gain/Loss</th>
-                <th className="text-right py-3 px-2 font-medium">Dividends</th>
+                <th className="text-left py-3 px-2 font-medium">{t('results:colSecurity')}</th>
+                <th className="text-right py-3 px-2 font-medium">{t('results:colBought')}</th>
+                <th className="text-right py-3 px-2 font-medium">{t('results:colSold')}</th>
+                <th className="text-right py-3 px-2 font-medium">{t('results:colRemaining')}</th>
+                <th className="text-right py-3 px-2 font-medium">{t('results:colAvgCost')}</th>
+                <th className="text-right py-3 px-2 font-medium">{t('results:colProceeds')}</th>
+                <th className="text-right py-3 px-2 font-medium">{t('results:colCostBasis')}</th>
+                <th className="text-right py-3 px-2 font-medium">{t('results:colGainLoss')}</th>
+                <th className="text-right py-3 px-2 font-medium">{t('results:colDividends')}</th>
               </tr>
             </thead>
             <tbody>
@@ -227,7 +228,7 @@ export default function ResultsPage() {
               {securities.length === 0 && (
                 <tr>
                   <td colSpan={9} className="py-8 text-center text-gray-500 dark:text-slate-500">
-                    No securities with activity in {taxYear}.
+                    {t('results:noSecurities', { year: taxYear })}
                   </td>
                 </tr>
               )}
