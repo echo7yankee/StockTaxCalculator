@@ -1,0 +1,14 @@
+{
+  "createAccount": "Creaz\u0103-\u021bi contul",
+  "signupSubtitle": "Salveaz\u0103 calculele fiscale \u0219i acceseaz\u0103-le oricand",
+  "namePlaceholder": "Numele t\u0103u",
+  "emailPlaceholder": "tu@exemplu.com",
+  "passwordPlaceholder": "Min. 8 caractere",
+  "confirmPasswordPlaceholder": "Repet\u0103 parola",
+  "creatingAccount": "Se creeaz\u0103 contul...",
+  "continueWithGoogle": "Continu\u0103 cu Google",
+  "hasAccount": "Ai deja cont?",
+  "passwordTooShort": "Parola trebuie s\u0103 aib\u0103 minim 8 caractere",
+  "passwordsMismatch": "Parolele nu coincid",
+  "signupFailed": "\u00cenregistrarea a e\u0219uat"
+}

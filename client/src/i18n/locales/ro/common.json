@@ -1,0 +1,18 @@
+{
+  "loading": "Se \u00eencarc\u0103...",
+  "logIn": "Autentific\u0103-te",
+  "signUp": "\u00cenregistreaz\u0103-te",
+  "logOut": "Deconecteaz\u0103-te",
+  "uploadStatement": "\u00cencarc\u0103 declara\u021bia",
+  "viewDashboard": "Panou de control",
+  "goToUpload": "Mergi la \u00eenc\u0103rcare",
+  "backToUpload": "\u00cenapoi la \u00eenc\u0103rcare",
+  "backToResults": "\u00cenapoi la rezultate",
+  "filingGuide": "Ghid de depunere",
+  "save": "Salveaz\u0103",
+  "delete": "\u0218terge",
+  "or": "sau",
+  "email": "Email",
+  "password": "Parol\u0103",
+  "name": "Nume"
+}

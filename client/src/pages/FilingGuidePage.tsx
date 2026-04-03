@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Copy, CheckCircle, ClipboardList, Download } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
 import { useCountry } from '../contexts/CountryContext';
@@ -7,20 +8,10 @@ import { d212Sections, formatD212Summary } from '@shared/taxRules/d212Fields';
 import type { D212Field } from '@shared/taxRules/d212Fields';
 import type { TaxCalculationResult } from '@shared/types/tax';
 
-// Romania-specific filing context
-const romaniaFiling = {
-  formName: 'Declarația Unică (D212)',
-  portalName: 'ANAF SPV',
-  portalFullName: 'Spațiul Privat Virtual',
-  steps: (taxYear: number) => [
-    { text: 'Log into ', bold: 'ANAF SPV', suffix: ' (Spațiul Privat Virtual)' },
-    { text: 'Open ', bold: 'Declarația Unică (D212)', suffix: ` for tax year ${taxYear}` },
-    { text: 'Navigate to each section listed below' },
-    { text: 'Click the copy button next to each value and paste it into the matching field' },
-  ],
-};
+// Romania-specific filing context — steps are now i18n-driven
 
 export default function FilingGuidePage() {
+  const { t } = useTranslation(['filing', 'common', 'd212']);
   const navigate = useNavigate();
   const { taxResult, taxYear } = useUpload();
   const { countryConfig } = useCountry();
@@ -30,19 +21,19 @@ export default function FilingGuidePage() {
   if (!taxResult) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12">
-        <h1 className="text-3xl font-bold mb-2">Tax Filing Guide</h1>
+        <h1 className="text-3xl font-bold mb-2">{t('filing:title')}</h1>
         <p className="text-gray-600 dark:text-slate-400 mb-8">
-          No tax calculation loaded. Upload a statement or load a saved calculation first.
+          {t('filing:emptySubtitle')}
         </p>
         <div className="card text-center py-16">
           <ClipboardList className="w-12 h-12 text-gray-300 dark:text-slate-600 mx-auto mb-4" />
-          <p className="text-gray-500 dark:text-slate-500 text-lg">No data available</p>
+          <p className="text-gray-500 dark:text-slate-500 text-lg">{t('filing:noDataAvailable')}</p>
           <div className="flex gap-3 justify-center mt-6">
             <button onClick={() => navigate('/upload')} className="btn-primary">
-              Upload Statement
+              {t('common:uploadStatement')}
             </button>
             <button onClick={() => navigate('/dashboard')} className="btn-secondary">
-              View Dashboard
+              {t('common:viewDashboard')}
             </button>
           </div>
         </div>
@@ -51,7 +42,6 @@ export default function FilingGuidePage() {
   }
 
   const isRomania = (countryConfig?.code ?? 'RO') === 'RO';
-  const filing = romaniaFiling;
   const sym = countryConfig?.currencySymbol ?? 'RON';
   const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -69,10 +59,10 @@ export default function FilingGuidePage() {
     setTimeout(() => setAllCopied(false), 2000);
   };
 
-  const pageTitle = isRomania ? `Filing Guide — D212 — ${taxYear}` : `Tax Filing Guide — ${taxYear}`;
+  const pageTitle = isRomania ? t('filing:titleRomania', { year: taxYear }) : t('filing:titleGeneric', { year: taxYear });
   const subtitle = isRomania
-    ? `Copy these values into ${filing.portalName} when filing ${filing.formName}`
-    : 'Use these values when filing your tax return';
+    ? t('filing:subtitleRomania', { portal: 'ANAF SPV', form: 'Declarația Unică (D212)' })
+    : t('filing:subtitleGeneric');
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
@@ -83,7 +73,7 @@ export default function FilingGuidePage() {
             onClick={() => navigate('/results')}
             className="flex items-center gap-1 text-sm text-gray-500 dark:text-slate-400 hover:text-accent mb-2 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" /> Back to Results
+            <ArrowLeft className="w-4 h-4" /> {t('common:backToResults')}
           </button>
           <h1 className="text-3xl font-bold">{pageTitle}</h1>
           <p className="text-gray-600 dark:text-slate-400 mt-1">{subtitle}</p>
@@ -91,7 +81,7 @@ export default function FilingGuidePage() {
         <div className="flex gap-2">
           <button onClick={copyAll} className="btn-secondary flex items-center gap-2">
             {allCopied ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-            {allCopied ? 'Copied!' : 'Copy All'}
+            {allCopied ? t('filing:copied') : t('filing:copyAll')}
           </button>
           <button
             onClick={() => {
@@ -102,7 +92,7 @@ export default function FilingGuidePage() {
             className="btn-primary flex items-center gap-2"
           >
             <Download className="w-4 h-4" />
-            Download PDF
+            {t('filing:downloadPdf')}
           </button>
         </div>
       </div>
@@ -110,15 +100,12 @@ export default function FilingGuidePage() {
       {/* How to use — Romania-specific steps */}
       {isRomania && (
         <div className="mb-8 p-4 bg-accent/5 dark:bg-accent/10 border border-accent/20 rounded-xl">
-          <h3 className="font-semibold text-accent mb-2">How to use this</h3>
+          <h3 className="font-semibold text-accent mb-2">{t('filing:howToUse')}</h3>
           <ol className="text-sm text-gray-600 dark:text-slate-400 space-y-1 list-decimal list-inside">
-            {filing.steps(taxYear).map((step, i) => (
-              <li key={i}>
-                {step.text}
-                {step.bold && <strong>{step.bold}</strong>}
-                {step.suffix ?? ''}
-              </li>
-            ))}
+            <li>{t('filing:stepLogin')}<strong>{t('filing:stepLoginBold')}</strong>{t('filing:stepLoginSuffix')}</li>
+            <li>{t('filing:stepOpenForm')}<strong>{t('filing:stepOpenFormBold')}</strong>{t('filing:stepOpenFormSuffix', { year: taxYear })}</li>
+            <li>{t('filing:stepNavigate')}</li>
+            <li>{t('filing:stepCopyPaste')}</li>
           </ol>
         </div>
       )}
@@ -128,9 +115,7 @@ export default function FilingGuidePage() {
         {d212Sections.map((section) => (
           <FilingSectionCard
             key={section.id}
-            title={section.title}
-            localTitle={section.roTitle}
-            description={section.description}
+            sectionId={section.id}
             sectionLabel={section.fields[0]?.section ?? ''}
             fields={section.fields}
             taxResult={taxResult}
@@ -138,24 +123,25 @@ export default function FilingGuidePage() {
             fmt={fmt}
             copiedId={copiedId}
             onCopy={copyValue}
+            t={t}
           />
         ))}
       </div>
 
       {/* Totals */}
       <div className="card mt-6">
-        <h2 className="text-xl font-semibold mb-4">Summary</h2>
+        <h2 className="text-xl font-semibold mb-4">{t('filing:summary')}</h2>
         <div className="space-y-3">
-          <TotalRow label="Total Tax Owed" value={`${fmt(taxResult.totals.totalTaxOwed)} ${sym}`} bold />
+          <TotalRow label={t('filing:totalTaxOwed')} value={`${fmt(taxResult.totals.totalTaxOwed)} ${sym}`} bold />
           {taxResult.totals.earlyFilingDiscount > 0 && (
             <>
               <TotalRow
-                label={`Early Filing Discount (${((countryConfig?.earlyFilingDiscountRate ?? 0) * 100)}%)`}
+                label={t('filing:earlyFilingDiscount', { rate: `${((countryConfig?.earlyFilingDiscountRate ?? 0) * 100)}%` })}
                 value={`-${fmt(taxResult.totals.earlyFilingDiscount)} ${sym}`}
                 className="text-green-600 dark:text-green-400"
               />
               <TotalRow
-                label="Total After Discount"
+                label={t('filing:totalAfterDiscount')}
                 value={`${fmt(taxResult.totals.totalAfterDiscount)} ${sym}`}
                 bold
                 className="text-accent"
@@ -164,7 +150,7 @@ export default function FilingGuidePage() {
           )}
         </div>
         <p className="text-xs text-gray-400 dark:text-slate-600 mt-4">
-          Filing deadline: {countryConfig?.finalFilingDeadline}. Early filing by {countryConfig?.earlyFilingDeadline} for discount.
+          {t('filing:filingDeadline', { finalDeadline: countryConfig?.finalFilingDeadline, earlyDeadline: countryConfig?.earlyFilingDeadline })}
         </p>
       </div>
     </div>
@@ -172,11 +158,9 @@ export default function FilingGuidePage() {
 }
 
 function FilingSectionCard({
-  title, localTitle, description, sectionLabel, fields, taxResult, sym, fmt, copiedId, onCopy,
+  sectionId, sectionLabel, fields, taxResult, sym, fmt, copiedId, onCopy, t,
 }: {
-  title: string;
-  localTitle: string;
-  description: string;
+  sectionId: string;
   sectionLabel: string;
   fields: D212Field[];
   taxResult: TaxCalculationResult;
@@ -184,6 +168,7 @@ function FilingSectionCard({
   fmt: (n: number) => string;
   copiedId: string | null;
   onCopy: (field: D212Field) => void;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   return (
     <div className="card">
@@ -193,10 +178,10 @@ function FilingSectionCard({
             <span className="text-xs font-mono bg-accent/10 text-accent px-2 py-0.5 rounded">
               {sectionLabel}
             </span>
-            <h2 className="text-lg font-semibold">{title}</h2>
+            <h2 className="text-lg font-semibold">{t(`d212:section_${sectionId}_title`)}</h2>
           </div>
-          <p className="text-sm text-gray-500 dark:text-slate-500 italic">{localTitle}</p>
-          <p className="text-xs text-gray-400 dark:text-slate-600 mt-1">{description}</p>
+          <p className="text-sm text-gray-500 dark:text-slate-500 italic">{t(`d212:section_${sectionId}_localTitle`)}</p>
+          <p className="text-xs text-gray-400 dark:text-slate-600 mt-1">{t(`d212:section_${sectionId}_desc`)}</p>
         </div>
       </div>
 
@@ -210,8 +195,8 @@ function FilingSectionCard({
               className="flex items-center justify-between py-3 px-4 bg-navy-700/30 dark:bg-navy-750 rounded-lg group"
             >
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm">{field.roLabel}</p>
-                <p className="text-xs text-gray-500 dark:text-slate-500">{field.enLabel}</p>
+                <p className="font-medium text-sm">{t(`d212:${field.id}`)}</p>
+                <p className="text-xs text-gray-500 dark:text-slate-500">{t(`d212:${field.id}_desc`)}</p>
               </div>
               <div className="flex items-center gap-3 ml-4">
                 <span className="text-lg font-bold font-mono tabular-nums">
@@ -224,7 +209,7 @@ function FilingSectionCard({
                       ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
                       : 'text-gray-400 hover:text-accent hover:bg-accent/10'
                   }`}
-                  title={isCopied ? 'Copied!' : `Copy ${field.roLabel}`}
+                  title={isCopied ? t('filing:copied') : t(`d212:${field.id}`)}
                 >
                   {isCopied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </button>

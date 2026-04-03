@@ -1,0 +1,15 @@
+{
+  "heroTitle": "Calculate your<accent> investment taxes</accent>in 2 minutes",
+  "heroSubtitle": "Upload your broker statement, get tax-ready numbers. No spreadsheets, no accountant, no headaches.",
+  "tryCalculator": "Try Free Calculator",
+  "uploadStatement": "Upload Statement",
+  "howItWorks": "How it works",
+  "stepUploadTitle": "Upload Statement",
+  "stepUploadDesc": "Upload your annual statement (PDF) or transaction export (CSV) from your broker.",
+  "stepCalculateTitle": "We Calculate",
+  "stepCalculateDesc": "Automatic tax computation using official exchange rates and tax rules.",
+  "stepFileTitle": "You File",
+  "stepFileDesc": "Get the exact numbers you need for your annual tax declaration.",
+  "supportedBrokers": "Supported Brokers",
+  "comingSoon": "coming soon"
+}

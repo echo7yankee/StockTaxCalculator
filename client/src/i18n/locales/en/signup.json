@@ -1,0 +1,14 @@
+{
+  "createAccount": "Create your account",
+  "signupSubtitle": "Save your tax calculations and access them anytime",
+  "namePlaceholder": "Your name",
+  "emailPlaceholder": "you@example.com",
+  "passwordPlaceholder": "Min. 8 characters",
+  "confirmPasswordPlaceholder": "Repeat your password",
+  "creatingAccount": "Creating account...",
+  "continueWithGoogle": "Continue with Google",
+  "hasAccount": "Already have an account?",
+  "passwordTooShort": "Password must be at least 8 characters",
+  "passwordsMismatch": "Passwords do not match",
+  "signupFailed": "Signup failed"
+}

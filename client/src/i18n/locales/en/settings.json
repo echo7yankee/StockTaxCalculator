@@ -1,0 +1,13 @@
+{
+  "title": "Settings",
+  "countryRegion": "Country / Region",
+  "countryDescription": "Tax rules and rates are specific to your country. Auto-detected from your browser locale.",
+  "moreComing": "More countries coming soon.",
+  "appearance": "Appearance",
+  "theme": "Theme",
+  "currentTheme": "Currently using {{mode}} mode",
+  "switchToLight": "Switch to Light",
+  "switchToDark": "Switch to Dark",
+  "language": "Language",
+  "languageDescription": "Choose the display language for the application."
+}

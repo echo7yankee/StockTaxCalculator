@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserPlus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function SignupPage() {
+  const { t } = useTranslation(['signup', 'common']);
   const navigate = useNavigate();
   const { signup, loginWithGoogle } = useAuth();
   const [name, setName] = useState('');
@@ -18,11 +20,11 @@ export default function SignupPage() {
     setError('');
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+      setError(t('signup:passwordTooShort'));
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t('signup:passwordsMismatch'));
       return;
     }
 
@@ -31,7 +33,7 @@ export default function SignupPage() {
       await signup(email, password, name);
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Signup failed');
+      setError(err instanceof Error ? err.message : t('signup:signupFailed'));
     } finally {
       setLoading(false);
     }
@@ -44,9 +46,9 @@ export default function SignupPage() {
           <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center mx-auto mb-4">
             <UserPlus className="w-6 h-6 text-accent" />
           </div>
-          <h1 className="text-2xl font-bold">Create your account</h1>
+          <h1 className="text-2xl font-bold">{t('signup:createAccount')}</h1>
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-            Save your tax calculations and access them anytime
+            {t('signup:signupSubtitle')}
           </p>
         </div>
 
@@ -58,56 +60,56 @@ export default function SignupPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Name</label>
+            <label className="block text-sm font-medium mb-1">{t('common:name')}</label>
             <input
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
               className="input"
-              placeholder="Your name"
+              placeholder={t('signup:namePlaceholder')}
               autoComplete="name"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
+            <label className="block text-sm font-medium mb-1">{t('common:email')}</label>
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               className="input"
-              placeholder="you@example.com"
+              placeholder={t('signup:emailPlaceholder')}
               required
               autoComplete="email"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Password</label>
+            <label className="block text-sm font-medium mb-1">{t('common:password')}</label>
             <input
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               className="input"
-              placeholder="Min. 8 characters"
+              placeholder={t('signup:passwordPlaceholder')}
               required
               minLength={8}
               autoComplete="new-password"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Confirm Password</label>
+            <label className="block text-sm font-medium mb-1">{t('signup:confirmPasswordPlaceholder')}</label>
             <input
               type="password"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
               className="input"
-              placeholder="Repeat your password"
+              placeholder={t('signup:confirmPasswordPlaceholder')}
               required
               minLength={8}
               autoComplete="new-password"
             />
           </div>
           <button type="submit" disabled={loading} className="btn-primary w-full py-2.5">
-            {loading ? 'Creating account...' : 'Create account'}
+            {loading ? t('signup:creatingAccount') : t('signup:createAccount')}
           </button>
         </form>
 
@@ -130,13 +132,13 @@ export default function SignupPage() {
             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
           </svg>
-          Continue with Google
+          {t('signup:continueWithGoogle')}
         </button>
 
         <p className="text-center text-sm text-gray-500 dark:text-slate-400 mt-6">
-          Already have an account?{' '}
+          {t('signup:hasAccount')}{' '}
           <Link to="/login" className="text-accent hover:underline font-medium">
-            Log in
+            {t('common:logIn')}
           </Link>
         </p>
       </div>

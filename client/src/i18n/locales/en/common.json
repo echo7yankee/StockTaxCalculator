@@ -1,0 +1,18 @@
+{
+  "loading": "Loading...",
+  "logIn": "Log in",
+  "signUp": "Sign up",
+  "logOut": "Log out",
+  "uploadStatement": "Upload Statement",
+  "viewDashboard": "View Dashboard",
+  "goToUpload": "Go to Upload",
+  "backToUpload": "Back to Upload",
+  "backToResults": "Back to Results",
+  "filingGuide": "Filing Guide",
+  "save": "Save",
+  "delete": "Delete",
+  "or": "or",
+  "email": "Email",
+  "password": "Password",
+  "name": "Name"
+}
