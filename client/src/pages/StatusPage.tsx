@@ -98,8 +98,8 @@ const features: Feature[] = [
     name: 'Unit Tests (Shared)',
     status: 'done',
     icon: <TestTube className="w-5 h-5" />,
-    details: '65 tests: CSV parser, PDF parser, tax calculator, PDF tax calculator, Romania rules',
-    tests: '65 passing',
+    details: '94 tests: CSV parser, PDF parser, tax calculator, PDF tax calculator, Romania rules',
+    tests: '94 passing',
   },
   {
     name: 'Unit Tests (Server)',
@@ -109,28 +109,24 @@ const features: Feature[] = [
     tests: '18 passing',
   },
   {
-    name: 'PDF Integration Test',
-    status: 'pending',
-    icon: <TestTube className="w-5 h-5" />,
-    details: 'Test real PDF fixture end-to-end, verify ~28-29K RON total tax',
-  },
-  {
     name: 'Unit Tests (Client)',
-    status: 'pending',
+    status: 'done',
     icon: <TestTube className="w-5 h-5" />,
     details: 'UploadContext, Calculator, Results, Dashboard page tests',
+    tests: '30 passing',
   },
   {
     name: 'Playwright E2E Tests',
-    status: 'pending',
+    status: 'done',
     icon: <TestTube className="w-5 h-5" />,
-    details: 'Browser automation: navigation, calculator flow, PDF upload flow, dashboard',
+    details: 'Browser automation: navigation, calculator, dashboard, upload, auth flows',
+    tests: '28 passing',
   },
   {
     name: 'Authentication',
-    status: 'pending',
+    status: 'done',
     icon: <Shield className="w-5 h-5" />,
-    details: 'User accounts, Google OAuth (schema ready, not implemented)',
+    details: 'Email/password + Google OAuth, cookie sessions, progressive disclosure',
   },
   {
     name: 'Dark Theme',
@@ -154,8 +150,8 @@ export default function StatusPage() {
       .catch(() => 'down' as const)
       .then(status => setHealth(h => ({ ...h, server: status })));
 
-    // Check database (tax-years endpoint)
-    fetch('/api/tax-years')
+    // Check database via health endpoint (public, no auth needed)
+    fetch('/api/health')
       .then(r => r.ok ? 'up' as const : 'down' as const)
       .catch(() => 'down' as const)
       .then(status => setHealth(h => ({ ...h, database: status })));
@@ -247,11 +243,11 @@ export default function StatusPage() {
         <h2 className="text-lg font-semibold mb-3">Test Summary</h2>
         <div className="grid grid-cols-4 gap-4 text-center">
           <div>
-            <p className="text-3xl font-bold text-green-500">83</p>
+            <p className="text-3xl font-bold text-green-500">142</p>
             <p className="text-xs text-gray-500 dark:text-slate-500">Unit Tests Passing</p>
           </div>
           <div>
-            <p className="text-3xl font-bold text-green-500">65</p>
+            <p className="text-3xl font-bold text-green-500">94</p>
             <p className="text-xs text-gray-500 dark:text-slate-500">Shared (parsers, engines)</p>
           </div>
           <div>
@@ -259,8 +255,8 @@ export default function StatusPage() {
             <p className="text-xs text-gray-500 dark:text-slate-500">Server (BNR, API)</p>
           </div>
           <div>
-            <p className="text-3xl font-bold text-gray-400">0</p>
-            <p className="text-xs text-gray-500 dark:text-slate-500">Client (pending)</p>
+            <p className="text-3xl font-bold text-green-500">30</p>
+            <p className="text-xs text-gray-500 dark:text-slate-500">Client (components)</p>
           </div>
         </div>
       </div>

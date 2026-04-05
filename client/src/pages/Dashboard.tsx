@@ -37,7 +37,7 @@ interface ApiSecurityCalculation {
 
 export default function Dashboard() {
   const { t } = useTranslation(['dashboard', 'common']);
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
   const { setUploadData } = useUpload();
   const navigate = useNavigate();
   const [taxYears, setTaxYears] = useState<SavedTaxYear[]>([]);
@@ -50,6 +50,7 @@ export default function Dashboard() {
     setLoading(true);
     fetch('/api/tax-years', { credentials: 'include' })
       .then(res => {
+        if (res.status === 401) { logout(); return []; }
         if (!res.ok) throw new Error('Failed to fetch');
         return res.json();
       })
@@ -62,6 +63,7 @@ export default function Dashboard() {
     setLoadingId(ty.id);
     try {
       const res = await fetch(`/api/tax-years/${ty.id}`, { credentials: 'include' });
+      if (res.status === 401) { logout(); return; }
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
       const calc = data.calculation;
@@ -130,10 +132,11 @@ export default function Dashboard() {
     e.stopPropagation();
     try {
       const res = await fetch(`/api/tax-years/${id}`, { method: 'DELETE', credentials: 'include' });
+      if (res.status === 401) { logout(); return; }
       if (!res.ok) throw new Error('Delete failed');
       setTaxYears(prev => prev.filter(ty => ty.id !== id));
     } catch {
-      setError(t('dashboard:deleteError', 'Failed to delete calculation'));
+      setError(t('dashboard:deleteError'));
     }
   };
 
