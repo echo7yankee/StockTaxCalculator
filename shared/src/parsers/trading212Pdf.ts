@@ -336,18 +336,18 @@ function parseDividendRows(pageTexts: string[], sectionKeywords: readonly string
   return dividends;
 }
 
-function detectYear(text: string): number {
+function detectYear(text: string): { year: number; fallback: boolean } {
   // EN: "Annual Statement - 2025", RO: "Declarație anuală - 2025"
   const match = text.match(/(?:Annual Statement|Declarație anuală|Declaratie anuala)\s*[-–]\s*(\d{4})/i);
-  if (match) return parseInt(match[1]);
+  if (match) return { year: parseInt(match[1]), fallback: false };
 
   // Look for date range pattern (EN: "to", RO uses " - " between dates)
   const rangeMatch = text.match(/(\d{2}\.\d{2}\.\d{4}).*?(?:to|-|–)\s*(\d{2}\.\d{2}\.\d{4})/i);
   if (rangeMatch) {
-    return parseInt(rangeMatch[2].split('.')[2]);
+    return { year: parseInt(rangeMatch[2].split('.')[2]), fallback: false };
   }
 
-  return new Date().getFullYear() - 1;
+  return { year: new Date().getFullYear() - 1, fallback: true };
 }
 
 /**
@@ -358,7 +358,10 @@ export function parseTrading212AnnualStatement(pageTexts: string[]): PdfParseRes
   const fullText = pageTexts.join('\n');
   const warnings: string[] = [];
 
-  const year = detectYear(fullText);
+  const { year, fallback: yearFallback } = detectYear(fullText);
+  if (yearFallback) {
+    warnings.push(`Could not detect year from PDF. Defaulting to ${year}.`);
+  }
   const overview = parseOverview(pageTexts[0] ?? fullText);
   const sellTrades = parseSellTrades(pageTexts);
   const dividends = parseDividendRows(pageTexts, KEYWORDS.dividendOverview);

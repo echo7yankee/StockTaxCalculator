@@ -52,9 +52,13 @@ export function calculateTaxes(
   }
 
   for (const t of sorted) {
+    // Guard against malformed transactions
+    if ((t.action === 'buy' || t.action === 'sell') && (!t.shares || t.shares <= 0)) continue;
+
     const key = t.isin || t.ticker;
     const sec = getOrCreateSecurity(t);
-    const amountLocal = t.totalAmountLocal || t.totalAmountOriginal * t.exchangeRateToLocal;
+    const exchangeRate = t.exchangeRateToLocal > 0 ? t.exchangeRateToLocal : 1;
+    const amountLocal = t.totalAmountLocal || t.totalAmountOriginal * exchangeRate;
 
     if (t.action === 'buy') {
       sec.totalBoughtShares += t.shares;
@@ -109,7 +113,7 @@ export function calculateTaxes(
       sec.totalDividends += amountLocal;
       totalDividends += amountLocal;
 
-      const whLocal = t.withholdingTaxLocal || t.withholdingTaxOriginal * t.exchangeRateToLocal;
+      const whLocal = t.withholdingTaxLocal || t.withholdingTaxOriginal * exchangeRate;
       sec.totalWithholdingTax += whLocal;
       totalWithholdingTax += whLocal;
     }
@@ -145,7 +149,8 @@ export function calculateTaxes(
   }
 
   const totalTaxOwed = capitalGainsTax + dividendTax + healthAmount;
-  const earlyFilingDiscount = totalTaxOwed * config.earlyFilingDiscountRate;
+  // Early filing discount applies only to income tax (capital gains + dividends), NOT to CASS
+  const earlyFilingDiscount = (capitalGainsTax + dividendTax) * config.earlyFilingDiscountRate;
 
   const taxResult: TaxCalculationResult = {
     taxYearId: `${year}`,

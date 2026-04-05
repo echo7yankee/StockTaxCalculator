@@ -157,15 +157,16 @@ describe('calculateTaxes', () => {
   });
 
   describe('early filing discount', () => {
-    it('calculates 3% discount on total tax', () => {
+    it('calculates 3% discount on income tax only (excludes CASS)', () => {
       const txs = [
         makeTx({ id: 'b1', action: 'buy', shares: 100, totalAmountOriginal: 10000 }),
         makeTx({ id: 's1', action: 'sell', shares: 100, totalAmountOriginal: 120000 }),
       ];
       const result = calculateTaxes(txs, romaniaTaxConfig, 2025);
+      const incomeTax = result.taxResult.capitalGains.taxOwed + result.taxResult.dividends.taxOwed;
+      expect(result.taxResult.totals.earlyFilingDiscount).toBeCloseTo(incomeTax * 0.03, 1);
       const totalTax = result.taxResult.totals.totalTaxOwed;
-      expect(result.taxResult.totals.earlyFilingDiscount).toBeCloseTo(totalTax * 0.03, 1);
-      expect(result.taxResult.totals.totalAfterDiscount).toBeCloseTo(totalTax * 0.97, 1);
+      expect(result.taxResult.totals.totalAfterDiscount).toBeCloseTo(totalTax - incomeTax * 0.03, 1);
     });
   });
 
