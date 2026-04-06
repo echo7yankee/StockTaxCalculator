@@ -126,12 +126,16 @@ describe('PDF Integration: Annual Statement 2025', () => {
       expect(taxResult.totals.totalTaxOwed).toBeCloseTo(29020, 0);
     });
 
-    it('early filing discount: ~871 RON (3%)', () => {
-      expect(taxResult.totals.earlyFilingDiscount).toBeCloseTo(871, 0);
+    it('early filing discount: ~579 RON (3% of income tax only, excludes CASS)', () => {
+      const incomeTax = taxResult.capitalGains.taxOwed + taxResult.dividends.taxOwed;
+      expect(taxResult.totals.earlyFilingDiscount).toBeCloseTo(incomeTax * 0.03, 0);
     });
 
-    it('total after discount: ~28,149 RON', () => {
-      expect(taxResult.totals.totalAfterDiscount).toBeCloseTo(28149, 0);
+    it('total after discount: ~28,441 RON', () => {
+      const incomeTax = taxResult.capitalGains.taxOwed + taxResult.dividends.taxOwed;
+      expect(taxResult.totals.totalAfterDiscount).toBeCloseTo(
+        taxResult.totals.totalTaxOwed - incomeTax * 0.03, 0
+      );
     });
   });
 
