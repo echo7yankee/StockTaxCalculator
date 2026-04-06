@@ -54,6 +54,7 @@ export default function UploadPage() {
 
   const [csvRateLoading, setCsvRateLoading] = useState(false);
   const [csvRateStatus, setCsvRateStatus] = useState<string | null>(null);
+  const [csvHistoryWarning, setCsvHistoryWarning] = useState(false);
 
   // Store parsed data for calculate step
   const [csvRows, setCsvRows] = useState<RawCsvRow[]>([]);
@@ -107,6 +108,7 @@ export default function UploadPage() {
 
         // Detect single-year CSV that may be missing historical buys
         const warnings = [...parsed.warnings];
+        let historyWarning = false;
         if (years.length === 1) {
           const sellShares: Record<string, number> = {};
           const buyShares: Record<string, number> = {};
@@ -115,11 +117,9 @@ export default function UploadPage() {
             if (tx.action === 'sell') sellShares[key] = (sellShares[key] || 0) + tx.shares;
             if (tx.action === 'buy') buyShares[key] = (buyShares[key] || 0) + tx.shares;
           }
-          const hasDeficit = Object.keys(sellShares).some(k => sellShares[k] > (buyShares[k] || 0) + 0.01);
-          if (hasDeficit) {
-            warnings.unshift(t('csvMissingHistoryWarning'));
-          }
+          historyWarning = Object.keys(sellShares).some(k => sellShares[k] > (buyShares[k] || 0) + 0.01);
         }
+        setCsvHistoryWarning(historyWarning);
 
         setPreview({
           fileName: file.name,
@@ -312,6 +312,7 @@ export default function UploadPage() {
     setCsvRows([]);
     setPdfData(null);
     setError(null);
+    setCsvHistoryWarning(false);
   };
 
   return (
@@ -346,10 +347,13 @@ export default function UploadPage() {
                 <p className="text-lg font-medium mb-1">{t('dropHere')}</p>
                 <p className="text-sm text-gray-500 dark:text-slate-500">{t('orClickBrowse')}</p>
                 <div className="mt-4 space-y-1">
+                  <p className="text-xs text-accent font-medium">
+                    {t('recommendedPdf')}
+                  </p>
                   <p className="text-xs text-gray-400 dark:text-slate-600">
                     {t('supportedFormats')}
                   </p>
-                  <p className="text-xs text-yellow-500 dark:text-yellow-400">
+                  <p className="text-xs text-gray-400 dark:text-slate-600">
                     {t('csvFullHistoryNote')}
                   </p>
                 </div>
@@ -466,6 +470,20 @@ export default function UploadPage() {
             </div>
           )}
 
+          {/* Critical: CSV missing historical buys */}
+          {csvHistoryWarning && preview?.fileType === 'csv' && (
+            <div className="p-5 bg-red-50 dark:bg-red-900/20 border-2 border-red-400 dark:border-red-600 rounded-xl">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-6 h-6 text-red-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-red-700 dark:text-red-400 font-bold text-base mb-2">{t('csvHistoryBlockTitle')}</p>
+                  <p className="text-sm text-red-600 dark:text-red-400 mb-3">{t('csvMissingHistoryWarning')}</p>
+                  <p className="text-sm text-red-600 dark:text-red-400 font-medium">{t('csvHistoryBlockAction')}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Exchange rate (when account currency differs from tax currency) */}
           {preview.fileType === 'pdf' && preview.currency && countryConfig && preview.currency !== countryConfig.currency && (
             <div className="card">
@@ -524,8 +542,8 @@ export default function UploadPage() {
               </div>
               <button
                 onClick={handleCalculate}
-                disabled={csvRateLoading}
-                className="btn-primary flex items-center gap-2 text-lg px-6 py-3"
+                disabled={csvRateLoading || csvHistoryWarning}
+                className={`flex items-center gap-2 text-lg px-6 py-3 ${csvHistoryWarning ? 'btn-secondary opacity-50 cursor-not-allowed' : 'btn-primary'}`}
               >
                 {csvRateLoading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
