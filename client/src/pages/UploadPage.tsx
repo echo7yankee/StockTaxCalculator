@@ -105,6 +105,22 @@ export default function UploadPage() {
 
         if (years.length > 0) setSelectedYear(years[0]);
 
+        // Detect single-year CSV that may be missing historical buys
+        const warnings = [...parsed.warnings];
+        if (years.length === 1) {
+          const sellShares: Record<string, number> = {};
+          const buyShares: Record<string, number> = {};
+          for (const tx of parsed.transactions) {
+            const key = tx.isin || tx.ticker;
+            if (tx.action === 'sell') sellShares[key] = (sellShares[key] || 0) + tx.shares;
+            if (tx.action === 'buy') buyShares[key] = (buyShares[key] || 0) + tx.shares;
+          }
+          const hasDeficit = Object.keys(sellShares).some(k => sellShares[k] > (buyShares[k] || 0) + 0.01);
+          if (hasDeficit) {
+            warnings.unshift(t('csvMissingHistoryWarning'));
+          }
+        }
+
         setPreview({
           fileName: file.name,
           fileType: 'csv',
@@ -114,7 +130,7 @@ export default function UploadPage() {
           distributions: 0,
           totalRows: parsed.transactions.length,
           skipped: parsed.skipped.length,
-          warnings: parsed.warnings,
+          warnings,
           year: years[0] ?? new Date().getFullYear() - 1,
           years,
         });
@@ -332,6 +348,9 @@ export default function UploadPage() {
                 <div className="mt-4 space-y-1">
                   <p className="text-xs text-gray-400 dark:text-slate-600">
                     {t('supportedFormats')}
+                  </p>
+                  <p className="text-xs text-yellow-500 dark:text-yellow-400">
+                    {t('csvFullHistoryNote')}
                   </p>
                 </div>
               </>
