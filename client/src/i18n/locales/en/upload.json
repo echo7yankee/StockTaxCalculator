@@ -29,5 +29,7 @@
   "calculateTaxes": "Calculate Taxes",
   "usingTaxRules": "Using {{country}} tax rules ({{rate}}% capital gains rate)",
   "fetchingBnrRates": "Fetching BNR rates...",
-  "bnrRateFallback": "Could not fetch BNR rates — using broker rates as fallback"
+  "bnrRateFallback": "Could not fetch BNR rates — using broker rates as fallback",
+  "csvFullHistoryNote": "For CSV: export your full Trading212 history (from account opening), not just the tax year.",
+  "csvMissingHistoryWarning": "This CSV appears to be missing historical buy transactions. You are selling shares that were not purchased in this CSV. Please re-export your full Trading212 history from account opening for accurate cost basis calculations."
 }

@@ -29,5 +29,7 @@
   "calculateTaxes": "Calculeaz\u0103 impozitele",
   "usingTaxRules": "Se folosesc regulile fiscale {{country}} (cot\u0103 {{rate}}% pe c\u00e2\u0219tiguri de capital)",
   "fetchingBnrRates": "Se preiau cursurile BNR...",
-  "bnrRateFallback": "Nu s-au putut ob\u021bine cursurile BNR \u2014 se folosesc cursurile brokerului"
+  "bnrRateFallback": "Nu s-au putut ob\u021bine cursurile BNR \u2014 se folosesc cursurile brokerului",
+  "csvFullHistoryNote": "Pentru CSV: export\u0103 istoricul complet Trading212 (de la deschiderea contului), nu doar anul fiscal.",
+  "csvMissingHistoryWarning": "Acest CSV pare s\u0103 nu con\u021bin\u0103 tranzac\u021biile istorice de cump\u0103rare. Vinzi ac\u021biuni care nu au fost cump\u0103rate \u00een acest CSV. Te rug\u0103m s\u0103 re-exporti istoricul complet Trading212 de la deschiderea contului pentru calculul corect al costului de achizi\u021bie."
 }

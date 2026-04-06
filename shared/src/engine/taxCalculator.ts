@@ -17,8 +17,10 @@ export function calculateTaxes(
   config: CountryTaxConfig,
   year: number
 ): TaxEngineResult {
+  // Sort ALL transactions chronologically — do NOT filter by year.
+  // Historical buys are needed to build correct cost basis for positions
+  // opened in prior years and sold in the target year.
   const sorted = [...transactions]
-    .filter(t => t.transactionDate.getFullYear() === year)
     .sort((a, b) => a.transactionDate.getTime() - b.transactionDate.getTime());
 
   // Per-security tracking
@@ -51,6 +53,8 @@ export function calculateTaxes(
     return securityData.get(key)!;
   }
 
+  const isTargetYear = (t: Transaction) => t.transactionDate.getFullYear() === year;
+
   for (const t of sorted) {
     // Guard against malformed transactions
     if ((t.action === 'buy' || t.action === 'sell') && (!t.shares || t.shares <= 0)) continue;
@@ -61,13 +65,11 @@ export function calculateTaxes(
     const amountLocal = t.totalAmountLocal || t.totalAmountOriginal * exchangeRate;
 
     if (t.action === 'buy') {
-      sec.totalBoughtShares += t.shares;
-
+      // Always process buys to build up lots (regardless of year)
       if (!holdings.has(key)) holdings.set(key, []);
       const lots = holdings.get(key)!;
 
       if (config.costBasisMethod === 'weighted-average') {
-        // Weighted average: merge into a single lot
         const existingShares = lots.reduce((s, l) => s + l.shares, 0);
         const existingCost = lots.reduce((s, l) => s + l.shares * l.costPerShareLocal, 0);
         const newTotalShares = existingShares + t.shares;
@@ -77,14 +79,15 @@ export function calculateTaxes(
         holdings.set(key, [{ shares: newTotalShares, costPerShareLocal: avgCost }]);
         sec.weightedAvgCostLocal = avgCost;
       } else {
-        // FIFO fallback
         lots.push({ shares: t.shares, costPerShareLocal: amountLocal / t.shares });
       }
-    } else if (t.action === 'sell') {
-      sec.totalSoldShares += t.shares;
-      sec.totalProceeds += amountLocal;
-      totalProceeds += amountLocal;
 
+      // Only count bought shares for the target year in the breakdown
+      if (isTargetYear(t)) {
+        sec.totalBoughtShares += t.shares;
+      }
+    } else if (t.action === 'sell') {
+      // Always process sells to reduce lots (correct position tracking)
       const lots = holdings.get(key) ?? [];
       let sharesToSell = t.shares;
       let costBasis = 0;
@@ -95,7 +98,6 @@ export function calculateTaxes(
         lots[0].shares -= sharesToSell;
         if (lots[0].shares <= 0.0001) lots.splice(0, 1);
       } else {
-        // FIFO
         while (sharesToSell > 0.0001 && lots.length > 0) {
           const lot = lots[0];
           const sellFromLot = Math.min(sharesToSell, lot.shares);
@@ -106,16 +108,25 @@ export function calculateTaxes(
         }
       }
 
-      sec.totalCostBasis += costBasis;
-      totalCostBasis += costBasis;
-      sec.realizedGainLoss += amountLocal - costBasis;
+      // Only accumulate financial totals for sells in the target year
+      if (isTargetYear(t)) {
+        sec.totalSoldShares += t.shares;
+        sec.totalProceeds += amountLocal;
+        sec.totalCostBasis += costBasis;
+        sec.realizedGainLoss += amountLocal - costBasis;
+        totalProceeds += amountLocal;
+        totalCostBasis += costBasis;
+      }
     } else if (t.action === 'dividend') {
-      sec.totalDividends += amountLocal;
-      totalDividends += amountLocal;
+      // Only count dividends in the target year
+      if (isTargetYear(t)) {
+        sec.totalDividends += amountLocal;
+        totalDividends += amountLocal;
 
-      const whLocal = t.withholdingTaxLocal || t.withholdingTaxOriginal * exchangeRate;
-      sec.totalWithholdingTax += whLocal;
-      totalWithholdingTax += whLocal;
+        const whLocal = t.withholdingTaxLocal || t.withholdingTaxOriginal * exchangeRate;
+        sec.totalWithholdingTax += whLocal;
+        totalWithholdingTax += whLocal;
+      }
     }
   }
 
@@ -180,18 +191,21 @@ export function calculateTaxes(
     calculatedAt: new Date(),
   };
 
-  const securities = Array.from(securityData.values()).map(s => ({
-    ...s,
-    totalBoughtShares: round4(s.totalBoughtShares),
-    totalSoldShares: round4(s.totalSoldShares),
-    remainingShares: round4(s.remainingShares),
-    weightedAvgCostLocal: round2(s.weightedAvgCostLocal),
-    totalProceeds: round2(s.totalProceeds),
-    totalCostBasis: round2(s.totalCostBasis),
-    realizedGainLoss: round2(s.realizedGainLoss),
-    totalDividends: round2(s.totalDividends),
-    totalWithholdingTax: round2(s.totalWithholdingTax),
-  }));
+  // Only include securities that had activity in the target year
+  const securities = Array.from(securityData.values())
+    .filter(s => s.totalSoldShares > 0 || s.totalBoughtShares > 0 || s.totalDividends > 0)
+    .map(s => ({
+      ...s,
+      totalBoughtShares: round4(s.totalBoughtShares),
+      totalSoldShares: round4(s.totalSoldShares),
+      remainingShares: round4(s.remainingShares),
+      weightedAvgCostLocal: round2(s.weightedAvgCostLocal),
+      totalProceeds: round2(s.totalProceeds),
+      totalCostBasis: round2(s.totalCostBasis),
+      realizedGainLoss: round2(s.realizedGainLoss),
+      totalDividends: round2(s.totalDividends),
+      totalWithholdingTax: round2(s.totalWithholdingTax),
+    }));
 
   return { taxResult, securities };
 }
