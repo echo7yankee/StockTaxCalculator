@@ -136,7 +136,7 @@ export default function FilingGuidePage() {
           {taxResult.totals.earlyFilingDiscount > 0 && (
             <>
               <TotalRow
-                label={t('filing:earlyFilingDiscount', { rate: `${((countryConfig?.earlyFilingDiscountRate ?? 0) * 100)}%` })}
+                label={t('filing:earlyFilingDiscount', { rate: `${((countryConfig?.earlyFilingDiscountRate ?? 0) * 100)}` })}
                 value={`-${fmt(taxResult.totals.earlyFilingDiscount)} ${sym}`}
                 className="text-green-600 dark:text-green-400"
               />

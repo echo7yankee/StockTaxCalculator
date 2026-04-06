@@ -179,7 +179,7 @@ export default function ResultsPage() {
             {t('results:earlyFilingSave', { amount: fmt(taxResult.totals.earlyFilingDiscount), symbol: sym })}
           </p>
           <p className="text-sm text-green-600 dark:text-green-500 mt-1">
-            {t('results:earlyFilingDetail', { earlyDeadline: countryConfig?.earlyFilingDeadline, rate: `${((countryConfig?.earlyFilingDiscountRate ?? 0) * 100)}%`, finalDeadline: countryConfig?.finalFilingDeadline })}
+            {t('results:earlyFilingDetail', { earlyDeadline: countryConfig?.earlyFilingDeadline, rate: `${((countryConfig?.earlyFilingDiscountRate ?? 0) * 100)}`, finalDeadline: countryConfig?.finalFilingDeadline })}
           </p>
         </div>
       )}
