@@ -1,17 +1,66 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import prisma from '../lib/prisma.js';
+
+const securitySchema = z.object({
+  isin: z.string().optional(),
+  ticker: z.string().optional(),
+  securityName: z.string().optional(),
+  totalBoughtShares: z.number().optional(),
+  totalSoldShares: z.number().optional(),
+  remainingShares: z.number().optional(),
+  weightedAvgCostLocal: z.number().optional(),
+  totalProceeds: z.number().optional(),
+  totalCostBasis: z.number().optional(),
+  realizedGainLoss: z.number().optional(),
+  totalDividends: z.number().optional(),
+  totalWithholdingTax: z.number().optional(),
+});
+
+const uploadSchema = z.object({
+  year: z.number().int().min(2000).max(2100),
+  country: z.string().max(10).optional(),
+  broker: z.string().max(50).optional(),
+  fileName: z.string().max(255).optional(),
+  taxResult: z.object({
+    capitalGains: z.object({
+      totalProceeds: z.number(),
+      totalCostBasis: z.number(),
+      netGains: z.number(),
+      losses: z.number(),
+      taxRate: z.number(),
+      taxOwed: z.number(),
+    }).optional(),
+    dividends: z.object({
+      grossTotal: z.number(),
+      withholdingTaxPaid: z.number(),
+      taxOwed: z.number(),
+    }).optional(),
+    healthContribution: z.object({
+      totalNonSalaryIncome: z.number(),
+      thresholdHit: z.string(),
+      amountOwed: z.number(),
+    }).optional(),
+    totals: z.object({
+      totalTaxOwed: z.number(),
+      earlyFilingDiscount: z.number(),
+      totalAfterDiscount: z.number(),
+    }).optional(),
+  }),
+  securities: z.array(securitySchema).optional(),
+});
 
 export const uploadsRouter = Router();
 
 // POST /api/uploads — save a tax calculation (requires auth)
 uploadsRouter.post('/', async (req, res) => {
   try {
-    const { year, country, broker, fileName, taxResult, securities } = req.body;
-
-    if (!year || !taxResult) {
-      res.status(400).json({ error: 'year and taxResult are required' });
+    const parsed = uploadSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid upload data', details: parsed.error.issues });
       return;
     }
+    const { year, country, broker, fileName, taxResult, securities } = parsed.data;
 
     const userId = req.user!.id;
 
