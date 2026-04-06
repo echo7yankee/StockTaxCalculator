@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod/v4';
-import { getAverageRate, getRateForDate } from '../services/bnrRates.js';
+import { getAverageRate, getRateForDate, getAllRatesForYear } from '../services/bnrRates.js';
 
 export const exchangeRatesRouter = Router();
 
@@ -23,6 +23,25 @@ exchangeRatesRouter.get('/:year/average', async (req, res) => {
     res.json({ rate, currency: currency.toUpperCase(), year, type: 'average' });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to fetch exchange rate';
+    res.status(502).json({ error: message });
+  }
+});
+
+// GET /api/exchange-rates/:year/daily?currency=USD — all daily rates for a year
+exchangeRatesRouter.get('/:year/daily', async (req, res) => {
+  try {
+    const yearParsed = yearSchema.safeParse(req.params.year);
+    if (!yearParsed.success) {
+      res.status(400).json({ error: 'Invalid year' });
+      return;
+    }
+    const year = yearParsed.data;
+    const currency = currencySchema.parse(((req.query.currency as string) || 'USD').toUpperCase());
+    const rates = await getAllRatesForYear(year, currency.toUpperCase());
+
+    res.json({ rates, currency: currency.toUpperCase(), year, type: 'daily', count: Object.keys(rates).length });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch exchange rates';
     res.status(502).json({ error: message });
   }
 });

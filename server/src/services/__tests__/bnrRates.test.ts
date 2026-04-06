@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { parseRatesXml, getAverageRate, getRateForDate, clearCache } from '../bnrRates.js';
+import { parseRatesXml, getAverageRate, getRateForDate, getAllRatesForYear, clearCache } from '../bnrRates.js';
 
 const SAMPLE_XML = `<?xml version="1.0" encoding="utf-8"?>
 <DataSet>
@@ -143,5 +143,35 @@ describe('getRateForDate', () => {
     // Old bug: would pick Jan 6 (closer). Correct: pick Jan 3 (last before)
     const rate = await getRateForDate(2025, '2025-01-05', 'USD');
     expect(rate).toBe(4.589); // Jan 3 rate, NOT Jan 6 (4.601)
+  });
+});
+
+describe('getAllRatesForYear', () => {
+  beforeEach(() => {
+    clearCache();
+    vi.restoreAllMocks();
+  });
+
+  it('returns a date-to-rate map', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(SAMPLE_XML, { status: 200 })
+    );
+
+    const rates = await getAllRatesForYear(2025, 'USD');
+    expect(rates['2025-01-02']).toBe(4.573);
+    expect(rates['2025-01-03']).toBe(4.589);
+    expect(rates['2025-01-06']).toBe(4.601);
+    expect(Object.keys(rates)).toHaveLength(3);
+  });
+
+  it('caches per currency (USD and EUR do not collide)', async () => {
+    const mockFetch = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () => Promise.resolve(new Response(SAMPLE_XML, { status: 200 }))
+    );
+
+    await getAllRatesForYear(2025, 'USD');
+    await getAllRatesForYear(2025, 'EUR');
+    // Should call fetch twice: once for USD, once for EUR
+    expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 });

@@ -11,7 +11,7 @@ export interface BnrYearRates {
   rates: BnrRate[];
 }
 
-const cache = new Map<number, BnrYearRates>();
+const cache = new Map<string, BnrYearRates>();
 
 function buildUrl(year: number): string {
   return `https://www.bnr.ro/files/xml/years/nbrfxrates${year}.xml`;
@@ -58,8 +58,9 @@ export function parseRatesXml(xml: string, currency: string): BnrRate[] {
 }
 
 export async function fetchBnrRatesForYear(year: number, currency: string = 'USD'): Promise<BnrYearRates> {
-  if (cache.has(year)) {
-    return cache.get(year)!;
+  const cacheKey = `${year}-${currency}`;
+  if (cache.has(cacheKey)) {
+    return cache.get(cacheKey)!;
   }
 
   const url = buildUrl(year);
@@ -80,7 +81,7 @@ export async function fetchBnrRatesForYear(year: number, currency: string = 'USD
   }
 
   const result: BnrYearRates = { year, rates };
-  cache.set(year, result);
+  cache.set(cacheKey, result);
   return result;
 }
 
@@ -114,6 +115,15 @@ export async function getRateForDate(year: number, date: string, currency: strin
 
   if (!best) throw new Error(`No rate found for ${currency} on or before ${date}`);
   return best.rate;
+}
+
+export async function getAllRatesForYear(year: number, currency: string = 'USD'): Promise<Record<string, number>> {
+  const { rates } = await fetchBnrRatesForYear(year, currency);
+  const map: Record<string, number> = {};
+  for (const r of rates) {
+    map[r.date] = r.rate;
+  }
+  return map;
 }
 
 export function clearCache(): void {
