@@ -97,22 +97,23 @@ export async function getRateForDate(year: number, date: string, currency: strin
   const exact = rates.find(r => r.date === date);
   if (exact) return exact.rate;
 
-  // Find closest date before the target
+  // Find the last published rate on or before the target date
+  // Romanian tax law requires the BNR rate in effect on the transaction date,
+  // which is the last rate published before that date (BNR doesn't publish on weekends/holidays)
   const target = new Date(date).getTime();
-  let closest: BnrRate | null = null;
-  let closestDiff = Infinity;
+  let best: BnrRate | null = null;
 
   for (const r of rates) {
     const d = new Date(r.date).getTime();
-    const diff = Math.abs(target - d);
-    if (diff < closestDiff) {
-      closestDiff = diff;
-      closest = r;
+    if (d <= target) {
+      if (!best || d > new Date(best.date).getTime()) {
+        best = r;
+      }
     }
   }
 
-  if (!closest) throw new Error(`No rate found for ${currency} near ${date}`);
-  return closest.rate;
+  if (!best) throw new Error(`No rate found for ${currency} on or before ${date}`);
+  return best.rate;
 }
 
 export function clearCache(): void {

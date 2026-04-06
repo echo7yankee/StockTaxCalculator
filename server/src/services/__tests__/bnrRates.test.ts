@@ -124,13 +124,24 @@ describe('getRateForDate', () => {
     expect(rate).toBe(4.589);
   });
 
-  it('returns closest rate when exact date not found', async () => {
+  it('returns last rate before target when exact date not found (weekend → Friday)', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(SAMPLE_XML, { status: 200 })
     );
 
-    // Jan 4 is a weekend, closest is Jan 3
+    // Jan 4 (Sat) should use Jan 3 (Fri) rate, NOT Jan 6 (Mon)
     const rate = await getRateForDate(2025, '2025-01-04', 'USD');
-    expect(rate).toBe(4.589);
+    expect(rate).toBe(4.589); // Jan 3 rate
+  });
+
+  it('picks previous rate even when next date is closer', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(SAMPLE_XML, { status: 200 })
+    );
+
+    // Jan 5 (Sun) is 2 days after Jan 3 but 1 day before Jan 6
+    // Old bug: would pick Jan 6 (closer). Correct: pick Jan 3 (last before)
+    const rate = await getRateForDate(2025, '2025-01-05', 'USD');
+    expect(rate).toBe(4.589); // Jan 3 rate, NOT Jan 6 (4.601)
   });
 });
