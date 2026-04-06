@@ -111,7 +111,8 @@ export function calculateTaxesFromPdf(
   }
 
   const totalTaxOwed = capitalGainsTax + dividendTax + healthAmount;
-  const earlyFilingDiscount = totalTaxOwed * config.earlyFilingDiscountRate;
+  // Early filing discount applies only to income tax (capital gains + dividends), NOT to CASS
+  const earlyFilingDiscount = (capitalGainsTax + dividendTax) * config.earlyFilingDiscountRate;
 
   const taxResult: TaxCalculationResult = {
     taxYearId: `${pdfData.year}`,

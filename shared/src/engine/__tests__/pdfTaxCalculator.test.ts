@@ -149,11 +149,11 @@ describe('calculateTaxesFromPdf', () => {
     expect(result.taxResult.healthContribution.amountOwed).toBe(2430);
   });
 
-  it('calculates early filing discount at 3%', () => {
+  it('calculates early filing discount at 3% of income tax only (excludes CASS)', () => {
     const data = makePdfData();
     const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 1);
-    const total = result.taxResult.totals.totalTaxOwed;
-    expect(result.taxResult.totals.earlyFilingDiscount).toBeCloseTo(total * 0.03, 1);
+    const incomeTax = result.taxResult.capitalGains.taxOwed + result.taxResult.dividends.taxOwed;
+    expect(result.taxResult.totals.earlyFilingDiscount).toBeCloseTo(incomeTax * 0.03, 1);
   });
 
   it('returns empty securities for no trades or dividends', () => {
