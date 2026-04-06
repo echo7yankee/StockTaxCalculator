@@ -9,7 +9,7 @@ import {
   parseTrading212AnnualStatement,
   calculateTaxesFromPdf,
 } from '@shared/index';
-import type { RawCsvRow, PdfParseResult } from '@shared/index';
+import type { RawCsvRow, PdfParseResult, Transaction } from '@shared/index';
 import { extractPdfPageTexts } from '../utils/pdfExtractor';
 import { useCountry } from '../contexts/CountryContext';
 import { useUpload } from '../contexts/UploadContext';
@@ -51,6 +51,9 @@ export default function UploadPage() {
   const [exchangeRate, setExchangeRate] = useState<number>(DEFAULT_EXCHANGE_RATE_EUR_RON);
   const [rateLoading, setRateLoading] = useState(false);
   const [rateSource, setRateSource] = useState<string | null>(null);
+
+  const [csvRateLoading, setCsvRateLoading] = useState(false);
+  const [csvRateStatus, setCsvRateStatus] = useState<string | null>(null);
 
   // Store parsed data for calculate step
   const [csvRows, setCsvRows] = useState<RawCsvRow[]>([]);
@@ -195,7 +198,36 @@ export default function UploadPage() {
     if (file) processFile(file);
   }, [processFile]);
 
-  const handleCalculate = useCallback(() => {
+  function applyBnrRates(transactions: Transaction[], dailyRates: Record<string, number>, localCurrency: string): Transaction[] {
+    const rateDates = Object.keys(dailyRates).sort();
+
+    function findRateOnOrBefore(dateStr: string): number | null {
+      let lo = 0, hi = rateDates.length - 1, best: string | null = null;
+      while (lo <= hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        if (rateDates[mid] <= dateStr) { best = rateDates[mid]; lo = mid + 1; }
+        else hi = mid - 1;
+      }
+      return best ? dailyRates[best] : null;
+    }
+
+    return transactions.map(tx => {
+      if (tx.priceCurrency === localCurrency) {
+        return { ...tx, exchangeRateToLocal: 1, totalAmountLocal: tx.totalAmountOriginal, withholdingTaxLocal: tx.withholdingTaxOriginal };
+      }
+      const dateStr = new Date(tx.transactionDate).toISOString().split('T')[0];
+      const bnrRate = findRateOnOrBefore(dateStr);
+      if (!bnrRate) return tx;
+      return {
+        ...tx,
+        exchangeRateToLocal: bnrRate,
+        totalAmountLocal: Math.round(tx.totalAmountOriginal * bnrRate * 100) / 100,
+        withholdingTaxLocal: Math.round(tx.withholdingTaxOriginal * bnrRate * 100) / 100,
+      };
+    });
+  }
+
+  const handleCalculate = useCallback(async () => {
     if (!countryConfig) return;
 
     if (preview?.fileType === 'pdf' && pdfData) {
@@ -215,11 +247,38 @@ export default function UploadPage() {
       });
     } else if (preview?.fileType === 'csv' && csvRows.length > 0) {
       const parsed = parseTrading212Csv(csvRows);
-      const { taxResult, securities } = calculateTaxes(parsed.transactions, countryConfig, selectedYear);
+
+      // Detect foreign currency and fetch BNR per-date rates
+      const currencyCount: Record<string, number> = {};
+      for (const tx of parsed.transactions) {
+        if (tx.priceCurrency !== countryConfig.currency) {
+          currencyCount[tx.priceCurrency] = (currencyCount[tx.priceCurrency] || 0) + 1;
+        }
+      }
+      const foreignCurrency = Object.entries(currencyCount).sort((a, b) => b[1] - a[1])[0]?.[0];
+
+      let enrichedTransactions = parsed.transactions;
+      if (foreignCurrency) {
+        try {
+          setCsvRateLoading(true);
+          setCsvRateStatus(null);
+          const res = await fetch(`/api/exchange-rates/${selectedYear}/daily?currency=${foreignCurrency}`);
+          if (!res.ok) throw new Error('Failed to fetch BNR rates');
+          const data = await res.json();
+          enrichedTransactions = applyBnrRates(parsed.transactions, data.rates, countryConfig.currency);
+          setCsvRateStatus(`BNR ${selectedYear} daily rates (${data.count} dates)`);
+        } catch {
+          setCsvRateStatus(t('bnrRateFallback'));
+        } finally {
+          setCsvRateLoading(false);
+        }
+      }
+
+      const { taxResult, securities } = calculateTaxes(enrichedTransactions, countryConfig, selectedYear);
 
       setUploadData({
         parseResult: parsed,
-        transactions: parsed.transactions,
+        transactions: enrichedTransactions,
         taxResult,
         securities,
         fileName: preview.fileName,
@@ -446,15 +505,27 @@ export default function UploadPage() {
               </div>
               <button
                 onClick={handleCalculate}
+                disabled={csvRateLoading}
                 className="btn-primary flex items-center gap-2 text-lg px-6 py-3"
               >
-                <CheckCircle className="w-5 h-5" />
-                {t('calculateTaxes')}
+                {csvRateLoading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <CheckCircle className="w-5 h-5" />
+                )}
+                {csvRateLoading ? t('fetchingBnrRates') : t('calculateTaxes')}
               </button>
             </div>
             {countryConfig && (
               <p className="text-xs text-gray-500 dark:text-slate-500 mt-3">
                 {t('usingTaxRules', { country: countryConfig.name, rate: `${(countryConfig.capitalGainsTaxRate * 100)}%` })}
+              </p>
+            )}
+            {csvRateStatus && preview?.fileType === 'csv' && (
+              <p className={`text-xs mt-1 ${
+                csvRateStatus.includes('BNR') ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'
+              }`}>
+                {csvRateStatus}
               </p>
             )}
           </div>

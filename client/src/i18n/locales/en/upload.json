@@ -27,5 +27,7 @@
   "enterManualRate": "Enter the average BNR exchange rate for {{year}}.",
   "taxYear": "Tax Year",
   "calculateTaxes": "Calculate Taxes",
-  "usingTaxRules": "Using {{country}} tax rules ({{rate}}% capital gains rate)"
+  "usingTaxRules": "Using {{country}} tax rules ({{rate}}% capital gains rate)",
+  "fetchingBnrRates": "Fetching BNR rates...",
+  "bnrRateFallback": "Could not fetch BNR rates — using broker rates as fallback"
 }
