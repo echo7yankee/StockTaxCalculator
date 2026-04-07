@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Copy, CheckCircle, ClipboardList, Download } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
 import { useCountry } from '../contexts/CountryContext';
+import { analytics } from '../lib/analytics';
 import { d212Sections, formatD212Summary } from '@shared/taxRules/d212Fields';
 import type { D212Field } from '@shared/taxRules/d212Fields';
 import type { TaxCalculationResult } from '@shared/types/tax';
@@ -87,6 +88,7 @@ export default function FilingGuidePage() {
             onClick={() => {
               import('../utils/pdfExport').then(({ generateTaxSummaryPdf }) => {
                 generateTaxSummaryPdf(taxResult, taxYear, sym);
+                analytics.pdfExported();
               });
             }}
             className="btn-primary flex items-center gap-2 text-sm"

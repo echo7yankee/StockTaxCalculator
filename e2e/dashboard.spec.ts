@@ -12,7 +12,7 @@ test.describe('Dashboard', () => {
   test('shows saved calculations section', async ({ page }) => {
     await page.goto('/dashboard');
 
-    await expect(page.getByText('Saved Calculations')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Saved Calculations' })).toBeVisible();
   });
 
   test('upload statement link navigates to upload page', async ({ page }) => {

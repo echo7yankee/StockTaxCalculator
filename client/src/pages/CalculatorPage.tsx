@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCountry } from '../contexts/CountryContext';
+import { analytics } from '../lib/analytics';
 import { calculateQuickTax } from '@shared/engine/quickCalculator';
 import type { QuickTaxResult } from '@shared/engine/quickCalculator';
 import type { ManualCalculatorInput } from '@shared/types/tax';
@@ -21,6 +22,7 @@ export default function CalculatorPage() {
 
   const handleCalculate = () => {
     setResult(calculateQuickTax(input, countryConfig));
+    analytics.calculatorUsed();
   };
 
   const updateField = (field: keyof ManualCalculatorInput, value: string) => {
