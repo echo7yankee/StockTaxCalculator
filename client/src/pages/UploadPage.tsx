@@ -41,6 +41,7 @@ export default function UploadPage() {
   const { setUploadData } = useUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [activeTab, setActiveTab] = useState<FileType>('pdf');
   const [dragOver, setDragOver] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -188,6 +189,16 @@ export default function UploadPage() {
       return;
     }
 
+    // Validate file matches selected tab
+    if (activeTab === 'pdf' && !isPdf) {
+      setError(t('invalidFileType'));
+      return;
+    }
+    if (activeTab === 'csv' && !isCsv) {
+      setError(t('invalidFileType'));
+      return;
+    }
+
     if (file.size > 10 * 1024 * 1024) {
       setError(t('fileTooLarge'));
       return;
@@ -200,7 +211,7 @@ export default function UploadPage() {
     } else {
       processPdf(file);
     }
-  }, [processCsv, processPdf]);
+  }, [processCsv, processPdf, activeTab]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -213,6 +224,15 @@ export default function UploadPage() {
     const file = e.target.files?.[0];
     if (file) processFile(file);
   }, [processFile]);
+
+  const handleTabChange = (tab: FileType) => {
+    setActiveTab(tab);
+    setError(null);
+    setPreview(null);
+    setCsvRows([]);
+    setPdfData(null);
+    setCsvHistoryWarning(false);
+  };
 
   function applyBnrRates(transactions: Transaction[], dailyRates: Record<string, number>, localCurrency: string): Transaction[] {
     const rateDates = Object.keys(dailyRates).sort();
@@ -322,6 +342,52 @@ export default function UploadPage() {
         {t('subtitle')}
       </p>
 
+      {/* PDF / CSV tabs */}
+      {!preview && (
+        <div className="mb-6">
+          <div className="flex border-b border-gray-200 dark:border-navy-600">
+            <button
+              onClick={() => handleTabChange('pdf')}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'pdf'
+                  ? 'border-accent text-accent'
+                  : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              {t('tabPdf')}
+              <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-accent/10 text-accent font-medium">
+                {t('tabPdfRecommended')}
+              </span>
+            </button>
+            <button
+              onClick={() => handleTabChange('csv')}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'csv'
+                  ? 'border-accent text-accent'
+                  : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
+              }`}
+            >
+              <Upload className="w-4 h-4" />
+              {t('tabCsv')}
+              <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-navy-600 text-gray-500 dark:text-slate-400 font-medium">
+                {t('tabCsvAdvanced')}
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* CSV pre-upload warning */}
+      {!preview && activeTab === 'csv' && (
+        <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-sm text-amber-700 dark:text-amber-400">{t('csvPreWarning')}</p>
+          </div>
+        </div>
+      )}
+
       {/* Drop zone */}
       {!preview && (
         <div className="card">
@@ -343,27 +409,32 @@ export default function UploadPage() {
               </>
             ) : (
               <>
-                <Upload className="w-12 h-12 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
-                <p className="text-lg font-medium mb-1">{t('dropHere')}</p>
-                <p className="text-sm text-gray-500 dark:text-slate-500">{t('orClickBrowse')}</p>
-                <div className="mt-4 space-y-1">
-                  <p className="text-xs text-accent font-medium">
-                    {t('recommendedPdf')}
-                  </p>
-                  <p className="text-xs text-gray-400 dark:text-slate-600">
-                    {t('supportedFormats')}
-                  </p>
-                  <p className="text-xs text-gray-400 dark:text-slate-600">
+                {activeTab === 'pdf' ? (
+                  <FileText className="w-12 h-12 text-accent/60 mx-auto mb-4" />
+                ) : (
+                  <Upload className="w-12 h-12 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
+                )}
+                <p className="text-lg font-medium mb-1">
+                  {activeTab === 'pdf' ? t('pdfDropHere') : t('csvDropHere')}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-slate-500">
+                  {activeTab === 'pdf' ? t('pdfOrClick') : t('csvOrClick')}
+                </p>
+                <p className="mt-3 text-xs text-gray-400 dark:text-slate-600">
+                  {activeTab === 'pdf' ? t('pdfHint') : t('csvHint')}
+                </p>
+                {activeTab === 'csv' && (
+                  <p className="mt-1 text-xs text-gray-400 dark:text-slate-600">
                     {t('csvFullHistoryNote')}
                   </p>
-                </div>
+                )}
               </>
             )}
           </div>
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv,.pdf"
+            accept={activeTab === 'pdf' ? '.pdf' : '.csv'}
             onChange={handleFileInput}
             className="hidden"
           />

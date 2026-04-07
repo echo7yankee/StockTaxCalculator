@@ -37,5 +37,16 @@
   "csvHistoryBlockAction": "Te rug\u0103m s\u0103 re-exporti istoricul complet Trading212 de la deschiderea contului p\u00e2n\u0103 la 31 decembrie al anului fiscal, sau folose\u0219te extrasul anual PDF.",
   "csvSplitWarningTitle": "CSV-ul nu ia \u00een calcul split-urile de ac\u021biuni",
   "csvSplitWarningBody": "Dac\u0103 ai de\u021binut ac\u021biuni care au trecut printr-un split (ex: NVDA 10:1 \u00een iunie 2024, TSLA 3:1 \u00een august 2022), CSV-ul va calcula gre\u0219it costul de achizi\u021bie deoarece Trading212 nu ajusteaz\u0103 r\u00e2ndurile istorice pentru split-uri.",
-  "csvSplitWarningAction": "Folose\u0219te extrasul anual PDF \u2014 acesta ia deja \u00een calcul split-urile \u0219i produce rezultate corecte."
+  "csvSplitWarningAction": "Folose\u0219te extrasul anual PDF \u2014 acesta ia deja \u00een calcul split-urile \u0219i produce rezultate corecte.",
+  "tabPdf": "Extras PDF",
+  "tabPdfRecommended": "Recomandat",
+  "tabCsv": "Export CSV",
+  "tabCsvAdvanced": "Avansat",
+  "pdfDropHere": "Trage extrasul PDF aici",
+  "pdfOrClick": "sau click pentru a r\u0103sfoi",
+  "pdfHint": "\u00cencarc\u0103 extrasul anual Trading212 (.pdf)",
+  "csvDropHere": "Trage exportul CSV aici",
+  "csvOrClick": "sau click pentru a r\u0103sfoi",
+  "csvHint": "\u00cencarc\u0103 istoricul complet de tranzac\u021bii Trading212 (.csv)",
+  "csvPreWarning": "CSV-ul nu ia \u00een calcul split-urile de ac\u021biuni. Pentru rezultate mai precise, folose\u0219te tab-ul PDF."
 }
