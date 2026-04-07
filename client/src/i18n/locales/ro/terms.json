@@ -1,0 +1,73 @@
+{
+  "title": "Termeni si Conditii",
+  "lastUpdated": "Ultima actualizare: aprilie 2026",
+  "intro": "Prin utilizarea InvesTax (investax.app), esti de acord cu acesti termeni. Te rugam sa ii citesti cu atentie.",
+  "sections": {
+    "service": {
+      "title": "1. Descrierea serviciului",
+      "description": "InvesTax este un instrument software care ajuta rezidentii fiscali romani sa calculeze taxele pe veniturile din investitii (castiguri de capital, dividende) de la brokerii acceptati. InvesTax nu este un serviciu de consultanta fiscala, firma de contabilitate sau institutie financiara."
+    },
+    "noAdvice": {
+      "title": "2. Nu constituie consiliere financiara sau fiscala",
+      "description": "Calculele furnizate de InvesTax au doar scop informativ si nu constituie consiliere financiara, fiscala sau juridica. Legislatia fiscala este complexa si supusa modificarilor. Esti singurul responsabil pentru verificarea acuratetei oricarui calcul inainte de depunerea declaratiei fiscale. Pentru cazuri complexe sau audituri ANAF, consulta un contabil autorizat."
+    },
+    "accuracy": {
+      "title": "3. Acuratetea calculelor",
+      "description": "Ne straduim sa oferim calcule precise bazate pe legislatia fiscala romaneasca in vigoare. Cu toate acestea, InvesTax nu garanteaza corectitudinea niciunui calcul. Regulile fiscale se pot schimba, formatele extraselor brokerilor pot varia, si pot exista cazuri speciale pe care motorul nostru nu le acopera. Verifica intotdeauna rezultatele cu un contabil pentru obligatii fiscale semnificative."
+    },
+    "accounts": {
+      "title": "4. Conturi de utilizator",
+      "items": {
+        "age": "Trebuie sa ai cel putin 18 ani pentru a crea un cont.",
+        "accurate": "Trebuie sa furnizezi informatii corecte la crearea contului.",
+        "security": "Esti responsabil pentru mentinerea securitatii credentialelor contului tau.",
+        "oneAccount": "Fiecare persoana poate avea un singur cont. Conturile duplicate pot fi combinate sau sterse."
+      }
+    },
+    "payment": {
+      "title": "5. Plata si rambursari",
+      "items": {
+        "pricing": "InvesTax ofera un calculator gratuit pentru estimari rapide si un plan anual platit pentru functiile complete de procesare PDF/CSV.",
+        "annual": "Planul platit este o plata unica anuala, nu un abonament recurent.",
+        "refund": "Oferim o politica de rambursare de 14 zile, fara intrebari. Contacteaza support@investax.app pentru a solicita o rambursare.",
+        "processor": "Platile sunt procesate de Lemon Squeezy, care actioneaza ca merchant of record si gestioneaza conformitatea TVA."
+      }
+    },
+    "data": {
+      "title": "6. Datele tale",
+      "description": "Iti pastrezi dreptul de proprietate asupra tuturor datelor pe care le incarci sau le introduci in InvesTax. Procesam datele tale exclusiv pentru a furniza serviciul de calcul fiscal. Consulta Politica de Confidentialitate pentru detalii despre gestionarea, stocarea datelor si drepturile tale GDPR."
+    },
+    "prohibited": {
+      "title": "7. Utilizari interzise",
+      "description": "Esti de acord sa nu:",
+      "items": {
+        "abuse": "Folosesti serviciul in scopuri ilegale.",
+        "reverse": "Incerci sa faci inginerie inversa, sa decompilezi sau sa extragi codul sursa.",
+        "overload": "Suprasoliciti sau perturbezi intentionat serviciul.",
+        "scrape": "Faci scraping, crawling sau folosesti instrumente automate pentru a accesa serviciul dincolo de utilizarea normala.",
+        "share": "Impartasesti credentialele contului tau cu altii sau revinzi accesul."
+      }
+    },
+    "liability": {
+      "title": "8. Limitarea raspunderii",
+      "description": "In limita maxima permisa de lege, InvesTax si operatorul sau nu vor fi responsabili pentru daune indirecte, incidentale sau consecvente rezultate din utilizarea serviciului, inclusiv, dar fara a se limita la calcule fiscale incorecte, termene ratate sau penalitati impuse de autoritatile fiscale. Raspunderea noastra totala este limitata la suma pe care ai platit-o pentru serviciu in anul curent."
+    },
+    "termination": {
+      "title": "9. Inchiderea contului",
+      "description": "Putem suspenda sau inchide contul tau daca incalci acesti termeni. Poti sterge contul tau oricand din pagina Setari. La stergere, toate datele tale sunt eliminate permanent, conform Politicii de Confidentialitate."
+    },
+    "changes": {
+      "title": "10. Modificari ale acestor termeni",
+      "description": "Putem actualiza acesti termeni periodic. Continuarea utilizarii serviciului dupa modificari constituie acceptarea termenilor actualizati. Modificarile semnificative vor fi comunicate prin email utilizatorilor inregistrati."
+    },
+    "law": {
+      "title": "11. Legea aplicabila",
+      "description": "Acesti termeni sunt guvernati de legile din Romania. Orice dispute vor fi solutionate in instantele din Arad, Romania."
+    },
+    "contactUs": {
+      "title": "12. Contact",
+      "description": "Pentru intrebari despre acesti termeni, contacteaza-ne la:",
+      "email": "hello@investax.app"
+    }
+  }
+}

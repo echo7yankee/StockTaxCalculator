@@ -1,0 +1,72 @@
+{
+  "title": "Politica de Confidentialitate",
+  "lastUpdated": "Ultima actualizare: aprilie 2026",
+  "intro": "InvesTax (\"noi\") se angajeaza sa protejeze confidentialitatea datelor tale. Aceasta politica explica ce date colectam, de ce si cum le gestionam.",
+  "sections": {
+    "dataCollected": {
+      "title": "1. Datele pe care le colectam",
+      "items": {
+        "account": "Informatii de cont: adresa de email, numele (daca este furnizat) si metoda de autentificare (email/parola sau Google OAuth).",
+        "calculations": "Calcule fiscale: datele pe care le introduci sau le incarci (istoricul tranzactiilor, castiguri de capital, dividende) pentru a genera rapoarte fiscale.",
+        "usage": "Date de utilizare: paginile vizitate, functiile utilizate si modele generale de interactiune (colectate prin Plausible Analytics, care nu foloseste cookie-uri si este conform GDPR).",
+        "technical": "Date tehnice: adresa IP (doar pentru limitarea ratei si securitate, nu este stocata pe termen lung), tipul browserului si tipul dispozitivului."
+      }
+    },
+    "whyCollect": {
+      "title": "2. De ce colectam date",
+      "items": {
+        "service": "Pentru a furniza serviciul de calcul fiscal pe care l-ai solicitat.",
+        "save": "Pentru a salva calculele tale astfel incat sa le poti accesa ulterior.",
+        "improve": "Pentru a imbunatati produsul pe baza modelelor de utilizare agregate si anonime.",
+        "security": "Pentru a proteja impotriva abuzurilor si a asigura securitatea serviciului."
+      }
+    },
+    "storage": {
+      "title": "3. Cum stocam datele",
+      "description": "Datele tale sunt stocate pe un server securizat gazduit de Hetzner Online GmbH in Germania (UE). Baza de date este criptata si salvata zilnic. Parolele sunt hash-uite folosind bcrypt si nu sunt niciodata stocate in text clar."
+    },
+    "sharing": {
+      "title": "4. Partajarea datelor",
+      "description": "Nu vindem, nu inchiriem si nu partajam datele tale personale cu terti, cu exceptia urmatoarelor servicii care proceseaza date in numele nostru:",
+      "providers": {
+        "hetzner": "Hetzner Online GmbH — gazduire server (Germania, UE)",
+        "lemonSqueezy": "Lemon Squeezy — procesare plati (merchant of record)",
+        "resend": "Resend — livrare email-uri tranzactionale",
+        "plausible": "Plausible Analytics — analiza anonima a website-ului, fara cookie-uri"
+      }
+    },
+    "cookies": {
+      "title": "5. Cookie-uri",
+      "description": "InvesTax foloseste doar cookie-uri esentiale necesare pentru functionarea serviciului (autentificare sesiune, preferinta de limba, preferinta de tema). Nu folosim cookie-uri de urmarire, cookie-uri publicitare sau cookie-uri de la terti. Plausible Analytics nu foloseste deloc cookie-uri."
+    },
+    "gdprRights": {
+      "title": "6. Drepturile tale (GDPR)",
+      "description": "Ca rezident UE, ai dreptul la:",
+      "rights": {
+        "access": "Acces la date — vizualizeaza toate datele pe care le stocam despre tine.",
+        "export": "Export date — descarca calculele tale ca JSON din pagina Setari.",
+        "delete": "Stergerea datelor — sterge permanent contul tau si toate datele asociate din pagina Setari.",
+        "rectify": "Rectificarea datelor — corecteaza orice informatie personala inexacta.",
+        "object": "Opozitie la prelucrare — contacteaza-ne pentru a te opune unor activitati specifice de prelucrare a datelor."
+      },
+      "contact": "Pentru a exercita oricare dintre aceste drepturi, foloseste optiunile din pagina Setari sau scrie-ne la support@investax.app."
+    },
+    "retention": {
+      "title": "7. Retentia datelor",
+      "description": "Pastram datele tale cat timp contul tau este activ. Daca iti stergi contul, toate datele personale si calculele salvate sunt sterse permanent in 30 de zile. Datele analitice anonime si agregate pot fi pastrate pe termen nelimitat."
+    },
+    "children": {
+      "title": "8. Confidentialitatea minorilor",
+      "description": "InvesTax nu este destinat utilizatorilor sub 18 ani. Nu colectam cu buna stiinta date de la minori."
+    },
+    "changes": {
+      "title": "9. Modificari ale acestei politici",
+      "description": "Putem actualiza aceasta politica periodic. Modificarile semnificative vor fi comunicate prin email utilizatorilor inregistrati. Data \"Ultima actualizare\" de sus reflecta cea mai recenta revizie."
+    },
+    "contactUs": {
+      "title": "10. Contacteaza-ne",
+      "description": "Pentru intrebari sau preocupari legate de confidentialitate, contacteaza-ne la:",
+      "email": "support@investax.app"
+    }
+  }
+}

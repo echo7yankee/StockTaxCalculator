@@ -1,0 +1,47 @@
+{
+  "title": "Get in touch",
+  "subtitle": "We reply to all messages within 24 hours on business days.",
+  "support": {
+    "title": "Need help?",
+    "description": "For questions about how to use InvesTax, technical issues, or anything not working as expected.",
+    "email": "support@investax.app",
+    "responseTime": "Reply within 24 hours"
+  },
+  "general": {
+    "title": "Other questions?",
+    "description": "For partnerships, feedback, business inquiries, or anything else.",
+    "email": "hello@investax.app",
+    "responseTime": "Reply within 1-2 days"
+  },
+  "faq": {
+    "title": "Frequently Asked Questions",
+    "items": {
+      "noEmail": {
+        "question": "I didn't receive my payment confirmation email",
+        "answer": "Check your Spam folder. If it doesn't appear within 10 minutes, email us at support@investax.app with your email address."
+      },
+      "wrongCalc": {
+        "question": "My calculation seems wrong",
+        "answer": "Send us an email at support@investax.app with a screenshot of the result and (if possible) your anonymized statement. We investigate every discrepancy."
+      },
+      "refund": {
+        "question": "I want a refund",
+        "answer": "We offer a 14-day no-questions-asked refund. Email us at support@investax.app."
+      },
+      "deleteAccount": {
+        "question": "How do I delete my account?",
+        "answer": "Go to Settings and click \"Delete account\". All your data will be permanently deleted."
+      },
+      "mobileApp": {
+        "question": "Do you have a mobile app?",
+        "answer": "Not yet, but the website works perfectly on mobile. You can add InvesTax to your home screen from your browser."
+      }
+    }
+  },
+  "business": {
+    "title": "Business Information",
+    "operator": "Individual operator",
+    "address": "Str. Moraviei Nr. 4, Arad, Romania",
+    "email": "hello@investax.app"
+  }
+}
