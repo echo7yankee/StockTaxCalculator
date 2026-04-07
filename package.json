@@ -1,5 +1,5 @@
 {
-  "name": "stock-tax-calculator",
+  "name": "investax",
   "version": "0.1.0",
   "private": true,
   "description": "Investment tax calculator — upload broker CSVs, get tax-ready numbers",

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod/v4';
-import { getCountryConfig, calculateQuickTax } from '@stock-tax-calculator/shared';
+import { getCountryConfig, calculateQuickTax } from '@investax/shared';
 
 export const calculatorRouter = Router();
 
