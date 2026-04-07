@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Sun, Moon, Settings, TrendingUp, LogOut, User } from 'lucide-react';
+import { Sun, Moon, Settings, TrendingUp, LogOut, User, Menu, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -19,6 +19,7 @@ export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -32,8 +33,14 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Close mobile nav on route change
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname]);
+
   const handleLogout = async () => {
     setMenuOpen(false);
+    setMobileNavOpen(false);
     await logout();
     navigate('/');
   };
@@ -52,7 +59,7 @@ export default function Header() {
             <span>StockTax</span>
           </Link>
 
-          {/* Nav */}
+          {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-1">
             {navLinks.map(link => (
               <Link
@@ -80,15 +87,15 @@ export default function Header() {
             </button>
             <Link
               to="/settings"
-              className="p-2 rounded-lg text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors"
+              className="hidden sm:block p-2 rounded-lg text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors"
               aria-label={t('header:settings')}
             >
               <Settings className="w-5 h-5" />
             </Link>
 
-            {/* Auth */}
+            {/* Auth — desktop */}
             {!loading && !user && (
-              <div className="hidden sm:flex items-center gap-2 ml-2">
+              <div className="hidden md:flex items-center gap-2 ml-2">
                 <Link
                   to="/login"
                   className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 transition-colors"
@@ -104,6 +111,7 @@ export default function Header() {
               </div>
             )}
 
+            {/* User avatar — all sizes */}
             {!loading && user && (
               <div className="relative ml-2" ref={menuRef}>
                 <button
@@ -128,6 +136,14 @@ export default function Header() {
                       <User className="w-4 h-4" />
                       {t('header:dashboard')}
                     </Link>
+                    <Link
+                      to="/settings"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-navy-700 md:hidden"
+                    >
+                      <Settings className="w-4 h-4" />
+                      {t('header:settings')}
+                    </Link>
                     <button
                       onClick={handleLogout}
                       className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-navy-700"
@@ -139,9 +155,57 @@ export default function Header() {
                 )}
               </div>
             )}
+
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setMobileNavOpen(!mobileNavOpen)}
+              className="md:hidden p-2 rounded-lg text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors"
+              aria-label="Menu"
+            >
+              {mobileNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Mobile nav panel */}
+      {mobileNavOpen && (
+        <div className="md:hidden border-t border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-900">
+          <nav className="px-4 py-3 space-y-1">
+            {navLinks.map(link => (
+              <Link
+                key={link.to}
+                to={link.to}
+                className={`block px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  location.pathname === link.to
+                    ? 'bg-accent/10 text-accent'
+                    : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-navy-700'
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+            <Link
+              to="/settings"
+              className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-navy-700"
+            >
+              {t('header:settings')}
+            </Link>
+          </nav>
+
+          {/* Auth — mobile */}
+          {!loading && !user && (
+            <div className="px-4 pb-3 pt-1 border-t border-gray-100 dark:border-navy-700 flex gap-2">
+              <Link to="/login" className="flex-1 text-center py-2 text-sm font-medium text-gray-600 dark:text-slate-400 border border-gray-300 dark:border-navy-500 rounded-lg">
+                {t('common:logIn')}
+              </Link>
+              <Link to="/signup" className="flex-1 text-center btn-primary text-sm py-2">
+                {t('common:signUp')}
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
     </header>
   );
 }
