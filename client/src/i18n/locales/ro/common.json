@@ -14,5 +14,9 @@
   "or": "sau",
   "email": "Email",
   "password": "Parol\u0103",
-  "name": "Nume"
+  "name": "Nume",
+  "cookieBanner": {
+    "message": "Acest site folosește doar cookie-uri esențiale pentru autentificare și preferințele tale. Fără cookie-uri de urmărire.",
+    "accept": "Am înțeles"
+  }
 }
