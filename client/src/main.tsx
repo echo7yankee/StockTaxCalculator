@@ -1,4 +1,5 @@
 import './i18n/i18n';
+import { initSentry } from './lib/sentry';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
@@ -8,6 +9,9 @@ import { CountryProvider } from './contexts/CountryContext';
 import { UploadProvider } from './contexts/UploadContext';
 import App from './App';
 import './index.css';
+
+// Initialize Sentry before rendering (only active when VITE_SENTRY_DSN is set + production)
+initSentry();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

@@ -5,6 +5,7 @@ import { ArrowLeft, TrendingUp, DollarSign, Heart, Percent, FileText, Save, Chec
 import { useUpload } from '../contexts/UploadContext';
 import { useCountry } from '../contexts/CountryContext';
 import { useAuth } from '../contexts/AuthContext';
+import { analytics } from '../lib/analytics';
 
 export default function ResultsPage() {
   const { t } = useTranslation(['results', 'common']);
@@ -42,6 +43,7 @@ export default function ResultsPage() {
 
       if (!res.ok) throw new Error('Failed to save');
       setSaved(true);
+      analytics.calculationSaved();
     } catch {
       setSaveError(t('results:saveError'));
     } finally {

@@ -13,6 +13,7 @@ import type { RawCsvRow, PdfParseResult, Transaction } from '@shared/index';
 import { extractPdfPageTexts } from '../utils/pdfExtractor';
 import { useCountry } from '../contexts/CountryContext';
 import { useUpload } from '../contexts/UploadContext';
+import { analytics } from '../lib/analytics';
 
 type FileType = 'csv' | 'pdf';
 
@@ -136,6 +137,7 @@ export default function UploadPage() {
           years,
         });
         setProcessing(false);
+        analytics.csvUploaded();
       },
       error: (err) => {
         setError(t('failedParseCsv', { message: err.message }));
@@ -163,6 +165,7 @@ export default function UploadPage() {
         currency: parsed.overview.currency,
       });
       setProcessing(false);
+      analytics.pdfUploaded();
 
       // Auto-fetch BNR exchange rate
       if (parsed.overview.currency) {

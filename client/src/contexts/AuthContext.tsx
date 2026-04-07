@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
+import { analytics } from '../lib/analytics';
 
 interface AuthUser {
   id: string;
@@ -55,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Signup failed');
     setUser(data.user);
+    analytics.signupCompleted();
   }, []);
 
   const loginWithGoogle = useCallback(() => {
