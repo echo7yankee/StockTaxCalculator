@@ -34,5 +34,8 @@
   "csvFullHistoryNote": "For CSV: export your full Trading212 history (from account opening), not just the tax year.",
   "csvMissingHistoryWarning": "This CSV is missing historical buy transactions. You are selling shares that were not purchased in this CSV. The cost basis will be wrong and your tax calculation will be incorrect.",
   "csvHistoryBlockTitle": "Incomplete Transaction History Detected",
-  "csvHistoryBlockAction": "Please re-export your full Trading212 history from account opening through Dec 31 of the tax year, or use the PDF annual statement instead."
+  "csvHistoryBlockAction": "Please re-export your full Trading212 history from account opening through Dec 31 of the tax year, or use the PDF annual statement instead.",
+  "csvSplitWarningTitle": "CSV does not account for stock splits",
+  "csvSplitWarningBody": "If you held any stock through a split (e.g., NVDA 10:1 in June 2024, TSLA 3:1 in August 2022), the CSV flow will compute incorrect cost basis because Trading212 does not adjust historical rows for splits.",
+  "csvSplitWarningAction": "Use the PDF annual statement instead — it already accounts for splits and produces accurate results."
 }
