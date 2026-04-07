@@ -7,12 +7,12 @@
     @apply antialiased;
   }
 
-  /* Smooth theme transition */
+  /* Smooth theme transition — limited to 200ms for mobile perf */
   html.transitioning,
   html.transitioning *,
   html.transitioning *::before,
   html.transitioning *::after {
-    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease !important;
   }
 }
 
@@ -30,6 +30,6 @@
   }
 
   .input {
-    @apply w-full bg-gray-50 dark:bg-navy-700 border border-gray-300 dark:border-navy-500 rounded-lg px-4 py-2.5 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors;
+    @apply w-full bg-gray-50 dark:bg-navy-700 border border-gray-300 dark:border-navy-500 rounded-lg px-4 py-2.5 text-base text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors;
   }
 }

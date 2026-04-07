@@ -73,7 +73,7 @@ export default function ResultsPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
           <button
             onClick={() => navigate('/upload')}
@@ -81,13 +81,13 @@ export default function ResultsPage() {
           >
             <ArrowLeft className="w-4 h-4" /> {t('common:backToUpload')}
           </button>
-          <h1 className="text-3xl font-bold">{t('results:titleWithYear', { year: taxYear })}</h1>
-          <p className="text-gray-600 dark:text-slate-400 mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold">{t('results:titleWithYear', { year: taxYear })}</h1>
+          <p className="text-gray-600 dark:text-slate-400 mt-1 text-sm sm:text-base">
             <FileText className="w-4 h-4 inline mr-1" />
             {fileName} — {transactions.length > 0 ? t('results:transactionsCount', { count: transactions.length }) : t('results:pdfStatement')}
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex flex-col items-start sm:items-end gap-1">
           <button
             onClick={handleSave}
             disabled={saving || saved}
@@ -112,7 +112,7 @@ export default function ResultsPage() {
       </div>
 
       {/* Filing guide banner */}
-      <div className="mb-8 p-4 bg-accent/5 dark:bg-accent/10 border border-accent/20 rounded-xl flex items-center justify-between">
+      <div className="mb-8 p-4 bg-accent/5 dark:bg-accent/10 border border-accent/20 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h3 className="font-semibold">{t('results:readyToFile')}</h3>
           <p className="text-sm text-gray-600 dark:text-slate-400">
@@ -121,7 +121,7 @@ export default function ResultsPage() {
         </div>
         <button
           onClick={() => navigate('/filing-guide')}
-          className="btn-primary flex items-center gap-2 whitespace-nowrap"
+          className="btn-primary flex items-center gap-2 whitespace-nowrap self-start sm:self-auto"
         >
           <ClipboardList className="w-4 h-4" />
           {t('common:filingGuide')}
@@ -164,7 +164,7 @@ export default function ResultsPage() {
       {/* Capital gains breakdown */}
       <div className="card mb-6">
         <h2 className="text-xl font-semibold mb-4">{t('results:capitalGainsBreakdown')}</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-center">
           <Stat label={t('results:totalProceeds')} value={`${fmt(taxResult.capitalGains.totalProceeds)} ${sym}`} />
           <Stat label={t('results:totalCostBasis')} value={`${fmt(taxResult.capitalGains.totalCostBasis)} ${sym}`} />
           <Stat label={t('results:netGains')} value={`${fmt(taxResult.capitalGains.netGains)} ${sym}`} positive />

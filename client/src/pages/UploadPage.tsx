@@ -502,7 +502,7 @@ export default function UploadPage() {
               <label className="block text-sm font-medium mb-1">
                 {t('exchangeRateLabel', { from: preview.currency, to: countryConfig.currency })}
               </label>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <div className="flex-1">
                   <input
                     type="number"
@@ -535,7 +535,7 @@ export default function UploadPage() {
 
           {/* Year selector and calculate */}
           <div className="card">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">{t('taxYear')}</label>
                 {preview.fileType === 'pdf' ? (
@@ -555,7 +555,7 @@ export default function UploadPage() {
               <button
                 onClick={handleCalculate}
                 disabled={csvRateLoading || csvHistoryWarning}
-                className={`flex items-center gap-2 text-lg px-6 py-3 ${csvHistoryWarning ? 'btn-secondary opacity-50 cursor-not-allowed' : 'btn-primary'}`}
+                className={`flex items-center justify-center gap-2 text-lg px-6 py-3 w-full sm:w-auto ${csvHistoryWarning ? 'btn-secondary opacity-50 cursor-not-allowed' : 'btn-primary'}`}
               >
                 {csvRateLoading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />

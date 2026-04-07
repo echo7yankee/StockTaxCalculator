@@ -221,12 +221,12 @@ export default function Dashboard() {
               <thead>
                 <tr className="border-b border-gray-200 dark:border-navy-600">
                   <th className="text-left py-3 px-2 font-medium">{t('dashboard:colYear')}</th>
-                  <th className="text-left py-3 px-2 font-medium">{t('dashboard:colFile')}</th>
-                  <th className="text-right py-3 px-2 font-medium">{t('dashboard:colCapitalGainsTax')}</th>
-                  <th className="text-right py-3 px-2 font-medium">{t('dashboard:colDividendTax')}</th>
-                  <th className="text-right py-3 px-2 font-medium">{t('dashboard:colCass')}</th>
+                  <th className="text-left py-3 px-2 font-medium hidden sm:table-cell">{t('dashboard:colFile')}</th>
+                  <th className="text-right py-3 px-2 font-medium hidden md:table-cell">{t('dashboard:colCapitalGainsTax')}</th>
+                  <th className="text-right py-3 px-2 font-medium hidden md:table-cell">{t('dashboard:colDividendTax')}</th>
+                  <th className="text-right py-3 px-2 font-medium hidden md:table-cell">{t('dashboard:colCass')}</th>
                   <th className="text-right py-3 px-2 font-medium">{t('dashboard:colTotalTax')}</th>
-                  <th className="text-right py-3 px-2 font-medium">{t('dashboard:colCalculated')}</th>
+                  <th className="text-right py-3 px-2 font-medium hidden sm:table-cell">{t('dashboard:colCalculated')}</th>
                   <th className="text-right py-3 px-2 font-medium"></th>
                 </tr>
               </thead>
@@ -240,20 +240,20 @@ export default function Dashboard() {
                     <td className="py-3 px-2 font-bold text-lg">
                       {loadingId === ty.id ? <Loader2 className="w-5 h-5 animate-spin text-accent" /> : ty.year}
                     </td>
-                    <td className="py-3 px-2">
+                    <td className="py-3 px-2 hidden sm:table-cell">
                       <p className="text-gray-600 dark:text-slate-400 truncate max-w-[180px]">{ty.fileName || '-'}</p>
                     </td>
-                    <td className="text-right py-3 px-2">{fmt(ty.capitalGainsTax)}</td>
-                    <td className="text-right py-3 px-2">{fmt(ty.dividendTaxOwed)}</td>
-                    <td className="text-right py-3 px-2">{fmt(ty.cassOwed)}</td>
+                    <td className="text-right py-3 px-2 hidden md:table-cell">{fmt(ty.capitalGainsTax)}</td>
+                    <td className="text-right py-3 px-2 hidden md:table-cell">{fmt(ty.dividendTaxOwed)}</td>
+                    <td className="text-right py-3 px-2 hidden md:table-cell">{fmt(ty.cassOwed)}</td>
                     <td className="text-right py-3 px-2 font-bold text-accent">{fmt(ty.totalTaxOwed)}</td>
-                    <td className="text-right py-3 px-2 text-gray-500 dark:text-slate-500 text-xs">
+                    <td className="text-right py-3 px-2 text-gray-500 dark:text-slate-500 text-xs hidden sm:table-cell">
                       {ty.calculatedAt ? new Date(ty.calculatedAt).toLocaleDateString() : '-'}
                     </td>
                     <td className="text-right py-3 px-2">
                       <button
                         onClick={(e) => handleDelete(e, ty.id)}
-                        className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
                         title={t('dashboard:deleteTitle')}
                       >
                         <Trash2 className="w-4 h-4" />
