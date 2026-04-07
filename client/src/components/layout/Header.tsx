@@ -56,7 +56,7 @@ export default function Header() {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 text-accent font-bold text-xl">
             <TrendingUp className="w-6 h-6" />
-            <span>StockTax</span>
+            <span>InvesTax</span>
           </Link>
 
           {/* Desktop Nav */}

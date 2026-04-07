@@ -320,7 +320,7 @@ export default function StatusPage() {
       </div>
 
       <p className="text-center text-xs text-gray-400 dark:text-slate-600 mt-8">
-        Last updated: April 2026 &middot; StockTaxCalculator
+        Last updated: April 2026 &middot; InvesTax
       </p>
     </div>
   );

@@ -1,4 +1,4 @@
-# StockTaxCalculator
+# InvesTax
 
 Investment tax calculator web app. English UI, country-specific tax rules (Romania first). Upload broker CSVs, get tax-ready numbers.
 
