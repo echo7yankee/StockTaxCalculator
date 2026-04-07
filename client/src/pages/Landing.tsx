@@ -49,7 +49,7 @@ export default function Landing() {
       {/* Supported brokers */}
       <section className="py-16 text-center">
         <h2 className="text-2xl font-bold mb-8">{t('supportedBrokers')}</h2>
-        <div className="flex flex-wrap items-center justify-center gap-8 text-lg font-medium text-gray-500 dark:text-slate-400">
+        <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-lg font-medium text-gray-500 dark:text-slate-400">
           <span className="px-6 py-3 card">Trading212</span>
           <span className="px-6 py-3 card opacity-60">Revolut ({t('comingSoon')})</span>
           <span className="px-6 py-3 card opacity-60">IBKR ({t('comingSoon')})</span>

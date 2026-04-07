@@ -67,7 +67,7 @@ export default function FilingGuidePage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
           <button
             onClick={() => navigate('/results')}
@@ -75,11 +75,11 @@ export default function FilingGuidePage() {
           >
             <ArrowLeft className="w-4 h-4" /> {t('common:backToResults')}
           </button>
-          <h1 className="text-3xl font-bold">{pageTitle}</h1>
-          <p className="text-gray-600 dark:text-slate-400 mt-1">{subtitle}</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">{pageTitle}</h1>
+          <p className="text-gray-600 dark:text-slate-400 mt-1 text-sm sm:text-base">{subtitle}</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={copyAll} className="btn-secondary flex items-center gap-2">
+          <button onClick={copyAll} className="btn-secondary flex items-center gap-2 text-sm">
             {allCopied ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
             {allCopied ? t('filing:copied') : t('filing:copyAll')}
           </button>
@@ -89,7 +89,7 @@ export default function FilingGuidePage() {
                 generateTaxSummaryPdf(taxResult, taxYear, sym);
               });
             }}
-            className="btn-primary flex items-center gap-2"
+            className="btn-primary flex items-center gap-2 text-sm"
           >
             <Download className="w-4 h-4" />
             {t('filing:downloadPdf')}
@@ -192,13 +192,13 @@ function FilingSectionCard({
           return (
             <div
               key={field.id}
-              className="flex items-center justify-between py-3 px-4 bg-navy-700/30 dark:bg-navy-750 rounded-lg group"
+              className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-3 px-4 bg-navy-700/30 dark:bg-navy-750 rounded-lg group gap-2 sm:gap-0"
             >
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm">{t(`d212:${field.id}`)}</p>
                 <p className="text-xs text-gray-500 dark:text-slate-500">{t(`d212:${field.id}_desc`)}</p>
               </div>
-              <div className="flex items-center gap-3 ml-4">
+              <div className="flex items-center gap-3 sm:ml-4">
                 <span className="text-lg font-bold font-mono tabular-nums">
                   {fmt(value)} <span className="text-sm font-normal text-gray-400 dark:text-slate-500">{sym}</span>
                 </span>

@@ -187,7 +187,7 @@ export default function StatusPage() {
       </p>
 
       {/* Health checks */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <div className="card flex items-center gap-3">
           {healthIcon(health.server)}
           <div>
@@ -241,7 +241,7 @@ export default function StatusPage() {
       {/* Test summary */}
       <div className="card mb-8">
         <h2 className="text-lg font-semibold mb-3">Test Summary</h2>
-        <div className="grid grid-cols-4 gap-4 text-center">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
           <div>
             <p className="text-3xl font-bold text-green-500">142</p>
             <p className="text-xs text-gray-500 dark:text-slate-500">Unit Tests Passing</p>
