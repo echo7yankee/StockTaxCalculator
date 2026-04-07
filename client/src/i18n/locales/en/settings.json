@@ -9,5 +9,24 @@
   "switchToLight": "Switch to Light",
   "switchToDark": "Switch to Dark",
   "language": "Language",
-  "languageDescription": "Choose the display language for the application."
+  "languageDescription": "Choose the display language for the application.",
+  "data": {
+    "title": "Your Data",
+    "exportDescription": "Download all your data (account info, tax calculations, transactions) as a JSON file.",
+    "exportButton": "Download My Data",
+    "exporting": "Downloading...",
+    "exportError": "Failed to download data. Please try again."
+  },
+  "dangerZone": {
+    "title": "Danger Zone",
+    "deleteDescription": "Permanently delete your account and all associated data. This action cannot be undone.",
+    "deleteButton": "Delete My Account",
+    "confirmTitle": "Are you sure?",
+    "confirmDescription": "This will permanently delete your account, all saved calculations, and all uploaded data. Type DELETE below to confirm.",
+    "confirmPlaceholder": "Type DELETE to confirm",
+    "confirmButton": "Permanently Delete Account",
+    "cancel": "Cancel",
+    "deleting": "Deleting...",
+    "deleteError": "Failed to delete account. Please try again."
+  }
 }
