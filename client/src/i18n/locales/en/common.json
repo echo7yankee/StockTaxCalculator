@@ -14,5 +14,9 @@
   "or": "or",
   "email": "Email",
   "password": "Password",
-  "name": "Name"
+  "name": "Name",
+  "cookieBanner": {
+    "message": "This site uses only essential cookies for authentication and your preferences. No tracking cookies.",
+    "accept": "Got it"
+  }
 }

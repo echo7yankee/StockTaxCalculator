@@ -127,6 +127,109 @@ authRouter.get('/me', (req, res) => {
   }
 });
 
+// DELETE /api/auth/delete-account — permanently delete user and all data
+authRouter.post('/delete-account', async (req, res) => {
+  if (!req.isAuthenticated() || !req.user) {
+    res.status(401).json({ error: 'Authentication required' });
+    return;
+  }
+
+  try {
+    const userId = req.user.id;
+
+    // Prisma cascade deletes handle TaxYear, CsvUpload, Transaction, TaxCalculation, SecurityCalculation
+    await prisma.user.delete({ where: { id: userId } });
+
+    // Destroy session and clear cookie
+    req.logout((err) => {
+      if (err) console.error('Logout error during account deletion:', err);
+      req.session.destroy((destroyErr) => {
+        if (destroyErr) console.error('Session destroy error:', destroyErr);
+        res.clearCookie('connect.sid');
+        res.json({ ok: true });
+      });
+    });
+  } catch (err) {
+    console.error('Delete account error:', err);
+    res.status(500).json({ error: 'Failed to delete account' });
+  }
+});
+
+// GET /api/auth/export-data — download all user data as JSON
+authRouter.get('/export-data', async (req, res) => {
+  if (!req.isAuthenticated() || !req.user) {
+    res.status(401).json({ error: 'Authentication required' });
+    return;
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        plan: true,
+        createdAt: true,
+        updatedAt: true,
+        taxYears: {
+          include: {
+            csvUploads: {
+              select: {
+                id: true,
+                broker: true,
+                filename: true,
+                uploadedAt: true,
+                processed: true,
+                rowCount: true,
+              },
+            },
+            transactions: {
+              select: {
+                id: true,
+                action: true,
+                transactionDate: true,
+                isin: true,
+                ticker: true,
+                securityName: true,
+                shares: true,
+                pricePerShare: true,
+                priceCurrency: true,
+                totalAmountOriginal: true,
+                exchangeRateToLocal: true,
+                totalAmountLocal: true,
+                withholdingTaxOriginal: true,
+                withholdingTaxCurrency: true,
+                withholdingTaxLocal: true,
+              },
+            },
+            calculation: {
+              include: {
+                securities: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="investax-data-${user.id}.json"`);
+    res.json({
+      exportedAt: new Date().toISOString(),
+      user,
+    });
+  } catch (err) {
+    console.error('Export data error:', err);
+    res.status(500).json({ error: 'Failed to export data' });
+  }
+});
+
 // Google OAuth routes (only if configured)
 if (process.env.GOOGLE_CLIENT_ID) {
   authRouter.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));

@@ -1,13 +1,32 @@
 {
-  "title": "Set\u0103ri",
-  "countryRegion": "\u021aar\u0103 / Regiune",
-  "countryDescription": "Regulile \u0219i cotele de impozitare sunt specifice \u021b\u0103rii tale. Detectat automat din setarea browserului.",
-  "moreComing": "Mai multe \u021b\u0103ri \u00een cur\u00e2nd.",
+  "title": "Setări",
+  "countryRegion": "Țară / Regiune",
+  "countryDescription": "Regulile și cotele de impozitare sunt specifice țării tale. Detectat automat din setarea browserului.",
+  "moreComing": "Mai multe țări în curând.",
   "appearance": "Aspect",
-  "theme": "Tem\u0103",
+  "theme": "Temă",
   "currentTheme": "Mod curent: {{mode}}",
   "switchToLight": "Treci la modul luminos",
-  "switchToDark": "Treci la modul \u00eentunecat",
-  "language": "Limb\u0103",
-  "languageDescription": "Alege limba de afi\u0219are a aplica\u021biei."
+  "switchToDark": "Treci la modul întunecat",
+  "language": "Limbă",
+  "languageDescription": "Alege limba de afișare a aplicației.",
+  "data": {
+    "title": "Datele tale",
+    "exportDescription": "Descarcă toate datele tale (informații cont, calcule fiscale, tranzacții) ca fișier JSON.",
+    "exportButton": "Descarcă datele mele",
+    "exporting": "Se descarcă...",
+    "exportError": "Descărcarea datelor a eșuat. Te rugăm să încerci din nou."
+  },
+  "dangerZone": {
+    "title": "Zonă periculoasă",
+    "deleteDescription": "Șterge permanent contul tău și toate datele asociate. Această acțiune nu poate fi anulată.",
+    "deleteButton": "Șterge contul meu",
+    "confirmTitle": "Ești sigur?",
+    "confirmDescription": "Această acțiune va șterge permanent contul tău, toate calculele salvate și toate datele încărcate. Scrie DELETE mai jos pentru a confirma.",
+    "confirmPlaceholder": "Scrie DELETE pentru a confirma",
+    "confirmButton": "Șterge permanent contul",
+    "cancel": "Anulează",
+    "deleting": "Se șterge...",
+    "deleteError": "Ștergerea contului a eșuat. Te rugăm să încerci din nou."
+  }
 }

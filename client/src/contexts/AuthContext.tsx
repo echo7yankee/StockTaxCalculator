@@ -14,6 +14,8 @@ interface AuthContextType {
   signup: (email: string, password: string, name: string) => Promise<void>;
   loginWithGoogle: () => void;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
+  exportData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -64,8 +66,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    const res = await fetch('/api/auth/delete-account', { ...fetchOpts, method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to delete account');
+    setUser(null);
+  }, []);
+
+  const exportData = useCallback(async () => {
+    const res = await fetch('/api/auth/export-data', { credentials: 'include' });
+    if (!res.ok) throw new Error('Failed to export data');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `investax-data.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, loginWithGoogle, logout, deleteAccount, exportData }}>
       {children}
     </AuthContext.Provider>
   );
