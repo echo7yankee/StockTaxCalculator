@@ -37,5 +37,16 @@
   "csvHistoryBlockAction": "Please re-export your full Trading212 history from account opening through Dec 31 of the tax year, or use the PDF annual statement instead.",
   "csvSplitWarningTitle": "CSV does not account for stock splits",
   "csvSplitWarningBody": "If you held any stock through a split (e.g., NVDA 10:1 in June 2024, TSLA 3:1 in August 2022), the CSV flow will compute incorrect cost basis because Trading212 does not adjust historical rows for splits.",
-  "csvSplitWarningAction": "Use the PDF annual statement instead — it already accounts for splits and produces accurate results."
+  "csvSplitWarningAction": "Use the PDF annual statement instead — it already accounts for splits and produces accurate results.",
+  "tabPdf": "PDF Statement",
+  "tabPdfRecommended": "Recommended",
+  "tabCsv": "CSV Export",
+  "tabCsvAdvanced": "Advanced",
+  "pdfDropHere": "Drop your PDF statement here",
+  "pdfOrClick": "or click to browse",
+  "pdfHint": "Upload your Trading212 annual statement (.pdf)",
+  "csvDropHere": "Drop your CSV export here",
+  "csvOrClick": "or click to browse",
+  "csvHint": "Upload your full Trading212 transaction history (.csv)",
+  "csvPreWarning": "CSV does not account for stock splits. For most accurate results, use the PDF tab."
 }
