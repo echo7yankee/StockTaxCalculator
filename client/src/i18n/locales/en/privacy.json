@@ -1,0 +1,72 @@
+{
+  "title": "Privacy Policy",
+  "lastUpdated": "Last updated: April 2026",
+  "intro": "InvesTax (\"we\", \"us\", \"our\") is committed to protecting your privacy. This policy explains what data we collect, why, and how we handle it.",
+  "sections": {
+    "dataCollected": {
+      "title": "1. Data We Collect",
+      "items": {
+        "account": "Account information: email address, name (if provided), and authentication method (email/password or Google OAuth).",
+        "calculations": "Tax calculations: the data you input or upload (transaction history, capital gains, dividends) to generate tax reports.",
+        "usage": "Usage data: pages visited, features used, and general interaction patterns (collected via Plausible Analytics, which is cookieless and GDPR-compliant).",
+        "technical": "Technical data: IP address (for rate limiting and security only, not stored long-term), browser type, and device type."
+      }
+    },
+    "whyCollect": {
+      "title": "2. Why We Collect Data",
+      "items": {
+        "service": "To provide the tax calculation service you requested.",
+        "save": "To save your calculations so you can access them later.",
+        "improve": "To improve the product based on aggregated, anonymous usage patterns.",
+        "security": "To protect against abuse and ensure service security."
+      }
+    },
+    "storage": {
+      "title": "3. How We Store Data",
+      "description": "Your data is stored on a secure server hosted by Hetzner Online GmbH in Germany (EU). The database is encrypted at rest and backed up daily. Passwords are hashed using bcrypt and never stored in plaintext."
+    },
+    "sharing": {
+      "title": "4. Data Sharing",
+      "description": "We do not sell, rent, or share your personal data with third parties, except for the following service providers who process data on our behalf:",
+      "providers": {
+        "hetzner": "Hetzner Online GmbH — server hosting (Germany, EU)",
+        "lemonSqueezy": "Lemon Squeezy — payment processing (merchant of record)",
+        "resend": "Resend — transactional email delivery",
+        "plausible": "Plausible Analytics — anonymous, cookieless website analytics"
+      }
+    },
+    "cookies": {
+      "title": "5. Cookies",
+      "description": "InvesTax uses only essential cookies required for the service to function (session authentication, language preference, theme preference). We do not use tracking cookies, advertising cookies, or any third-party cookies. Plausible Analytics is completely cookieless."
+    },
+    "gdprRights": {
+      "title": "6. Your Rights (GDPR)",
+      "description": "As an EU resident, you have the right to:",
+      "rights": {
+        "access": "Access your data — view all data we store about you.",
+        "export": "Export your data — download your calculations as JSON from your Settings page.",
+        "delete": "Delete your data — permanently delete your account and all associated data from your Settings page.",
+        "rectify": "Rectify your data — correct any inaccurate personal information.",
+        "object": "Object to processing — contact us to object to specific data processing activities."
+      },
+      "contact": "To exercise any of these rights, use the options in your Settings page or email us at support@investax.app."
+    },
+    "retention": {
+      "title": "7. Data Retention",
+      "description": "We retain your data for as long as your account is active. If you delete your account, all your personal data and saved calculations are permanently deleted within 30 days. Anonymized, aggregated analytics data may be retained indefinitely."
+    },
+    "children": {
+      "title": "8. Children's Privacy",
+      "description": "InvesTax is not intended for users under 18 years of age. We do not knowingly collect data from minors."
+    },
+    "changes": {
+      "title": "9. Changes to This Policy",
+      "description": "We may update this policy from time to time. Significant changes will be communicated via email to registered users. The \"Last updated\" date at the top reflects the most recent revision."
+    },
+    "contactUs": {
+      "title": "10. Contact Us",
+      "description": "For privacy-related questions or concerns, contact us at:",
+      "email": "support@investax.app"
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "title": "Hai sa vorbim",
+  "subtitle": "Raspundem la toate mesajele in maxim 24 de ore in zilele lucratoare.",
+  "support": {
+    "title": "Ai nevoie de ajutor?",
+    "description": "Pentru intrebari despre cum folosesti InvesTax, probleme tehnice, sau daca ceva nu functioneaza cum trebuie.",
+    "email": "support@investax.app",
+    "responseTime": "Raspuns in 24 ore"
+  },
+  "general": {
+    "title": "Alte intrebari?",
+    "description": "Pentru parteneriate, feedback, intrebari despre afacere, sau orice altceva.",
+    "email": "hello@investax.app",
+    "responseTime": "Raspuns in 1-2 zile"
+  },
+  "faq": {
+    "title": "Intrebari frecvente",
+    "items": {
+      "noEmail": {
+        "question": "Nu primesc emailul de confirmare a platii",
+        "answer": "Verifica folderul Spam. Daca tot nu apare in 10 minute, scrie-ne la support@investax.app cu adresa ta de email."
+      },
+      "wrongCalc": {
+        "question": "Calculul meu pare gresit",
+        "answer": "Trimite-ne un email la support@investax.app cu o captura de ecran a rezultatului si (daca e posibil) extrasul tau anonimizat. Investigam orice discrepanta."
+      },
+      "refund": {
+        "question": "Vreau sa-mi rambursez plata",
+        "answer": "Oferim rambursare 14 zile fara intrebari. Scrie-ne la support@investax.app."
+      },
+      "deleteAccount": {
+        "question": "Cum imi sterg contul?",
+        "answer": "Mergi la Setari si apasa \"Sterge contul\". Toate datele tale vor fi sterse permanent."
+      },
+      "mobileApp": {
+        "question": "Aveti o aplicatie mobila?",
+        "answer": "Nu inca, dar website-ul functioneaza perfect pe mobil. Poti adauga InvesTax pe ecranul de start din browser."
+      }
+    }
+  },
+  "business": {
+    "title": "Informatii de contact",
+    "operator": "Operator individual",
+    "address": "Str. Moraviei Nr. 4, Arad, Romania",
+    "email": "hello@investax.app"
+  }
+}

@@ -16,6 +16,9 @@ import enSettings from './locales/en/settings.json';
 import enHeader from './locales/en/header.json';
 import enFooter from './locales/en/footer.json';
 import enD212 from './locales/en/d212.json';
+import enPrivacy from './locales/en/privacy.json';
+import enTerms from './locales/en/terms.json';
+import enContact from './locales/en/contact.json';
 
 // RO
 import roCommon from './locales/ro/common.json';
@@ -31,6 +34,9 @@ import roSettings from './locales/ro/settings.json';
 import roHeader from './locales/ro/header.json';
 import roFooter from './locales/ro/footer.json';
 import roD212 from './locales/ro/d212.json';
+import roPrivacy from './locales/ro/privacy.json';
+import roTerms from './locales/ro/terms.json';
+import roContact from './locales/ro/contact.json';
 
 i18n
   .use(LanguageDetector)
@@ -51,6 +57,9 @@ i18n
         header: enHeader,
         footer: enFooter,
         d212: enD212,
+        privacy: enPrivacy,
+        terms: enTerms,
+        contact: enContact,
       },
       ro: {
         common: roCommon,
@@ -66,6 +75,9 @@ i18n
         header: roHeader,
         footer: roFooter,
         d212: roD212,
+        privacy: roPrivacy,
+        terms: roTerms,
+        contact: roContact,
       },
     },
     fallbackLng: 'en',

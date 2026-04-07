@@ -1,0 +1,73 @@
+{
+  "title": "Terms of Service",
+  "lastUpdated": "Last updated: April 2026",
+  "intro": "By using InvesTax (investax.app), you agree to these terms. Please read them carefully.",
+  "sections": {
+    "service": {
+      "title": "1. Service Description",
+      "description": "InvesTax is a software tool that helps Romanian tax residents calculate taxes on investment income (capital gains, dividends) from supported brokers. InvesTax is not a tax advisory service, accounting firm, or financial institution."
+    },
+    "noAdvice": {
+      "title": "2. Not Financial or Tax Advice",
+      "description": "The calculations provided by InvesTax are for informational purposes only and do not constitute financial, tax, or legal advice. Tax laws are complex and subject to change. You are solely responsible for verifying the accuracy of any calculations before filing your tax declaration. For complex cases or ANAF audits, consult a licensed accountant (contabil autorizat)."
+    },
+    "accuracy": {
+      "title": "3. Accuracy of Calculations",
+      "description": "We strive to provide accurate calculations based on current Romanian tax legislation. However, InvesTax does not guarantee the correctness of any calculation. Tax rules may change, broker statement formats may vary, and edge cases may exist that our engine does not cover. Always cross-check results with an accountant for significant tax obligations."
+    },
+    "accounts": {
+      "title": "4. User Accounts",
+      "items": {
+        "age": "You must be at least 18 years old to create an account.",
+        "accurate": "You must provide accurate information when creating your account.",
+        "security": "You are responsible for maintaining the security of your account credentials.",
+        "oneAccount": "Each person may have only one account. Duplicate accounts may be merged or deleted."
+      }
+    },
+    "payment": {
+      "title": "5. Payment and Refunds",
+      "items": {
+        "pricing": "InvesTax offers a free calculator for quick estimates and a paid annual plan for full PDF/CSV processing features.",
+        "annual": "The paid plan is a one-time annual payment, not a recurring subscription.",
+        "refund": "We offer a 14-day refund policy, no questions asked. Contact support@investax.app to request a refund.",
+        "processor": "Payments are processed by Lemon Squeezy, which acts as the merchant of record and handles VAT compliance."
+      }
+    },
+    "data": {
+      "title": "6. Your Data",
+      "description": "You retain ownership of all data you upload or input into InvesTax. We process your data solely to provide the tax calculation service. See our Privacy Policy for details on data handling, storage, and your GDPR rights."
+    },
+    "prohibited": {
+      "title": "7. Prohibited Uses",
+      "description": "You agree not to:",
+      "items": {
+        "abuse": "Use the service for any illegal purpose.",
+        "reverse": "Attempt to reverse-engineer, decompile, or extract the source code.",
+        "overload": "Intentionally overload or disrupt the service.",
+        "scrape": "Scrape, crawl, or use automated tools to access the service beyond normal usage.",
+        "share": "Share your account credentials with others or resell access."
+      }
+    },
+    "liability": {
+      "title": "8. Limitation of Liability",
+      "description": "To the maximum extent permitted by law, InvesTax and its operator shall not be liable for any indirect, incidental, or consequential damages arising from the use of the service, including but not limited to incorrect tax calculations, missed deadlines, or penalties imposed by tax authorities. Our total liability is limited to the amount you paid for the service in the current year."
+    },
+    "termination": {
+      "title": "9. Account Termination",
+      "description": "We may suspend or terminate your account if you violate these terms. You may delete your account at any time from the Settings page. Upon deletion, all your data is permanently removed as described in our Privacy Policy."
+    },
+    "changes": {
+      "title": "10. Changes to These Terms",
+      "description": "We may update these terms from time to time. Continued use of the service after changes constitutes acceptance of the updated terms. Significant changes will be communicated via email to registered users."
+    },
+    "law": {
+      "title": "11. Governing Law",
+      "description": "These terms are governed by the laws of Romania. Any disputes shall be resolved in the courts of Arad, Romania."
+    },
+    "contactUs": {
+      "title": "12. Contact",
+      "description": "For questions about these terms, contact us at:",
+      "email": "hello@investax.app"
+    }
+  }
+}
