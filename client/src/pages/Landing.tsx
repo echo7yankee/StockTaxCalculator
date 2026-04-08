@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Upload, Calculator, FileText, ArrowRight, Shield, Scale, Lock, Zap, MessageSquareQuote, User } from 'lucide-react';
 import { useTranslation, Trans } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
+import PageMeta from '../components/common/PageMeta';
 
 export default function Landing() {
   const { t } = useTranslation('landing');
@@ -24,6 +25,7 @@ export default function Landing() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <PageMeta titleKey="landingTitle" descriptionKey="landingDesc" />
       {/* Hero */}
       <section className="py-20 text-center">
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">

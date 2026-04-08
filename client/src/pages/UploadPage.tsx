@@ -15,6 +15,7 @@ import { useCountry } from '../contexts/CountryContext';
 import { useUpload } from '../contexts/UploadContext';
 import { useAuth } from '../contexts/AuthContext';
 import { analytics } from '../lib/analytics';
+import PageMeta from '../components/common/PageMeta';
 
 type FileType = 'csv' | 'pdf';
 
@@ -369,6 +370,7 @@ export default function UploadPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
+      <PageMeta titleKey="uploadTitle" descriptionKey="uploadDesc" />
       {/* Post-payment welcome toast */}
       {showWelcome && (
         <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-3">

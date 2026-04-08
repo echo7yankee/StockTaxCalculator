@@ -35,6 +35,13 @@ test.describe('Navigation', () => {
     await expect(page.getByText('Settings')).toBeVisible();
   });
 
+  test('404 page shows for unknown routes', async ({ page }) => {
+    await page.goto('/this-page-does-not-exist');
+    await expect(page.locator('text=404')).toBeVisible();
+    // Should have a "Back to Home" link on the 404 page itself
+    await expect(page.getByRole('link', { name: /back to home|inapoi acasa/i })).toBeVisible();
+  });
+
   test('header links work', async ({ page }) => {
     await page.goto('/');
 

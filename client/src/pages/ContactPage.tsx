@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Mail, HelpCircle, MessageCircle, ChevronDown, ChevronUp, MapPin } from 'lucide-react';
 import { useState } from 'react';
+import PageMeta from '../components/common/PageMeta';
 
 function FaqItem({ question, answer }: { question: string; answer: string }) {
   const [open, setOpen] = useState(false);
@@ -34,6 +35,7 @@ export default function ContactPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
+      <PageMeta titleKey="contactTitle" descriptionKey="contactDesc" />
       {/* Hero */}
       <div className="text-center mb-12">
         <h1 className="text-3xl font-bold mb-3">{t('title')}</h1>
