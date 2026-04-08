@@ -50,5 +50,6 @@
   "csvDropHere": "Trage exportul CSV aici",
   "csvOrClick": "sau click pentru a r\u0103sfoi",
   "csvHint": "\u00cencarc\u0103 istoricul complet de tranzac\u021bii Trading212 (.csv)",
-  "csvPreWarning": "CSV-ul nu ia \u00een calcul split-urile de ac\u021biuni. Pentru rezultate mai precise, folose\u0219te tab-ul PDF."
+  "csvPreWarning": "CSV-ul nu ia în calcul split-urile de acțiuni. Pentru rezultate mai precise, folosește tab-ul PDF.",
+  "taxRulesUpdated": "Reguli fiscale actualizate la: ianuarie 2026"
 }

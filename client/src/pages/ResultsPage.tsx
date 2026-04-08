@@ -165,6 +165,10 @@ export default function ResultsPage() {
         />
       </div>
 
+      <p className="text-xs text-gray-400 dark:text-slate-500 mb-6 text-right">
+        {t('common:taxRulesUpdated')}
+      </p>
+
       {/* Capital gains breakdown */}
       <div className="card mb-6">
         <h2 className="text-xl font-semibold mb-4">{t('results:capitalGainsBreakdown')}</h2>

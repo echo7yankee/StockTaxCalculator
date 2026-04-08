@@ -42,6 +42,7 @@ export default function PricingPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [promo, setPromo] = useState<PromoStatus | null>(null);
+  const [promoLoading, setPromoLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
@@ -50,7 +51,8 @@ export default function PricingPage() {
     fetch('/api/payment/promo-status')
       .then(res => res.json())
       .then(data => setPromo(data))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setPromoLoading(false));
   }, []);
 
   const isActive = user?.plan === 'paid';
@@ -130,7 +132,12 @@ export default function PricingPage() {
         {/* Paid tier */}
         <div className="card flex flex-col border-accent border-2 relative">
           {/* Launch badge */}
-          {hasLaunchSpots && (
+          {promoLoading && (
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent/60 text-transparent text-sm font-semibold px-4 py-1 rounded-full whitespace-nowrap animate-pulse">
+              Loading promo...
+            </div>
+          )}
+          {!promoLoading && hasLaunchSpots && (
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent text-white text-sm font-semibold px-4 py-1 rounded-full whitespace-nowrap">
               {t('launchPrice')} — {t('launchSpotsLeft', { remaining: promo.remaining, limit: promo.limit })}
             </div>
@@ -138,15 +145,15 @@ export default function PricingPage() {
 
           <h2 className="text-2xl font-bold mb-1 mt-2">{t('paidPlan')}</h2>
           <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-3xl font-bold">{displayPrice}</span>
+            <span className="text-3xl font-bold">{promoLoading ? REGULAR_PRICE : displayPrice}</span>
             <span className="text-gray-500 dark:text-slate-400">{t('perYear')}</span>
           </div>
-          {hasLaunchSpots && (
+          {!promoLoading && hasLaunchSpots && (
             <p className="text-sm text-gray-500 dark:text-slate-400 mb-4 line-through">
               {t('regularPrice', { price: REGULAR_PRICE })}
             </p>
           )}
-          {!hasLaunchSpots && <div className="mb-4" />}
+          {(promoLoading || !hasLaunchSpots) && <div className="mb-4" />}
 
           <ul className="space-y-3 flex-1">
             {FREE_FEATURES.map(key => (
