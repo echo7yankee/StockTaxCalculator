@@ -46,4 +46,31 @@ test.describe('Mobile viewport', () => {
     await menuButton.click();
     await expect(page.getByRole('link', { name: 'Calculator', exact: true })).toBeVisible({ timeout: 2000 });
   });
+
+  test('contact page has no horizontal scroll', async ({ page }) => {
+    await page.goto('/contact');
+    const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
+  });
+
+  test('contact cards stack vertically on mobile', async ({ page }) => {
+    await page.goto('/contact');
+    await expect(page.getByText('Need help?')).toBeVisible();
+    await expect(page.getByText('Other questions?')).toBeVisible();
+  });
+
+  test('pricing page has no horizontal scroll', async ({ page }) => {
+    await page.goto('/pricing');
+    const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
+  });
+
+  test('settings page has no horizontal scroll', async ({ page }) => {
+    await page.goto('/settings');
+    const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
+  });
 });

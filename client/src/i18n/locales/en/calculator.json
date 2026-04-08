@@ -8,6 +8,7 @@
   "otherNonSalaryIncome": "Other Non-Salary Income ({{currency}})",
   "otherIncomeHint": "Rental income, crypto gains, freelance, etc.",
   "calculate": "Calculate",
+  "noInputError": "Enter at least one value to calculate your taxes.",
   "results": "Results",
   "capitalGainsTax": "Capital gains tax ({{rate}}%)",
   "dividendTax": "Dividend tax ({{rate}}% minus withholding)",
