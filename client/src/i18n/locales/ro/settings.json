@@ -10,6 +10,23 @@
   "switchToDark": "Treci la modul întunecat",
   "language": "Limbă",
   "languageDescription": "Alege limba de afișare a aplicației.",
+  "changePassword": {
+    "title": "Schimbă parola",
+    "description": "Actualizează parola contului tău. Va trebui să introduci mai întâi parola curentă.",
+    "currentPassword": "Parola curentă",
+    "currentPasswordPlaceholder": "Introdu parola curentă",
+    "newPassword": "Parola nouă",
+    "newPasswordPlaceholder": "Cel puțin 8 caractere",
+    "confirmPassword": "Confirmă parola nouă",
+    "confirmPasswordPlaceholder": "Reintrodu parola nouă",
+    "submit": "Schimbă parola",
+    "changing": "Se schimbă...",
+    "success": "Parola a fost schimbată cu succes.",
+    "error": "Schimbarea parolei a eșuat.",
+    "mismatch": "Parolele nu se potrivesc.",
+    "tooShort": "Parola nouă trebuie să aibă cel puțin 8 caractere.",
+    "googleOnly": "Contul tău folosește autentificarea cu Google și nu are o parolă."
+  },
   "data": {
     "title": "Datele tale",
     "exportDescription": "Descarcă toate datele tale (informații cont, calcule fiscale, tranzacții) ca fișier JSON.",

@@ -10,6 +10,23 @@
   "switchToDark": "Switch to Dark",
   "language": "Language",
   "languageDescription": "Choose the display language for the application.",
+  "changePassword": {
+    "title": "Change Password",
+    "description": "Update your account password. You'll need to enter your current password first.",
+    "currentPassword": "Current password",
+    "currentPasswordPlaceholder": "Enter your current password",
+    "newPassword": "New password",
+    "newPasswordPlaceholder": "At least 8 characters",
+    "confirmPassword": "Confirm new password",
+    "confirmPasswordPlaceholder": "Re-enter your new password",
+    "submit": "Change Password",
+    "changing": "Changing...",
+    "success": "Password changed successfully.",
+    "error": "Failed to change password.",
+    "mismatch": "Passwords do not match.",
+    "tooShort": "New password must be at least 8 characters.",
+    "googleOnly": "Your account uses Google sign-in and doesn't have a password."
+  },
   "data": {
     "title": "Your Data",
     "exportDescription": "Download all your data (account info, tax calculations, transactions) as a JSON file.",
