@@ -4,6 +4,7 @@ import { KeyRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import PasswordInput from '../components/common/PasswordInput';
 import { isCommonPassword } from '../components/common/PasswordStrengthMeter';
+import PageMeta from '../components/common/PageMeta';
 
 export default function ResetPasswordPage() {
   const { t } = useTranslation(['login', 'common']);
@@ -108,6 +109,7 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="max-w-md mx-auto px-4 py-20">
+      <PageMeta titleKey="resetPasswordTitle" descriptionKey="resetPasswordDesc" />
       <div className="card">
         <div className="text-center mb-8">
           <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center mx-auto mb-4">

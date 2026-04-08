@@ -3,6 +3,7 @@ import { initSentry } from './lib/sentry';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { CountryProvider } from './contexts/CountryContext';
@@ -15,16 +16,18 @@ initSentry();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <ThemeProvider>
-          <CountryProvider>
-            <UploadProvider>
-              <App />
-            </UploadProvider>
-          </CountryProvider>
-        </ThemeProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <HelmetProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <ThemeProvider>
+            <CountryProvider>
+              <UploadProvider>
+                <App />
+              </UploadProvider>
+            </CountryProvider>
+          </ThemeProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </HelmetProvider>
   </React.StrictMode>,
 );

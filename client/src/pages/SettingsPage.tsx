@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import PasswordInput from '../components/common/PasswordInput';
 import { isCommonPassword } from '../components/common/PasswordStrengthMeter';
 import FormField from '../components/common/FormField';
+import PageMeta from '../components/common/PageMeta';
 
 export default function SettingsPage() {
   const { t, i18n } = useTranslation('settings');
@@ -125,6 +126,7 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
+      <PageMeta titleKey="settingsTitle" descriptionKey="settingsDesc" />
       <h1 className="text-3xl font-bold mb-8">{t('title')}</h1>
 
       <div className="space-y-6">

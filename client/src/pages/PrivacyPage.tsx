@@ -1,11 +1,13 @@
 import { useTranslation } from 'react-i18next';
 import { Shield } from 'lucide-react';
+import PageMeta from '../components/common/PageMeta';
 
 export default function PrivacyPage() {
   const { t } = useTranslation('privacy');
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
+      <PageMeta titleKey="privacyTitle" descriptionKey="privacyDesc" />
       <div className="flex items-center gap-3 mb-2">
         <Shield className="w-8 h-8 text-accent" />
         <h1 className="text-3xl font-bold">{t('title')}</h1>

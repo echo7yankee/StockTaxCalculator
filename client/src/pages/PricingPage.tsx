@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Check, X, Zap, Shield, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { analytics } from '../lib/analytics';
+import PageMeta from '../components/common/PageMeta';
 
 interface PromoStatus {
   count: number;
@@ -87,6 +88,7 @@ export default function PricingPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <PageMeta titleKey="pricingTitle" descriptionKey="pricingDesc" />
       {/* Hero */}
       <div className="text-center mb-12">
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">

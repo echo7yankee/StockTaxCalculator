@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCountry } from '../contexts/CountryContext';
+import PageMeta from '../components/common/PageMeta';
 import { analytics } from '../lib/analytics';
 import { calculateQuickTax } from '@shared/engine/quickCalculator';
 import type { QuickTaxResult } from '@shared/engine/quickCalculator';
@@ -33,6 +34,7 @@ export default function CalculatorPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
+      <PageMeta titleKey="calculatorTitle" descriptionKey="calculatorDesc" />
       <h1 className="text-3xl font-bold mb-2">{t('title')}</h1>
       <p className="text-gray-600 dark:text-slate-400 mb-8">
         {t('subtitle')}

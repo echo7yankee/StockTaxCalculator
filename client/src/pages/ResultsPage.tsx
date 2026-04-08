@@ -6,6 +6,7 @@ import { useUpload } from '../contexts/UploadContext';
 import { useCountry } from '../contexts/CountryContext';
 import { useAuth } from '../contexts/AuthContext';
 import { analytics } from '../lib/analytics';
+import PageMeta from '../components/common/PageMeta';
 
 export default function ResultsPage() {
   const { t } = useTranslation(['results', 'common']);
@@ -74,6 +75,7 @@ export default function ResultsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
+      <PageMeta titleKey="resultsTitle" descriptionKey="resultsDesc" />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>

@@ -6,6 +6,7 @@ import { useAuth, ApiError } from '../contexts/AuthContext';
 import FormField from '../components/common/FormField';
 import PasswordInput from '../components/common/PasswordInput';
 import { isCommonPassword } from '../components/common/PasswordStrengthMeter';
+import PageMeta from '../components/common/PageMeta';
 
 export default function SignupPage() {
   const { t } = useTranslation(['signup', 'common']);
@@ -81,6 +82,7 @@ export default function SignupPage() {
 
   return (
     <div className="max-w-md mx-auto px-4 py-20">
+      <PageMeta titleKey="signupTitle" descriptionKey="signupDesc" />
       <div className="card">
         <div className="text-center mb-8">
           <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center mx-auto mb-4">

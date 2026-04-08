@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Upload, Calculator, FileText, Trash2, ClipboardList, LogIn, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUpload } from '../contexts/UploadContext';
+import PageMeta from '../components/common/PageMeta';
 import type { TaxCalculationResult, SecurityBreakdown } from '@shared/types/tax';
 
 interface SavedTaxYear {
@@ -154,6 +155,7 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
+      <PageMeta titleKey="dashboardTitle" descriptionKey="dashboardDesc" />
       <h1 className="text-3xl font-bold mb-2">{t('dashboard:title')}</h1>
       <p className="text-gray-600 dark:text-slate-400 mb-8">
         {t('dashboard:subtitle')}

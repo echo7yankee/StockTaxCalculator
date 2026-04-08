@@ -5,6 +5,7 @@ import { ArrowLeft, Copy, CheckCircle, ClipboardList, Download } from 'lucide-re
 import { useUpload } from '../contexts/UploadContext';
 import { useCountry } from '../contexts/CountryContext';
 import { analytics } from '../lib/analytics';
+import PageMeta from '../components/common/PageMeta';
 import { d212Sections, formatD212Summary } from '@shared/taxRules/d212Fields';
 import type { D212Field } from '@shared/taxRules/d212Fields';
 import type { TaxCalculationResult } from '@shared/types/tax';
@@ -67,6 +68,7 @@ export default function FilingGuidePage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
+      <PageMeta titleKey="filingGuideTitle" descriptionKey="filingGuideDesc" />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>

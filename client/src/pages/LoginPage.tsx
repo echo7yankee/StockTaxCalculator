@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import FormField from '../components/common/FormField';
 import PasswordInput from '../components/common/PasswordInput';
+import PageMeta from '../components/common/PageMeta';
 
 export default function LoginPage() {
   const { t } = useTranslation(['login', 'common']);
@@ -69,6 +70,7 @@ export default function LoginPage() {
 
   return (
     <div className="max-w-md mx-auto px-4 py-20">
+      <PageMeta titleKey="loginTitle" descriptionKey="loginDesc" />
       <div className="card">
         <div className="text-center mb-8">
           <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center mx-auto mb-4">
