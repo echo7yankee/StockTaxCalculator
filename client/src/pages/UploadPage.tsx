@@ -684,6 +684,8 @@ export default function UploadPage() {
             {countryConfig && (
               <p className="text-xs text-gray-500 dark:text-slate-500 mt-3">
                 {t('usingTaxRules', { country: countryConfig.name, rate: `${(countryConfig.capitalGainsTaxRate * 100)}%` })}
+                {' · '}
+                {t('taxRulesUpdated')}
               </p>
             )}
             {csvRateStatus && preview?.fileType === 'csv' && (

@@ -1,7 +1,7 @@
 {
   "copyright": "\u00a9 {{year}} InvesTax. Not financial advice.",
   "tagline": "Built for investors who hate spreadsheets.",
-  "disclaimer": "InvesTax is a software tool for investment tax calculation. We are not licensed tax advisors. Calculations are based on Romanian tax legislation updated to 2025. For complex cases or ANAF audits, consult a licensed accountant. InvesTax assumes no liability for incorrect tax declarations.",
+  "disclaimer": "InvesTax is a software tool for investment tax calculation. We are not licensed tax advisors. Calculations are based on Romanian tax legislation updated to 2026. For complex cases or ANAF audits, consult a licensed accountant. InvesTax assumes no liability for incorrect tax declarations.",
   "links": {
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",

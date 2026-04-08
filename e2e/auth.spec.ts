@@ -42,7 +42,7 @@ test.describe('Signup', () => {
   });
 
   test('has link to login page', async ({ page }) => {
-    await page.getByRole('link', { name: 'Log in' }).click();
+    await page.getByRole('main').getByRole('link', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/login/);
   });
 });

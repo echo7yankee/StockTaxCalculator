@@ -25,6 +25,7 @@
     "emailTooLong": "Adresa de email nu poate depăși 254 de caractere",
     "commonPassword": "Această parolă este prea comună. Te rugăm să alegi o parolă mai unică."
   },
+  "taxRulesUpdated": "Reguli fiscale actualizate la: ianuarie 2026",
   "passwordStrength": {
     "weak": "Parolă slabă",
     "medium": "Putere medie",

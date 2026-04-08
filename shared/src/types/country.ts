@@ -16,6 +16,7 @@ export interface CountryTaxConfig {
   earlyFilingDiscountRate: number;
   earlyFilingDeadline: string;
   finalFilingDeadline: string;
+  taxRulesUpdated: string;
   exchangeRateApi: {
     currentUrl: string;
     historicalUrlTemplate: string;

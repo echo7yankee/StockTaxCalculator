@@ -25,6 +25,7 @@
     "emailTooLong": "Email must be 254 characters or less",
     "commonPassword": "This password is too common. Please choose a more unique password."
   },
+  "taxRulesUpdated": "Tax rules current as of January 2026",
   "passwordStrength": {
     "weak": "Weak password",
     "medium": "Medium strength",

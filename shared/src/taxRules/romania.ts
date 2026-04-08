@@ -16,6 +16,7 @@ export const romaniaTaxConfig: CountryTaxConfig = {
   earlyFilingDiscountRate: 0.03,
   earlyFilingDeadline: 'April 15',
   finalFilingDeadline: 'May 25',
+  taxRulesUpdated: '2026-01',
   exchangeRateApi: {
     currentUrl: 'https://www.bnr.ro/nbrfxrates.xml',
     historicalUrlTemplate: 'https://www.bnr.ro/files/xml/years/nbrfxrates{YYYY}.xml',

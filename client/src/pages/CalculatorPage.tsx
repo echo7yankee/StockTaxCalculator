@@ -8,7 +8,7 @@ import type { QuickTaxResult } from '@shared/engine/quickCalculator';
 import type { ManualCalculatorInput } from '@shared/types/tax';
 
 export default function CalculatorPage() {
-  const { t } = useTranslation('calculator');
+  const { t } = useTranslation(['calculator', 'common']);
   const { countryConfig } = useCountry();
   const [input, setInput] = useState<ManualCalculatorInput>({
     capitalGains: 0,
@@ -38,6 +38,10 @@ export default function CalculatorPage() {
       <h1 className="text-3xl font-bold mb-2">{t('title')}</h1>
       <p className="text-gray-600 dark:text-slate-400 mb-8">
         {t('subtitle')}
+      </p>
+
+      <p className="text-xs text-gray-400 dark:text-slate-500 mb-6">
+        {t('common:taxRulesUpdated')}
       </p>
 
       <form onSubmit={handleCalculate} className="card space-y-5">
