@@ -18,11 +18,20 @@ export default function CalculatorPage() {
     country: 'RO',
   });
   const [result, setResult] = useState<QuickTaxResult | null>(null);
+  const [error, setError] = useState('');
 
   if (!countryConfig) return <div className="p-8 text-center">{t('countryNotSupported')}</div>;
 
   const handleCalculate = (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+
+    const hasInput = input.capitalGains !== 0 || input.dividends !== 0 || input.otherNonSalaryIncome !== 0;
+    if (!hasInput) {
+      setError(t('noInputError'));
+      return;
+    }
+
     setResult(calculateQuickTax(input, countryConfig));
     analytics.calculatorUsed();
   };
@@ -30,6 +39,7 @@ export default function CalculatorPage() {
   const updateField = (field: keyof ManualCalculatorInput, value: string) => {
     const parsed = value.replace(',', '.');
     setInput(prev => ({ ...prev, [field]: parseFloat(parsed) || 0 }));
+    if (error) setError('');
   };
 
   return (
@@ -43,6 +53,12 @@ export default function CalculatorPage() {
       <p className="text-xs text-gray-400 dark:text-slate-500 mb-6">
         {t('common:taxRulesUpdated')}
       </p>
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg" role="alert">
+          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        </div>
+      )}
 
       <form onSubmit={handleCalculate} className="card space-y-5">
         <div>

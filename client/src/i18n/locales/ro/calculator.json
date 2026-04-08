@@ -8,6 +8,7 @@
   "otherNonSalaryIncome": "Alte venituri non-salariale ({{currency}})",
   "otherIncomeHint": "Chirii, c\u00e2\u0219tiguri din crypto, freelance etc.",
   "calculate": "Calculeaz\u0103",
+  "noInputError": "Introduceți cel puțin o valoare pentru a calcula taxele.",
   "results": "Rezultate",
   "capitalGainsTax": "Impozit pe c\u00e2\u0219tiguri de capital ({{rate}}%)",
   "dividendTax": "Impozit pe dividende ({{rate}}% minus re\u021binerea)",
