@@ -148,7 +148,7 @@ test.describe('Login', () => {
   });
 
   test('has link to signup page', async ({ page }) => {
-    await page.getByRole('link', { name: 'Sign up' }).click();
+    await page.locator('main').getByRole('link', { name: 'Sign up' }).click();
     await expect(page).toHaveURL(/signup/);
   });
 

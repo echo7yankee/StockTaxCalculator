@@ -7,7 +7,7 @@ test.describe('Quick Calculator', () => {
 
   test('calculates tax for capital gains', async ({ page }) => {
     // Fill capital gains
-    const inputs = page.locator('input[type="number"]');
+    const inputs = page.locator('input[inputmode="decimal"]');
     await inputs.nth(0).fill('50000'); // capital gains
 
     await page.getByText('Calculate').click();
@@ -20,7 +20,7 @@ test.describe('Quick Calculator', () => {
   });
 
   test('calculates with dividends and withholding', async ({ page }) => {
-    const inputs = page.locator('input[type="number"]');
+    const inputs = page.locator('input[inputmode="decimal"]');
     await inputs.nth(0).fill('30000'); // capital gains
     await inputs.nth(1).fill('5000');  // dividends
     await inputs.nth(2).fill('500');   // withholding tax paid
@@ -33,7 +33,7 @@ test.describe('Quick Calculator', () => {
   });
 
   test('hits CASS 24x bracket for high income', async ({ page }) => {
-    const inputs = page.locator('input[type="number"]');
+    const inputs = page.locator('input[inputmode="decimal"]');
     await inputs.nth(0).fill('100000');
 
     await page.getByText('Calculate').click();
@@ -45,7 +45,7 @@ test.describe('Quick Calculator', () => {
   });
 
   test('shows no CASS for low income', async ({ page }) => {
-    const inputs = page.locator('input[type="number"]');
+    const inputs = page.locator('input[inputmode="decimal"]');
     await inputs.nth(0).fill('5000');
 
     await page.getByText('Calculate').click();

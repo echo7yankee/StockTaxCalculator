@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { LogIn } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
+import FormField from '../components/common/FormField';
+import PasswordInput from '../components/common/PasswordInput';
 
 export default function LoginPage() {
   const { t } = useTranslation(['login', 'common']);
@@ -12,24 +14,51 @@ export default function LoginPage() {
   const { login, loginWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
 
-  // Handle OAuth error redirect
   useEffect(() => {
     if (searchParams.get('error') === 'google') {
       setError(t('login:googleError'));
     }
   }, [searchParams, t]);
 
+  const validateEmail = useCallback((value: string) => {
+    if (!value) return t('common:validation.required');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return t('common:validation.invalidEmail');
+    return '';
+  }, [t]);
+
+  const handleBlur = (field: string, validator: (v: string) => string, value: string) => {
+    const err = validator(value);
+    setFieldErrors(prev => {
+      if (err) return { ...prev, [field]: err };
+      const { [field]: _, ...rest } = prev;
+      return rest;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setFieldErrors({});
+
+    const emailErr = validateEmail(email);
+    if (emailErr) {
+      setFieldErrors({ email: emailErr });
+      return;
+    }
+    if (!password) {
+      setFieldErrors({ password: t('common:validation.required') });
+      return;
+    }
+
     setLoading(true);
     try {
-      await login(email, password);
+      await login(email.trim(), password);
       navigate(from, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : t('login:loginFailed'));
@@ -52,41 +81,50 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg" role="alert">
             <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">{t('common:email')}</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className="input"
-              placeholder={t('login:emailPlaceholder')}
-              required
-              autoComplete="email"
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <FormField
+            id="login-email"
+            label={t('common:email')}
+            error={fieldErrors.email}
+            required
+          >
+            {(props) => (
+              <input
+                {...props}
+                type="email"
+                value={email}
+                onChange={e => { setEmail(e.target.value); if (fieldErrors.email) handleBlur('email', validateEmail, e.target.value); }}
+                onBlur={() => handleBlur('email', validateEmail, email)}
+                placeholder={t('login:emailPlaceholder')}
+                autoComplete="email"
+              />
+            )}
+          </FormField>
+
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-sm font-medium">{t('common:password')}</label>
+              <label htmlFor="login-password" className="block text-sm font-medium">{t('common:password')}</label>
               <Link to="/forgot-password" className="text-xs text-accent hover:underline">
                 {t('login:forgotPassword')}
               </Link>
             </div>
-            <input
-              type="password"
+            <PasswordInput
+              id="login-password"
+              label=""
               value={password}
-              onChange={e => setPassword(e.target.value)}
-              className="input"
+              onChange={setPassword}
               placeholder={t('login:passwordPlaceholder')}
-              required
               autoComplete="current-password"
+              required
+              error={fieldErrors.password}
             />
           </div>
+
           <button type="submit" disabled={loading} className="btn-primary w-full py-2.5">
             {loading ? t('login:loggingIn') : t('common:logIn')}
           </button>

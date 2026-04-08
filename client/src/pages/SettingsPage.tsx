@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCountry } from '../contexts/CountryContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { useAuth } from '../contexts/AuthContext';
-import { Download, Trash2, AlertTriangle, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { useAuth, ApiError } from '../contexts/AuthContext';
+import { Download, Trash2, AlertTriangle, KeyRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import PasswordInput from '../components/common/PasswordInput';
+import { isCommonPassword } from '../components/common/PasswordStrengthMeter';
+import FormField from '../components/common/FormField';
 
 export default function SettingsPage() {
   const { t, i18n } = useTranslation('settings');
@@ -24,10 +27,32 @@ export default function SettingsPage() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
-  const [showNewPassword, setShowNewPassword] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [passwordFieldErrors, setPasswordFieldErrors] = useState<Record<string, string>>({});
+
+  const validateNewPassword = useCallback((value: string) => {
+    if (!value) return t('changePassword.tooShort');
+    if (value.length < 8) return t('changePassword.tooShort');
+    if (isCommonPassword(value)) return t('common:validation.commonPassword');
+    return '';
+  }, [t]);
+
+  const validateConfirmPassword = useCallback((value: string) => {
+    if (!value) return t('changePassword.mismatch');
+    if (value !== newPassword) return t('changePassword.mismatch');
+    return '';
+  }, [t, newPassword]);
+
+  const handlePasswordBlur = (field: string, validator: (v: string) => string, value: string) => {
+    const err = validator(value);
+    setPasswordFieldErrors(prev => {
+      if (err) return { ...prev, [field]: err };
+      const { [field]: _, ...rest } = prev;
+      return rest;
+    });
+  };
 
   const handleExport = async () => {
     setExporting(true);
@@ -58,13 +83,17 @@ export default function SettingsPage() {
     e.preventDefault();
     setPasswordError('');
     setPasswordSuccess('');
+    setPasswordFieldErrors({});
 
-    if (newPassword.length < 8) {
-      setPasswordError(t('changePassword.tooShort'));
-      return;
-    }
-    if (newPassword !== confirmNewPassword) {
-      setPasswordError(t('changePassword.mismatch'));
+    const errors: Record<string, string> = {};
+    if (!currentPassword) errors.currentPassword = t('changePassword.currentPasswordPlaceholder');
+    const newErr = validateNewPassword(newPassword);
+    if (newErr) errors.newPassword = newErr;
+    const confirmErr = validateConfirmPassword(confirmNewPassword);
+    if (confirmErr) errors.confirmNewPassword = confirmErr;
+
+    if (Object.keys(errors).length > 0) {
+      setPasswordFieldErrors(errors);
       return;
     }
 
@@ -77,13 +106,18 @@ export default function SettingsPage() {
         body: JSON.stringify({ currentPassword, newPassword }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || t('changePassword.error'));
+      if (!res.ok) {
+        if (data.fields) setPasswordFieldErrors(data.fields);
+        throw new ApiError(data.error || t('changePassword.error'), data.fields);
+      }
       setPasswordSuccess(t('changePassword.success'));
       setCurrentPassword('');
       setNewPassword('');
       setConfirmNewPassword('');
     } catch (err) {
-      setPasswordError(err instanceof Error ? err.message : t('changePassword.error'));
+      if (!passwordFieldErrors.currentPassword) {
+        setPasswordError(err instanceof Error ? err.message : t('changePassword.error'));
+      }
     } finally {
       setChangingPassword(false);
     }
@@ -101,9 +135,11 @@ export default function SettingsPage() {
             {t('countryDescription')}
           </p>
           <select
+            id="settings-country"
             value={countryCode}
             onChange={e => setCountryCode(e.target.value)}
             className="input"
+            aria-label={t('countryRegion')}
           >
             {supportedCountries.map(c => (
               <option key={c.code} value={c.code}>
@@ -121,9 +157,11 @@ export default function SettingsPage() {
             {t('languageDescription')}
           </p>
           <select
+            id="settings-language"
             value={i18n.language.startsWith('ro') ? 'ro' : 'en'}
             onChange={e => i18n.changeLanguage(e.target.value)}
             className="input"
+            aria-label={t('language')}
           >
             <option value="en">English</option>
             <option value="ro">Română</option>
@@ -146,7 +184,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Change Password — only show for logged-in users with a password */}
+        {/* Change Password */}
         {user && (
           <div className="card">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -158,64 +196,55 @@ export default function SettingsPage() {
             </p>
 
             {passwordSuccess && (
-              <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg" role="status">
                 <p className="text-sm text-green-600 dark:text-green-400">{passwordSuccess}</p>
               </div>
             )}
             {passwordError && (
-              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg" role="alert">
                 <p className="text-sm text-red-600 dark:text-red-400">{passwordError}</p>
               </div>
             )}
 
-            <form onSubmit={handleChangePassword} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">{t('changePassword.currentPassword')}</label>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={e => setCurrentPassword(e.target.value)}
-                  className="input"
-                  placeholder={t('changePassword.currentPasswordPlaceholder')}
-                  required
-                  autoComplete="current-password"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">{t('changePassword.newPassword')}</label>
-                <div className="relative">
-                  <input
-                    type={showNewPassword ? 'text' : 'password'}
-                    value={newPassword}
-                    onChange={e => setNewPassword(e.target.value)}
-                    className="input pr-10"
-                    placeholder={t('changePassword.newPasswordPlaceholder')}
-                    required
-                    minLength={8}
-                    autoComplete="new-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-slate-300"
-                  >
-                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">{t('changePassword.confirmPassword')}</label>
-                <input
-                  type="password"
-                  value={confirmNewPassword}
-                  onChange={e => setConfirmNewPassword(e.target.value)}
-                  className="input"
-                  placeholder={t('changePassword.confirmPasswordPlaceholder')}
-                  required
-                  minLength={8}
-                  autoComplete="new-password"
-                />
-              </div>
+            <form onSubmit={handleChangePassword} className="space-y-4" noValidate>
+              <PasswordInput
+                id="settings-current-password"
+                label={t('changePassword.currentPassword')}
+                value={currentPassword}
+                onChange={setCurrentPassword}
+                placeholder={t('changePassword.currentPasswordPlaceholder')}
+                autoComplete="current-password"
+                required
+                error={passwordFieldErrors.currentPassword}
+              />
+
+              <PasswordInput
+                id="settings-new-password"
+                label={t('changePassword.newPassword')}
+                value={newPassword}
+                onChange={(v) => { setNewPassword(v); if (passwordFieldErrors.newPassword) handlePasswordBlur('newPassword', validateNewPassword, v); }}
+                onBlur={() => handlePasswordBlur('newPassword', validateNewPassword, newPassword)}
+                placeholder={t('changePassword.newPasswordPlaceholder')}
+                autoComplete="new-password"
+                required
+                minLength={8}
+                showStrength
+                error={passwordFieldErrors.newPassword}
+              />
+
+              <PasswordInput
+                id="settings-confirm-password"
+                label={t('changePassword.confirmPassword')}
+                value={confirmNewPassword}
+                onChange={(v) => { setConfirmNewPassword(v); if (passwordFieldErrors.confirmNewPassword) handlePasswordBlur('confirmNewPassword', validateConfirmPassword, v); }}
+                onBlur={() => handlePasswordBlur('confirmNewPassword', validateConfirmPassword, confirmNewPassword)}
+                placeholder={t('changePassword.confirmPasswordPlaceholder')}
+                autoComplete="new-password"
+                required
+                minLength={8}
+                error={passwordFieldErrors.confirmNewPassword}
+              />
+
               <button type="submit" disabled={changingPassword} className="btn-primary py-2.5">
                 {changingPassword ? t('changePassword.changing') : t('changePassword.submit')}
               </button>
@@ -223,7 +252,7 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Data Export — only show when logged in */}
+        {/* Data Export */}
         {user && (
           <div className="card">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -242,12 +271,12 @@ export default function SettingsPage() {
               {exporting ? t('data.exporting') : t('data.exportButton')}
             </button>
             {exportError && (
-              <p className="text-sm text-red-500 mt-2">{exportError}</p>
+              <p className="text-sm text-red-500 mt-2" role="alert">{exportError}</p>
             )}
           </div>
         )}
 
-        {/* Danger Zone — only show when logged in */}
+        {/* Danger Zone */}
         {user && (
           <div className="card border-red-300 dark:border-red-900">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-red-600 dark:text-red-400">
@@ -274,14 +303,23 @@ export default function SettingsPage() {
                 <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
                   {t('dangerZone.confirmDescription')}
                 </p>
-                <input
-                  type="text"
-                  value={deleteInput}
-                  onChange={e => setDeleteInput(e.target.value)}
-                  placeholder={t('dangerZone.confirmPlaceholder')}
-                  className="input mb-4 text-base"
-                  autoComplete="off"
-                />
+                <FormField
+                  id="delete-confirm"
+                  label=""
+                  required
+                >
+                  {(props) => (
+                    <input
+                      {...props}
+                      type="text"
+                      value={deleteInput}
+                      onChange={e => setDeleteInput(e.target.value)}
+                      placeholder={t('dangerZone.confirmPlaceholder')}
+                      className="input mb-4 text-base"
+                      autoComplete="off"
+                    />
+                  )}
+                </FormField>
                 <div className="flex gap-3">
                   <button
                     onClick={handleDelete}
@@ -299,7 +337,7 @@ export default function SettingsPage() {
                   </button>
                 </div>
                 {deleteError && (
-                  <p className="text-sm text-red-500 mt-3">{deleteError}</p>
+                  <p className="text-sm text-red-500 mt-3" role="alert">{deleteError}</p>
                 )}
               </div>
             )}

@@ -1,25 +1,49 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { KeyRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import FormField from '../components/common/FormField';
 
 export default function ForgotPasswordPage() {
   const { t } = useTranslation(['login', 'common']);
   const [email, setEmail] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  const validateEmail = useCallback((value: string) => {
+    if (!value) return t('common:validation.required');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return t('common:validation.invalidEmail');
+    return '';
+  }, [t]);
+
+  const handleBlur = (field: string, validator: (v: string) => string, value: string) => {
+    const err = validator(value);
+    setFieldErrors(prev => {
+      if (err) return { ...prev, [field]: err };
+      const { [field]: _, ...rest } = prev;
+      return rest;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    const emailErr = validateEmail(email);
+    if (emailErr) {
+      setFieldErrors({ email: emailErr });
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: email.trim() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || t('login:resetRequestFailed'));
@@ -64,24 +88,30 @@ export default function ForgotPasswordPage() {
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg" role="alert">
             <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">{t('common:email')}</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className="input"
-              placeholder={t('login:emailPlaceholder')}
-              required
-              autoComplete="email"
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <FormField
+            id="forgot-email"
+            label={t('common:email')}
+            error={fieldErrors.email}
+            required
+          >
+            {(props) => (
+              <input
+                {...props}
+                type="email"
+                value={email}
+                onChange={e => { setEmail(e.target.value); if (fieldErrors.email) handleBlur('email', validateEmail, e.target.value); }}
+                onBlur={() => handleBlur('email', validateEmail, email)}
+                placeholder={t('login:emailPlaceholder')}
+                autoComplete="email"
+              />
+            )}
+          </FormField>
           <button type="submit" disabled={loading} className="btn-primary w-full py-2.5">
             {loading ? t('login:sendingResetLink') : t('login:sendResetLink')}
           </button>
