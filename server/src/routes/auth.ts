@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod/v4';
@@ -16,6 +17,20 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.email(),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8).max(128),
+});
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8).max(128),
+});
+
 const isProd = process.env.NODE_ENV === 'production';
 
 const signupLimiter = rateLimit({
@@ -28,8 +43,16 @@ const signupLimiter = rateLimit({
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: isProd ? 10 : 100,
+  max: isProd ? 5 : 100,
   message: { error: 'Too many login attempts, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isProd ? 3 : 50,
+  message: { error: 'Too many password reset requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -227,6 +250,151 @@ authRouter.get('/export-data', async (req, res) => {
   } catch (err) {
     console.error('Export data error:', err);
     res.status(500).json({ error: 'Failed to export data' });
+  }
+});
+
+// POST /api/auth/forgot-password — request password reset
+authRouter.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
+  try {
+    const parsed = forgotPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0].message });
+      return;
+    }
+
+    const email = parsed.data.email.toLowerCase().trim();
+
+    // Always return success to prevent email enumeration
+    const successResponse = { ok: true, message: 'If an account with that email exists, a password reset link has been sent.' };
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      res.json(successResponse);
+      return;
+    }
+
+    // Google-only users can't reset password (they don't have one)
+    if (!user.passwordHash) {
+      res.json(successResponse);
+      return;
+    }
+
+    // Invalidate any existing tokens for this user
+    await prisma.passwordResetToken.updateMany({
+      where: { userId: user.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+
+    // Generate a secure random token
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await prisma.passwordResetToken.create({
+      data: { userId: user.id, token, expiresAt },
+    });
+
+    // TODO: Send email via Resend when email infrastructure is set up
+    // For now, log the reset link in non-production environments
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    const resetUrl = `${clientUrl}/reset-password?token=${token}`;
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[DEV] Password reset link for ${email}: ${resetUrl}`);
+    }
+
+    res.json(successResponse);
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
+  }
+});
+
+// POST /api/auth/reset-password — set new password with token
+authRouter.post('/reset-password', async (req, res) => {
+  try {
+    const parsed = resetPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0].message });
+      return;
+    }
+
+    const { token, password } = parsed.data;
+
+    const resetToken = await prisma.passwordResetToken.findUnique({
+      where: { token },
+      include: { user: true },
+    });
+
+    if (!resetToken || resetToken.usedAt || resetToken.expiresAt < new Date()) {
+      res.status(400).json({ error: 'This reset link is invalid or has expired. Please request a new one.' });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    // Update password and mark token as used
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: resetToken.userId },
+        data: { passwordHash },
+      }),
+      prisma.passwordResetToken.update({
+        where: { id: resetToken.id },
+        data: { usedAt: new Date() },
+      }),
+    ]);
+
+    // Invalidate all sessions for this user (force re-login with new password)
+    await prisma.session.deleteMany({
+      where: {
+        data: { contains: resetToken.userId },
+      },
+    });
+
+    res.json({ ok: true, message: 'Password has been reset successfully. You can now log in with your new password.' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
+  }
+});
+
+// POST /api/auth/change-password — change password (requires auth)
+authRouter.post('/change-password', async (req, res) => {
+  if (!req.isAuthenticated() || !req.user) {
+    res.status(401).json({ error: 'Authentication required' });
+    return;
+  }
+
+  try {
+    const parsed = changePasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0].message });
+      return;
+    }
+
+    const { currentPassword, newPassword } = parsed.data;
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+
+    if (!user?.passwordHash) {
+      res.status(400).json({ error: 'Your account uses Google sign-in. You cannot change a password.' });
+      return;
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isMatch) {
+      res.status(400).json({ error: 'Current password is incorrect' });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    });
+
+    res.json({ ok: true, message: 'Password changed successfully' });
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.status(500).json({ error: 'Failed to change password' });
   }
 });
 

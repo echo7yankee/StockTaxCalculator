@@ -94,12 +94,13 @@ test.describe('Login', () => {
     await page.goto('/login');
   });
 
-  test('renders login form', async ({ page }) => {
+  test('renders login form with forgot password link', async ({ page }) => {
     await expect(page.locator('h1')).toContainText('Welcome back');
     await expect(page.getByPlaceholder('you@example.com')).toBeVisible();
     await expect(page.getByPlaceholder('Enter your password')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Log in' })).toBeVisible();
     await expect(page.getByText('Continue with Google')).toBeVisible();
+    await expect(page.getByText('Forgot password?')).toBeVisible();
   });
 
   test('shows error for wrong password', async ({ page }) => {
@@ -149,5 +150,99 @@ test.describe('Login', () => {
   test('has link to signup page', async ({ page }) => {
     await page.getByRole('link', { name: 'Sign up' }).click();
     await expect(page).toHaveURL(/signup/);
+  });
+
+  test('forgot password link navigates to forgot-password page', async ({ page }) => {
+    await page.getByText('Forgot password?').click();
+    await expect(page).toHaveURL(/forgot-password/);
+    await expect(page.locator('h1')).toContainText('Reset your password');
+  });
+});
+
+test.describe('Forgot Password', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/forgot-password');
+  });
+
+  test('renders forgot password form', async ({ page }) => {
+    await expect(page.locator('h1')).toContainText('Reset your password');
+    await expect(page.getByPlaceholder('you@example.com')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Send reset link' })).toBeVisible();
+    await expect(page.getByText('Back to login')).toBeVisible();
+  });
+
+  test('submitting email shows confirmation message', async ({ page }) => {
+    await page.getByPlaceholder('you@example.com').fill('test@example.com');
+    await page.getByRole('button', { name: 'Send reset link' }).click();
+    await expect(page.getByText('Check your email')).toBeVisible({ timeout: 5_000 });
+  });
+
+  test('back to login link works', async ({ page }) => {
+    await page.getByRole('link', { name: 'Back to login' }).click();
+    await expect(page).toHaveURL(/login/);
+  });
+});
+
+test.describe('Reset Password Page', () => {
+  test('shows invalid link message without token', async ({ page }) => {
+    await page.goto('/reset-password');
+    await expect(page.getByText('Invalid reset link')).toBeVisible();
+    await expect(page.getByText('Request a new link')).toBeVisible();
+  });
+
+  test('shows reset form with valid token parameter', async ({ page }) => {
+    await page.goto('/reset-password?token=fake-token-for-test');
+    await expect(page.locator('h1')).toContainText('Set new password');
+    await expect(page.getByRole('button', { name: 'Reset password' })).toBeVisible();
+  });
+
+  test('shows error for expired/invalid token on submit', async ({ page }) => {
+    await page.goto('/reset-password?token=invalid-token');
+    await page.getByPlaceholder('At least 8 characters').fill('NewPassword123!');
+    await page.getByPlaceholder('Re-enter your new password').fill('NewPassword123!');
+    await page.getByRole('button', { name: 'Reset password' }).click();
+    await expect(page.getByText(/invalid|expired/i)).toBeVisible({ timeout: 5_000 });
+  });
+});
+
+test.describe('Password Reset API', () => {
+  const resetEmail = `e2e-reset-${uniqueId}@example.com`;
+
+  test.beforeAll(async ({ request }) => {
+    await request.post('/api/auth/signup', {
+      data: { email: resetEmail, password: TEST_PASSWORD, name: 'Reset Test' },
+    });
+  });
+
+  test('forgot-password endpoint returns success for any email (no enumeration)', async ({ request }) => {
+    // Existing email
+    const res1 = await request.post('/api/auth/forgot-password', {
+      data: { email: resetEmail },
+    });
+    expect(res1.status()).toBe(200);
+    const body1 = await res1.json();
+    expect(body1.ok).toBe(true);
+
+    // Non-existing email (should still return success)
+    const res2 = await request.post('/api/auth/forgot-password', {
+      data: { email: 'nonexistent@example.com' },
+    });
+    expect(res2.status()).toBe(200);
+    const body2 = await res2.json();
+    expect(body2.ok).toBe(true);
+  });
+
+  test('reset-password endpoint rejects invalid token', async ({ request }) => {
+    const res = await request.post('/api/auth/reset-password', {
+      data: { token: 'invalid-token', password: 'NewPassword123!' },
+    });
+    expect(res.status()).toBe(400);
+  });
+
+  test('change-password endpoint requires authentication', async ({ request }) => {
+    const res = await request.post('/api/auth/change-password', {
+      data: { currentPassword: TEST_PASSWORD, newPassword: 'NewPassword123!' },
+    });
+    expect(res.status()).toBe(401);
   });
 });

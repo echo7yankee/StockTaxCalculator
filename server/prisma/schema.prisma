@@ -16,7 +16,8 @@ model User {
   plan         String    @default("free")
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
-  taxYears     TaxYear[]
+  taxYears            TaxYear[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 model Session {
@@ -24,6 +25,19 @@ model Session {
   sid       String   @unique
   data      String
   expiresAt DateTime
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
 }
 
 model TaxYear {

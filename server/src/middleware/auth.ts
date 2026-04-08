@@ -8,7 +8,7 @@ export const sessionMiddleware = session({
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
   },
   secret: (() => {
     const secret = process.env.SESSION_SECRET;
@@ -19,6 +19,7 @@ export const sessionMiddleware = session({
   })(),
   resave: false,
   saveUninitialized: false,
+  rolling: true, // Renew session expiry on each request (sliding window)
   store: new PrismaSessionStore(prisma, {
     checkPeriod: 2 * 60 * 1000, // prune expired sessions every 2 min
     dbRecordIdIsSessionId: true,

@@ -32,6 +32,13 @@ test.describe('Mobile viewport', () => {
     expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
   });
 
+  test('forgot-password page has no horizontal scroll', async ({ page }) => {
+    await page.goto('/forgot-password');
+    const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
+  });
+
   test('mobile nav menu opens', async ({ page }) => {
     await page.goto('/');
     const menuButton = page.getByRole('button', { name: 'Menu' });

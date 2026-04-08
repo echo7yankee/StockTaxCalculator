@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { LogIn } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,6 +8,7 @@ export default function LoginPage() {
   const { t } = useTranslation(['login', 'common']);
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { login, loginWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,6 +16,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
+
+  // Handle OAuth error redirect
+  useEffect(() => {
+    if (searchParams.get('error') === 'google') {
+      setError(t('login:googleError'));
+    }
+  }, [searchParams, t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +71,12 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">{t('common:password')}</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium">{t('common:password')}</label>
+              <Link to="/forgot-password" className="text-xs text-accent hover:underline">
+                {t('login:forgotPassword')}
+              </Link>
+            </div>
             <input
               type="password"
               value={password}
