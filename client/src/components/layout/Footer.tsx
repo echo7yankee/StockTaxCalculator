@@ -8,12 +8,12 @@ export default function Footer() {
     <footer className="border-t border-gray-200 dark:border-navy-500 py-8 mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Disclaimer */}
-        <p className="text-xs text-gray-400 dark:text-slate-600 mb-6 leading-relaxed">
+        <p className="text-xs text-gray-500 dark:text-slate-400 mb-6 leading-relaxed">
           {t('disclaimer')}
         </p>
 
         {/* Links + Copyright */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500 dark:text-slate-500">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500 dark:text-slate-400">
           <p>{t('copyright', { year: new Date().getFullYear() })}</p>
           <div className="flex items-center gap-4">
             <Link to="/privacy" className="hover:text-accent transition-colors">

@@ -112,7 +112,7 @@ export default function LoginPage() {
           <div>
             <div className="flex items-center justify-between mb-1">
               <label htmlFor="login-password" className="block text-sm font-medium">{t('common:password')}</label>
-              <Link to="/forgot-password" className="text-xs text-accent hover:underline">
+              <Link to="/forgot-password" className="text-xs text-accent-hover dark:text-accent-light hover:underline">
                 {t('login:forgotPassword')}
               </Link>
             </div>
@@ -138,7 +138,7 @@ export default function LoginPage() {
             <div className="w-full border-t border-gray-200 dark:border-navy-600" />
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-white dark:bg-navy-800 px-2 text-gray-400 dark:text-slate-500">{t('common:or')}</span>
+            <span className="bg-white dark:bg-navy-800 px-2 text-gray-500 dark:text-slate-400">{t('common:or')}</span>
           </div>
         </div>
 
@@ -157,7 +157,7 @@ export default function LoginPage() {
 
         <p className="text-center text-sm text-gray-500 dark:text-slate-400 mt-6">
           {t('login:noAccount')}{' '}
-          <Link to="/signup" className="text-accent hover:underline font-medium">
+          <Link to="/signup" className="text-accent-hover dark:text-accent-light hover:underline font-medium">
             {t('common:signUp')}
           </Link>
         </p>

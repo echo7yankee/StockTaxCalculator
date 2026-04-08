@@ -457,19 +457,19 @@ export default function UploadPage() {
                 {activeTab === 'pdf' ? (
                   <FileText className="w-12 h-12 text-accent/60 mx-auto mb-4" />
                 ) : (
-                  <Upload className="w-12 h-12 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
+                  <Upload className="w-12 h-12 text-gray-500 dark:text-slate-400 mx-auto mb-4" />
                 )}
                 <p className="text-lg font-medium mb-1">
                   {activeTab === 'pdf' ? t('pdfDropHere') : t('csvDropHere')}
                 </p>
-                <p className="text-sm text-gray-500 dark:text-slate-500">
+                <p className="text-sm text-gray-500 dark:text-slate-400">
                   {activeTab === 'pdf' ? t('pdfOrClick') : t('csvOrClick')}
                 </p>
-                <p className="mt-3 text-xs text-gray-400 dark:text-slate-600">
+                <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
                   {activeTab === 'pdf' ? t('pdfHint') : t('csvHint')}
                 </p>
                 {activeTab === 'csv' && (
-                  <p className="mt-1 text-xs text-gray-400 dark:text-slate-600">
+                  <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
                     {t('csvFullHistoryNote')}
                   </p>
                 )}
@@ -565,7 +565,7 @@ export default function UploadPage() {
                   </div>
                 </div>
                 {(preview.skipped ?? 0) > 0 && (
-                  <p className="text-xs text-gray-500 dark:text-slate-500 mt-3">
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-3">
                     {t('rowsSkipped', { count: preview.skipped })}
                   </p>
                 )}
@@ -642,7 +642,7 @@ export default function UploadPage() {
                 </p>
               )}
               {!rateSource && !rateLoading && (
-                <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-2">
                   {t('enterManualRate', { year: preview.year })}
                 </p>
               )}
@@ -682,7 +682,7 @@ export default function UploadPage() {
               </button>
             </div>
             {countryConfig && (
-              <p className="text-xs text-gray-500 dark:text-slate-500 mt-3">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-3">
                 {t('usingTaxRules', { country: countryConfig.name, rate: `${(countryConfig.capitalGainsTaxRate * 100)}%` })}
                 {' · '}
                 {t('taxRulesUpdated')}

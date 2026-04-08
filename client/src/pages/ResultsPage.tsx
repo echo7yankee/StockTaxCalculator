@@ -60,8 +60,8 @@ export default function ResultsPage() {
           {t('results:emptySubtitle')}
         </p>
         <div className="card text-center py-16">
-          <p className="text-gray-500 dark:text-slate-500 text-lg">{t('results:noCalculations')}</p>
-          <p className="text-sm text-gray-400 dark:text-slate-600 mt-2">{t('results:noCalculationsDetail')}</p>
+          <p className="text-gray-500 dark:text-slate-400 text-lg">{t('results:noCalculations')}</p>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">{t('results:noCalculationsDetail')}</p>
           <button onClick={() => navigate('/upload')} className="btn-primary mt-6">
             {t('common:goToUpload')}
           </button>
@@ -165,7 +165,7 @@ export default function ResultsPage() {
         />
       </div>
 
-      <p className="text-xs text-gray-400 dark:text-slate-500 mb-6 text-right">
+      <p className="text-xs text-gray-500 dark:text-slate-400 mb-6 text-right">
         {t('common:taxRulesUpdated')}
       </p>
 
@@ -215,7 +215,7 @@ export default function ResultsPage() {
                 <tr key={sec.isin || sec.ticker} className="border-b border-gray-100 dark:border-navy-700 hover:bg-navy-700/50">
                   <td className="py-3 px-2">
                     <p className="font-medium">{sec.ticker}</p>
-                    <p className="text-xs text-gray-500 dark:text-slate-500 truncate max-w-[180px]">{sec.securityName}</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 truncate max-w-[180px]">{sec.securityName}</p>
                   </td>
                   <td className="text-right py-3 px-2">{sec.totalBoughtShares}</td>
                   <td className="text-right py-3 px-2">{sec.totalSoldShares}</td>
@@ -235,7 +235,7 @@ export default function ResultsPage() {
               ))}
               {securities.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-gray-500 dark:text-slate-500">
+                  <td colSpan={9} className="py-8 text-center text-gray-500 dark:text-slate-400">
                     {t('results:noSecurities', { year: taxYear })}
                   </td>
                 </tr>
@@ -270,7 +270,7 @@ function SummaryCard({ icon, label, value, detail, color, highlight }: {
       </div>
       <p className="text-sm text-gray-500 dark:text-slate-400">{label}</p>
       <p className="text-2xl font-bold mt-1">{value}</p>
-      <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">{detail}</p>
+      <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">{detail}</p>
     </div>
   );
 }

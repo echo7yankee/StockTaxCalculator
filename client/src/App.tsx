@@ -1,45 +1,49 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
-import Landing from './pages/Landing';
-import CalculatorPage from './pages/CalculatorPage';
-import Dashboard from './pages/Dashboard';
-import UploadPage from './pages/UploadPage';
-import ResultsPage from './pages/ResultsPage';
-import SettingsPage from './pages/SettingsPage';
-import StatusPage from './pages/StatusPage';
-import FilingGuidePage from './pages/FilingGuidePage';
-import LoginPage from './pages/LoginPage';
-import SignupPage from './pages/SignupPage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
-import PrivacyPage from './pages/PrivacyPage';
-import TermsPage from './pages/TermsPage';
-import ContactPage from './pages/ContactPage';
-import PricingPage from './pages/PricingPage';
-import NotFoundPage from './pages/NotFoundPage';
+
+const Landing = lazy(() => import('./pages/Landing'));
+const CalculatorPage = lazy(() => import('./pages/CalculatorPage'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const UploadPage = lazy(() => import('./pages/UploadPage'));
+const ResultsPage = lazy(() => import('./pages/ResultsPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const StatusPage = lazy(() => import('./pages/StatusPage'));
+const FilingGuidePage = lazy(() => import('./pages/FilingGuidePage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const SignupPage = lazy(() => import('./pages/SignupPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
+const TermsPage = lazy(() => import('./pages/TermsPage'));
+const ContactPage = lazy(() => import('./pages/ContactPage'));
+const PricingPage = lazy(() => import('./pages/PricingPage'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 export default function App() {
   return (
-    <Routes>
-      <Route element={<Layout />}>
-        <Route path="/" element={<Landing />} />
-        <Route path="/calculator" element={<CalculatorPage />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/upload" element={<UploadPage />} />
-        <Route path="/results" element={<ResultsPage />} />
-        <Route path="/filing-guide" element={<FilingGuidePage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/status" element={<StatusPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="/terms" element={<TermsPage />} />
-        <Route path="/contact" element={<ContactPage />} />
-        <Route path="/pricing" element={<PricingPage />} />
-        <Route path="*" element={<NotFoundPage />} />
-      </Route>
-    </Routes>
+    <Suspense fallback={null}>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route path="/" element={<Landing />} />
+          <Route path="/calculator" element={<CalculatorPage />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/upload" element={<UploadPage />} />
+          <Route path="/results" element={<ResultsPage />} />
+          <Route path="/filing-guide" element={<FilingGuidePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/status" element={<StatusPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+      </Routes>
+    </Suspense>
   );
 }

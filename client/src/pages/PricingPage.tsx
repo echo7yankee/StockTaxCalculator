@@ -115,9 +115,9 @@ export default function PricingPage() {
               </li>
             ))}
             {PAID_FEATURES.slice(0, 3).map(key => (
-              <li key={key} className="flex items-start gap-3 opacity-40">
-                <X className="w-5 h-5 text-gray-400 shrink-0 mt-0.5" />
-                <span className="text-gray-500 dark:text-slate-500">{t(`features.${key}`)}</span>
+              <li key={key} className="flex items-start gap-3">
+                <X className="w-5 h-5 text-gray-500 dark:text-slate-400 shrink-0 mt-0.5" />
+                <span className="text-gray-500 dark:text-slate-400 line-through">{t(`features.${key}`)}</span>
               </li>
             ))}
           </ul>
@@ -195,7 +195,7 @@ export default function PricingPage() {
 
       {/* Trust badge */}
       <div className="text-center mb-16">
-        <div className="inline-flex items-center gap-2 px-6 py-3 bg-accent/10 text-accent rounded-full text-sm font-medium">
+        <div className="inline-flex items-center gap-2 px-6 py-3 bg-accent/10 text-accent-hover dark:text-accent-light rounded-full text-sm font-medium">
           <Shield className="w-4 h-4" />
           {t('trustBadge')}
         </div>
@@ -213,9 +213,9 @@ export default function PricingPage() {
               >
                 <span className="font-medium pr-4">{item.question}</span>
                 {openFaq === i ? (
-                  <ChevronUp className="w-5 h-5 shrink-0 text-gray-400" />
+                  <ChevronUp className="w-5 h-5 shrink-0 text-gray-500" />
                 ) : (
-                  <ChevronDown className="w-5 h-5 shrink-0 text-gray-400" />
+                  <ChevronDown className="w-5 h-5 shrink-0 text-gray-500" />
                 )}
               </button>
               {openFaq === i && (

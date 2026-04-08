@@ -12,7 +12,7 @@ export default function TermsPage() {
         <FileText className="w-8 h-8 text-accent" />
         <h1 className="text-3xl font-bold">{t('title')}</h1>
       </div>
-      <p className="text-sm text-gray-500 dark:text-slate-500 mb-6">{t('lastUpdated')}</p>
+      <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">{t('lastUpdated')}</p>
       <p className="text-gray-600 dark:text-slate-400 mb-8">{t('intro')}</p>
 
       <div className="space-y-8">

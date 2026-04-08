@@ -36,7 +36,7 @@ export default function CookieBanner() {
         </button>
         <button
           onClick={dismiss}
-          className="flex-shrink-0 text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors"
+          className="flex-shrink-0 text-gray-500 hover:text-gray-600 dark:text-slate-400 dark:hover:text-slate-300 transition-colors"
           aria-label={t('cookieBanner.close')}
         >
           <X className="w-4 h-4" />

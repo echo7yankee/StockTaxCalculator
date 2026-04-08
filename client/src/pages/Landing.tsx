@@ -82,8 +82,8 @@ export default function Landing() {
       <section className="py-16">
         <h2 className="text-2xl font-bold text-center mb-8">{t('testimonialsTitle')}</h2>
         <div className="card text-center py-12">
-          <MessageSquareQuote className="w-10 h-10 text-gray-300 dark:text-slate-600 mx-auto mb-4" />
-          <p className="text-gray-500 dark:text-slate-500">{t('testimonialsPlaceholder')}</p>
+          <MessageSquareQuote className="w-10 h-10 text-gray-300 dark:text-slate-400 mx-auto mb-4" />
+          <p className="text-gray-500 dark:text-slate-400">{t('testimonialsPlaceholder')}</p>
         </div>
       </section>
 
@@ -105,8 +105,8 @@ export default function Landing() {
         <h2 className="text-2xl font-bold mb-8">{t('supportedBrokers')}</h2>
         <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-lg font-medium text-gray-500 dark:text-slate-400">
           <span className="px-6 py-3 card">Trading212</span>
-          <span className="px-6 py-3 card opacity-60">Revolut ({t('comingSoon')})</span>
-          <span className="px-6 py-3 card opacity-60">IBKR ({t('comingSoon')})</span>
+          <span className="px-6 py-3 card text-gray-500 dark:text-slate-400">Revolut ({t('comingSoon')})</span>
+          <span className="px-6 py-3 card text-gray-500 dark:text-slate-400">IBKR ({t('comingSoon')})</span>
         </div>
       </section>
     </div>

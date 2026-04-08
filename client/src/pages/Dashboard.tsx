@@ -189,9 +189,9 @@ export default function Dashboard() {
         {/* Not logged in — soft prompt */}
         {!authLoading && !user && (
           <div className="py-12 text-center">
-            <LogIn className="w-10 h-10 text-gray-300 dark:text-slate-600 mx-auto mb-3" />
-            <p className="text-gray-500 dark:text-slate-500 text-lg">{t('dashboard:loginPrompt')}</p>
-            <p className="text-sm text-gray-400 dark:text-slate-600 mt-1">
+            <LogIn className="w-10 h-10 text-gray-300 dark:text-slate-400 mx-auto mb-3" />
+            <p className="text-gray-500 dark:text-slate-400 text-lg">{t('dashboard:loginPrompt')}</p>
+            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
               {t('dashboard:loginPromptDetail')}
             </p>
             <div className="flex gap-3 justify-center mt-6">
@@ -205,7 +205,7 @@ export default function Dashboard() {
         {user && loading && (
           <div className="py-12 text-center">
             <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-gray-500 dark:text-slate-500">{t('dashboard:loadingData')}</p>
+            <p className="text-gray-500 dark:text-slate-400">{t('dashboard:loadingData')}</p>
           </div>
         )}
 
@@ -217,9 +217,9 @@ export default function Dashboard() {
         {/* Logged in — empty */}
         {user && !loading && !error && taxYears.length === 0 && (
           <div className="py-12 text-center">
-            <FileText className="w-10 h-10 text-gray-300 dark:text-slate-600 mx-auto mb-3" />
-            <p className="text-gray-500 dark:text-slate-500">{t('dashboard:noCalculations')}</p>
-            <p className="text-sm text-gray-400 dark:text-slate-600 mt-1">
+            <FileText className="w-10 h-10 text-gray-300 dark:text-slate-400 mx-auto mb-3" />
+            <p className="text-gray-500 dark:text-slate-400">{t('dashboard:noCalculations')}</p>
+            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
               {t('dashboard:noCalculationsDetail')}
             </p>
           </div>
@@ -258,13 +258,13 @@ export default function Dashboard() {
                     <td className="text-right py-3 px-2 hidden md:table-cell">{fmt(ty.dividendTaxOwed)}</td>
                     <td className="text-right py-3 px-2 hidden md:table-cell">{fmt(ty.cassOwed)}</td>
                     <td className="text-right py-3 px-2 font-bold text-accent">{fmt(ty.totalTaxOwed)}</td>
-                    <td className="text-right py-3 px-2 text-gray-500 dark:text-slate-500 text-xs hidden sm:table-cell">
+                    <td className="text-right py-3 px-2 text-gray-500 dark:text-slate-400 text-xs hidden sm:table-cell">
                       {ty.calculatedAt ? new Date(ty.calculatedAt).toLocaleDateString() : '-'}
                     </td>
                     <td className="text-right py-3 px-2">
                       <button
                         onClick={(e) => handleDelete(e, ty.id)}
-                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                        className="p-2 text-gray-500 hover:text-red-500 transition-colors"
                         title={t('dashboard:deleteTitle')}
                       >
                         <Trash2 className="w-4 h-4" />

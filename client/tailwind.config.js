@@ -18,8 +18,8 @@ export default {
         },
         // Brand accent
         accent: {
-          DEFAULT: '#3B82F6',
-          hover: '#2563EB',
+          DEFAULT: '#2563EB',
+          hover: '#1D4ED8',
           light: '#60A5FA',
         },
       },

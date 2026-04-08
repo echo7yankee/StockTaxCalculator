@@ -33,7 +33,7 @@ export default function FormField({ id, label, error, required, hint, children }
         className: `input ${error ? 'border-red-500 dark:border-red-500 focus:ring-red-500' : ''}`,
       })}
       {hint && !error && (
-        <p id={hintId} className="text-xs text-gray-500 dark:text-slate-500 mt-1">{hint}</p>
+        <p id={hintId} className="text-xs text-gray-500 dark:text-slate-400 mt-1">{hint}</p>
       )}
       {error && (
         <p id={errorId} className="text-sm text-red-500 dark:text-red-400 mt-1" role="alert">
