@@ -63,12 +63,23 @@ function sanitizeUser(user: Express.User) {
   return { id: user.id, email: user.email, name: user.name, plan: user.plan };
 }
 
+function formatZodErrors(error: z.core.$ZodError) {
+  const fields: Record<string, string> = {};
+  for (const issue of error.issues) {
+    const key = issue.path.join('.');
+    if (key && !fields[key]) {
+      fields[key] = issue.message;
+    }
+  }
+  return { error: error.issues[0].message, fields };
+}
+
 // POST /api/auth/signup
 authRouter.post('/signup', signupLimiter, async (req, res, next) => {
   try {
     const parsed = signupSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.issues[0].message });
+      res.status(400).json(formatZodErrors(parsed.error));
       return;
     }
 
@@ -78,7 +89,7 @@ authRouter.post('/signup', signupLimiter, async (req, res, next) => {
     // Check existing user
     const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (existing?.passwordHash) {
-      res.status(409).json({ error: 'An account with this email already exists' });
+      res.status(409).json({ error: 'An account with this email already exists', fields: { email: 'An account with this email already exists' } });
       return;
     }
 
@@ -112,7 +123,7 @@ authRouter.post('/signup', signupLimiter, async (req, res, next) => {
 authRouter.post('/login', loginLimiter, (req, res, next) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.issues[0].message });
+    res.status(400).json(formatZodErrors(parsed.error));
     return;
   }
 
@@ -258,7 +269,7 @@ authRouter.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
   try {
     const parsed = forgotPasswordSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.issues[0].message });
+      res.status(400).json(formatZodErrors(parsed.error));
       return;
     }
 
@@ -313,7 +324,7 @@ authRouter.post('/reset-password', async (req, res) => {
   try {
     const parsed = resetPasswordSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.issues[0].message });
+      res.status(400).json(formatZodErrors(parsed.error));
       return;
     }
 
@@ -367,7 +378,7 @@ authRouter.post('/change-password', async (req, res) => {
   try {
     const parsed = changePasswordSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.issues[0].message });
+      res.status(400).json(formatZodErrors(parsed.error));
       return;
     }
 
@@ -381,7 +392,7 @@ authRouter.post('/change-password', async (req, res) => {
 
     const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!isMatch) {
-      res.status(400).json({ error: 'Current password is incorrect' });
+      res.status(400).json({ error: 'Current password is incorrect', fields: { currentPassword: 'Current password is incorrect' } });
       return;
     }
 

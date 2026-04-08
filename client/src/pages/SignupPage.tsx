@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserPlus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, ApiError } from '../contexts/AuthContext';
+import FormField from '../components/common/FormField';
+import PasswordInput from '../components/common/PasswordInput';
+import { isCommonPassword } from '../components/common/PasswordStrengthMeter';
 
 export default function SignupPage() {
   const { t } = useTranslation(['signup', 'common']);
@@ -12,27 +15,64 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const validateEmail = useCallback((value: string) => {
+    if (!value) return t('common:validation.required');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return t('common:validation.invalidEmail');
+    if (value.length > 254) return t('common:validation.emailTooLong');
+    return '';
+  }, [t]);
+
+  const validatePassword = useCallback((value: string) => {
+    if (!value) return t('common:validation.required');
+    if (value.length < 8) return t('signup:passwordTooShort');
+    if (isCommonPassword(value)) return t('common:validation.commonPassword');
+    return '';
+  }, [t]);
+
+  const validateConfirmPassword = useCallback((value: string) => {
+    if (!value) return t('common:validation.required');
+    if (value !== password) return t('signup:passwordsMismatch');
+    return '';
+  }, [t, password]);
+
+  const handleBlur = (field: string, validator: (v: string) => string, value: string) => {
+    const err = validator(value);
+    setFieldErrors(prev => {
+      if (err) return { ...prev, [field]: err };
+      const { [field]: _, ...rest } = prev;
+      return rest;
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (password.length < 8) {
-      setError(t('signup:passwordTooShort'));
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError(t('signup:passwordsMismatch'));
+    const errors: Record<string, string> = {};
+    const emailErr = validateEmail(email);
+    if (emailErr) errors.email = emailErr;
+    const passErr = validatePassword(password);
+    if (passErr) errors.password = passErr;
+    const confirmErr = validateConfirmPassword(confirmPassword);
+    if (confirmErr) errors.confirmPassword = confirmErr;
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
 
     setLoading(true);
     try {
-      await signup(email, password, name);
+      await signup(email.trim(), password, name.trim());
       navigate('/dashboard', { replace: true });
     } catch (err) {
+      if (err instanceof ApiError && err.fields) {
+        setFieldErrors(err.fields);
+      }
       setError(err instanceof Error ? err.message : t('signup:signupFailed'));
     } finally {
       setLoading(false);
@@ -52,62 +92,74 @@ export default function SignupPage() {
           </p>
         </div>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+        {error && !Object.keys(fieldErrors).length && (
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg" role="alert">
             <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">{t('common:name')}</label>
-            <input
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              className="input"
-              placeholder={t('signup:namePlaceholder')}
-              autoComplete="name"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">{t('common:email')}</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className="input"
-              placeholder={t('signup:emailPlaceholder')}
-              required
-              autoComplete="email"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">{t('common:password')}</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              className="input"
-              placeholder={t('signup:passwordPlaceholder')}
-              required
-              minLength={8}
-              autoComplete="new-password"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">{t('signup:confirmPasswordPlaceholder')}</label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
-              className="input"
-              placeholder={t('signup:confirmPasswordPlaceholder')}
-              required
-              minLength={8}
-              autoComplete="new-password"
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <FormField id="signup-name" label={t('common:name')}>
+            {(props) => (
+              <input
+                {...props}
+                type="text"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder={t('signup:namePlaceholder')}
+                autoComplete="name"
+                maxLength={100}
+              />
+            )}
+          </FormField>
+
+          <FormField
+            id="signup-email"
+            label={t('common:email')}
+            error={fieldErrors.email}
+            required
+          >
+            {(props) => (
+              <input
+                {...props}
+                type="email"
+                value={email}
+                onChange={e => { setEmail(e.target.value); if (fieldErrors.email) handleBlur('email', validateEmail, e.target.value); }}
+                onBlur={() => handleBlur('email', validateEmail, email)}
+                placeholder={t('signup:emailPlaceholder')}
+                autoComplete="email"
+                maxLength={254}
+              />
+            )}
+          </FormField>
+
+          <PasswordInput
+            id="signup-password"
+            label={t('common:password')}
+            value={password}
+            onChange={(v) => { setPassword(v); if (fieldErrors.password) handleBlur('password', validatePassword, v); }}
+            onBlur={() => handleBlur('password', validatePassword, password)}
+            placeholder={t('signup:passwordPlaceholder')}
+            autoComplete="new-password"
+            required
+            minLength={8}
+            showStrength
+            error={fieldErrors.password}
+          />
+
+          <PasswordInput
+            id="signup-confirm-password"
+            label={t('signup:confirmPasswordPlaceholder')}
+            value={confirmPassword}
+            onChange={(v) => { setConfirmPassword(v); if (fieldErrors.confirmPassword) handleBlur('confirmPassword', validateConfirmPassword, v); }}
+            onBlur={() => handleBlur('confirmPassword', validateConfirmPassword, confirmPassword)}
+            placeholder={t('signup:confirmPasswordPlaceholder')}
+            autoComplete="new-password"
+            required
+            minLength={8}
+            error={fieldErrors.confirmPassword}
+          />
+
           <button type="submit" disabled={loading} className="btn-primary w-full py-2.5">
             {loading ? t('signup:creatingAccount') : t('signup:createAccount')}
           </button>

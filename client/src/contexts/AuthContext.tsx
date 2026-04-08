@@ -8,6 +8,14 @@ interface AuthUser {
   plan: string;
 }
 
+export class ApiError extends Error {
+  fields?: Record<string, string>;
+  constructor(message: string, fields?: Record<string, string>) {
+    super(message);
+    this.fields = fields;
+  }
+}
+
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
@@ -43,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ email, password }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Login failed');
+    if (!res.ok) throw new ApiError(data.error || 'Login failed', data.fields);
     setUser(data.user);
   }, []);
 
@@ -54,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ email, password, name }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Signup failed');
+    if (!res.ok) throw new ApiError(data.error || 'Signup failed', data.fields);
     setUser(data.user);
     analytics.signupCompleted();
   }, []);

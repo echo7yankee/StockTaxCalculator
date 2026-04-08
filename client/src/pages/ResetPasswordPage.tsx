@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { KeyRound, Eye, EyeOff } from 'lucide-react';
+import { KeyRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import PasswordInput from '../components/common/PasswordInput';
+import { isCommonPassword } from '../components/common/PasswordStrengthMeter';
 
 export default function ResetPasswordPage() {
   const { t } = useTranslation(['login', 'common']);
@@ -9,10 +11,32 @@ export default function ResetPasswordPage() {
   const token = searchParams.get('token') || '';
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  const validatePassword = useCallback((value: string) => {
+    if (!value) return t('common:validation.required');
+    if (value.length < 8) return t('login:passwordTooShort');
+    if (isCommonPassword(value)) return t('common:validation.commonPassword');
+    return '';
+  }, [t]);
+
+  const validateConfirmPassword = useCallback((value: string) => {
+    if (!value) return t('common:validation.required');
+    if (value !== password) return t('login:passwordsMismatch');
+    return '';
+  }, [t, password]);
+
+  const handleBlur = (field: string, validator: (v: string) => string, value: string) => {
+    const err = validator(value);
+    setFieldErrors(prev => {
+      if (err) return { ...prev, [field]: err };
+      const { [field]: _, ...rest } = prev;
+      return rest;
+    });
+  };
 
   if (!token) {
     return (
@@ -34,12 +58,14 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     setError('');
 
-    if (password.length < 8) {
-      setError(t('login:passwordTooShort'));
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError(t('login:passwordsMismatch'));
+    const errors: Record<string, string> = {};
+    const passErr = validatePassword(password);
+    if (passErr) errors.password = passErr;
+    const confirmErr = validateConfirmPassword(confirmPassword);
+    if (confirmErr) errors.confirmPassword = confirmErr;
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
 
@@ -94,47 +120,39 @@ export default function ResetPasswordPage() {
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg" role="alert">
             <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">{t('login:newPassword')}</label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="input pr-10"
-                placeholder={t('login:newPasswordPlaceholder')}
-                required
-                minLength={8}
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-slate-300"
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">{t('login:confirmNewPassword')}</label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
-              className="input"
-              placeholder={t('login:confirmNewPasswordPlaceholder')}
-              required
-              minLength={8}
-              autoComplete="new-password"
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <PasswordInput
+            id="reset-password"
+            label={t('login:newPassword')}
+            value={password}
+            onChange={(v) => { setPassword(v); if (fieldErrors.password) handleBlur('password', validatePassword, v); }}
+            onBlur={() => handleBlur('password', validatePassword, password)}
+            placeholder={t('login:newPasswordPlaceholder')}
+            autoComplete="new-password"
+            required
+            minLength={8}
+            showStrength
+            error={fieldErrors.password}
+          />
+
+          <PasswordInput
+            id="reset-confirm-password"
+            label={t('login:confirmNewPassword')}
+            value={confirmPassword}
+            onChange={(v) => { setConfirmPassword(v); if (fieldErrors.confirmPassword) handleBlur('confirmPassword', validateConfirmPassword, v); }}
+            onBlur={() => handleBlur('confirmPassword', validateConfirmPassword, confirmPassword)}
+            placeholder={t('login:confirmNewPasswordPlaceholder')}
+            autoComplete="new-password"
+            required
+            minLength={8}
+            error={fieldErrors.confirmPassword}
+          />
+
           <button type="submit" disabled={loading} className="btn-primary w-full py-2.5">
             {loading ? t('login:resettingPassword') : t('login:resetPassword')}
           </button>
