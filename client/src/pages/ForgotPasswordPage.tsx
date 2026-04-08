@@ -111,6 +111,7 @@ export default function ForgotPasswordPage() {
                 onBlur={() => handleBlur('email', validateEmail, email)}
                 placeholder={t('login:emailPlaceholder')}
                 autoComplete="email"
+                inputMode="email"
               />
             )}
           </FormField>

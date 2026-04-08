@@ -17,7 +17,8 @@
   "name": "Nume",
   "cookieBanner": {
     "message": "Acest site folosește doar cookie-uri esențiale pentru autentificare și preferințele tale. Fără cookie-uri de urmărire.",
-    "accept": "Am înțeles"
+    "accept": "Am înțeles",
+    "close": "Închide"
   },
   "validation": {
     "required": "Acest câmp este obligatoriu",
@@ -26,6 +27,8 @@
     "commonPassword": "Această parolă este prea comună. Te rugăm să alegi o parolă mai unică."
   },
   "taxRulesUpdated": "Reguli fiscale actualizate la: ianuarie 2026",
+  "showPassword": "Arată parola",
+  "hidePassword": "Ascunde parola",
   "passwordStrength": {
     "weak": "Parolă slabă",
     "medium": "Putere medie",
