@@ -30,3 +30,16 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (req.isAuthenticated()) return next();
   res.status(401).json({ error: 'Authentication required' });
 }
+
+export function requirePaidPlan(req: Request, res: Response, next: NextFunction) {
+  if (!req.isAuthenticated() || !req.user) {
+    res.status(401).json({ error: 'Authentication required' });
+    return;
+  }
+  const user = req.user;
+  if (user.plan !== 'paid' || !user.planExpiresAt || new Date(user.planExpiresAt) < new Date()) {
+    res.status(403).json({ error: 'Paid plan required', code: 'PLAN_REQUIRED' });
+    return;
+  }
+  next();
+}

@@ -10,11 +10,14 @@ export default function Header() {
   const { theme, toggleTheme } = useTheme();
   const { user, loading, logout } = useAuth();
 
+  const isPaid = user?.plan === 'paid';
+
   const navLinks = [
     { to: '/', label: t('header:home') },
     { to: '/calculator', label: t('header:calculator') },
-    { to: '/dashboard', label: t('header:dashboard') },
+    ...(isPaid ? [{ to: '/dashboard', label: t('header:dashboard') }] : []),
     { to: '/filing-guide', label: t('header:filingGuide') },
+    ...(!isPaid ? [{ to: '/pricing', label: t('header:pricing') }] : []),
   ];
   const location = useLocation();
   const navigate = useNavigate();

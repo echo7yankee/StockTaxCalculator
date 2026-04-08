@@ -8,16 +8,34 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  name         String?
-  passwordHash String?
-  googleId     String?   @unique
-  plan         String    @default("free")
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id              String    @id @default(uuid())
+  email           String    @unique
+  name            String?
+  passwordHash    String?
+  googleId        String?   @unique
+  plan            String    @default("free")
+  planPurchasedAt DateTime?
+  planExpiresAt   DateTime?
+  lemonCustomerId String?   @unique
+  lemonOrderId    String?
+  launchPriceUsed Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   taxYears            TaxYear[]
   passwordResetTokens PasswordResetToken[]
+}
+
+model PromoCounter {
+  id    String @id @default("launch_2026")
+  count Int    @default(0)
+  limit Int    @default(100)
+}
+
+model WebhookEvent {
+  id          String   @id
+  eventName   String
+  processedAt DateTime @default(now())
+  payload     String
 }
 
 model Session {

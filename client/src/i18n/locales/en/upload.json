@@ -1,4 +1,6 @@
 {
+  "welcomeTitle": "Welcome to InvesTax!",
+  "welcomeMessage": "Your payment was successful. Upload your Trading212 statement to get started.",
   "title": "Upload Broker Statement",
   "subtitle": "Upload your Trading212 annual statement (PDF) or transaction export (CSV).",
   "dropHere": "Drop your file here",

@@ -45,12 +45,21 @@ export default function Dashboard() {
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Paywall: redirect free users to pricing
   useEffect(() => {
-    if (!user) return;
+    if (authLoading) return;
+    if (user && user.plan !== 'paid') {
+      navigate('/pricing', { replace: true });
+    }
+  }, [user, authLoading, navigate]);
+
+  useEffect(() => {
+    if (!user || user.plan !== 'paid') return;
     setLoading(true);
     fetch('/api/tax-years', { credentials: 'include' })
       .then(res => {
         if (res.status === 401) { logout(); return []; }
+        if (res.status === 403) { navigate('/pricing', { replace: true }); return []; }
         if (!res.ok) throw new Error('Failed to fetch');
         return res.json();
       })

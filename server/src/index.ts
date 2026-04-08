@@ -3,13 +3,15 @@ import * as Sentry from '@sentry/node';
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import { sessionMiddleware, requireAuth } from './middleware/auth.js';
+import { sessionMiddleware, requireAuth, requirePaidPlan } from './middleware/auth.js';
 import passport from './config/passport.js';
 import { authRouter } from './routes/auth.js';
 import { calculatorRouter } from './routes/calculator.js';
 import { exchangeRatesRouter } from './routes/exchangeRates.js';
 import { uploadsRouter } from './routes/uploads.js';
 import { taxYearsRouter } from './routes/taxYears.js';
+import { paymentRouter } from './routes/payment.js';
+import { webhookRouter } from './routes/webhook.js';
 
 // Initialize Sentry (only active when SENTRY_DSN is set + production)
 if (process.env.SENTRY_DSN && process.env.NODE_ENV === 'production') {
@@ -35,6 +37,9 @@ app.use(rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 }));
+// Webhook route needs raw body for HMAC verification — must be before express.json()
+app.use('/api/webhooks/lemon', express.raw({ type: 'application/json' }), webhookRouter);
+
 app.use(express.json({ limit: '10mb' }));
 
 // Session + Passport
@@ -54,9 +59,12 @@ app.use('/api/auth', authRouter);
 app.use('/api/calculator', calculatorRouter);
 app.use('/api/exchange-rates', exchangeRatesRouter);
 
-// Protected routes
-app.use('/api/uploads', requireAuth, uploadsRouter);
-app.use('/api/tax-years', requireAuth, taxYearsRouter);
+// Payment routes (public — checkout and promo counter)
+app.use('/api/payment', paymentRouter);
+
+// Protected routes (require auth + paid plan)
+app.use('/api/uploads', requirePaidPlan, uploadsRouter);
+app.use('/api/tax-years', requirePaidPlan, taxYearsRouter);
 
 // Sentry error handler (must be after all routes)
 if (process.env.SENTRY_DSN && process.env.NODE_ENV === 'production') {
