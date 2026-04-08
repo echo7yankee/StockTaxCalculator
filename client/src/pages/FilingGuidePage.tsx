@@ -28,8 +28,8 @@ export default function FilingGuidePage() {
           {t('filing:emptySubtitle')}
         </p>
         <div className="card text-center py-16">
-          <ClipboardList className="w-12 h-12 text-gray-300 dark:text-slate-600 mx-auto mb-4" />
-          <p className="text-gray-500 dark:text-slate-500 text-lg">{t('filing:noDataAvailable')}</p>
+          <ClipboardList className="w-12 h-12 text-gray-300 dark:text-slate-400 mx-auto mb-4" />
+          <p className="text-gray-500 dark:text-slate-400 text-lg">{t('filing:noDataAvailable')}</p>
           <div className="flex gap-3 justify-center mt-6">
             <button onClick={() => navigate('/upload')} className="btn-primary">
               {t('common:uploadStatement')}
@@ -153,7 +153,7 @@ export default function FilingGuidePage() {
             </>
           )}
         </div>
-        <p className="text-xs text-gray-400 dark:text-slate-600 mt-4">
+        <p className="text-xs text-gray-500 dark:text-slate-400 mt-4">
           {t('filing:filingDeadline', { finalDeadline: countryConfig?.finalFilingDeadline, earlyDeadline: countryConfig?.earlyFilingDeadline })}
         </p>
       </div>
@@ -184,8 +184,8 @@ function FilingSectionCard({
             </span>
             <h2 className="text-lg font-semibold">{t(`d212:section_${sectionId}_title`)}</h2>
           </div>
-          <p className="text-sm text-gray-500 dark:text-slate-500 italic">{t(`d212:section_${sectionId}_localTitle`)}</p>
-          <p className="text-xs text-gray-400 dark:text-slate-600 mt-1">{t(`d212:section_${sectionId}_desc`)}</p>
+          <p className="text-sm text-gray-500 dark:text-slate-400 italic">{t(`d212:section_${sectionId}_localTitle`)}</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">{t(`d212:section_${sectionId}_desc`)}</p>
         </div>
       </div>
 
@@ -200,18 +200,18 @@ function FilingSectionCard({
             >
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm">{t(`d212:${field.id}`)}</p>
-                <p className="text-xs text-gray-500 dark:text-slate-500">{t(`d212:${field.id}_desc`)}</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400">{t(`d212:${field.id}_desc`)}</p>
               </div>
               <div className="flex items-center gap-3 sm:ml-4">
                 <span className="text-lg font-bold font-mono tabular-nums">
-                  {fmt(value)} <span className="text-sm font-normal text-gray-400 dark:text-slate-500">{sym}</span>
+                  {fmt(value)} <span className="text-sm font-normal text-gray-500 dark:text-slate-400">{sym}</span>
                 </span>
                 <button
                   onClick={() => onCopy(field)}
                   className={`p-2 rounded-lg transition-colors ${
                     isCopied
                       ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                      : 'text-gray-400 hover:text-accent hover:bg-accent/10'
+                      : 'text-gray-500 hover:text-accent hover:bg-accent/10'
                   }`}
                   title={isCopied ? t('filing:copied') : t(`d212:${field.id}`)}
                 >

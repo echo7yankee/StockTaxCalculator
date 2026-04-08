@@ -149,7 +149,7 @@ export default function SettingsPage() {
               </option>
             ))}
           </select>
-          <p className="text-xs text-gray-400 dark:text-slate-600 mt-2">{t('moreComing')}</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400 mt-2">{t('moreComing')}</p>
         </div>
 
         {/* Language */}

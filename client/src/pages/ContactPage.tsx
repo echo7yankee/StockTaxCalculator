@@ -14,9 +14,9 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
       >
         <span>{question}</span>
         {open ? (
-          <ChevronUp className="w-5 h-5 text-gray-400 flex-shrink-0 ml-2" />
+          <ChevronUp className="w-5 h-5 text-gray-500 flex-shrink-0 ml-2" />
         ) : (
-          <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0 ml-2" />
+          <ChevronDown className="w-5 h-5 text-gray-500 flex-shrink-0 ml-2" />
         )}
       </button>
       {open && (
@@ -58,7 +58,7 @@ export default function ContactPage() {
             <Mail className="w-4 h-4" />
             {t('support.email')}
           </a>
-          <p className="text-xs text-gray-500 dark:text-slate-500 mt-3">{t('support.responseTime')}</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400 mt-3">{t('support.responseTime')}</p>
         </div>
 
         {/* General Card */}
@@ -75,7 +75,7 @@ export default function ContactPage() {
             <Mail className="w-4 h-4" />
             {t('general.email')}
           </a>
-          <p className="text-xs text-gray-500 dark:text-slate-500 mt-3">{t('general.responseTime')}</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400 mt-3">{t('general.responseTime')}</p>
         </div>
       </div>
 
@@ -95,7 +95,7 @@ export default function ContactPage() {
 
       {/* Business Info */}
       <div className="card p-6">
-        <h3 className="text-sm font-semibold text-gray-500 dark:text-slate-500 uppercase tracking-wider mb-3">
+        <h3 className="text-sm font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-3">
           {t('business.title')}
         </h3>
         <div className="space-y-2 text-sm text-gray-600 dark:text-slate-400">

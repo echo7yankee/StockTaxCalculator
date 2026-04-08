@@ -173,7 +173,7 @@ export default function SignupPage() {
             <div className="w-full border-t border-gray-200 dark:border-navy-600" />
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-white dark:bg-navy-800 px-2 text-gray-400 dark:text-slate-500">{t('common:or')}</span>
+            <span className="bg-white dark:bg-navy-800 px-2 text-gray-500 dark:text-slate-400">{t('common:or')}</span>
           </div>
         </div>
 
@@ -192,7 +192,7 @@ export default function SignupPage() {
 
         <p className="text-center text-sm text-gray-500 dark:text-slate-400 mt-6">
           {t('signup:hasAccount')}{' '}
-          <Link to="/login" className="text-accent hover:underline font-medium">
+          <Link to="/login" className="text-accent-hover dark:text-accent-light hover:underline font-medium">
             {t('common:logIn')}
           </Link>
         </p>

@@ -171,7 +171,7 @@ export default function StatusPage() {
   const statusIcon = (s: Status) => {
     if (s === 'done') return <CheckCircle className="w-5 h-5 text-green-500" />;
     if (s === 'partial') return <Clock className="w-5 h-5 text-yellow-500" />;
-    return <XCircle className="w-5 h-5 text-gray-400 dark:text-slate-600" />;
+    return <XCircle className="w-5 h-5 text-gray-500 dark:text-slate-400" />;
   };
 
   const healthIcon = (s: 'up' | 'down' | 'checking') => {
@@ -194,21 +194,21 @@ export default function StatusPage() {
           {healthIcon(health.server)}
           <div>
             <p className="font-medium text-sm">Express Server</p>
-            <p className="text-xs text-gray-500 dark:text-slate-500">:3001</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400">:3001</p>
           </div>
         </div>
         <div className="card flex items-center gap-3">
           {healthIcon(health.database)}
           <div>
             <p className="font-medium text-sm">SQLite Database</p>
-            <p className="text-xs text-gray-500 dark:text-slate-500">Prisma</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400">Prisma</p>
           </div>
         </div>
         <div className="card flex items-center gap-3">
           {healthIcon(health.bnrApi)}
           <div>
             <p className="font-medium text-sm">BNR Rates API</p>
-            <p className="text-xs text-gray-500 dark:text-slate-500">Exchange rates</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400">Exchange rates</p>
           </div>
         </div>
       </div>
@@ -233,7 +233,7 @@ export default function StatusPage() {
             />
           </div>
         </div>
-        <div className="mt-3 flex gap-6 text-xs text-gray-500 dark:text-slate-500">
+        <div className="mt-3 flex gap-6 text-xs text-gray-500 dark:text-slate-400">
           <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded-full inline-block" /> Done</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 bg-yellow-500 rounded-full inline-block" /> In Progress</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 bg-gray-300 dark:bg-slate-600 rounded-full inline-block" /> Pending</span>
@@ -246,19 +246,19 @@ export default function StatusPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
           <div>
             <p className="text-3xl font-bold text-green-500">142</p>
-            <p className="text-xs text-gray-500 dark:text-slate-500">Unit Tests Passing</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400">Unit Tests Passing</p>
           </div>
           <div>
             <p className="text-3xl font-bold text-green-500">94</p>
-            <p className="text-xs text-gray-500 dark:text-slate-500">Shared (parsers, engines)</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400">Shared (parsers, engines)</p>
           </div>
           <div>
             <p className="text-3xl font-bold text-green-500">18</p>
-            <p className="text-xs text-gray-500 dark:text-slate-500">Server (BNR, API)</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400">Server (BNR, API)</p>
           </div>
           <div>
             <p className="text-3xl font-bold text-green-500">30</p>
-            <p className="text-xs text-gray-500 dark:text-slate-500">Client (components)</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400">Client (components)</p>
           </div>
         </div>
       </div>
@@ -303,12 +303,12 @@ export default function StatusPage() {
           <div>
             <p className="font-medium mb-1 flex items-center gap-2"><Server className="w-4 h-4" /> Client</p>
             <p className="text-gray-600 dark:text-slate-400">React 18 + Vite + TailwindCSS</p>
-            <p className="text-xs text-gray-500 dark:text-slate-500">Port 5173</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400">Port 5173</p>
           </div>
           <div>
             <p className="font-medium mb-1 flex items-center gap-2"><Server className="w-4 h-4" /> Server</p>
             <p className="text-gray-600 dark:text-slate-400">Express + TypeScript + Prisma</p>
-            <p className="text-xs text-gray-500 dark:text-slate-500">Port 3001</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400">Port 3001</p>
           </div>
           <div>
             <p className="font-medium mb-1 flex items-center gap-2"><Database className="w-4 h-4" /> Database</p>
@@ -321,7 +321,7 @@ export default function StatusPage() {
         </div>
       </div>
 
-      <p className="text-center text-xs text-gray-400 dark:text-slate-600 mt-8">
+      <p className="text-center text-xs text-gray-500 dark:text-slate-400 mt-8">
         Last updated: April 2026 &middot; InvesTax
       </p>
     </div>

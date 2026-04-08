@@ -50,7 +50,7 @@ export default function CalculatorPage() {
         {t('subtitle')}
       </p>
 
-      <p className="text-xs text-gray-400 dark:text-slate-500 mb-6">
+      <p className="text-xs text-gray-500 dark:text-slate-400 mb-6">
         {t('common:taxRulesUpdated')}
       </p>
 
@@ -109,7 +109,7 @@ export default function CalculatorPage() {
             autoComplete="off"
             aria-describedby="calc-other-income-hint"
           />
-          <p id="calc-other-income-hint" className="text-xs text-gray-500 dark:text-slate-500 mt-1">{t('otherIncomeHint')}</p>
+          <p id="calc-other-income-hint" className="text-xs text-gray-500 dark:text-slate-400 mt-1">{t('otherIncomeHint')}</p>
         </div>
         <button type="submit" className="btn-primary w-full text-lg py-3">
           {t('calculate')}

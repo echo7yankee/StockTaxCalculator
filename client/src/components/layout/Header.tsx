@@ -129,7 +129,7 @@ export default function Header() {
                   <div className="absolute right-0 mt-2 w-56 max-w-[calc(100vw-2rem)] bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 rounded-xl shadow-lg py-2 z-50">
                     <div className="px-4 py-2 border-b border-gray-100 dark:border-navy-700">
                       <p className="text-sm font-medium truncate">{user.name || 'User'}</p>
-                      <p className="text-xs text-gray-500 dark:text-slate-500 truncate">{user.email}</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 truncate">{user.email}</p>
                     </div>
                     <Link
                       to="/dashboard"
