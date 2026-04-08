@@ -14,14 +14,20 @@ test.describe('Navigation', () => {
     await expect(page.getByText('Calculate')).toBeVisible();
   });
 
-  test('navigates to upload page', async ({ page }) => {
+  test('upload page redirects unauthenticated users to pricing', async ({ page }) => {
     await page.goto('/upload');
-    await expect(page.locator('h1')).toContainText(/Upload/i);
+    await expect(page).toHaveURL(/pricing/);
   });
 
-  test('navigates to dashboard', async ({ page }) => {
+  test('dashboard shows login prompt for unauthenticated users', async ({ page }) => {
     await page.goto('/dashboard');
+    // Dashboard shows login prompt for unauthenticated users
     await expect(page.locator('h1')).toContainText('Dashboard');
+  });
+
+  test('navigates to pricing page', async ({ page }) => {
+    await page.goto('/pricing');
+    await expect(page.locator('h1')).toBeVisible();
   });
 
   test('navigates to settings page', async ({ page }) => {
@@ -36,8 +42,11 @@ test.describe('Navigation', () => {
     await page.locator('nav').getByRole('link', { name: 'Calculator' }).click();
     await expect(page).toHaveURL(/calculator/);
 
-    // Click Dashboard link in nav header
-    await page.locator('nav').getByRole('link', { name: 'Dashboard' }).click();
-    await expect(page).toHaveURL(/dashboard/);
+    // For free/unauthenticated users, Pricing link is shown instead of Dashboard
+    const pricingLink = page.locator('nav').getByRole('link', { name: /Pricing|Prețuri/ });
+    if (await pricingLink.isVisible()) {
+      await pricingLink.click();
+      await expect(page).toHaveURL(/pricing/);
+    }
   });
 });

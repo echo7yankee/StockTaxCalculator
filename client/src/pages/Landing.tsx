@@ -1,9 +1,13 @@
 import { Link } from 'react-router-dom';
 import { Upload, Calculator, FileText, ArrowRight, Shield, Scale, Lock, Zap, MessageSquareQuote, User } from 'lucide-react';
 import { useTranslation, Trans } from 'react-i18next';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Landing() {
   const { t } = useTranslation('landing');
+  const { user } = useAuth();
+  const isPaid = user?.plan === 'paid';
+  const uploadLink = isPaid ? '/upload' : '/pricing';
 
   const steps = [
     { icon: Upload, title: t('stepUploadTitle'), description: t('stepUploadDesc') },
@@ -32,7 +36,7 @@ export default function Landing() {
           <Link to="/calculator" className="btn-primary text-lg px-8 py-3 flex items-center gap-2">
             {t('tryCalculator')} <ArrowRight className="w-5 h-5" />
           </Link>
-          <Link to="/upload" className="btn-secondary text-lg px-8 py-3 flex items-center gap-2">
+          <Link to={uploadLink} className="btn-secondary text-lg px-8 py-3 flex items-center gap-2">
             <FileText className="w-5 h-5" /> {t('uploadPdf')}
           </Link>
         </div>

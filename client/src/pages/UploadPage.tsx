@@ -1,7 +1,7 @@
-import { useCallback, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Upload, FileText, AlertTriangle, CheckCircle, X } from 'lucide-react';
+import { Upload, FileText, AlertTriangle, CheckCircle, X, PartyPopper } from 'lucide-react';
 import Papa from 'papaparse';
 import {
   parseTrading212Csv,
@@ -13,6 +13,7 @@ import type { RawCsvRow, PdfParseResult, Transaction } from '@shared/index';
 import { extractPdfPageTexts } from '../utils/pdfExtractor';
 import { useCountry } from '../contexts/CountryContext';
 import { useUpload } from '../contexts/UploadContext';
+import { useAuth } from '../contexts/AuthContext';
 import { analytics } from '../lib/analytics';
 
 type FileType = 'csv' | 'pdf';
@@ -38,9 +39,32 @@ interface PreviewData {
 export default function UploadPage() {
   const { t } = useTranslation('upload');
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { countryConfig } = useCountry();
   const { setUploadData } = useUpload();
+  const { user, loading: authLoading } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  // Paywall: redirect free/unauthenticated users to pricing
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user || user.plan !== 'paid') {
+      navigate('/pricing', { replace: true });
+    }
+  }, [user, authLoading, navigate]);
+
+  // Post-payment welcome toast
+  useEffect(() => {
+    if (searchParams.get('welcome') === '1') {
+      setShowWelcome(true);
+      searchParams.delete('welcome');
+      setSearchParams(searchParams, { replace: true });
+      const timer = setTimeout(() => setShowWelcome(false), 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, setSearchParams]);
 
   const [activeTab, setActiveTab] = useState<FileType>('pdf');
   const [dragOver, setDragOver] = useState(false);
@@ -338,8 +362,24 @@ export default function UploadPage() {
     setCsvHistoryWarning(false);
   };
 
+  // Don't render while checking auth — prevents flash
+  if (authLoading || !user || user.plan !== 'paid') {
+    return null;
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
+      {/* Post-payment welcome toast */}
+      {showWelcome && (
+        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-3">
+          <PartyPopper className="w-6 h-6 text-green-600 dark:text-green-400 shrink-0" />
+          <div>
+            <p className="font-semibold text-green-800 dark:text-green-300">{t('welcomeTitle', 'Welcome to InvesTax!')}</p>
+            <p className="text-sm text-green-700 dark:text-green-400">{t('welcomeMessage', 'Your payment was successful. Upload your Trading212 statement to get started.')}</p>
+          </div>
+        </div>
+      )}
+
       <h1 className="text-3xl font-bold mb-2">{t('title')}</h1>
       <p className="text-gray-600 dark:text-slate-400 mb-8">
         {t('subtitle')}

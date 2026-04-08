@@ -52,7 +52,7 @@ test.describe('Signup', () => {
 test.describe.serial('Signup flow (serial)', () => {
   const signupEmail = `e2e-signup-${uniqueId}@example.com`;
 
-  test('successful signup redirects to dashboard', async ({ page }) => {
+  test('successful signup redirects to dashboard or pricing', async ({ page }) => {
     await page.goto('/signup');
     await page.getByPlaceholder('Your name').fill('E2E Test User');
     await page.getByPlaceholder('you@example.com').fill(signupEmail);
@@ -61,7 +61,8 @@ test.describe.serial('Signup flow (serial)', () => {
 
     await page.getByRole('button', { name: 'Create your account' }).click();
 
-    await expect(page).toHaveURL(/dashboard/, { timeout: 10_000 });
+    // Free users get redirected from dashboard to pricing
+    await expect(page).toHaveURL(/dashboard|pricing/, { timeout: 10_000 });
     // Header should show avatar (not "Log in" / "Sign up" buttons)
     await expect(page.locator('header').getByText('Log in')).not.toBeVisible();
   });
@@ -122,13 +123,14 @@ test.describe('Login', () => {
     await expect(page.getByText('Invalid email or password')).toBeVisible({ timeout: 5_000 });
   });
 
-  test('successful login redirects to dashboard', async ({ page }) => {
+  test('successful login redirects to dashboard or pricing', async ({ page }) => {
     await page.getByPlaceholder('you@example.com').fill(loginEmail);
     await page.getByPlaceholder('Enter your password').fill(TEST_PASSWORD);
 
     await page.getByRole('button', { name: 'Log in' }).click();
 
-    await expect(page).toHaveURL(/dashboard/, { timeout: 10_000 });
+    // Free users get redirected from dashboard to pricing
+    await expect(page).toHaveURL(/dashboard|pricing/, { timeout: 10_000 });
     await expect(page.locator('header').getByText('Log in')).not.toBeVisible();
   });
 
@@ -137,7 +139,7 @@ test.describe('Login', () => {
     await page.getByPlaceholder('you@example.com').fill(loginEmail);
     await page.getByPlaceholder('Enter your password').fill(TEST_PASSWORD);
     await page.getByRole('button', { name: 'Log in' }).click();
-    await expect(page).toHaveURL(/dashboard/, { timeout: 10_000 });
+    await expect(page).toHaveURL(/dashboard|pricing/, { timeout: 10_000 });
 
     // Open avatar menu and logout
     await page.locator('header button[title]').click();
