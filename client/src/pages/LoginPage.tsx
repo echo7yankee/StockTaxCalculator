@@ -104,6 +104,7 @@ export default function LoginPage() {
                 onBlur={() => handleBlur('email', validateEmail, email)}
                 placeholder={t('login:emailPlaceholder')}
                 autoComplete="email"
+                inputMode="email"
               />
             )}
           </FormField>
@@ -137,7 +138,7 @@ export default function LoginPage() {
             <div className="w-full border-t border-gray-200 dark:border-navy-600" />
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-white dark:bg-navy-800 px-2 text-gray-400 dark:text-slate-500">or</span>
+            <span className="bg-white dark:bg-navy-800 px-2 text-gray-400 dark:text-slate-500">{t('common:or')}</span>
           </div>
         </div>
 

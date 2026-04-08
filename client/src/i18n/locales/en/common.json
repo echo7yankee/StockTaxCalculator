@@ -17,7 +17,8 @@
   "name": "Name",
   "cookieBanner": {
     "message": "This site uses only essential cookies for authentication and your preferences. No tracking cookies.",
-    "accept": "Got it"
+    "accept": "Got it",
+    "close": "Close"
   },
   "validation": {
     "required": "This field is required",
@@ -26,6 +27,8 @@
     "commonPassword": "This password is too common. Please choose a more unique password."
   },
   "taxRulesUpdated": "Tax rules current as of January 2026",
+  "showPassword": "Show password",
+  "hidePassword": "Hide password",
   "passwordStrength": {
     "weak": "Weak password",
     "medium": "Medium strength",
