@@ -14,6 +14,7 @@ const COMMON_PASSWORDS = [
 
 export type PasswordStrength = 'weak' | 'medium' | 'strong';
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function getPasswordStrength(password: string): PasswordStrength {
   if (!password || password.length < 8) return 'weak';
   if (COMMON_PASSWORDS.includes(password.toLowerCase())) return 'weak';
@@ -32,6 +33,7 @@ export function getPasswordStrength(password: string): PasswordStrength {
   return 'strong';
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function isCommonPassword(password: string): boolean {
   return COMMON_PASSWORDS.includes(password.toLowerCase());
 }

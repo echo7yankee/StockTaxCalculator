@@ -13,6 +13,16 @@ export default tseslint.config(
   // TypeScript recommended (type-checked where possible)
   ...tseslint.configs.recommended,
 
+  // Allow _ prefix for intentionally unused variables (e.g. destructuring to omit keys)
+  {
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+      }],
+    },
+  },
+
   // Shared package
   {
     files: ['shared/src/**/*.ts'],

@@ -3,7 +3,7 @@ import * as Sentry from '@sentry/node';
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import { sessionMiddleware, requireAuth, requirePaidPlan } from './middleware/auth.js';
+import { sessionMiddleware, requirePaidPlan } from './middleware/auth.js';
 import passport from './config/passport.js';
 import { authRouter } from './routes/auth.js';
 import { calculatorRouter } from './routes/calculator.js';
