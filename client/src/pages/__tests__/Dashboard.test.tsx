@@ -2,10 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import Dashboard from '../Dashboard';
 
 // Mock useAuth to simulate logged-in user
-const mockUser = { id: 'test-id', email: 'test@test.com', name: 'Test', plan: 'free' };
+const mockUser = { id: 'test-id', email: 'test@test.com', name: 'Test', plan: 'paid' };
 const mockAuth = {
   user: mockUser,
   loading: false,
@@ -62,9 +63,11 @@ const mockTaxYears = [
 
 function renderDashboard() {
   return render(
-    <MemoryRouter>
-      <Dashboard />
-    </MemoryRouter>
+    <HelmetProvider>
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>
+    </HelmetProvider>
   );
 }
 

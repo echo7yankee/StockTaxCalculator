@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import { useEffect, useRef } from 'react';
 import { UploadProvider, useUpload } from '../../contexts/UploadContext';
 import { CountryProvider } from '../../contexts/CountryContext';
@@ -87,25 +88,29 @@ function SetupUpload({ children }: { children: React.ReactNode }) {
 function renderResults(withData = true) {
   if (withData) {
     return render(
-      <MemoryRouter>
-        <CountryProvider>
-          <UploadProvider>
-            <SetupUpload>
-              <ResultsPage />
-            </SetupUpload>
-          </UploadProvider>
-        </CountryProvider>
-      </MemoryRouter>
+      <HelmetProvider>
+        <MemoryRouter>
+          <CountryProvider>
+            <UploadProvider>
+              <SetupUpload>
+                <ResultsPage />
+              </SetupUpload>
+            </UploadProvider>
+          </CountryProvider>
+        </MemoryRouter>
+      </HelmetProvider>
     );
   }
   return render(
-    <MemoryRouter>
-      <CountryProvider>
-        <UploadProvider>
-          <ResultsPage />
-        </UploadProvider>
-      </CountryProvider>
-    </MemoryRouter>
+    <HelmetProvider>
+      <MemoryRouter>
+        <CountryProvider>
+          <UploadProvider>
+            <ResultsPage />
+          </UploadProvider>
+        </CountryProvider>
+      </MemoryRouter>
+    </HelmetProvider>
   );
 }
 
