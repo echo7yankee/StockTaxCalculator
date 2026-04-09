@@ -3,6 +3,9 @@ import autoTable from 'jspdf-autotable';
 import type { TaxCalculationResult } from '@shared/types/tax';
 import { d212Sections } from '@shared/taxRules/d212Fields';
 
+// jspdf-autotable extends jsPDF instances with lastAutoTable at runtime
+type DocWithAutoTable = jsPDF & { lastAutoTable: { finalY: number } };
+
 const ACCENT = [59, 130, 246] as const; // #3B82F6
 const DARK = [30, 41, 59] as const;
 const GRAY = [100, 116, 139] as const;
@@ -67,7 +70,7 @@ export function generateTaxSummaryPdf(
     margin: { left: 14, right: 14 },
   });
 
-  y = (doc as any).lastAutoTable.finalY + 12;
+  y = (doc as DocWithAutoTable).lastAutoTable.finalY + 12;
 
   // Capital Gains Detail
   doc.setFontSize(12);
@@ -91,7 +94,7 @@ export function generateTaxSummaryPdf(
     margin: { left: 14, right: 14 },
   });
 
-  y = (doc as any).lastAutoTable.finalY + 12;
+  y = (doc as DocWithAutoTable).lastAutoTable.finalY + 12;
 
   // Dividends Detail
   doc.setFontSize(12);
@@ -112,7 +115,7 @@ export function generateTaxSummaryPdf(
     margin: { left: 14, right: 14 },
   });
 
-  y = (doc as any).lastAutoTable.finalY + 12;
+  y = (doc as DocWithAutoTable).lastAutoTable.finalY + 12;
 
   // D212 Field Reference
   if (y > 240) {
@@ -157,7 +160,7 @@ export function generateTaxSummaryPdf(
       margin: { left: 14, right: 14 },
     });
 
-    y = (doc as any).lastAutoTable.finalY + 8;
+    y = (doc as DocWithAutoTable).lastAutoTable.finalY + 8;
   }
 
   // Footer

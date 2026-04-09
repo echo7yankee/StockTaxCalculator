@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Cookie, X } from 'lucide-react';
 
@@ -6,13 +6,7 @@ const STORAGE_KEY = 'cookieConsent';
 
 export default function CookieBanner() {
   const { t } = useTranslation('common');
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    if (!localStorage.getItem(STORAGE_KEY)) {
-      setVisible(true);
-    }
-  }, []);
+  const [visible, setVisible] = useState(() => !localStorage.getItem(STORAGE_KEY));
 
   const dismiss = () => {
     localStorage.setItem(STORAGE_KEY, 'dismissed');
