@@ -17,5 +17,5 @@ test-results/
 test-data/*.pdf
 .claude/
 server/prisma/dev.db
-investax-docs
+investax-docs/
 **tsconfig.tsbuildinfo
