@@ -83,7 +83,7 @@ export default function PricingPage() {
     }
   };
 
-  const faqItems = Array.from({ length: 7 }, (_, i) => ({
+  const faqItems = Array.from({ length: 8 }, (_, i) => ({
     question: t(`faq.q${i + 1}`),
     answer: t(`faq.a${i + 1}`),
   }));

@@ -26,7 +26,7 @@
     "emailTooLong": "Email must be 254 characters or less",
     "commonPassword": "This password is too common. Please choose a more unique password."
   },
-  "taxRulesUpdated": "Tax rules current as of January 2026",
+  "taxRulesUpdated": "Tax rules valid for tax year 2025 (updated January 2026)",
   "showPassword": "Show password",
   "hidePassword": "Hide password",
   "passwordStrength": {

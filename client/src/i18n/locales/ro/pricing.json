@@ -43,11 +43,13 @@
     "q4": "Pot primi banii înapoi?",
     "a4": "Da. Contactează-ne în primele 14 zile de la cumpărare pentru o rambursare completă, fără întrebări.",
     "q5": "Cât de precise sunt calculele?",
-    "a5": "Folosim cursurile oficiale BNR, metoda costului mediu ponderat cerută de legislația fiscală din România și aplicăm cotele actuale de 10% pe câștiguri de capital + 10% pe dividende. Toate sumele sunt convertite în RON.",
+    "a5": "Folosim cursurile oficiale BNR, metoda costului mediu ponderat cerută de legislația fiscală din România și aplicăm regulile fiscale valabile pentru anul fiscal 2025: 10% impozit pe câștigul net din tranzacționare prin brokeri nerezidenți (Trading212, IBKR, eToro, Revolut), plus CASS și impozit pe dividende conform codului fiscal. Toate sumele sunt convertite în RON.",
     "q6": "Sunt datele mele în siguranță?",
     "a6": "Extrasele tale sunt procesate și nu sunt niciodată partajate. Poți exporta sau șterge toate datele tale oricând din Setări. Nu vindem niciodată datele utilizatorilor.",
     "q7": "Ce brokeri sunt suportați?",
-    "a7": "Momentan Trading212 (PDF și CSV). Revolut și Interactive Brokers vin în curând."
+    "a7": "Momentan Trading212 (PDF și CSV). Revolut și Interactive Brokers vin în curând.",
+    "q8": "Se aplică și pentru anul fiscal 2026?",
+    "a8": "Nu. Începând cu 1 ianuarie 2026, Legea 239/2025 a schimbat cota de impozitare la 16% pentru câștigurile obținute prin brokeri nerezidenți (Trading212, Interactive Brokers, eToro, Revolut). Pentru brokeri rezidenți fiscal în România (XTB România, Tradeville, BT Capital Partners etc.) se aplică reținere la sursă de 3% sau 6% în funcție de perioada de deținere. InvesTax calculează taxele pentru veniturile obținute în 2025, care se depun prin Declarația Unică până la 25 mai 2026. Vom actualiza calculatorul pentru anul fiscal 2026 înainte de sezonul de depunere 2027."
   },
   "trustBadge": "Construit de un developer român care a plătit el însuși 28.000 RON în taxe"
 }

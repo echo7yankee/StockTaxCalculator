@@ -6,6 +6,7 @@
   "subtitleGeneric": "Use these values when filing your tax return",
   "emptySubtitle": "No tax calculation loaded. Upload a statement or load a saved calculation first.",
   "noDataAvailable": "No data available",
+  "taxYearBanner": "Guide for tax year 2025 (filing May 2026). The values calculated here are entered in Declara\u021bia Unic\u0103 filed by May 25, 2026 for income earned in 2025. For 2026 income, the tax rate changes to 16% per Law 239/2025 \u2014 a dedicated guide will be available in 2027.",
   "howToUse": "How to use this",
   "stepLogin": "Log into ",
   "stepLoginBold": "ANAF SPV",

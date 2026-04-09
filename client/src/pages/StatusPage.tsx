@@ -54,7 +54,7 @@ const features: Feature[] = [
     name: 'Tax Calculation Engine',
     status: 'done',
     icon: <BarChart3 className="w-5 h-5" />,
-    details: 'Weighted-avg cost basis, capital gains 10%, dividends 10%, CASS brackets, early filing discount',
+    details: 'Weighted-avg cost basis, capital gains tax, dividend tax, CASS brackets, early filing discount (tax year 2025 rules)',
     tests: '13 tests for CSV engine + 8 for PDF engine',
   },
   {
