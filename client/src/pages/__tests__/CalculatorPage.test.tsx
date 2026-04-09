@@ -2,16 +2,19 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import { CountryProvider } from '../../contexts/CountryContext';
 import CalculatorPage from '../CalculatorPage';
 
 function renderCalculator() {
   return render(
-    <MemoryRouter>
-      <CountryProvider>
-        <CalculatorPage />
-      </CountryProvider>
-    </MemoryRouter>
+    <HelmetProvider>
+      <MemoryRouter>
+        <CountryProvider>
+          <CalculatorPage />
+        </CountryProvider>
+      </MemoryRouter>
+    </HelmetProvider>
   );
 }
 
@@ -60,16 +63,15 @@ describe('CalculatorPage', () => {
     expect(cassRow?.textContent).toContain('9720.00');
   });
 
-  it('shows zero tax for zero input', async () => {
+  it('shows validation error for zero input', async () => {
     const user = userEvent.setup();
     renderCalculator();
 
     await user.click(screen.getByText('Calculate'));
 
-    expect(screen.getByText('Results')).toBeInTheDocument();
-    // All values are 0.00 — just check the total row is present
-    expect(screen.getByText('Total tax owed')).toBeInTheDocument();
-    expect(screen.getByText(/bracket: none/)).toBeInTheDocument();
+    // Validation added in PR #27: at least one non-zero input required
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByText('Results')).not.toBeInTheDocument();
   });
 
   it('handles dividend tax with withholding credit', async () => {
