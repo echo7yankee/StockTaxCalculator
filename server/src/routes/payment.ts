@@ -41,16 +41,69 @@ paymentRouter.get('/checkout', async (req, res) => {
     return;
   }
 
-  // Build Lemon Squeezy checkout URL with custom data
-  const checkoutUrl = new URL(`https://investax.lemonsqueezy.com/checkout/buy/${variantId}`);
-  checkoutUrl.searchParams.set('checkout[custom][user_id]', user.id);
-  checkoutUrl.searchParams.set('checkout[email]', user.email);
-  if (user.name) {
-    checkoutUrl.searchParams.set('checkout[name]', user.name);
+  // Create checkout via Lemon Squeezy API (returns a unique checkout URL)
+  const apiKey = process.env.LEMON_SQUEEZY_API_KEY;
+  if (!apiKey) {
+    res.status(503).json({ error: 'Payment system not configured yet' });
+    return;
   }
-  checkoutUrl.searchParams.set('embed', '0'); // Hosted checkout page
 
-  res.json({ checkoutUrl: checkoutUrl.toString() });
+  try {
+    const response = await fetch('https://api.lemonsqueezy.com/v1/checkouts', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/vnd.api+json',
+        'Content-Type': 'application/vnd.api+json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        data: {
+          type: 'checkouts',
+          attributes: {
+            checkout_data: {
+              email: user.email,
+              name: user.name || undefined,
+              custom: {
+                user_id: user.id,
+              },
+            },
+            product_options: {
+              redirect_url: `${process.env.CLIENT_URL || 'https://investax.app'}/upload?welcome=1`,
+            },
+          },
+          relationships: {
+            store: {
+              data: { type: 'stores', id: storeId },
+            },
+            variant: {
+              data: { type: 'variants', id: variantId },
+            },
+          },
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error('Lemon Squeezy checkout API error:', response.status, errorBody);
+      res.status(502).json({ error: 'Failed to create checkout session' });
+      return;
+    }
+
+    const result = await response.json();
+    const checkoutUrl = result.data?.attributes?.url;
+
+    if (!checkoutUrl) {
+      console.error('Lemon Squeezy checkout response missing URL:', JSON.stringify(result));
+      res.status(502).json({ error: 'Failed to create checkout session' });
+      return;
+    }
+
+    res.json({ checkoutUrl });
+  } catch (err) {
+    console.error('Lemon Squeezy checkout error:', err);
+    res.status(502).json({ error: 'Failed to create checkout session' });
+  }
 });
 
 // GET /api/payment/status — requires auth, returns user's plan status
