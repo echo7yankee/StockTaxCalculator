@@ -1,6 +1,6 @@
 {
   "title": "Tax Calculator",
-  "subtitle": "Enter your investment income to estimate your tax liability. Free, no account required.",
+  "subtitle": "Estimate tax for income earned in tax year 2025 (declaration filed by May 25, 2026). Free, no account required.",
   "countryNotSupported": "Country not supported yet.",
   "netCapitalGains": "Net Capital Gains ({{currency}})",
   "grossDividends": "Gross Dividends ({{currency}})",

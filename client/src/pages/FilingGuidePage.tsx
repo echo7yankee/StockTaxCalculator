@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Copy, CheckCircle, ClipboardList, Download } from 'lucide-react';
+import { ArrowLeft, Copy, CheckCircle, ClipboardList, Download, Info } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
 import { useCountry } from '../contexts/CountryContext';
 import { analytics } from '../lib/analytics';
@@ -99,6 +99,12 @@ export default function FilingGuidePage() {
             {t('filing:downloadPdf')}
           </button>
         </div>
+      </div>
+
+      {/* Tax year scoping banner */}
+      <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-xl flex gap-3">
+        <Info className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+        <p className="text-sm text-amber-800 dark:text-amber-200">{t('filing:taxYearBanner')}</p>
       </div>
 
       {/* How to use — Romania-specific steps */}

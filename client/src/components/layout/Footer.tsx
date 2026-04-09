@@ -8,8 +8,11 @@ export default function Footer() {
     <footer className="border-t border-gray-200 dark:border-navy-500 py-8 mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Disclaimer */}
-        <p className="text-xs text-gray-500 dark:text-slate-400 mb-6 leading-relaxed">
+        <p className="text-xs text-gray-500 dark:text-slate-400 mb-2 leading-relaxed">
           {t('disclaimer')}
+        </p>
+        <p className="text-xs text-gray-500 dark:text-slate-400 mb-6 leading-relaxed">
+          {t('disclaimerTaxYear')}
         </p>
 
         {/* Links + Copyright */}

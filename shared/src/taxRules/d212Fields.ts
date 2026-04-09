@@ -47,7 +47,7 @@ const capGainsFields: D212Field[] = [
     section: 'I.1',
     sectionTitle: 'Capitolul I — Secțiunea 1',
     roLabel: 'Impozit',
-    enLabel: 'Tax (10%)',
+    enLabel: 'Capital Gains Tax',
     getValue: (r) => r.capitalGains.taxOwed,
   },
 ];

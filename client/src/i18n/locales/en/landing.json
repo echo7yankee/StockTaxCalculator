@@ -1,6 +1,6 @@
 {
   "heroTitle": "Calculate your <accent>investment taxes</accent> in 2 minutes",
-  "heroSubtitle": "Upload your broker statement, get tax-ready numbers. No spreadsheets, no accountant, no headaches.",
+  "heroSubtitle": "Upload your broker statement, get tax-ready numbers for tax year 2025 (filing by May 2026). No spreadsheets, no accountant, no headaches.",
   "tryCalculator": "Try Free Calculator",
   "uploadPdf": "Upload PDF Statement",
   "howItWorks": "How it works",
@@ -14,7 +14,7 @@
   "trustAccurateTitle": "Official BNR Exchange Rates",
   "trustAccurateDesc": "We use the official National Bank of Romania rates for every transaction date. No approximations.",
   "trustTaxLawTitle": "Romanian Tax Law Built In",
-  "trustTaxLawDesc": "Capital gains, dividends, CASS health contribution — all calculated per current legislation.",
+  "trustTaxLawDesc": "Capital gains, dividends, CASS health contribution — all calculated per 2025 Romanian tax legislation.",
   "trustPrivacyTitle": "Your Data Stays Private",
   "trustPrivacyDesc": "Your financial data is processed and never shared. Delete your account anytime under GDPR.",
   "trustFastTitle": "Results in Under 2 Minutes",

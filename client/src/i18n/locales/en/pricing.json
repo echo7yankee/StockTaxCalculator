@@ -43,11 +43,13 @@
     "q4": "Can I get a refund?",
     "a4": "Yes. Contact us within 14 days of purchase for a full refund, no questions asked.",
     "q5": "How accurate are the calculations?",
-    "a5": "We use the official BNR exchange rates, the weighted average cost method required by Romanian tax law, and apply the current 10% capital gains + 10% dividend tax rates. All amounts are converted to RON.",
+    "a5": "We use the official BNR exchange rates, the weighted average cost method required by Romanian tax law, and apply the tax rules valid for tax year 2025: 10% capital gains tax on income through non-resident brokers (Trading212, IBKR, eToro, Revolut), plus CASS and dividend tax per the fiscal code. All amounts are converted to RON.",
     "q6": "Is my data safe?",
     "a6": "Your uploaded statements are processed and never shared. You can export or delete all your data at any time from Settings. We never sell user data.",
     "q7": "Which brokers are supported?",
-    "a7": "Currently Trading212 (PDF and CSV). Revolut and Interactive Brokers are coming soon."
+    "a7": "Currently Trading212 (PDF and CSV). Revolut and Interactive Brokers are coming soon.",
+    "q8": "Does this apply to tax year 2026?",
+    "a8": "No. Starting January 1, 2026, Law 239/2025 changed the tax rate to 16% for capital gains through non-resident brokers (Trading212, Interactive Brokers, eToro, Revolut). For Romania-resident brokers (XTB Romania, Tradeville, BT Capital Partners, etc.), withholding at source applies at 3% or 6% depending on holding period. InvesTax calculates taxes on income earned in 2025, filed via Declarația Unică by May 25, 2026. We will update the calculator for tax year 2026 before the 2027 filing season."
   },
   "trustBadge": "Built by a Romanian developer who paid 28,000 RON in taxes himself"
 }
