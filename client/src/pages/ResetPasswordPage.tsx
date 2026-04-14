@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { KeyRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Sentry } from '../lib/sentry';
 import PasswordInput from '../components/common/PasswordInput';
 import { isCommonPassword } from '../components/common/PasswordStrengthMeter';
 import PageMeta from '../components/common/PageMeta';
@@ -72,14 +73,25 @@ export default function ResetPasswordPage() {
 
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, password }),
-      });
+      let res: Response;
+      try {
+        res = await fetch('/api/auth/reset-password', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, password }),
+        });
+      } catch (err) {
+        Sentry.captureException(err, { tags: { action: 'auth.resetPassword', type: 'network' } });
+        throw new Error(t('common:validation.networkError'));
+      }
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || t('login:resetFailed'));
+      if (!res.ok) {
+        if (res.status >= 500) {
+          Sentry.captureException(new Error(`Reset password server error: ${res.status}`), { tags: { action: 'auth.resetPassword', type: 'server' } });
+        }
+        throw new Error(data.error || t('login:resetFailed'));
+      }
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('login:resetFailed'));

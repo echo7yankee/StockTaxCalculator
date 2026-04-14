@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useCountry } from '../contexts/CountryContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth, ApiError } from '../contexts/AuthContext';
+import { Sentry } from '../lib/sentry';
 import { Download, Trash2, AlertTriangle, KeyRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PasswordInput from '../components/common/PasswordInput';
@@ -100,14 +101,23 @@ export default function SettingsPage() {
 
     setChangingPassword(true);
     try {
-      const res = await fetch('/api/auth/change-password', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      });
+      let res: Response;
+      try {
+        res = await fetch('/api/auth/change-password', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentPassword, newPassword }),
+        });
+      } catch (err) {
+        Sentry.captureException(err, { tags: { action: 'auth.changePassword', type: 'network' } });
+        throw new Error(t('common:validation.networkError'));
+      }
       const data = await res.json();
       if (!res.ok) {
+        if (res.status >= 500) {
+          Sentry.captureException(new Error(`Change password server error: ${res.status}`), { tags: { action: 'auth.changePassword', type: 'server' } });
+        }
         if (data.fields) setPasswordFieldErrors(data.fields);
         throw new ApiError(data.error || t('changePassword.error'), data.fields);
       }
