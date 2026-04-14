@@ -16,6 +16,9 @@ playwright-report/
 test-results/
 test-data/*.pdf
 .claude/
+!.claude/skills/
+.claude/skills/**
+!.claude/skills/bootstrap/
 server/prisma/dev.db
 investax-docs/
 **tsconfig.tsbuildinfo
