@@ -24,7 +24,8 @@
     "required": "This field is required",
     "invalidEmail": "Please enter a valid email address",
     "emailTooLong": "Email must be 254 characters or less",
-    "commonPassword": "This password is too common. Please choose a more unique password."
+    "commonPassword": "This password is too common. Please choose a more unique password.",
+    "networkError": "Unable to connect to the server. Please check your connection and try again."
   },
   "taxRulesUpdated": "Tax rules valid for tax year 2025 (updated January 2026)",
   "showPassword": "Show password",

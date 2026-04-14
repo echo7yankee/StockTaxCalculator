@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { KeyRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Sentry } from '../lib/sentry';
 import FormField from '../components/common/FormField';
 import PageMeta from '../components/common/PageMeta';
 
@@ -40,14 +41,25 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }),
-      });
+      let res: Response;
+      try {
+        res = await fetch('/api/auth/forgot-password', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email.trim() }),
+        });
+      } catch (err) {
+        Sentry.captureException(err, { tags: { action: 'auth.forgotPassword', type: 'network' } });
+        throw new Error(t('common:validation.networkError'));
+      }
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || t('login:resetRequestFailed'));
+      if (!res.ok) {
+        if (res.status >= 500) {
+          Sentry.captureException(new Error(`Forgot password server error: ${res.status}`), { tags: { action: 'auth.forgotPassword', type: 'server' } });
+        }
+        throw new Error(data.error || t('login:resetRequestFailed'));
+      }
       setSubmitted(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('login:resetRequestFailed'));

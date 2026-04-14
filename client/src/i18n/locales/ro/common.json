@@ -24,7 +24,8 @@
     "required": "Acest câmp este obligatoriu",
     "invalidEmail": "Te rugăm să introduci o adresă de email validă",
     "emailTooLong": "Adresa de email nu poate depăși 254 de caractere",
-    "commonPassword": "Această parolă este prea comună. Te rugăm să alegi o parolă mai unică."
+    "commonPassword": "Această parolă este prea comună. Te rugăm să alegi o parolă mai unică.",
+    "networkError": "Nu s-a putut conecta la server. Verifică conexiunea la internet și încearcă din nou."
   },
   "taxRulesUpdated": "Reguli fiscale valabile pentru anul fiscal 2025 (actualizate ianuarie 2026)",
   "showPassword": "Arată parola",
