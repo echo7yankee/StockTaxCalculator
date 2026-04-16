@@ -6,6 +6,7 @@
   "paidPlan": "Acces complet",
   "perYear": "/an",
   "launchPrice": "Ofertă de lansare",
+  "loadingPromo": "Se încarcă oferta de lansare",
   "launchSpotsLeft": "{{remaining}}/{{limit}} locuri rămase",
   "launchSoldOut": "Oferta de lansare s-a epuizat",
   "regularPrice": "Preț normal: {{price}}",

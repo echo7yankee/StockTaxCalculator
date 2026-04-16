@@ -6,6 +6,7 @@
   "paidPlan": "Full Access",
   "perYear": "/year",
   "launchPrice": "Launch special",
+  "loadingPromo": "Loading launch offer",
   "launchSpotsLeft": "{{remaining}}/{{limit}} launch spots left",
   "launchSoldOut": "Launch special sold out",
   "regularPrice": "Regular price: {{price}}",
