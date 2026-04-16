@@ -21,4 +21,6 @@ test-data/*.pdf
 !.claude/skills/bootstrap/
 server/prisma/dev.db
 investax-docs/
+scripts/reports/*
+!scripts/reports/.gitkeep
 **tsconfig.tsbuildinfo
