@@ -22,7 +22,7 @@
   "testimonialsTitle": "What Users Say",
   "testimonialsPlaceholder": "We're collecting feedback from our first users. Real testimonials coming soon.",
   "founderTitle": "Built by a Romanian Investor",
-  "founderBio": "I'm Dragos Ifrim, a Romanian developer with 7+ years of experience. Last year I owed 28,000 RON from Trading212 and the process was a nightmare. I built InvesTax to solve that — for myself and for every Romanian investor filing taxes.",
+  "founderBio": "I'm Dragos Ifrim, a Romanian developer with 7+ years of experience. I went through the ANAF filing process myself last year — digging through Trading212 statements, hunting BNR exchange rates line by line, cross-checking CASS brackets. It was painful and error-prone. I built InvesTax to take that pain away — for myself and for every Romanian investor filing taxes.",
   "supportedBrokers": "Supported Brokers",
   "comingSoon": "coming soon"
 }

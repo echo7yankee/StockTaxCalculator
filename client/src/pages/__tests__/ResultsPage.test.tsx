@@ -154,10 +154,28 @@ describe('ResultsPage', () => {
     expect(screen.getByText(/24x/)).toBeInTheDocument();
   });
 
-  it('shows early filing discount banner', () => {
-    renderResults();
-    expect(screen.getByText(/File early to save/)).toBeInTheDocument();
-    expect(screen.getByText(/869.22/)).toBeInTheDocument();
+  it('shows early filing discount banner when deadline is still in the future', () => {
+    // Pin "today" to before April 15 so the deadline gate passes deterministically
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-01T12:00:00Z'));
+    try {
+      renderResults();
+      expect(screen.getByText(/File early to save/)).toBeInTheDocument();
+      expect(screen.getByText(/869.22/)).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('hides early filing discount banner when deadline has passed', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-16T12:00:00Z'));
+    try {
+      renderResults();
+      expect(screen.queryByText(/File early to save/)).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('renders per-security table with correct tickers', () => {

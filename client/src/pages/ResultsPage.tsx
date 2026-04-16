@@ -7,6 +7,7 @@ import { useCountry } from '../contexts/CountryContext';
 import { useAuth } from '../contexts/AuthContext';
 import { analytics } from '../lib/analytics';
 import PageMeta from '../components/common/PageMeta';
+import { isBeforeEarlyFilingDeadline } from '../utils/earlyFiling';
 
 export default function ResultsPage() {
   const { t } = useTranslation(['results', 'common']);
@@ -180,8 +181,8 @@ export default function ResultsPage() {
         </div>
       </div>
 
-      {/* Early filing discount */}
-      {taxResult.totals.earlyFilingDiscount > 0 && (
+      {/* Early filing discount — only show as an actionable CTA while the deadline is still ahead */}
+      {taxResult.totals.earlyFilingDiscount > 0 && isBeforeEarlyFilingDeadline(countryConfig?.earlyFilingDeadline) && (
         <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
           <p className="text-green-700 dark:text-green-400 font-medium">
             {t('results:earlyFilingSave', { amount: fmt(taxResult.totals.earlyFilingDiscount), symbol: sym })}
