@@ -79,7 +79,28 @@ describe('Dashboard', () => {
   it('shows loading state initially', () => {
     vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise(() => {})); // never resolves
     renderDashboard();
+    // The sr-only loading label still renders so screen-readers announce loading.
     expect(screen.getByText('Loading...')).toBeInTheDocument();
+  });
+
+  it('renders the real <thead> immediately and 3 skeleton rows while loading (Section 3.9 Site 2)', () => {
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise(() => {})); // never resolves
+    renderDashboard();
+
+    // Header columns are rendered up-front (synchronous i18n), preventing a table-pop-in jump.
+    expect(screen.getByText('Year')).toBeInTheDocument();
+    expect(screen.getByText('Total Tax')).toBeInTheDocument();
+
+    // Three skeleton rows reserve the table footprint while the fetch is in flight.
+    const tbody = screen.getByText('Year').closest('table')?.querySelector('tbody');
+    expect(tbody).not.toBeNull();
+    expect(tbody!.querySelectorAll('tr').length).toBe(3);
+
+    // The table region is marked aria-busy for assistive tech.
+    expect(screen.getByText('Year').closest('table')).toHaveAttribute('aria-busy', 'true');
+
+    // The previous spinner UI must be gone.
+    expect(screen.queryByText('Loading your data...')).not.toBeInTheDocument();
   });
 
   it('shows empty state when no saved calculations', async () => {

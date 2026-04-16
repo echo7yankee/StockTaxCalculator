@@ -5,6 +5,7 @@ import { Upload, Calculator, FileText, Trash2, ClipboardList, LogIn, Loader2 } f
 import { useAuth } from '../contexts/AuthContext';
 import { useUpload } from '../contexts/UploadContext';
 import PageMeta from '../components/common/PageMeta';
+import { Skeleton, SkeletonRow } from '../components/common/Skeleton';
 import type { TaxCalculationResult, SecurityBreakdown } from '@shared/types/tax';
 
 interface SavedTaxYear {
@@ -201,14 +202,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Logged in — loading */}
-        {user && loading && (
-          <div className="py-12 text-center">
-            <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-gray-500 dark:text-slate-400">{t('dashboard:loadingData')}</p>
-          </div>
-        )}
-
         {/* Logged in — error */}
         {user && error && !loading && (
           <p className="py-8 text-center text-red-500">{error}</p>
@@ -225,10 +218,10 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Logged in — data */}
-        {user && !loading && taxYears.length > 0 && (
+        {/* Logged in — table (skeleton rows while loading, real rows when resolved). Section 3.9 Site 2. */}
+        {user && !error && (loading || taxYears.length > 0) && (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm" aria-busy={loading}>
               <thead>
                 <tr className="border-b border-gray-200 dark:border-navy-600">
                   <th className="text-left py-3 px-2 font-medium">{t('dashboard:colYear')}</th>
@@ -242,7 +235,24 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {taxYears.map(ty => (
+                {loading
+                  ? [0, 1, 2].map(i => (
+                      <SkeletonRow
+                        key={i}
+                        rowClassName="border-b border-gray-100 dark:border-navy-700"
+                        cells={[
+                          { className: 'py-3 px-2', content: <Skeleton w={32} h={20} /> },
+                          { className: 'py-3 px-2 hidden sm:table-cell', content: <Skeleton h={16} className="w-full max-w-[180px]" /> },
+                          { className: 'text-right py-3 px-2 hidden md:table-cell', content: <Skeleton w={60} h={16} className="ml-auto" /> },
+                          { className: 'text-right py-3 px-2 hidden md:table-cell', content: <Skeleton w={50} h={16} className="ml-auto" /> },
+                          { className: 'text-right py-3 px-2 hidden md:table-cell', content: <Skeleton w={60} h={16} className="ml-auto" /> },
+                          { className: 'text-right py-3 px-2', content: <Skeleton w={70} h={16} className="ml-auto" /> },
+                          { className: 'text-right py-3 px-2 hidden sm:table-cell', content: <Skeleton w={70} h={16} className="ml-auto" /> },
+                          { className: 'text-right py-3 px-2', content: <Skeleton w={20} h={20} className="ml-auto" /> },
+                        ]}
+                      />
+                    ))
+                  : taxYears.map(ty => (
                   <tr
                     key={ty.id}
                     onClick={() => handleRowClick(ty)}
@@ -274,6 +284,9 @@ export default function Dashboard() {
                 ))}
               </tbody>
             </table>
+            {loading && (
+              <span className="sr-only" role="status">{t('dashboard:loadingData')}</span>
+            )}
           </div>
         )}
       </div>

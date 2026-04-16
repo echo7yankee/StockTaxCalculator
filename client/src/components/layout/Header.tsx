@@ -4,6 +4,7 @@ import { Sun, Moon, Settings, TrendingUp, LogOut, User, Menu, X } from 'lucide-r
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { Skeleton } from '../common/Skeleton';
 
 export default function Header() {
   const { t } = useTranslation(['header', 'common']);
@@ -110,6 +111,22 @@ export default function Header() {
                 >
                   {t('common:signUp')}
                 </Link>
+              </div>
+            )}
+
+            {/* Auth — loading skeleton (Section 3.9 Sites 1+4) — reserves worst-case width to prevent jump */}
+            {loading && (
+              <div
+                className="ml-2 flex items-center"
+                aria-busy="true"
+                role="status"
+                data-testid="header-auth-skeleton"
+              >
+                <span className="sr-only">{t('common:loadingAuth')}</span>
+                {/* Desktop: reserve login + signup button cluster width */}
+                <Skeleton h={28} className="hidden md:block w-44" rounded="md" />
+                {/* Mobile: reserve avatar slot width */}
+                <Skeleton h={32} className="md:hidden" w={32} rounded="full" />
               </div>
             )}
 

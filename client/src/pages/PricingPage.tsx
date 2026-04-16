@@ -5,6 +5,7 @@ import { Check, X, Zap, Shield, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { analytics } from '../lib/analytics';
 import PageMeta from '../components/common/PageMeta';
+import { Skeleton } from '../components/common/Skeleton';
 
 interface PromoStatus {
   count: number;
@@ -131,10 +132,17 @@ export default function PricingPage() {
 
         {/* Paid tier */}
         <div className="card flex flex-col border-accent border-2 relative">
-          {/* Launch badge */}
+          {/* Launch badge — Section 3.9 Site 3: skeleton during load (no hardcoded English),
+              real badge when launch spots remain. Absolute-positioned so it never moves layout. */}
           {promoLoading && (
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent/60 text-transparent text-sm font-semibold px-4 py-1 rounded-full whitespace-nowrap animate-pulse">
-              Loading promo...
+            <div
+              className="absolute -top-3 left-1/2 -translate-x-1/2"
+              aria-busy="true"
+              role="status"
+              data-testid="promo-badge-skeleton"
+            >
+              <span className="sr-only">{t('loadingPromo')}</span>
+              <Skeleton w={180} h={28} rounded="full" />
             </div>
           )}
           {!promoLoading && hasLaunchSpots && (
@@ -144,16 +152,23 @@ export default function PricingPage() {
           )}
 
           <h2 className="text-2xl font-bold mb-1 mt-2">{t('paidPlan')}</h2>
-          <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-3xl font-bold">{promoLoading ? REGULAR_PRICE : displayPrice}</span>
+          <div className="flex items-baseline gap-2 mb-1 min-h-[36px]">
+            {promoLoading ? (
+              <Skeleton w={70} h={36} className="my-0.5" data-testid="price-skeleton" />
+            ) : (
+              <span className="text-3xl font-bold">{displayPrice}</span>
+            )}
             <span className="text-gray-500 dark:text-slate-400">{t('perYear')}</span>
           </div>
-          {!promoLoading && hasLaunchSpots && (
-            <p className="text-sm text-gray-500 dark:text-slate-400 mb-4 line-through">
-              {t('regularPrice', { price: REGULAR_PRICE })}
-            </p>
-          )}
-          {(promoLoading || !hasLaunchSpots) && <div className="mb-4" />}
+          {/* Reserved-height slot for the regular-price strikethrough — keeps layout stable
+              whether the launch promo resolves to "active" (strikethrough shown) or "sold out" (empty). */}
+          <div className="h-5 mb-4">
+            {!promoLoading && hasLaunchSpots && (
+              <p className="text-sm text-gray-500 dark:text-slate-400 line-through">
+                {t('regularPrice', { price: REGULAR_PRICE })}
+              </p>
+            )}
+          </div>
 
           <ul className="space-y-3 flex-1">
             {FREE_FEATURES.map(key => (

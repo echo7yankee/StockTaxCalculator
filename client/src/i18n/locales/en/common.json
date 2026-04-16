@@ -1,5 +1,6 @@
 {
   "loading": "Loading...",
+  "loadingAuth": "Loading account",
   "logIn": "Log in",
   "signUp": "Sign up",
   "logOut": "Log out",
