@@ -13,18 +13,25 @@
     "build": "npm run build -w shared && npm run build -w client && npm run build -w server",
     "test": "npm run test -w shared && npm run test -w client && npm run test -w server",
     "lint": "eslint .",
-    "stylelint": "stylelint \"client/src/**/*.css\""
+    "stylelint": "stylelint \"client/src/**/*.css\"",
+    "verify": "tsx scripts/verify.ts",
+    "verify:prod": "tsx scripts/verify.ts --prod"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.1",
     "@eslint/js": "^9.39.4",
+    "broken-link-checker": "^0.7.8",
+    "chalk": "^5.6.2",
     "concurrently": "^9.1.2",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
+    "lighthouse": "^12.8.2",
     "pdf-parse": "^2.4.5",
     "stylelint": "^17.6.0",
     "stylelint-config-standard": "^40.0.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.58.0"
   }
