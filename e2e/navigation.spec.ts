@@ -56,4 +56,33 @@ test.describe('Navigation', () => {
       await expect(page).toHaveURL(/pricing/);
     }
   });
+
+  test('filing guide page loads', async ({ page }) => {
+    await page.goto('/filing-guide');
+    await expect(page.locator('h1')).toBeVisible();
+    // Without tax data, should show empty state with a CTA
+    await expect(page.getByRole('link', { name: /calculator|upload|calculează/i })).toBeVisible();
+  });
+
+  test('status page loads with health checks', async ({ page }) => {
+    await page.goto('/status');
+    await expect(page.getByText('Project Status')).toBeVisible();
+    // Health check cards should be present
+    await expect(page.getByText('Express Server')).toBeVisible();
+    await expect(page.getByText('SQLite Database')).toBeVisible();
+    await expect(page.getByText('BNR Rates API')).toBeVisible();
+    // Feature list should render
+    await expect(page.getByText('Features')).toBeVisible();
+    // Progress bar should exist
+    await expect(page.getByText('Overall Progress')).toBeVisible();
+  });
+
+  test('results page loads without data (empty state)', async ({ page }) => {
+    await page.goto('/results');
+    // Without upload context data, should show empty state or redirect
+    // Either way, should not crash — verify no blank screen
+    await expect(page.locator('body')).not.toBeEmpty();
+    // Should have navigation visible (not a broken page)
+    await expect(page.locator('nav')).toBeVisible();
+  });
 });
