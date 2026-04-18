@@ -52,7 +52,10 @@ jobs:
           npx prisma db push --skip-generate --accept-data-loss
 
       - name: Generate baselines
-        run: npx playwright test --update-snapshots e2e/visual-regression.spec.ts
+        # Playwright 1.59 made --update-snapshots take an optional mode; the
+        # parser grabs the next token as the mode unless `=` is used, so the
+        # test path must come first or be separated by `=all`.
+        run: npx playwright test e2e/visual-regression.spec.ts --update-snapshots=all
 
       - name: Commit baselines to branch
         run: |

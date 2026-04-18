@@ -50,8 +50,10 @@ function main(): void {
   //   1. Install deps only if the node_modules volume is empty (first run)
   //   2. Generate Prisma client (cheap; covers client-regeneration across runs)
   //   3. Run the visual-regression spec, with or without --update-snapshots
+  // Playwright 1.59 made --update-snapshots take an optional mode; use `=all`
+  // so the parser doesn't swallow the next token as the mode argument.
   const playwrightCmd = `npx playwright test e2e/visual-regression.spec.ts${
-    update ? ' --update-snapshots' : ''
+    update ? ' --update-snapshots=all' : ''
   }`;
   const containerScript = [
     '[ -d node_modules ] && [ -d client/node_modules ] && [ -d server/node_modules ] && [ -d shared/node_modules ]' +
