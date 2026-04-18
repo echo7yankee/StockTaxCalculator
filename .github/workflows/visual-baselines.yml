@@ -51,6 +51,12 @@ jobs:
           npx prisma generate
           npx prisma db push --skip-generate --accept-data-loss
 
+      - name: Build shared workspace
+        # Server imports from @investax/shared/dist; the package entrypoint
+        # points at compiled output, so the dist dir must exist before the
+        # dev server can start.
+        run: npm run build -w shared
+
       - name: Generate baselines
         # Playwright 1.59 made --update-snapshots take an optional mode; the
         # parser grabs the next token as the mode unless `=` is used, so the
