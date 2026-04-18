@@ -39,11 +39,17 @@ jobs:
           fetch-depth: 0
 
       - name: Install dependencies
-        # `npm install` (not `npm ci`) because the committed package-lock.json
-        # was generated on Windows and is missing Linux-only optional binaries
-        # (esbuild, @rollup/rollup-linux-*, etc.). Lock file is not modified
-        # here — we just let npm fetch what's needed for this Linux container.
-        run: npm install --prefer-offline --no-audit --progress=false --no-save
+        # The committed package-lock.json was generated on Windows and is
+        # missing Linux-only optional binaries (esbuild, @rollup/rollup-linux-*,
+        # etc.). npm has a known bug (https://github.com/npm/cli/issues/4828)
+        # where `npm install` against such a lock file still skips the missing
+        # platform's optional deps, so dev servers fail to start. Removing
+        # the lock on the CI-side (container filesystem only — never pushed
+        # back to the repo) lets npm re-resolve for Linux cleanly. The
+        # Windows-generated lock stays the source of truth in git.
+        run: |
+          rm -f package-lock.json
+          npm install --prefer-offline --no-audit --progress=false
 
       - name: Prisma generate + schema push
         working-directory: server
