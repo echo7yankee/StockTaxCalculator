@@ -146,7 +146,10 @@ export default function PricingPage() {
             </div>
           )}
           {!promoLoading && hasLaunchSpots && (
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent text-white text-sm font-semibold px-4 py-1 rounded-full whitespace-nowrap">
+            <div
+              className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent text-white text-sm font-semibold px-4 py-1 rounded-full whitespace-nowrap"
+              data-testid="promo-badge"
+            >
               {t('launchPrice')} — {t('launchSpotsLeft', { remaining: promo.remaining, limit: promo.limit })}
             </div>
           )}

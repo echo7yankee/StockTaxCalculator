@@ -7,21 +7,24 @@
  * union of every step's pass/fail.
  *
  * Steps:
- *   1. Unit tests           (npm test, all workspaces)     — local only
- *   2. Playwright E2E       (wraps existing suite + new a11y + i18n specs)
- *   3. Lighthouse CI        (8 pages, Perf≥90/A11y=100/BP≥90/SEO≥95)
- *   4. Broken-link crawler  (depth 2 from root, internal only)
+ *   1. Unit tests            (npm test, all workspaces)         — local only
+ *   2. Playwright E2E        (wraps existing suite + a11y + i18n specs)
+ *   3. Lighthouse CI         (8 pages, Perf≥90/A11y=100/BP≥90/SEO≥95)
+ *   4. Broken-link crawler   (depth 2 from root, internal only)
+ *   5. Visual regression     (Docker-pinned Playwright, strict 0 tolerance)
  *
  * Flags:
  *   --prod              use https://investax.app as the BASE_URL
+ *                       (auto-skips unit tests + visual regression)
  *   --base-url <url>    use a custom BASE_URL
  *   --skip-unit         skip unit tests
  *   --skip-e2e          skip Playwright
  *   --skip-lighthouse   skip Lighthouse
  *   --skip-links        skip broken-link crawler
+ *   --skip-visual       skip visual regression
  *
- * Part of PR-A of the launch-verification tooling
- * (09-backlog-and-discipline.md Section 8.1 item #15).
+ * Part of PR-A (core) + PR-C (visual regression) of the launch-verification
+ * tooling (09-backlog-and-discipline.md Section 8.1 item #15).
  */
 
 import { spawn, spawnSync } from 'node:child_process';
@@ -60,6 +63,8 @@ function parseArgs(argv: string[]): {
   skipE2e: boolean;
   skipLighthouse: boolean;
   skipLinks: boolean;
+  skipVisual: boolean;
+  isProd: boolean;
 } {
   const isProd = argv.includes('--prod');
   let baseUrl = isProd ? 'https://investax.app' : 'http://localhost:5173';
@@ -73,6 +78,11 @@ function parseArgs(argv: string[]): {
     skipE2e: argv.includes('--skip-e2e'),
     skipLighthouse: argv.includes('--skip-lighthouse'),
     skipLinks: argv.includes('--skip-links'),
+    // Visual-regression baselines are pinned to the committed UI, so running
+    // against production would always diff unless prod exactly matches HEAD.
+    // Auto-skip on --prod; honor --skip-visual for local opt-out.
+    skipVisual: argv.includes('--skip-visual') || isProd,
+    isProd,
   };
 }
 
@@ -253,6 +263,16 @@ async function main() {
     results.push(await runLinkChecker(args.baseUrl));
   } else {
     console.log(chalk.dim('\n(skipped) Broken-link crawler'));
+  }
+
+  if (!args.skipVisual) {
+    results.push(
+      await runStep('Visual regression (Docker)', 'npm', ['run', 'verify:visual']),
+    );
+  } else {
+    console.log(
+      chalk.dim(`\n(skipped) Visual regression${args.isProd ? ' — auto-skip in --prod mode' : ''}`),
+    );
   }
 
   printSummary(results);
