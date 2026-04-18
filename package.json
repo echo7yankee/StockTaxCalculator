@@ -16,7 +16,9 @@
     "stylelint": "stylelint \"client/src/**/*.css\"",
     "verify": "tsx scripts/verify.ts",
     "verify:prod": "tsx scripts/verify.ts --prod",
-    "verify:manual": "tsx scripts/verify-manual.ts"
+    "verify:manual": "tsx scripts/verify-manual.ts",
+    "verify:visual": "tsx scripts/verify-visual.ts",
+    "verify:visual:update": "tsx scripts/verify-visual.ts --update"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.1",

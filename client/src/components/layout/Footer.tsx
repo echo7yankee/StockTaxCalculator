@@ -17,7 +17,7 @@ export default function Footer() {
 
         {/* Links + Copyright */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500 dark:text-slate-400">
-          <p>{t('copyright', { year: new Date().getFullYear() })}</p>
+          <p data-testid="current-year">{t('copyright', { year: new Date().getFullYear() })}</p>
           <div className="flex items-center gap-4">
             <Link to="/privacy" className="hover:text-accent transition-colors">
               {t('links.privacy')}
