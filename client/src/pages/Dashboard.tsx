@@ -57,6 +57,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!user || user.plan !== 'paid') return;
+    // Standard fetch-in-effect loading toggle; the rule's preferred alternative
+    // (external store / data-fetching library) is out of scope for launch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     fetch('/api/tax-years', { credentials: 'include' })
       .then(res => {
