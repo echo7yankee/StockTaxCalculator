@@ -58,11 +58,14 @@ jobs:
           rm -f package-lock.json
           npm install --prefer-offline --no-audit --progress=false
 
-      - name: Prisma generate
-        # Produces the @prisma/client TypeScript types that server code imports.
-        # Needed before `tsc -b` in the server build step.
+      - name: Prisma generate + schema push
+        # `generate` produces the @prisma/client TypeScript types that server
+        # code imports; `db push` creates the SQLite file + tables so server
+        # tests that hit prisma don't get P2021 (table missing).
         working-directory: server
-        run: npx prisma generate
+        run: |
+          npx prisma generate
+          npx prisma db push --skip-generate --accept-data-loss
 
       - name: Build shared workspace
         # Server tests + server build both resolve @investax/shared via the
