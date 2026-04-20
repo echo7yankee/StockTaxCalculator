@@ -10,7 +10,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join, resolve } from 'path';
 
 // Polyfill browser APIs that pdfjs-dist expects
-(globalThis as any).DOMMatrix = class DOMMatrix {
+class DOMMatrixPolyfill {
   a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
   m11 = 1; m12 = 0; m21 = 0; m22 = 1; m41 = 0; m42 = 0;
   isIdentity = true;
@@ -24,17 +24,17 @@ import { join, resolve } from 'path';
     }
   }
 
-  inverse() { return new DOMMatrix(); }
-  multiply() { return new DOMMatrix(); }
-  translate() { return new DOMMatrix(); }
-  scale() { return new DOMMatrix(); }
-  transformPoint(p?: any) { return p || { x: 0, y: 0 }; }
-  static fromMatrix() { return new DOMMatrix(); }
-  static fromFloat64Array(a: Float64Array) { return new DOMMatrix(Array.from(a)); }
-  static fromFloat32Array(a: Float32Array) { return new DOMMatrix(Array.from(a)); }
-};
+  inverse() { return new DOMMatrixPolyfill(); }
+  multiply() { return new DOMMatrixPolyfill(); }
+  translate() { return new DOMMatrixPolyfill(); }
+  scale() { return new DOMMatrixPolyfill(); }
+  transformPoint<T>(p?: T): T | { x: number; y: number } { return p ?? { x: 0, y: 0 }; }
+  static fromMatrix() { return new DOMMatrixPolyfill(); }
+  static fromFloat64Array(a: Float64Array) { return new DOMMatrixPolyfill(Array.from(a)); }
+  static fromFloat32Array(a: Float32Array) { return new DOMMatrixPolyfill(Array.from(a)); }
+}
 
-(globalThis as any).ImageData = class ImageData {
+class ImageDataPolyfill {
   width: number;
   height: number;
   data: Uint8ClampedArray;
@@ -43,9 +43,9 @@ import { join, resolve } from 'path';
     this.height = h || 1;
     this.data = new Uint8ClampedArray(this.width * this.height * 4);
   }
-};
+}
 
-(globalThis as any).Path2D = class Path2D {
+class Path2DPolyfill {
   moveTo() {}
   lineTo() {}
   bezierCurveTo() {}
@@ -54,7 +54,13 @@ import { join, resolve } from 'path';
   rect() {}
   arc() {}
   ellipse() {}
-};
+}
+
+Object.assign(globalThis, {
+  DOMMatrix: DOMMatrixPolyfill,
+  ImageData: ImageDataPolyfill,
+  Path2D: Path2DPolyfill,
+});
 
 interface TextItem {
   str: string;
