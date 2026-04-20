@@ -46,7 +46,7 @@ export default function UploadPage() {
   const { user, loading: authLoading } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [showWelcome, setShowWelcome] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(() => searchParams.get('welcome') === '1');
 
   // Paywall: redirect free/unauthenticated users to pricing
   useEffect(() => {
@@ -56,16 +56,16 @@ export default function UploadPage() {
     }
   }, [user, authLoading, navigate]);
 
-  // Post-payment welcome toast
+  // Post-payment welcome toast: strip the ?welcome=1 query, auto-dismiss after 6s.
   useEffect(() => {
+    if (!showWelcome) return;
     if (searchParams.get('welcome') === '1') {
-      setShowWelcome(true);
       searchParams.delete('welcome');
       setSearchParams(searchParams, { replace: true });
-      const timer = setTimeout(() => setShowWelcome(false), 6000);
-      return () => clearTimeout(timer);
     }
-  }, [searchParams, setSearchParams]);
+    const timer = setTimeout(() => setShowWelcome(false), 6000);
+    return () => clearTimeout(timer);
+  }, [showWelcome, searchParams, setSearchParams]);
 
   const [activeTab, setActiveTab] = useState<FileType>('pdf');
   const [dragOver, setDragOver] = useState(false);

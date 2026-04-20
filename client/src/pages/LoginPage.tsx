@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { LogIn } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -16,16 +16,12 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() =>
+    searchParams.get('error') === 'google' ? t('login:googleError') : ''
+  );
   const [loading, setLoading] = useState(false);
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
-
-  useEffect(() => {
-    if (searchParams.get('error') === 'google') {
-      setError(t('login:googleError'));
-    }
-  }, [searchParams, t]);
 
   const validateEmail = useCallback((value: string) => {
     if (!value) return t('common:validation.required');

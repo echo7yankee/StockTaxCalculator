@@ -1,8 +1,27 @@
 import { Router } from 'express';
 import crypto from 'crypto';
+import type { Prisma } from '@prisma/client';
 import prisma from '../lib/prisma.js';
 
 export const webhookRouter = Router();
+
+interface LemonSqueezyWebhookPayload {
+  meta?: {
+    event_name?: string;
+    webhook_id?: string;
+    custom_data?: {
+      user_id?: string;
+      discount_code?: string;
+    };
+  };
+  data?: {
+    id?: string | number;
+    attributes?: {
+      customer_id?: string | number;
+      discount_total_formatted?: string;
+    };
+  };
+}
 
 function verifySignature(rawBody: Buffer, signature: string | undefined, secret: string): boolean {
   if (!signature) return false;
@@ -29,7 +48,7 @@ webhookRouter.post('/', async (req, res) => {
     return;
   }
 
-  let payload: any;
+  let payload: LemonSqueezyWebhookPayload;
   try {
     payload = JSON.parse(rawBody.toString());
   } catch {
@@ -81,11 +100,10 @@ webhookRouter.post('/', async (req, res) => {
         expiresAt.setFullYear(expiresAt.getFullYear() + 1);
 
         // Check if launch discount was used
-        const discountCode = payload.data?.attributes?.first_order_item?.variant_name;
         const isLaunchPrice = payload.data?.attributes?.discount_total_formatted
           || payload.meta?.custom_data?.discount_code === 'LAUNCH2026';
 
-        const updateData: any = {
+        const updateData: Prisma.UserUpdateInput = {
           plan: 'paid',
           planPurchasedAt: now,
           planExpiresAt: expiresAt,

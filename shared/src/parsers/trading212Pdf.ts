@@ -292,9 +292,6 @@ function parseDividendRows(pageTexts: string[], sectionKeywords: readonly string
       const payDate = afterIsin.find(c => /^\d{2}\.\d{2}\.\d{4}/.test(c)) || '';
       const whtRateCol = afterIsin.find(c => c.includes('%')) || '-';
 
-      // Find the index of the whtRate column to anchor positions
-      const whtRateIdx = afterIsin.findIndex(c => c.includes('%') || (c === '-' && afterIsin.indexOf(c) > 5));
-
       // Use positional parsing: from the end, columns are NET | WHT(USD) | WHT RATE | GROSS(USD) | FX RATE | GROSS | GROSS/SHARE | PAY DATE | HOLDINGS | COUNTRY | CURRENCY
       // Work from end backwards for reliability
       const lastIdx = afterIsin.length - 1;

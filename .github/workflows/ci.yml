@@ -1,0 +1,86 @@
+name: CI
+
+# Pre-merge verification: lint, unit tests, and full build on every PR to main
+# and every push to main. Keeps runs under 3 min by caching ~/.npm.
+#
+# Scope and exclusions per 09-backlog-and-discipline.md Section 8.1 item #16:
+# - No Playwright/E2E here (needs a running server; deferred post-PR-B/C).
+# - No nightly cron (deferred post-launch).
+# - No auto-deploy on merge (manual SSH stays).
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Lint, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CI: "1"
+      # Required by `prisma generate` + `prisma db push` below; the SQLite file
+      # is created under server/ and discarded with the runner.
+      DATABASE_URL: "file:./dev.db"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.11.x'
+
+      - name: Cache ~/.npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Install dependencies
+        # The committed package-lock.json is Windows-generated and is missing
+        # Linux-only optional binaries (esbuild, @rollup/rollup-linux-*, etc.).
+        # npm has a known bug (https://github.com/npm/cli/issues/4828) where
+        # `npm ci` against such a lock file skips those platform optional deps,
+        # which then breaks Vite/Rollup. Removing the lock on the CI-side
+        # (container filesystem only — never pushed back) lets npm re-resolve
+        # for Linux cleanly. Same workaround as .github/workflows/visual-baselines.yml.
+        run: |
+          rm -f package-lock.json
+          npm install --prefer-offline --no-audit --progress=false
+
+      - name: Prisma generate + schema push
+        # `generate` produces the @prisma/client TypeScript types that server
+        # code imports; `db push` creates the SQLite file + tables so server
+        # tests that hit prisma don't get P2021 (table missing).
+        working-directory: server
+        run: |
+          npx prisma generate
+          npx prisma db push --skip-generate --accept-data-loss
+
+      - name: Build shared workspace
+        # Server tests + server build both resolve @investax/shared via the
+        # package's "main" field (dist/index.js). The dist dir must exist
+        # before anything that imports from @investax/shared runs.
+        run: npm run build -w shared
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
