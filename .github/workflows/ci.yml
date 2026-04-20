@@ -20,15 +20,18 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   verify:
     name: Lint, test, build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       CI: "1"
-      # server/tsc -b imports from @investax/shared/dist and from @prisma/client;
-      # DATABASE_URL isn't dereferenced at build time but prisma validate wants
-      # a value to be present.
+      # Required by `prisma generate` + `prisma db push` below; the SQLite file
+      # is created under server/ and discarded with the runner.
       DATABASE_URL: "file:./dev.db"
     steps:
       - uses: actions/checkout@v4
