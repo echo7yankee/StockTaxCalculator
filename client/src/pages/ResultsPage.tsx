@@ -89,7 +89,7 @@ export default function ResultsPage() {
           <h1 className="text-2xl sm:text-3xl font-bold">{t('results:titleWithYear', { year: taxYear })}</h1>
           <p className="text-gray-600 dark:text-slate-400 mt-1 text-sm sm:text-base">
             <FileText className="w-4 h-4 inline mr-1" />
-            {fileName} — {transactions.length > 0 ? t('results:transactionsCount', { count: transactions.length }) : t('results:pdfStatement')}
+            {fileName}, {transactions.length > 0 ? t('results:transactionsCount', { count: transactions.length }) : t('results:pdfStatement')}
           </p>
         </div>
         <div className="flex flex-col items-start sm:items-end gap-1">

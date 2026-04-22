@@ -36,9 +36,9 @@
   "faq": {
     "title": "Întrebări frecvente",
     "q1": "Calculatorul este cu adevărat gratuit?",
-    "a1": "Da. Calculatorul rapid este 100% gratuit — nu ai nevoie de cont. Introduci totalurile și primești estimarea taxelor instant.",
+    "a1": "Da. Calculatorul rapid este 100% gratuit, fără cont. Introduci totalurile și primești estimarea taxelor instant.",
     "q2": "Ce adaugă planul plătit?",
-    "a2": "Încarci extrasul Trading212 (PDF sau CSV) și primești automat un breakdown detaliat per acțiune — capital gains, dividende, cursuri BNR, CASS și ghid D212. Fără muncă manuală.",
+    "a2": "Încarci extrasul Trading212 (PDF sau CSV) și primești automat un breakdown detaliat per acțiune: capital gains, dividende, cursuri BNR, CASS și ghid D212. Fără muncă manuală.",
     "q3": "Este un abonament?",
     "a3": "Nu. Este o plată unică anuală. Plătești o dată și ai acces 365 de zile. Fără reînnoire automată, fără taxe recurente.",
     "q4": "Pot primi banii înapoi?",
@@ -52,5 +52,5 @@
     "q8": "Se aplică și pentru anul fiscal 2026?",
     "a8": "Nu. Începând cu 1 ianuarie 2026, Legea 239/2025 a schimbat cota de impozitare la 16% pentru câștigurile obținute prin brokeri nerezidenți (Trading212, Interactive Brokers, eToro, Revolut). Pentru brokeri rezidenți fiscal în România (XTB România, Tradeville, BT Capital Partners etc.) se aplică reținere la sursă de 3% sau 6% în funcție de perioada de deținere. InvesTax calculează taxele pentru veniturile obținute în 2025, care se depun prin Declarația Unică până la 25 mai 2026. Vom actualiza calculatorul pentru anul fiscal 2026 înainte de sezonul de depunere 2027."
   },
-  "trustBadge": "Construit de un developer român care și-a depus singur Declarația Unică — pe calea dureroasă"
+  "trustBadge": "Construit de un developer român care și-a depus singur Declarația Unică, pe calea dureroasă"
 }

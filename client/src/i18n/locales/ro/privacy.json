@@ -29,10 +29,10 @@
       "title": "4. Partajarea datelor",
       "description": "Nu vindem, nu inchiriem si nu partajam datele tale personale cu terti, cu exceptia urmatoarelor servicii care proceseaza date in numele nostru:",
       "providers": {
-        "hetzner": "Hetzner Online GmbH — gazduire server (Germania, UE)",
-        "lemonSqueezy": "Lemon Squeezy — procesare plati (merchant of record)",
-        "resend": "Resend — livrare email-uri tranzactionale",
-        "plausible": "Plausible Analytics — analiza anonima a website-ului, fara cookie-uri"
+        "hetzner": "Hetzner Online GmbH: gazduire server (Germania, UE)",
+        "lemonSqueezy": "Lemon Squeezy: procesare plati (merchant of record)",
+        "resend": "Resend: livrare email-uri tranzactionale",
+        "plausible": "Plausible Analytics: analiza anonima a website-ului, fara cookie-uri"
       }
     },
     "cookies": {
@@ -43,11 +43,11 @@
       "title": "6. Drepturile tale (GDPR)",
       "description": "Ca rezident UE, ai dreptul la:",
       "rights": {
-        "access": "Acces la date — vizualizeaza toate datele pe care le stocam despre tine.",
-        "export": "Export date — descarca calculele tale ca JSON din pagina Setari.",
-        "delete": "Stergerea datelor — sterge permanent contul tau si toate datele asociate din pagina Setari.",
-        "rectify": "Rectificarea datelor — corecteaza orice informatie personala inexacta.",
-        "object": "Opozitie la prelucrare — contacteaza-ne pentru a te opune unor activitati specifice de prelucrare a datelor."
+        "access": "Acces la date: vizualizeaza toate datele pe care le stocam despre tine.",
+        "export": "Export date: descarca calculele tale ca JSON din pagina Setari.",
+        "delete": "Stergerea datelor: sterge permanent contul tau si toate datele asociate din pagina Setari.",
+        "rectify": "Rectificarea datelor: corecteaza orice informatie personala inexacta.",
+        "object": "Opozitie la prelucrare: contacteaza-ne pentru a te opune unor activitati specifice de prelucrare a datelor."
       },
       "contact": "Pentru a exercita oricare dintre aceste drepturi, foloseste optiunile din pagina Setari sau scrie-ne la support@investax.app."
     },

@@ -29,10 +29,10 @@
       "title": "4. Data Sharing",
       "description": "We do not sell, rent, or share your personal data with third parties, except for the following service providers who process data on our behalf:",
       "providers": {
-        "hetzner": "Hetzner Online GmbH — server hosting (Germany, EU)",
-        "lemonSqueezy": "Lemon Squeezy — payment processing (merchant of record)",
-        "resend": "Resend — transactional email delivery",
-        "plausible": "Plausible Analytics — anonymous, cookieless website analytics"
+        "hetzner": "Hetzner Online GmbH: server hosting (Germany, EU)",
+        "lemonSqueezy": "Lemon Squeezy: payment processing (merchant of record)",
+        "resend": "Resend: transactional email delivery",
+        "plausible": "Plausible Analytics: anonymous, cookieless website analytics"
       }
     },
     "cookies": {
@@ -43,11 +43,11 @@
       "title": "6. Your Rights (GDPR)",
       "description": "As an EU resident, you have the right to:",
       "rights": {
-        "access": "Access your data — view all data we store about you.",
-        "export": "Export your data — download your calculations as JSON from your Settings page.",
-        "delete": "Delete your data — permanently delete your account and all associated data from your Settings page.",
-        "rectify": "Rectify your data — correct any inaccurate personal information.",
-        "object": "Object to processing — contact us to object to specific data processing activities."
+        "access": "Access your data: view all data we store about you.",
+        "export": "Export your data: download your calculations as JSON from your Settings page.",
+        "delete": "Delete your data: permanently delete your account and all associated data from your Settings page.",
+        "rectify": "Rectify your data: correct any inaccurate personal information.",
+        "object": "Object to processing: contact us to object to specific data processing activities."
       },
       "contact": "To exercise any of these rights, use the options in your Settings page or email us at support@investax.app."
     },
