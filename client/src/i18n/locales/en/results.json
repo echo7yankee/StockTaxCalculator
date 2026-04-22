@@ -1,6 +1,6 @@
 {
   "title": "Tax Results",
-  "titleWithYear": "Tax Results \u2014 {{year}}",
+  "titleWithYear": "Tax Results for {{year}}",
   "emptySubtitle": "Upload a CSV first to see your tax calculation results.",
   "noCalculations": "No calculations yet.",
   "noCalculationsDetail": "Upload your broker CSV to get started.",
@@ -9,7 +9,7 @@
   "capitalGainsTax": "Capital Gains Tax",
   "capitalGainsTaxDetail": "{{netGains}} net gains @ {{rate}}%",
   "dividendTax": "Dividend Tax",
-  "dividendTaxDetail": "{{gross}} gross \u2014 {{withholding}} withholding",
+  "dividendTaxDetail": "{{gross}} gross, {{withholding}} withholding",
   "healthContribution": "Health Contribution (CASS)",
   "healthContributionDetail": "Bracket: {{bracket}} ({{income}} income)",
   "totalTaxOwed": "Total Tax Owed",

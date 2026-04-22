@@ -36,9 +36,9 @@
   "faq": {
     "title": "Frequently asked questions",
     "q1": "Is the calculator really free?",
-    "a1": "Yes. The quick calculator is 100% free — no account needed. You enter your totals and get your tax estimate instantly.",
+    "a1": "Yes. The quick calculator is 100% free, no account needed. You enter your totals and get your tax estimate instantly.",
     "q2": "What does the paid plan add?",
-    "a2": "Upload your Trading212 PDF or CSV statement and get an automatic, detailed breakdown per security — capital gains, dividends, BNR rates, CASS, and a D212-ready guide. No manual work.",
+    "a2": "Upload your Trading212 PDF or CSV statement and get an automatic, detailed breakdown per security: capital gains, dividends, BNR rates, CASS, and a D212-ready guide. No manual work.",
     "q3": "Is this a subscription?",
     "a3": "No. It's a one-time annual payment. You pay once and get 365 days of access. No auto-renewal, no recurring charges.",
     "q4": "Can I get a refund?",
@@ -52,5 +52,5 @@
     "q8": "Does this apply to tax year 2026?",
     "a8": "No. Starting January 1, 2026, Law 239/2025 changed the tax rate to 16% for capital gains through non-resident brokers (Trading212, Interactive Brokers, eToro, Revolut). For Romania-resident brokers (XTB Romania, Tradeville, BT Capital Partners, etc.), withholding at source applies at 3% or 6% depending on holding period. InvesTax calculates taxes on income earned in 2025, filed via Declarația Unică by May 25, 2026. We will update the calculator for tax year 2026 before the 2027 filing season."
   },
-  "trustBadge": "Built by a Romanian developer who filed his own Declarația Unică — the painful way"
+  "trustBadge": "Built by a Romanian developer who filed his own Declarația Unică, the painful way"
 }

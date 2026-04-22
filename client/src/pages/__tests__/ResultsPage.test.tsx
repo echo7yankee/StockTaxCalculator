@@ -127,7 +127,7 @@ describe('ResultsPage', () => {
 
   it('renders title with tax year', () => {
     renderResults();
-    expect(screen.getByText(/Tax Results — 2025/)).toBeInTheDocument();
+    expect(screen.getByText(/Tax Results for 2025/)).toBeInTheDocument();
   });
 
   it('shows file name', () => {

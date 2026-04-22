@@ -1,6 +1,6 @@
 {
   "title": "Rezultate fiscale",
-  "titleWithYear": "Rezultate fiscale \u2014 {{year}}",
+  "titleWithYear": "Rezultate fiscale pentru {{year}}",
   "emptySubtitle": "\u00cencarc\u0103 mai \u00eent\u00e2i un CSV pentru a vedea rezultatele calculului fiscal.",
   "noCalculations": "Niciun calcul \u00eenc\u0103.",
   "noCalculationsDetail": "\u00cencarc\u0103 CSV-ul de la broker pentru a \u00eencepe.",
@@ -9,7 +9,7 @@
   "capitalGainsTax": "Impozit pe c\u00e2\u0219tiguri de capital",
   "capitalGainsTaxDetail": "{{netGains}} c\u00e2\u0219tiguri nete @ {{rate}}%",
   "dividendTax": "Impozit pe dividende",
-  "dividendTaxDetail": "{{gross}} brut \u2014 {{withholding}} re\u021binere",
+  "dividendTaxDetail": "{{gross}} brut, {{withholding}} re\u021binere",
   "healthContribution": "Contribu\u021bie de s\u0103n\u0103tate (CASS)",
   "healthContributionDetail": "Prag: {{bracket}} (venituri {{income}})",
   "totalTaxOwed": "Total impozit datorat",

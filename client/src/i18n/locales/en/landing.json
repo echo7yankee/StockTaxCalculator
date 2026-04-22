@@ -14,7 +14,7 @@
   "trustAccurateTitle": "Official BNR Exchange Rates",
   "trustAccurateDesc": "We use the official National Bank of Romania rates for every transaction date. No approximations.",
   "trustTaxLawTitle": "Romanian Tax Law Built In",
-  "trustTaxLawDesc": "Capital gains, dividends, CASS health contribution — all calculated per 2025 Romanian tax legislation.",
+  "trustTaxLawDesc": "Capital gains, dividends, and CASS health contribution. All calculated per 2025 Romanian tax legislation.",
   "trustPrivacyTitle": "Your Data Stays Private",
   "trustPrivacyDesc": "Your financial data is processed and never shared. Delete your account anytime under GDPR.",
   "trustFastTitle": "Results in Under 2 Minutes",
@@ -22,7 +22,7 @@
   "testimonialsTitle": "What Users Say",
   "testimonialsPlaceholder": "We're collecting feedback from our first users. Real testimonials coming soon.",
   "founderTitle": "Built by a Romanian Investor",
-  "founderBio": "I'm Dragos Ifrim, a Romanian developer with 7+ years of experience. I went through the ANAF filing process myself last year — digging through Trading212 statements, hunting BNR exchange rates line by line, cross-checking CASS brackets. It was painful and error-prone. I built InvesTax to take that pain away — for myself and for every Romanian investor filing taxes.",
+  "founderBio": "I'm Dragos Ifrim, a Romanian developer with 7+ years of experience. Last year I filed my ANAF taxes the hard way: digging through Trading212 statements, hunting BNR exchange rates line by line, cross-checking CASS brackets. It was painful and error-prone. I built InvesTax so I'd never have to do that again, and to spare every other Romanian investor from the same grind.",
   "supportedBrokers": "Supported Brokers",
   "comingSoon": "coming soon"
 }
