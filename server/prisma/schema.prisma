@@ -18,6 +18,8 @@ model User {
   planExpiresAt   DateTime?
   lemonCustomerId String?   @unique
   lemonOrderId    String?
+  stripeCustomerId      String? @unique
+  stripePaymentIntentId String?
   launchPriceUsed Boolean   @default(false)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
