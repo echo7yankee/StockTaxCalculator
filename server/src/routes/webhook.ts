@@ -64,88 +64,97 @@ webhookRouter.post('/', async (req, res) => {
     return;
   }
 
-  // Idempotency check — skip if already processed
+  // Fast-path idempotency check (avoids opening a transaction for already-processed events).
+  // Real ordering guarantee comes from the unique constraint on WebhookEvent.id inside the
+  // transaction below — two concurrent deliveries can't both insert the same id.
   const existing = await prisma.webhookEvent.findUnique({ where: { id: String(eventId) } });
   if (existing) {
     res.json({ ok: true, message: 'Already processed' });
     return;
   }
 
-  // Store event for idempotency + audit trail
-  await prisma.webhookEvent.create({
-    data: {
-      id: String(eventId),
-      eventName,
-      payload: JSON.stringify(payload),
-    },
-  });
-
+  // Wrap the idempotency-row insert AND the business logic in a single transaction.
+  // If anything throws (Prisma error, unexpected payload shape, etc.), the WebhookEvent
+  // row rolls back along with the rest of the writes. Lemon Squeezy will then retry the
+  // delivery, pass the fast-path check (no row exists), and reprocess. Without this, a
+  // failure mid-processing would leave the idempotency row committed and permanently mask
+  // the failure from retries — the user's plan would never upgrade despite a paid order.
   try {
-    switch (eventName) {
-      case 'order_created': {
-        const userId = payload.meta?.custom_data?.user_id;
-        if (!userId) {
-          console.error('order_created webhook missing user_id in custom_data');
+    await prisma.$transaction(async (tx) => {
+      await tx.webhookEvent.create({
+        data: {
+          id: String(eventId),
+          eventName,
+          payload: JSON.stringify(payload),
+        },
+      });
+
+      switch (eventName) {
+        case 'order_created': {
+          const userId = payload.meta?.custom_data?.user_id;
+          if (!userId) {
+            console.error('order_created webhook missing user_id in custom_data');
+            break;
+          }
+
+          const user = await tx.user.findUnique({ where: { id: userId } });
+          if (!user) {
+            console.error(`order_created: user ${userId} not found`);
+            break;
+          }
+
+          const now = new Date();
+          const expiresAt = new Date(now);
+          expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+
+          // Check if launch discount was used
+          const isLaunchPrice = payload.data?.attributes?.discount_total_formatted
+            || payload.meta?.custom_data?.discount_code === 'LAUNCH2026';
+
+          const updateData: Prisma.UserUpdateInput = {
+            plan: 'paid',
+            planPurchasedAt: now,
+            planExpiresAt: expiresAt,
+            lemonCustomerId: String(payload.data?.attributes?.customer_id || ''),
+            lemonOrderId: String(payload.data?.id || ''),
+          };
+
+          // Increment promo counter if launch price was used
+          if (isLaunchPrice && !user.launchPriceUsed) {
+            updateData.launchPriceUsed = true;
+            await tx.promoCounter.update({
+              where: { id: 'launch_2026' },
+              data: { count: { increment: 1 } },
+            });
+          }
+
+          await tx.user.update({ where: { id: userId }, data: updateData });
+          console.log(`User ${userId} upgraded to paid plan (expires ${expiresAt.toISOString()})`);
           break;
         }
 
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        if (!user) {
-          console.error(`order_created: user ${userId} not found`);
-          break;
-        }
+        case 'order_refunded': {
+          const userId = payload.meta?.custom_data?.user_id;
+          if (!userId) {
+            console.error('order_refunded webhook missing user_id in custom_data');
+            break;
+          }
 
-        const now = new Date();
-        const expiresAt = new Date(now);
-        expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-
-        // Check if launch discount was used
-        const isLaunchPrice = payload.data?.attributes?.discount_total_formatted
-          || payload.meta?.custom_data?.discount_code === 'LAUNCH2026';
-
-        const updateData: Prisma.UserUpdateInput = {
-          plan: 'paid',
-          planPurchasedAt: now,
-          planExpiresAt: expiresAt,
-          lemonCustomerId: String(payload.data?.attributes?.customer_id || ''),
-          lemonOrderId: String(payload.data?.id || ''),
-        };
-
-        // Increment promo counter if launch price was used
-        if (isLaunchPrice && !user.launchPriceUsed) {
-          updateData.launchPriceUsed = true;
-          await prisma.promoCounter.update({
-            where: { id: 'launch_2026' },
-            data: { count: { increment: 1 } },
+          await tx.user.update({
+            where: { id: userId },
+            data: {
+              plan: 'free',
+              planExpiresAt: null,
+            },
           });
-        }
-
-        await prisma.user.update({ where: { id: userId }, data: updateData });
-        console.log(`User ${userId} upgraded to paid plan (expires ${expiresAt.toISOString()})`);
-        break;
-      }
-
-      case 'order_refunded': {
-        const userId = payload.meta?.custom_data?.user_id;
-        if (!userId) {
-          console.error('order_refunded webhook missing user_id in custom_data');
+          console.log(`User ${userId} plan reverted to free (refund)`);
           break;
         }
 
-        await prisma.user.update({
-          where: { id: userId },
-          data: {
-            plan: 'free',
-            planExpiresAt: null,
-          },
-        });
-        console.log(`User ${userId} plan reverted to free (refund)`);
-        break;
+        default:
+          console.log(`Unhandled webhook event: ${eventName}`);
       }
-
-      default:
-        console.log(`Unhandled webhook event: ${eventName}`);
-    }
+    });
 
     res.json({ ok: true });
   } catch (err) {
