@@ -9,7 +9,7 @@ export default function TermsPage() {
     <div className="max-w-3xl mx-auto px-4 py-12">
       <PageMeta titleKey="termsTitle" descriptionKey="termsDesc" />
       <div className="flex items-center gap-3 mb-2">
-        <FileText className="w-8 h-8 text-accent" />
+        <FileText className="w-8 h-8 text-accent dark:text-accent-light" />
         <h1 className="text-3xl font-bold">{t('title')}</h1>
       </div>
       <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">{t('lastUpdated')}</p>
@@ -105,7 +105,7 @@ export default function TermsPage() {
           <p className="text-gray-600 dark:text-slate-400">{t('sections.contactUs.description')}</p>
           <a
             href={`mailto:${t('sections.contactUs.email')}`}
-            className="text-accent hover:underline font-medium"
+            className="text-accent dark:text-accent-light hover:underline font-medium"
           >
             {t('sections.contactUs.email')}
           </a>

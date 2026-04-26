@@ -74,7 +74,7 @@ export default function FilingGuidePage() {
         <div>
           <button
             onClick={() => navigate('/results')}
-            className="flex items-center gap-1 text-sm text-gray-500 dark:text-slate-400 hover:text-accent mb-2 transition-colors"
+            className="flex items-center gap-1 text-sm text-gray-500 dark:text-slate-400 hover:text-accent dark:hover:text-accent-light mb-2 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" /> {t('common:backToResults')}
           </button>
@@ -110,7 +110,7 @@ export default function FilingGuidePage() {
       {/* How to use — Romania-specific steps */}
       {isRomania && (
         <div className="mb-8 p-4 bg-accent/5 dark:bg-accent/10 border border-accent/20 rounded-xl">
-          <h3 className="font-semibold text-accent mb-2">{t('filing:howToUse')}</h3>
+          <h3 className="font-semibold text-accent dark:text-accent-light mb-2">{t('filing:howToUse')}</h3>
           <ol className="text-sm text-gray-600 dark:text-slate-400 space-y-1 list-decimal list-inside">
             <li>{t('filing:stepLogin')}<strong>{t('filing:stepLoginBold')}</strong>{t('filing:stepLoginSuffix')}</li>
             <li>{t('filing:stepOpenForm')}<strong>{t('filing:stepOpenFormBold')}</strong>{t('filing:stepOpenFormSuffix', { year: taxYear })}</li>
@@ -154,7 +154,7 @@ export default function FilingGuidePage() {
                 label={t('filing:totalAfterDiscount')}
                 value={`${fmt(taxResult.totals.totalAfterDiscount)} ${sym}`}
                 bold
-                className="text-accent"
+                className="text-accent dark:text-accent-light"
               />
             </>
           )}
@@ -185,7 +185,7 @@ function FilingSectionCard({
       <div className="flex items-start justify-between mb-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-mono bg-accent/10 text-accent px-2 py-0.5 rounded">
+            <span className="text-xs font-mono bg-accent/10 text-accent dark:text-accent-light px-2 py-0.5 rounded">
               {sectionLabel}
             </span>
             <h2 className="text-lg font-semibold">{t(`d212:section_${sectionId}_title`)}</h2>
@@ -217,7 +217,7 @@ function FilingSectionCard({
                   className={`p-2 rounded-lg transition-colors ${
                     isCopied
                       ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                      : 'text-gray-500 hover:text-accent hover:bg-accent/10'
+                      : 'text-gray-500 hover:text-accent dark:hover:text-accent-light hover:bg-accent/10'
                   }`}
                   title={isCopied ? t('filing:copied') : t(`d212:${field.id}`)}
                 >

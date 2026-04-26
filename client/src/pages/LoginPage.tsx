@@ -70,7 +70,7 @@ export default function LoginPage() {
       <div className="card">
         <div className="text-center mb-8">
           <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <LogIn className="w-6 h-6 text-accent" />
+            <LogIn className="w-6 h-6 text-accent dark:text-accent-light" />
           </div>
           <h1 className="text-2xl font-bold">{t('login:welcomeBack')}</h1>
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">

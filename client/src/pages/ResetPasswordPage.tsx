@@ -48,7 +48,7 @@ export default function ResetPasswordPage() {
           <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">
             {t('login:invalidResetLinkDescription')}
           </p>
-          <Link to="/forgot-password" className="text-accent hover:underline font-medium text-sm">
+          <Link to="/forgot-password" className="text-accent dark:text-accent-light hover:underline font-medium text-sm">
             {t('login:requestNewLink')}
           </Link>
         </div>
@@ -125,7 +125,7 @@ export default function ResetPasswordPage() {
       <div className="card">
         <div className="text-center mb-8">
           <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <KeyRound className="w-6 h-6 text-accent" />
+            <KeyRound className="w-6 h-6 text-accent dark:text-accent-light" />
           </div>
           <h1 className="text-2xl font-bold">{t('login:setNewPassword')}</h1>
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">

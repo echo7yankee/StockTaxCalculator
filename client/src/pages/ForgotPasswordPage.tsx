@@ -79,7 +79,7 @@ export default function ForgotPasswordPage() {
           <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">
             {t('login:resetEmailSent')}
           </p>
-          <Link to="/login" className="text-accent hover:underline font-medium text-sm">
+          <Link to="/login" className="text-accent dark:text-accent-light hover:underline font-medium text-sm">
             {t('login:backToLogin')}
           </Link>
         </div>
@@ -93,7 +93,7 @@ export default function ForgotPasswordPage() {
       <div className="card">
         <div className="text-center mb-8">
           <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <KeyRound className="w-6 h-6 text-accent" />
+            <KeyRound className="w-6 h-6 text-accent dark:text-accent-light" />
           </div>
           <h1 className="text-2xl font-bold">{t('login:forgotPasswordTitle')}</h1>
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
@@ -133,7 +133,7 @@ export default function ForgotPasswordPage() {
         </form>
 
         <p className="text-center text-sm text-gray-500 dark:text-slate-400 mt-6">
-          <Link to="/login" className="text-accent hover:underline font-medium">
+          <Link to="/login" className="text-accent dark:text-accent-light hover:underline font-medium">
             {t('login:backToLogin')}
           </Link>
         </p>

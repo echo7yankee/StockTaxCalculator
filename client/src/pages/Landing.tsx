@@ -29,7 +29,7 @@ export default function Landing() {
       {/* Hero */}
       <section className="py-20 text-center">
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
-          <Trans i18nKey="landing:heroTitle" components={{ accent: <span className="text-accent"> </span> }} />
+          <Trans i18nKey="landing:heroTitle" components={{ accent: <span className="text-accent dark:text-accent-light"> </span> }} />
         </h1>
         <p className="mt-6 text-lg sm:text-xl text-gray-600 dark:text-slate-400 max-w-2xl mx-auto">
           {t('heroSubtitle')}
@@ -50,7 +50,7 @@ export default function Landing() {
         <div className="grid md:grid-cols-3 gap-8">
           {steps.map((step, i) => (
             <div key={i} className="card text-center">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-accent/10 text-accent mb-4">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-accent/10 text-accent dark:text-accent-light mb-4">
                 <step.icon className="w-7 h-7" />
               </div>
               <h3 className="text-lg font-semibold mb-2">{step.title}</h3>
@@ -66,7 +66,7 @@ export default function Landing() {
         <div className="grid sm:grid-cols-2 gap-6">
           {trustPoints.map((point, i) => (
             <div key={i} className="card flex items-start gap-4">
-              <div className="shrink-0 inline-flex items-center justify-center w-12 h-12 rounded-xl bg-accent/10 text-accent">
+              <div className="shrink-0 inline-flex items-center justify-center w-12 h-12 rounded-xl bg-accent/10 text-accent dark:text-accent-light">
                 <point.icon className="w-6 h-6" />
               </div>
               <div>
@@ -90,7 +90,7 @@ export default function Landing() {
       {/* Founder bio */}
       <section className="py-16">
         <div className="card flex flex-col sm:flex-row items-center sm:items-start gap-6">
-          <div className="shrink-0 inline-flex items-center justify-center w-16 h-16 rounded-full bg-accent/10 text-accent">
+          <div className="shrink-0 inline-flex items-center justify-center w-16 h-16 rounded-full bg-accent/10 text-accent dark:text-accent-light">
             <User className="w-8 h-8" />
           </div>
           <div>
