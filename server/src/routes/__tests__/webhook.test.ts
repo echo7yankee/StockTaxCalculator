@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import express from 'express';
 import { Server } from 'http';
 import crypto from 'crypto';
@@ -72,14 +72,32 @@ beforeAll(async () => {
   server = app.listen(PORT);
 });
 
-afterAll(async () => {
-  // Clean up: webhook events created during tests + reset user
-  await prisma.webhookEvent.deleteMany({
-    where: { id: { startsWith: 'webhook-test-' } },
-  });
+// Reset state before each test so a failing test doesn't cascade into the next.
+// Using beforeEach rather than inline resets at end-of-test, since end-of-test
+// cleanup doesn't run when the test itself fails mid-assertion.
+beforeEach(async () => {
   await prisma.user.update({
     where: { id: TEST_USER_ID },
-    data: { plan: 'free', launchPriceUsed: false, planExpiresAt: null, planPurchasedAt: null, lemonOrderId: null, lemonCustomerId: null },
+    data: {
+      plan: 'free',
+      launchPriceUsed: false,
+      planExpiresAt: null,
+      planPurchasedAt: null,
+      lemonOrderId: null,
+      lemonCustomerId: null,
+    },
+  });
+  await prisma.promoCounter.upsert({
+    where: { id: 'launch_2026' },
+    update: { count: 0 },
+    create: { id: 'launch_2026', count: 0, limit: 100 },
+  });
+});
+
+afterAll(async () => {
+  // Clean up: webhook events created during tests + remove test user
+  await prisma.webhookEvent.deleteMany({
+    where: { id: { startsWith: 'webhook-test-' } },
   });
   await prisma.user.deleteMany({ where: { id: TEST_USER_ID } });
   server?.close();
@@ -105,13 +123,6 @@ describe('LS webhook (POST /api/webhooks/lemon) — idempotency-row transaction 
     const user = await prisma.user.findUnique({ where: { id: TEST_USER_ID } });
     expect(user?.plan).toBe('paid');
     expect(user?.launchPriceUsed).toBe(true);
-
-    // Reset user for next test
-    await prisma.user.update({
-      where: { id: TEST_USER_ID },
-      data: { plan: 'free', launchPriceUsed: false, planExpiresAt: null, lemonOrderId: null },
-    });
-    await prisma.promoCounter.update({ where: { id: 'launch_2026' }, data: { count: 0 } });
   });
 
   it('idempotency: same eventId twice returns "Already processed", does not double-write', async () => {
@@ -137,13 +148,6 @@ describe('LS webhook (POST /api/webhooks/lemon) — idempotency-row transaction 
 
     const rows = await prisma.webhookEvent.findMany({ where: { id: eventId } });
     expect(rows).toHaveLength(1);
-
-    // Reset for next test
-    await prisma.user.update({
-      where: { id: TEST_USER_ID },
-      data: { plan: 'free', launchPriceUsed: false, planExpiresAt: null, lemonOrderId: null },
-    });
-    await prisma.promoCounter.update({ where: { id: 'launch_2026' }, data: { count: 0 } });
   });
 
   // For the failure-mode + retry tests we inject a REAL failure (delete the
@@ -223,12 +227,5 @@ describe('LS webhook (POST /api/webhooks/lemon) — idempotency-row transaction 
     expect(row).not.toBeNull();
     const user = await prisma.user.findUnique({ where: { id: TEST_USER_ID } });
     expect(user?.plan).toBe('paid');
-
-    // Reset state for any subsequent tests in this file
-    await prisma.user.update({
-      where: { id: TEST_USER_ID },
-      data: { plan: 'free', launchPriceUsed: false, planExpiresAt: null, lemonOrderId: null },
-    });
-    await prisma.promoCounter.update({ where: { id: 'launch_2026' }, data: { count: 0 } });
   });
 });
