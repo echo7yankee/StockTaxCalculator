@@ -42,6 +42,12 @@ export async function createStripeCheckoutSession(
     line_items: [{ price: priceId, quantity: 1 }],
     customer_email: args.email,
     client_reference_id: args.userId,
+    // Always create a Stripe Customer object on successful checkout. Without
+    // this, one-time payments leave session.customer = null, the webhook
+    // handler stores stripeCustomerId = NULL, and we lose customer-level
+    // grouping in the Stripe dashboard (lifetime value, repeat-purchase
+    // tracking, support lookup by email). Year-2 analytics depend on it.
+    customer_creation: 'always',
     metadata: {
       user_id: args.userId,
       discount_code: args.applyLaunchCoupon && launchCouponId ? 'LAUNCH2026' : '',
