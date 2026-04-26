@@ -160,6 +160,16 @@ test.describe('Scenario I: Login form validation', () => {
   });
 
   test('login button shows loading state', async ({ page }) => {
+    // Stall the login request so the loading state is observable. Without
+    // this delay, a localhost 401 (wrong creds) round-trips in <100ms and
+    // React batches setLoading(true) + setLoading(false) into one render —
+    // "Logging in..." never paints. The 500ms delay is invisible to humans
+    // but plenty for Playwright to assert against the loading text.
+    await page.route('**/api/auth/login', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await route.continue();
+    });
+
     await page.getByPlaceholder('you@example.com').fill('test@example.com');
     await page.getByPlaceholder('Enter your password').fill('WrongPassword123!');
 
