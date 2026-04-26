@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import * as Sentry from '@sentry/node';
 import prisma from '../lib/prisma.js';
 import { createStripeCheckoutSession, isStripeEnabled } from '../services/stripe.js';
 
@@ -21,6 +22,7 @@ paymentRouter.get('/promo-status', async (_req, res) => {
     res.json({ count: counter.count, limit: counter.limit, remaining: counter.limit - counter.count });
   } catch (err) {
     console.error('Promo status error:', err);
+    Sentry.captureException(err, { tags: { endpoint: 'payment.promoStatus' } });
     res.status(500).json({ error: 'Failed to fetch promo status' });
   }
 });
@@ -71,6 +73,19 @@ paymentRouter.get('/checkout', async (req, res) => {
       res.json({ checkoutUrl: result.url });
     } catch (err) {
       console.error('Stripe checkout error:', err);
+      // Stripe SDK errors carry .code (e.g. 'resource_missing' for the
+      // session #18 OCR'd price-ID bug) and .type (e.g. 'StripeInvalidRequestError').
+      // Surface both to Sentry so prod issues surface immediately rather than
+      // sitting in pm2 logs.
+      Sentry.captureException(err, {
+        tags: { endpoint: 'payment.checkout', provider: 'stripe' },
+        extra: {
+          userId: user.id,
+          applyLaunchCoupon,
+          stripeErrorCode: (err as { code?: string })?.code,
+          stripeErrorType: (err as { type?: string })?.type,
+        },
+      });
       res.status(502).json({ error: 'Failed to create checkout session' });
     }
     return;
@@ -140,6 +155,10 @@ paymentRouter.get('/checkout', async (req, res) => {
     res.json({ checkoutUrl });
   } catch (err) {
     console.error('Lemon Squeezy checkout error:', err);
+    Sentry.captureException(err, {
+      tags: { endpoint: 'payment.checkout', provider: 'lemon' },
+      extra: { userId: user.id },
+    });
     res.status(502).json({ error: 'Failed to create checkout session' });
   }
 });
