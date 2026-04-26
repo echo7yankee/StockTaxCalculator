@@ -395,13 +395,13 @@ export default function UploadPage() {
               onClick={() => handleTabChange('pdf')}
               className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'pdf'
-                  ? 'border-accent text-accent'
+                  ? 'border-accent text-accent dark:text-accent-light'
                   : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
               }`}
             >
               <FileText className="w-4 h-4" />
               {t('tabPdf')}
-              <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-accent/10 text-accent font-medium">
+              <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-accent/10 text-accent dark:text-accent-light font-medium">
                 {t('tabPdfRecommended')}
               </span>
             </button>
@@ -409,7 +409,7 @@ export default function UploadPage() {
               onClick={() => handleTabChange('csv')}
               className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'csv'
-                  ? 'border-accent text-accent'
+                  ? 'border-accent text-accent dark:text-accent-light'
                   : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
               }`}
             >
@@ -455,7 +455,7 @@ export default function UploadPage() {
             ) : (
               <>
                 {activeTab === 'pdf' ? (
-                  <FileText className="w-12 h-12 text-accent/60 mx-auto mb-4" />
+                  <FileText className="w-12 h-12 text-accent dark:text-accent-light/60 mx-auto mb-4" />
                 ) : (
                   <Upload className="w-12 h-12 text-gray-500 dark:text-slate-400 mx-auto mb-4" />
                 )}
@@ -503,7 +503,7 @@ export default function UploadPage() {
           <div className="card">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <FileText className="w-8 h-8 text-accent" />
+                <FileText className="w-8 h-8 text-accent dark:text-accent-light" />
                 <div>
                   <p className="font-semibold">{preview.fileName}</p>
                   <p className="text-sm text-gray-500 dark:text-slate-400">
@@ -634,7 +634,7 @@ export default function UploadPage() {
                 </div>
               </div>
               {rateLoading && (
-                <p className="text-xs text-accent mt-2">{t('fetchingRate')}</p>
+                <p className="text-xs text-accent dark:text-accent-light mt-2">{t('fetchingRate')}</p>
               )}
               {rateSource && !rateLoading && (
                 <p className="text-xs text-green-600 dark:text-green-400 mt-2">

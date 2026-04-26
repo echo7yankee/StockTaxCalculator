@@ -18,7 +18,7 @@ export default function CookieBanner() {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 p-4 sm:p-6 pointer-events-none">
       <div className="max-w-lg mx-auto bg-white dark:bg-navy-700 border border-gray-200 dark:border-navy-500 rounded-xl shadow-lg p-4 flex items-start gap-3 pointer-events-auto">
-        <Cookie className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
+        <Cookie className="w-5 h-5 text-accent dark:text-accent-light flex-shrink-0 mt-0.5" />
         <p className="text-sm text-gray-600 dark:text-slate-300 flex-1">
           {t('cookieBanner.message')}
         </p>

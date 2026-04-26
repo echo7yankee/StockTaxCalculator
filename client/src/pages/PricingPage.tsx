@@ -182,7 +182,7 @@ export default function PricingPage() {
             ))}
             {PAID_FEATURES.map(key => (
               <li key={key} className="flex items-start gap-3">
-                <Check className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+                <Check className="w-5 h-5 text-accent dark:text-accent-light shrink-0 mt-0.5" />
                 <span className="font-medium text-gray-900 dark:text-slate-100">{t(`features.${key}`)}</span>
               </li>
             ))}

@@ -82,7 +82,7 @@ export default function ResultsPage() {
         <div>
           <button
             onClick={() => navigate('/upload')}
-            className="flex items-center gap-1 text-sm text-gray-500 dark:text-slate-400 hover:text-accent mb-2 transition-colors"
+            className="flex items-center gap-1 text-sm text-gray-500 dark:text-slate-400 hover:text-accent dark:hover:text-accent-light mb-2 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" /> {t('common:backToUpload')}
           </button>
@@ -261,7 +261,7 @@ function SummaryCard({ icon, label, value, detail, color, highlight }: {
     green: 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400',
     blue: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400',
     purple: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400',
-    accent: 'bg-accent/10 text-accent',
+    accent: 'bg-accent/10 text-accent dark:text-accent-light',
   };
 
   return (

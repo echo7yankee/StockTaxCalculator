@@ -168,20 +168,20 @@ export default function Dashboard() {
       {/* Quick actions */}
       <div className="grid md:grid-cols-3 gap-6 mb-10">
         <Link to="/upload" className="card hover:border-accent transition-colors group">
-          <Upload className="w-8 h-8 text-accent mb-3" />
-          <h3 className="text-lg font-semibold mb-1 group-hover:text-accent transition-colors">{t('dashboard:uploadStatementTitle')}</h3>
+          <Upload className="w-8 h-8 text-accent dark:text-accent-light mb-3" />
+          <h3 className="text-lg font-semibold mb-1 group-hover:text-accent dark:hover:text-accent-light transition-colors">{t('dashboard:uploadStatementTitle')}</h3>
           <p className="text-sm text-gray-600 dark:text-slate-400">{t('dashboard:uploadStatementDesc')}</p>
         </Link>
 
         <Link to="/calculator" className="card hover:border-accent transition-colors group">
-          <Calculator className="w-8 h-8 text-accent mb-3" />
-          <h3 className="text-lg font-semibold mb-1 group-hover:text-accent transition-colors">{t('dashboard:quickCalculatorTitle')}</h3>
+          <Calculator className="w-8 h-8 text-accent dark:text-accent-light mb-3" />
+          <h3 className="text-lg font-semibold mb-1 group-hover:text-accent dark:hover:text-accent-light transition-colors">{t('dashboard:quickCalculatorTitle')}</h3>
           <p className="text-sm text-gray-600 dark:text-slate-400">{t('dashboard:quickCalculatorDesc')}</p>
         </Link>
 
         <Link to="/filing-guide" className="card hover:border-accent transition-colors group">
-          <ClipboardList className="w-8 h-8 text-accent mb-3" />
-          <h3 className="text-lg font-semibold mb-1 group-hover:text-accent transition-colors">{t('dashboard:filingGuideTitle')}</h3>
+          <ClipboardList className="w-8 h-8 text-accent dark:text-accent-light mb-3" />
+          <h3 className="text-lg font-semibold mb-1 group-hover:text-accent dark:hover:text-accent-light transition-colors">{t('dashboard:filingGuideTitle')}</h3>
           <p className="text-sm text-gray-600 dark:text-slate-400">{t('dashboard:filingGuideDesc')}</p>
         </Link>
       </div>
@@ -262,7 +262,7 @@ export default function Dashboard() {
                     className="border-b border-gray-100 dark:border-navy-700 hover:bg-navy-700/50 cursor-pointer transition-colors"
                   >
                     <td className="py-3 px-2 font-bold text-lg">
-                      {loadingId === ty.id ? <Loader2 className="w-5 h-5 animate-spin text-accent" /> : ty.year}
+                      {loadingId === ty.id ? <Loader2 className="w-5 h-5 animate-spin text-accent dark:text-accent-light" /> : ty.year}
                     </td>
                     <td className="py-3 px-2 hidden sm:table-cell">
                       <p className="text-gray-600 dark:text-slate-400 truncate max-w-[180px]">{ty.fileName || '-'}</p>
@@ -270,7 +270,7 @@ export default function Dashboard() {
                     <td className="text-right py-3 px-2 hidden md:table-cell">{fmt(ty.capitalGainsTax)}</td>
                     <td className="text-right py-3 px-2 hidden md:table-cell">{fmt(ty.dividendTaxOwed)}</td>
                     <td className="text-right py-3 px-2 hidden md:table-cell">{fmt(ty.cassOwed)}</td>
-                    <td className="text-right py-3 px-2 font-bold text-accent">{fmt(ty.totalTaxOwed)}</td>
+                    <td className="text-right py-3 px-2 font-bold text-accent dark:text-accent-light">{fmt(ty.totalTaxOwed)}</td>
                     <td className="text-right py-3 px-2 text-gray-500 dark:text-slate-400 text-xs hidden sm:table-cell">
                       {ty.calculatedAt ? new Date(ty.calculatedAt).toLocaleDateString() : '-'}
                     </td>

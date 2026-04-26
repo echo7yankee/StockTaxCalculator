@@ -47,7 +47,7 @@ export default function ContactPage() {
         {/* Support Card */}
         <div className="card flex flex-col items-center text-center p-8">
           <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mb-4">
-            <HelpCircle className="w-6 h-6 text-accent" />
+            <HelpCircle className="w-6 h-6 text-accent dark:text-accent-light" />
           </div>
           <h2 className="text-lg font-semibold mb-2">{t('support.title')}</h2>
           <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">{t('support.description')}</p>
@@ -64,7 +64,7 @@ export default function ContactPage() {
         {/* General Card */}
         <div className="card flex flex-col items-center text-center p-8">
           <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mb-4">
-            <MessageCircle className="w-6 h-6 text-accent" />
+            <MessageCircle className="w-6 h-6 text-accent dark:text-accent-light" />
           </div>
           <h2 className="text-lg font-semibold mb-2">{t('general.title')}</h2>
           <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">{t('general.description')}</p>
@@ -106,7 +106,7 @@ export default function ContactPage() {
           </p>
           <p className="flex items-center gap-2">
             <Mail className="w-4 h-4 flex-shrink-0" />
-            <a href={`mailto:${t('business.email')}`} className="text-accent hover:underline">
+            <a href={`mailto:${t('business.email')}`} className="text-accent dark:text-accent-light hover:underline">
               {t('business.email')}
             </a>
           </p>

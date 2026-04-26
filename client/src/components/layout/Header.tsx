@@ -57,7 +57,7 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 text-accent font-bold text-xl">
+          <Link to="/" className="flex items-center gap-2 text-accent dark:text-accent-light font-bold text-xl">
             <TrendingUp className="w-6 h-6" />
             <span>InvesTax</span>
           </Link>
@@ -70,7 +70,7 @@ export default function Header() {
                 to={link.to}
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   location.pathname === link.to
-                    ? 'bg-accent/10 text-accent'
+                    ? 'bg-accent/10 text-accent dark:text-accent-light'
                     : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 hover:bg-gray-100 dark:hover:bg-navy-700'
                 }`}
               >
@@ -197,7 +197,7 @@ export default function Header() {
                 to={link.to}
                 className={`block px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   location.pathname === link.to
-                    ? 'bg-accent/10 text-accent'
+                    ? 'bg-accent/10 text-accent dark:text-accent-light'
                     : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-navy-700'
                 }`}
               >
