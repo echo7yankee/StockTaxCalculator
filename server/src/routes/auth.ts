@@ -6,6 +6,7 @@ import * as Sentry from '@sentry/node';
 import { z } from 'zod/v4';
 import passport from '../config/passport.js';
 import prisma from '../lib/prisma.js';
+import { sendPasswordResetEmail, pickLanguage } from '../services/email.js';
 
 const signupSchema = z.object({
   email: z.email(),
@@ -308,12 +309,25 @@ authRouter.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
       data: { userId: user.id, token, expiresAt },
     });
 
-    // TODO: Send email via Resend when email infrastructure is set up
-    // For now, log the reset link in non-production environments
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
     const resetUrl = `${clientUrl}/reset-password?token=${token}`;
     if (process.env.NODE_ENV !== 'production') {
       console.log(`[DEV] Password reset link for ${email}: ${resetUrl}`);
+    }
+
+    try {
+      await sendPasswordResetEmail({
+        to: email,
+        resetUrl,
+        language: pickLanguage(req.headers['accept-language']),
+      });
+    } catch (emailErr) {
+      // Email send failure must not leak through the always-success response.
+      // Token is in the DB regardless; user can request again if email never arrives.
+      console.error('[Email] Password reset send failed:', emailErr);
+      Sentry.captureException(emailErr, {
+        tags: { endpoint: 'auth.forgotPassword.email' },
+      });
     }
 
     res.json(successResponse);
