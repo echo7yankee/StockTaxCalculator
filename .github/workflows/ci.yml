@@ -101,18 +101,10 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # TEMPORARY informational mode (added session #19 with this job's first run).
-    # ~16 of ~216 E2E tests fail in clean CI env due to pre-existing issues:
-    #   - OAuth tests assume GOOGLE_CLIENT_ID is configured (CI doesn't have it)
-    #   - Some specs use page.request without sharing session cookies
-    #   - verify-a11y finds real color-contrast violations on landing page
-    # None of these are introduced by the e2e-in-CI change itself. Rather than
-    # block all PRs on fixing pre-existing breakage, this job runs informationally
-    # while individual test failures get fixed in follow-up PRs. Once the failure
-    # count is zero, REMOVE this `continue-on-error` line so E2E becomes a hard
-    # gate. Tracked as a launch-sprint TODO in 09-backlog-and-discipline.md
-    # Section 8.2 (or move to 8.1 once scope is clear).
-    continue-on-error: true
+    # E2E is a hard merge gate. The 16 pre-existing failures present at this
+    # job's introduction (session #19, PR #48) were fixed across PRs #49 (timing),
+    # #52 (OAuth conditional skip), and #53 (WCAG color-contrast). If a run looks
+    # like flake, retry it; do not reintroduce continue-on-error to bypass.
     container:
       # Same pinned Linux image used by .github/workflows/visual-baselines.yml
       # and scripts/verify-visual.ts — browsers + system deps pre-installed
