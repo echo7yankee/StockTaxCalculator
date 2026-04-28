@@ -2,7 +2,9 @@ import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import bcrypt from 'bcryptjs';
+import * as Sentry from '@sentry/node';
 import prisma from '../lib/prisma.js';
+import { sendWelcomeEmail } from '../services/email.js';
 
 // Serialize: store user id in session
 passport.serializeUser((user, done) => {
@@ -87,6 +89,19 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
           // Create new user
           user = await prisma.user.create({
             data: { email, name, googleId, plan: 'free' },
+          });
+          // Fire-and-forget welcome email for brand-new Google signups only
+          // (the account-linking branch above does NOT trigger this — that user already had an account)
+          sendWelcomeEmail({
+            to: user.email,
+            name: user.name,
+            language: 'ro',
+            clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
+          }).catch((emailErr) => {
+            console.error('[Email] Welcome send failed (Google signup):', emailErr);
+            Sentry.captureException(emailErr, {
+              tags: { endpoint: 'auth.googleSignup.welcomeEmail' },
+            });
           });
           return done(null, user);
         } catch (err) {

@@ -140,3 +140,143 @@ If you didn't request this, ignore this email. Your current password is unchange
 
 InvesTax · investax.app`;
 }
+
+export interface WelcomeEmailParams {
+  to: string;
+  name: string | null;
+  language: Language;
+  clientUrl: string;
+}
+
+export async function sendWelcomeEmail(
+  params: WelcomeEmailParams
+): Promise<void> {
+  const { to, name, language, clientUrl } = params;
+  const subject =
+    language === 'ro' ? 'Bun venit la InvesTax!' : 'Welcome to InvesTax!';
+
+  await postToResend({
+    from: FROM_ADDRESS,
+    to,
+    subject,
+    html:
+      language === 'ro'
+        ? renderWelcomeHtmlRo(name, clientUrl)
+        : renderWelcomeHtmlEn(name, clientUrl),
+    text:
+      language === 'ro'
+        ? renderWelcomeTextRo(name, clientUrl)
+        : renderWelcomeTextEn(name, clientUrl),
+  });
+}
+
+function renderWelcomeHtmlRo(name: string | null, clientUrl: string): string {
+  const greeting = name ? `Bun venit, ${escapeHtml(name)}!` : 'Bun venit!';
+  return `<!DOCTYPE html>
+<html lang="ro">
+<body style="font-family:system-ui,sans-serif;background:#f5f5f5;padding:24px;color:#0b1426;">
+  <table cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;padding:32px;">
+    <tr><td>
+      <h1 style="margin:0 0 16px;font-size:22px;">${greeting}</h1>
+      <p style="margin:0 0 16px;line-height:1.5;">Contul tău InvesTax a fost creat cu succes. Ești gata să calculezi taxele pe câștigurile din investiții pentru anul fiscal 2025.</p>
+      <p style="margin:0 0 16px;line-height:1.5;">Iată câteva locuri de unde poți începe:</p>
+      <table cellpadding="0" cellspacing="0" style="margin:24px 0;width:100%;">
+        <tr>
+          <td style="padding:0 0 12px;">
+            <a href="${clientUrl}/calculator" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600;">Deschide calculatorul gratuit</a>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 0 12px;font-size:14px;">
+            <a href="${clientUrl}/pricing" style="color:#2563eb;text-decoration:none;">Vezi planul anual cu reducere de lansare</a>
+          </td>
+        </tr>
+        <tr>
+          <td style="font-size:14px;">
+            <a href="${clientUrl}/filing-guide" style="color:#2563eb;text-decoration:none;">Citește ghidul Declarația Unică</a>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:24px 0 0;font-size:13px;color:#6b7280;">Întrebări? Scrie-ne la <a href="mailto:support@investax.app" style="color:#2563eb;">support@investax.app</a>. Răspundem în maxim 24 de ore în zilele lucrătoare.</p>
+    </td></tr>
+  </table>
+  <p style="text-align:center;margin:16px 0 0;font-size:12px;color:#6b7280;">InvesTax · investax.app</p>
+</body>
+</html>`;
+}
+
+function renderWelcomeHtmlEn(name: string | null, clientUrl: string): string {
+  const greeting = name ? `Welcome, ${escapeHtml(name)}!` : 'Welcome!';
+  return `<!DOCTYPE html>
+<html lang="en">
+<body style="font-family:system-ui,sans-serif;background:#f5f5f5;padding:24px;color:#0b1426;">
+  <table cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;padding:32px;">
+    <tr><td>
+      <h1 style="margin:0 0 16px;font-size:22px;">${greeting}</h1>
+      <p style="margin:0 0 16px;line-height:1.5;">Your InvesTax account is ready. You can now calculate taxes on your investment gains for tax year 2025.</p>
+      <p style="margin:0 0 16px;line-height:1.5;">Here are a few places to start:</p>
+      <table cellpadding="0" cellspacing="0" style="margin:24px 0;width:100%;">
+        <tr>
+          <td style="padding:0 0 12px;">
+            <a href="${clientUrl}/calculator" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600;">Open the free calculator</a>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 0 12px;font-size:14px;">
+            <a href="${clientUrl}/pricing" style="color:#2563eb;text-decoration:none;">See the annual plan with launch discount</a>
+          </td>
+        </tr>
+        <tr>
+          <td style="font-size:14px;">
+            <a href="${clientUrl}/filing-guide" style="color:#2563eb;text-decoration:none;">Read the Declarația Unică filing guide</a>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:24px 0 0;font-size:13px;color:#6b7280;">Questions? Email us at <a href="mailto:support@investax.app" style="color:#2563eb;">support@investax.app</a>. We reply within 24 hours on business days.</p>
+    </td></tr>
+  </table>
+  <p style="text-align:center;margin:16px 0 0;font-size:12px;color:#6b7280;">InvesTax · investax.app</p>
+</body>
+</html>`;
+}
+
+function renderWelcomeTextRo(name: string | null, clientUrl: string): string {
+  const greeting = name ? `Bun venit, ${name}!` : 'Bun venit!';
+  return `${greeting}
+
+Contul tău InvesTax a fost creat cu succes. Ești gata să calculezi taxele pe câștigurile din investiții pentru anul fiscal 2025.
+
+Locuri de unde poți începe:
+- Calculator gratuit: ${clientUrl}/calculator
+- Planul anual cu reducere de lansare: ${clientUrl}/pricing
+- Ghidul Declarația Unică: ${clientUrl}/filing-guide
+
+Întrebări? Scrie-ne la support@investax.app.
+
+InvesTax · investax.app`;
+}
+
+function renderWelcomeTextEn(name: string | null, clientUrl: string): string {
+  const greeting = name ? `Welcome, ${name}!` : 'Welcome!';
+  return `${greeting}
+
+Your InvesTax account is ready. You can now calculate taxes on your investment gains for tax year 2025.
+
+Places to start:
+- Free calculator: ${clientUrl}/calculator
+- Annual plan with launch discount: ${clientUrl}/pricing
+- Declarația Unică filing guide: ${clientUrl}/filing-guide
+
+Questions? Email us at support@investax.app.
+
+InvesTax · investax.app`;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
