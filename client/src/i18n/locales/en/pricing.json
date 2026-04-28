@@ -7,6 +7,8 @@
   "perYear": "/year",
   "launchPrice": "Launch special",
   "loadingPromo": "Loading launch offer",
+  "checkoutErrorUnavailable": "Payment provider is temporarily unavailable. Please try again in a moment.",
+  "checkoutErrorGeneric": "Something went wrong. Please try again.",
   "launchSpotsLeft": "{{remaining}}/{{limit}} launch spots left",
   "launchSoldOut": "Launch special sold out",
   "regularPrice": "Regular price: {{price}}",

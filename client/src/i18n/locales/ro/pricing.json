@@ -7,6 +7,8 @@
   "perYear": "/an",
   "launchPrice": "Ofertă de lansare",
   "loadingPromo": "Se încarcă oferta de lansare",
+  "checkoutErrorUnavailable": "Procesatorul de plăți este temporar indisponibil. Încearcă din nou în câteva momente.",
+  "checkoutErrorGeneric": "Ceva nu a mers. Încearcă din nou.",
   "launchSpotsLeft": "{{remaining}}/{{limit}} locuri rămase",
   "launchSoldOut": "Oferta de lansare s-a epuizat",
   "regularPrice": "Preț normal: {{price}}",

@@ -1,7 +1,13 @@
 import { Router } from 'express';
 import * as Sentry from '@sentry/node';
 import prisma from '../lib/prisma.js';
-import { createStripeCheckoutSession, isStripeEnabled } from '../services/stripe.js';
+import { createStripeCheckoutSession, isStripeEnabled, StripeCheckoutError } from '../services/stripe.js';
+
+// Single user-facing message for "the payment provider tripped on something
+// that is almost certainly transient." Client translates by status code; this
+// English fallback is for non-i18n consumers (curl, tests, future API users).
+const CHECKOUT_UNAVAILABLE_MESSAGE =
+  'Payment provider temporarily unavailable, please try again in a moment';
 
 export const paymentRouter = Router();
 
@@ -73,20 +79,16 @@ paymentRouter.get('/checkout', async (req, res) => {
       res.json({ checkoutUrl: result.url });
     } catch (err) {
       console.error('Stripe checkout error:', err);
-      // Stripe SDK errors carry .code (e.g. 'resource_missing' for the
-      // session #18 OCR'd price-ID bug) and .type (e.g. 'StripeInvalidRequestError').
-      // Surface both to Sentry so prod issues surface immediately rather than
-      // sitting in pm2 logs.
-      Sentry.captureException(err, {
-        tags: { endpoint: 'payment.checkout', provider: 'stripe' },
-        extra: {
-          userId: user.id,
-          applyLaunchCoupon,
-          stripeErrorCode: (err as { code?: string })?.code,
-          stripeErrorType: (err as { type?: string })?.type,
-        },
-      });
-      res.status(502).json({ error: 'Failed to create checkout session' });
+      // StripeCheckoutError is already captured in services/stripe.ts with
+      // service+op tags; only capture here for unexpected non-Stripe errors so
+      // we don't double-fire Sentry on the same incident.
+      if (!(err instanceof StripeCheckoutError)) {
+        Sentry.captureException(err, {
+          tags: { endpoint: 'payment.checkout', provider: 'stripe' },
+          extra: { userId: user.id, applyLaunchCoupon },
+        });
+      }
+      res.status(502).json({ error: CHECKOUT_UNAVAILABLE_MESSAGE });
     }
     return;
   }
@@ -139,7 +141,7 @@ paymentRouter.get('/checkout', async (req, res) => {
     if (!response.ok) {
       const errorBody = await response.text();
       console.error('Lemon Squeezy checkout API error:', response.status, errorBody);
-      res.status(502).json({ error: 'Failed to create checkout session' });
+      res.status(502).json({ error: CHECKOUT_UNAVAILABLE_MESSAGE });
       return;
     }
 
@@ -148,7 +150,7 @@ paymentRouter.get('/checkout', async (req, res) => {
 
     if (!checkoutUrl) {
       console.error('Lemon Squeezy checkout response missing URL:', JSON.stringify(result));
-      res.status(502).json({ error: 'Failed to create checkout session' });
+      res.status(502).json({ error: CHECKOUT_UNAVAILABLE_MESSAGE });
       return;
     }
 
@@ -159,7 +161,7 @@ paymentRouter.get('/checkout', async (req, res) => {
       tags: { endpoint: 'payment.checkout', provider: 'lemon' },
       extra: { userId: user.id },
     });
-    res.status(502).json({ error: 'Failed to create checkout session' });
+    res.status(502).json({ error: CHECKOUT_UNAVAILABLE_MESSAGE });
   }
 });
 

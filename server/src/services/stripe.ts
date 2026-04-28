@@ -1,4 +1,22 @@
 import Stripe from 'stripe';
+import * as Sentry from '@sentry/node';
+
+// Typed wrapper so callers can distinguish "Stripe API call failed" from
+// "Stripe not configured" (which returns null) and from other unrelated errors.
+export class StripeCheckoutError extends Error {
+  readonly cause: unknown;
+  readonly stripeCode: string | undefined;
+  readonly stripeType: string | undefined;
+  constructor(cause: unknown) {
+    const code = (cause as { code?: string })?.code;
+    const type = (cause as { type?: string })?.type;
+    super(`Stripe checkout creation failed${code ? ` (${code})` : ''}`);
+    this.name = 'StripeCheckoutError';
+    this.cause = cause;
+    this.stripeCode = code;
+    this.stripeType = type;
+  }
+}
 
 let stripeClient: Stripe | null = null;
 
@@ -60,7 +78,23 @@ export async function createStripeCheckoutSession(
     params.discounts = [{ coupon: launchCouponId }];
   }
 
-  const session = await stripe.checkout.sessions.create(params);
+  // Capture Stripe SDK errors at the source so they're tagged consistently
+  // (regardless of which caller invokes this). The route then converts the
+  // typed wrapper into a user-facing 502 without recapturing.
+  let session;
+  try {
+    session = await stripe.checkout.sessions.create(params);
+  } catch (err) {
+    Sentry.captureException(err, {
+      tags: { service: 'stripe', op: 'checkout.create' },
+      extra: {
+        userId: args.userId,
+        applyLaunchCoupon: args.applyLaunchCoupon,
+        priceId,
+      },
+    });
+    throw new StripeCheckoutError(err);
+  }
   if (!session.url) return null;
   return { url: session.url };
 }
