@@ -280,3 +280,163 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+
+export interface PaymentConfirmationEmailParams {
+  to: string;
+  name: string | null;
+  amountMinorUnits: number;
+  currency: string;
+  orderId: string;
+  expiresAt: Date;
+  language: Language;
+  clientUrl: string;
+}
+
+export async function sendPaymentConfirmationEmail(
+  params: PaymentConfirmationEmailParams
+): Promise<void> {
+  const { to, name, amountMinorUnits, currency, orderId, expiresAt, language, clientUrl } =
+    params;
+  const subject =
+    language === 'ro'
+      ? 'Mulțumim pentru achiziție!'
+      : 'Thanks for your purchase!';
+
+  const amountFormatted = formatAmount(amountMinorUnits, currency);
+  const expiresAtFormatted = expiresAt.toISOString().slice(0, 10);
+
+  await postToResend({
+    from: FROM_ADDRESS,
+    to,
+    subject,
+    html:
+      language === 'ro'
+        ? renderConfirmationHtmlRo(name, amountFormatted, expiresAtFormatted, orderId, clientUrl)
+        : renderConfirmationHtmlEn(name, amountFormatted, expiresAtFormatted, orderId, clientUrl),
+    text:
+      language === 'ro'
+        ? renderConfirmationTextRo(name, amountFormatted, expiresAtFormatted, orderId, clientUrl)
+        : renderConfirmationTextEn(name, amountFormatted, expiresAtFormatted, orderId, clientUrl),
+  });
+}
+
+// Stripe amount_total is in the smallest currency unit (cents for EUR/USD/GBP).
+// All InvesTax pricing is EUR-only at launch; this format works for any 2-decimal currency.
+function formatAmount(amountMinorUnits: number, currency: string): string {
+  const major = (amountMinorUnits / 100).toFixed(2);
+  return `${major} ${currency.toUpperCase()}`;
+}
+
+function renderConfirmationHtmlRo(
+  name: string | null,
+  amount: string,
+  expiresAt: string,
+  orderId: string,
+  clientUrl: string
+): string {
+  const greeting = name ? `Mulțumim, ${escapeHtml(name)}!` : 'Mulțumim!';
+  return `<!DOCTYPE html>
+<html lang="ro">
+<body style="font-family:system-ui,sans-serif;background:#f5f5f5;padding:24px;color:#0b1426;">
+  <table cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;padding:32px;">
+    <tr><td>
+      <h1 style="margin:0 0 16px;font-size:22px;">${greeting}</h1>
+      <p style="margin:0 0 16px;line-height:1.5;">Plata ta a fost procesată cu succes. Acum ai acces complet la InvesTax pentru un an.</p>
+      <table cellpadding="8" cellspacing="0" style="width:100%;background:#f8fafc;border-radius:6px;margin:0 0 24px;font-size:14px;">
+        <tr><td style="color:#6b7280;">Plan</td><td style="text-align:right;">InvesTax Annual Access</td></tr>
+        <tr><td style="color:#6b7280;">Sumă</td><td style="text-align:right;">${amount}</td></tr>
+        <tr><td style="color:#6b7280;">Acces până la</td><td style="text-align:right;">${expiresAt}</td></tr>
+        <tr><td style="color:#6b7280;">ID comandă</td><td style="text-align:right;font-family:monospace;font-size:12px;">${escapeHtml(orderId)}</td></tr>
+      </table>
+      <p style="margin:24px 0;">
+        <a href="${clientUrl}/upload" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600;">Încarcă extrasul tău anual</a>
+      </p>
+      <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Următorul pas: încarcă extrasul anual PDF de la Trading212 și primești în 2 minute toate cifrele de care ai nevoie pentru Declarația Unică.</p>
+      <p style="margin:16px 0 0;font-size:13px;color:#6b7280;">Vei primi separat o chitanță Stripe pentru această plată. Pentru orice întrebare, scrie-ne la <a href="mailto:support@investax.app" style="color:#2563eb;">support@investax.app</a>.</p>
+    </td></tr>
+  </table>
+  <p style="text-align:center;margin:16px 0 0;font-size:12px;color:#6b7280;">InvesTax · investax.app</p>
+</body>
+</html>`;
+}
+
+function renderConfirmationHtmlEn(
+  name: string | null,
+  amount: string,
+  expiresAt: string,
+  orderId: string,
+  clientUrl: string
+): string {
+  const greeting = name ? `Thank you, ${escapeHtml(name)}!` : 'Thank you!';
+  return `<!DOCTYPE html>
+<html lang="en">
+<body style="font-family:system-ui,sans-serif;background:#f5f5f5;padding:24px;color:#0b1426;">
+  <table cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;padding:32px;">
+    <tr><td>
+      <h1 style="margin:0 0 16px;font-size:22px;">${greeting}</h1>
+      <p style="margin:0 0 16px;line-height:1.5;">Your payment has been processed successfully. You now have full access to InvesTax for one year.</p>
+      <table cellpadding="8" cellspacing="0" style="width:100%;background:#f8fafc;border-radius:6px;margin:0 0 24px;font-size:14px;">
+        <tr><td style="color:#6b7280;">Plan</td><td style="text-align:right;">InvesTax Annual Access</td></tr>
+        <tr><td style="color:#6b7280;">Amount</td><td style="text-align:right;">${amount}</td></tr>
+        <tr><td style="color:#6b7280;">Access until</td><td style="text-align:right;">${expiresAt}</td></tr>
+        <tr><td style="color:#6b7280;">Order ID</td><td style="text-align:right;font-family:monospace;font-size:12px;">${escapeHtml(orderId)}</td></tr>
+      </table>
+      <p style="margin:24px 0;">
+        <a href="${clientUrl}/upload" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600;">Upload your annual statement</a>
+      </p>
+      <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Next step: upload your Trading212 annual PDF statement and get all the numbers you need for the Declarația Unică in two minutes.</p>
+      <p style="margin:16px 0 0;font-size:13px;color:#6b7280;">A separate Stripe receipt for this payment will arrive shortly. For any question, email us at <a href="mailto:support@investax.app" style="color:#2563eb;">support@investax.app</a>.</p>
+    </td></tr>
+  </table>
+  <p style="text-align:center;margin:16px 0 0;font-size:12px;color:#6b7280;">InvesTax · investax.app</p>
+</body>
+</html>`;
+}
+
+function renderConfirmationTextRo(
+  name: string | null,
+  amount: string,
+  expiresAt: string,
+  orderId: string,
+  clientUrl: string
+): string {
+  const greeting = name ? `Mulțumim, ${name}!` : 'Mulțumim!';
+  return `${greeting}
+
+Plata ta a fost procesată cu succes. Acum ai acces complet la InvesTax pentru un an.
+
+Plan: InvesTax Annual Access
+Sumă: ${amount}
+Acces până la: ${expiresAt}
+ID comandă: ${orderId}
+
+Următorul pas: ${clientUrl}/upload — încarcă extrasul anual PDF de la Trading212.
+
+Vei primi separat o chitanță Stripe pentru această plată. Pentru orice întrebare, scrie-ne la support@investax.app.
+
+InvesTax · investax.app`;
+}
+
+function renderConfirmationTextEn(
+  name: string | null,
+  amount: string,
+  expiresAt: string,
+  orderId: string,
+  clientUrl: string
+): string {
+  const greeting = name ? `Thank you, ${name}!` : 'Thank you!';
+  return `${greeting}
+
+Your payment has been processed successfully. You now have full access to InvesTax for one year.
+
+Plan: InvesTax Annual Access
+Amount: ${amount}
+Access until: ${expiresAt}
+Order ID: ${orderId}
+
+Next step: ${clientUrl}/upload — upload your Trading212 annual PDF statement.
+
+A separate Stripe receipt will arrive shortly. For any question, email us at support@investax.app.
+
+InvesTax · investax.app`;
+}

@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { sendPasswordResetEmail, sendWelcomeEmail, pickLanguage } from '../email.js';
+import {
+  sendPasswordResetEmail,
+  sendWelcomeEmail,
+  sendPaymentConfirmationEmail,
+  pickLanguage,
+} from '../email.js';
 
 const RESET_URL = 'https://investax.app/reset-password?token=abc123';
 const CLIENT_URL = 'https://investax.app';
@@ -241,6 +246,118 @@ describe('sendWelcomeEmail', () => {
         language: 'ro',
         clientUrl: CLIENT_URL,
       })
+    ).resolves.toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+    logSpy.mockRestore();
+  });
+});
+
+describe('sendPaymentConfirmationEmail', () => {
+  const originalFetch = global.fetch;
+  const originalEnv = process.env.RESEND_API_KEY;
+  const originalNodeEnv = process.env.NODE_ENV;
+
+  const baseParams = {
+    to: 'paid@example.com',
+    name: 'Dragos',
+    amountMinorUnits: 1200,
+    currency: 'eur',
+    orderId: 'cs_live_a1b2c3',
+    expiresAt: new Date('2027-04-28T10:00:00.000Z'),
+    clientUrl: CLIENT_URL,
+  };
+
+  beforeEach(() => {
+    process.env.RESEND_API_KEY = 'test_key_123';
+    process.env.NODE_ENV = 'test';
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.RESEND_API_KEY = originalEnv;
+    process.env.NODE_ENV = originalNodeEnv;
+    vi.restoreAllMocks();
+  });
+
+  it('posts a Romanian confirmation with formatted amount, expiry, order ID, and upload CTA', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: 'email_pay_ro' }), { status: 200 })
+    );
+    global.fetch = fetchMock;
+
+    await sendPaymentConfirmationEmail({ ...baseParams, language: 'ro' });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.subject).toBe('Mulțumim pentru achiziție!');
+    expect(body.to).toBe('paid@example.com');
+    expect(body.html).toContain('Mulțumim, Dragos!');
+    expect(body.html).toContain('12.00 EUR');
+    expect(body.html).toContain('2027-04-28');
+    expect(body.html).toContain('cs_live_a1b2c3');
+    expect(body.html).toContain(`${CLIENT_URL}/upload`);
+    expect(body.text).toContain('Mulțumim, Dragos!');
+    expect(body.text).toContain('12.00 EUR');
+    expect(body.text).toContain(`${CLIENT_URL}/upload`);
+  });
+
+  it('posts an English confirmation when language is en', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: 'email_pay_en' }), { status: 200 })
+    );
+    global.fetch = fetchMock;
+
+    await sendPaymentConfirmationEmail({ ...baseParams, language: 'en' });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.subject).toBe('Thanks for your purchase!');
+    expect(body.html).toContain('Thank you, Dragos!');
+    expect(body.html).toContain('12.00 EUR');
+    expect(body.text).toContain('Thank you, Dragos!');
+  });
+
+  it('formats amount correctly across minor-unit values and uppercases currency', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendPaymentConfirmationEmail({
+      ...baseParams,
+      amountMinorUnits: 1900,
+      currency: 'usd',
+      language: 'ro',
+    });
+    const body1 = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body1.html).toContain('19.00 USD');
+
+    fetchMock.mockClear();
+    await sendPaymentConfirmationEmail({
+      ...baseParams,
+      amountMinorUnits: 0,
+      currency: 'eur',
+      language: 'en',
+    });
+    const body2 = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body2.html).toContain('0.00 EUR');
+  });
+
+  it('throws when Resend returns non-2xx so the caller can capture in Sentry', async () => {
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response('boom', { status: 500 })
+    );
+    await expect(
+      sendPaymentConfirmationEmail({ ...baseParams, language: 'ro' })
+    ).rejects.toThrow(/Resend API 500/);
+  });
+
+  it('silently skips and does NOT call fetch when RESEND_API_KEY is unset', async () => {
+    delete process.env.RESEND_API_KEY;
+    const fetchMock = vi.fn();
+    global.fetch = fetchMock;
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await expect(
+      sendPaymentConfirmationEmail({ ...baseParams, language: 'ro' })
     ).resolves.toBeUndefined();
     expect(fetchMock).not.toHaveBeenCalled();
     warnSpy.mockRestore();
