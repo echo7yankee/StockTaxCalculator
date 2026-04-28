@@ -1,8 +1,27 @@
 import { Router } from 'express';
 import type Stripe from 'stripe';
 import type { Prisma } from '@prisma/client';
+import * as Sentry from '@sentry/node';
 import prisma from '../lib/prisma.js';
 import { getStripeInstance } from '../services/stripe.js';
+import { sendPaymentConfirmationEmail } from '../services/email.js';
+
+type Language = 'ro' | 'en';
+
+interface ConfirmationEmailJob {
+  to: string;
+  name: string | null;
+  amountMinorUnits: number;
+  currency: string;
+  orderId: string;
+  expiresAt: Date;
+  language: Language;
+}
+
+function pickStripeLocaleLanguage(locale: string | null | undefined): Language {
+  if (typeof locale !== 'string') return 'ro';
+  return locale.toLowerCase().startsWith('en') ? 'en' : 'ro';
+}
 
 export const stripeWebhookRouter = Router();
 
@@ -47,6 +66,8 @@ stripeWebhookRouter.post('/', async (req, res) => {
   // pass the fast-path check (no row exists), and reprocess. Without this, a failure mid-
   // processing would leave the idempotency row committed and permanently mask the failure
   // from retries — the user's plan would never upgrade despite a successful charge.
+  let confirmationEmailJob: ConfirmationEmailJob | null = null;
+
   try {
     await prisma.$transaction(async (tx) => {
       await tx.webhookEvent.create({
@@ -99,6 +120,19 @@ stripeWebhookRouter.post('/', async (req, res) => {
 
           await tx.user.update({ where: { id: userId }, data: updateData });
           console.log(`[Stripe] User ${userId} upgraded to paid plan (expires ${expiresAt.toISOString()})`);
+
+          // Stage the confirmation email send for AFTER the transaction commits successfully.
+          // Sending inside the transaction would dispatch even on rollback; staging keeps the
+          // upgrade and the email send strictly correlated.
+          confirmationEmailJob = {
+            to: user.email,
+            name: user.name,
+            amountMinorUnits: session.amount_total ?? 0,
+            currency: session.currency || 'eur',
+            orderId: session.id,
+            expiresAt,
+            language: pickStripeLocaleLanguage(session.locale),
+          };
           break;
         }
 
@@ -133,6 +167,22 @@ stripeWebhookRouter.post('/', async (req, res) => {
           console.log(`[Stripe] Unhandled webhook event: ${event.type}`);
       }
     });
+
+    // Fire-and-forget the confirmation email AFTER successful transaction commit.
+    // Don't await — we don't want to delay the 2xx ack to Stripe, and a Resend hiccup must
+    // never roll back the user's confirmed upgrade.
+    if (confirmationEmailJob) {
+      const job: ConfirmationEmailJob = confirmationEmailJob;
+      sendPaymentConfirmationEmail({
+        ...job,
+        clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
+      }).catch((emailErr) => {
+        console.error('[Email] Payment confirmation send failed:', emailErr);
+        Sentry.captureException(emailErr, {
+          tags: { endpoint: 'webhook.stripe.paymentConfirmationEmail' },
+        });
+      });
+    }
 
     res.json({ ok: true });
   } catch (err) {
