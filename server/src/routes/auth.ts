@@ -6,7 +6,7 @@ import * as Sentry from '@sentry/node';
 import { z } from 'zod/v4';
 import passport from '../config/passport.js';
 import prisma from '../lib/prisma.js';
-import { sendPasswordResetEmail, pickLanguage } from '../services/email.js';
+import { sendPasswordResetEmail, sendWelcomeEmail, pickLanguage } from '../services/email.js';
 
 const signupSchema = z.object({
   email: z.email(),
@@ -113,6 +113,18 @@ authRouter.post('/signup', signupLimiter, async (req, res, next) => {
     // Auto-login after signup
     req.login(user, (err) => {
       if (err) return next(err);
+      // Fire-and-forget welcome email — don't block response, don't fail signup if Resend errors
+      sendWelcomeEmail({
+        to: user.email,
+        name: user.name,
+        language: pickLanguage(req.headers['accept-language']),
+        clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
+      }).catch((emailErr) => {
+        console.error('[Email] Welcome send failed:', emailErr);
+        Sentry.captureException(emailErr, {
+          tags: { endpoint: 'auth.signup.welcomeEmail' },
+        });
+      });
       res.status(201).json({ user: sanitizeUser(user) });
     });
   } catch (err) {
