@@ -69,16 +69,21 @@ export default function PricingPage() {
     setCheckoutLoading(true);
     try {
       const res = await fetch('/api/payment/checkout', { credentials: 'include' });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.ok && data.checkoutUrl) {
         analytics.checkoutStarted();
         window.location.href = data.checkoutUrl;
+      } else if (res.status === 502) {
+        // Payment provider tripped on something almost certainly transient — show
+        // the user-translated friendly message rather than the raw English server text.
+        alert(t('checkoutErrorUnavailable'));
       } else {
-        // Payment system not configured yet — show friendly message
-        alert(data.error || 'Payment system is being set up. Please try again soon.');
+        // 503 (not configured) or other unexpected response — fall back to
+        // server-provided message if any, otherwise generic.
+        alert(data.error || t('checkoutErrorGeneric'));
       }
     } catch {
-      alert('Something went wrong. Please try again.');
+      alert(t('checkoutErrorGeneric'));
     } finally {
       setCheckoutLoading(false);
     }
