@@ -24,3 +24,5 @@ investax-docs/
 scripts/reports/*
 !scripts/reports/.gitkeep
 **tsconfig.tsbuildinfo
+e2e/visual-regression.spec.ts-snapshots/*-win32.png
+e2e/visual-regression.spec.ts-snapshots/*-darwin.png
