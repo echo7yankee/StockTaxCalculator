@@ -172,11 +172,16 @@ async function runLighthouse(baseUrl: string): Promise<StepResult> {
 async function runLinkChecker(baseUrl: string): Promise<StepResult> {
   console.log(chalk.cyan('\n▶ Broken-link crawler'));
 
-  // broken-link-checker is a CJS package with no types — dynamic import gives
-  // us a clean .default handle without polluting the tsconfig.
-  const { SiteChecker } = (await import('broken-link-checker')) as unknown as {
-    SiteChecker: new (opts: unknown, handlers: unknown) => { enqueue: (url: string) => void };
+  // broken-link-checker is a CJS package with no types. The named exports
+  // live on the module's `.default` (as of v0.7.8) — destructuring from the
+  // top of the import returns undefined and crashes with
+  // "TypeError: SiteChecker is not a constructor". Reach through .default.
+  const blcModule = (await import('broken-link-checker')) as unknown as {
+    default: {
+      SiteChecker: new (opts: unknown, handlers: unknown) => { enqueue: (url: string) => void };
+    };
   };
+  const { SiteChecker } = blcModule.default;
 
   const broken: string[] = [];
   const baseOrigin = new URL(baseUrl).origin;
