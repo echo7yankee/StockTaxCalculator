@@ -89,14 +89,15 @@ i18n
       },
     },
     // Romania is the launch market; default everyone to Romanian unless
-    // they have explicitly switched via Settings (cached in localStorage).
-    // navigator detection was removed because Googlebot/crawlers send
-    // Accept-Language: en, which caused investax.app to be indexed with
-    // English meta on Google.ro searches.
+    // they have explicitly switched via Settings (cached in localStorage)
+    // or arrived via a ?lng=en deep link. navigator detection was removed
+    // because Googlebot/crawlers send Accept-Language: en, which caused
+    // investax.app to be indexed with English meta on Google.ro searches.
     fallbackLng: 'ro',
     defaultNS: 'common',
     detection: {
-      order: ['localStorage'],
+      order: ['querystring', 'localStorage'],
+      lookupQuerystring: 'lng',
       lookupLocalStorage: 'language',
       caches: ['localStorage'],
     },
