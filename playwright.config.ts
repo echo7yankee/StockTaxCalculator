@@ -1,5 +1,8 @@
 import { defineConfig } from '@playwright/test';
 
+const baseURL = process.env.BASE_URL || 'http://localhost:5173';
+const baseOrigin = new URL(baseURL).origin;
+
 export default defineConfig({
   testDir: './e2e',
   // Visual regression has its own dedicated runner (.github/workflows/visual-baselines.yml
@@ -11,9 +14,24 @@ export default defineConfig({
   timeout: 30_000,
   retries: 0,
   use: {
-    baseURL: process.env.BASE_URL || 'http://localhost:5173',
+    baseURL,
     headless: true,
     screenshot: 'only-on-failure',
+    // Force English UI in the E2E suite. Production defaults to Romanian
+    // (PR #63 — SEO targeting Romanian Google results), but the E2E specs
+    // were authored against English copy. Seeding localStorage.language='en'
+    // for every browser context makes i18n pick English on first paint via
+    // the localStorage detector, regardless of fallbackLng. Tests that want
+    // to verify Romanian behavior can still override per-test.
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: baseOrigin,
+          localStorage: [{ name: 'language', value: 'en' }],
+        },
+      ],
+    },
   },
   projects: [
     {
