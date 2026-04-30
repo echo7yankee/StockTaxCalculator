@@ -1,6 +1,7 @@
 {
   "title": "Dashboard",
   "subtitle": "Manage your tax years and calculations.",
+  "quickActions": "Quick actions",
   "uploadStatementTitle": "Upload Statement",
   "uploadStatementDesc": "Import PDF or CSV from your broker",
   "quickCalculatorTitle": "Quick Calculator",
