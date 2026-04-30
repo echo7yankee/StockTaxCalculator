@@ -166,6 +166,7 @@ export default function Dashboard() {
       </p>
 
       {/* Quick actions */}
+      <h2 className="text-xl font-semibold mb-4">{t('dashboard:quickActions')}</h2>
       <div className="grid md:grid-cols-3 gap-6 mb-10">
         <Link to="/upload" className="card hover:border-accent transition-colors group">
           <Upload className="w-8 h-8 text-accent dark:text-accent-light mb-3" />

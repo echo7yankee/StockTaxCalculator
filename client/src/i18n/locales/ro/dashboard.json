@@ -1,6 +1,7 @@
 {
   "title": "Panou de control",
   "subtitle": "Gestioneaz\u0103 anii fiscali \u0219i calculele tale.",
+  "quickActions": "Ac\u021biuni rapide",
   "uploadStatementTitle": "\u00cencarc\u0103 declara\u021bia",
   "uploadStatementDesc": "Import\u0103 PDF sau CSV de la broker",
   "quickCalculatorTitle": "Calculator rapid",
