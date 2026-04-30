@@ -57,6 +57,26 @@ const LH_THRESHOLDS = {
   seo: 95,
 };
 
+// E2E specs that are SAFE to run against production. Specs not in this list
+// are assumed to mutate state (signup, login with seed users, payment-flow
+// simulation, account deletion, file upload) and are auto-skipped in --prod
+// mode to prevent test runs from creating or destroying real DB rows.
+//
+// To add a spec to this allowlist: confirm by reading it that it makes ZERO
+// requests to /api/auth, /api/payment, /api/upload, /api/admin, and ZERO
+// form submissions that hit a write endpoint. Visual-regression is omitted
+// here because it has its own --prod auto-skip via `skipVisual` (baselines
+// are HEAD-pinned and would diff against deployed prod even when correct).
+const PROD_SAFE_E2E_SPECS = [
+  'e2e/navigation.spec.ts',
+  'e2e/trust-pages.spec.ts',
+  'e2e/mobile.spec.ts',
+  'e2e/calculator.spec.ts',
+  'e2e/dashboard.spec.ts',
+  'e2e/verify-a11y.spec.ts',
+  'e2e/verify-i18n.spec.ts',
+];
+
 function parseArgs(argv: string[]): {
   baseUrl: string;
   skipUnit: boolean;
@@ -251,8 +271,19 @@ async function main() {
   }
 
   if (!args.skipE2e) {
+    const playwrightArgs = ['playwright', 'test'];
+    if (args.isProd) {
+      // Pass explicit allowlist so state-mutating specs never run against prod.
+      playwrightArgs.push(...PROD_SAFE_E2E_SPECS);
+      console.log(
+        chalk.dim(
+          `  (--prod: running ${PROD_SAFE_E2E_SPECS.length} prod-safe specs only; ` +
+            `state-mutating specs are skipped to prevent real DB writes)`,
+        ),
+      );
+    }
     results.push(
-      await runStep('Playwright E2E', 'npx', ['playwright', 'test'], { BASE_URL: args.baseUrl }),
+      await runStep('Playwright E2E', 'npx', playwrightArgs, { BASE_URL: args.baseUrl }),
     );
   } else {
     console.log(chalk.dim('\n(skipped) Playwright E2E'));
