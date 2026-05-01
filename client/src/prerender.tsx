@@ -1,11 +1,16 @@
 import { renderToString } from 'react-dom/server';
 import { HelmetProvider, type HelmetServerState } from 'react-helmet-async';
 import { StaticRouter } from 'react-router-dom';
+import GhidIndexPage from './pages/GhidIndexPage';
 import GhidTrading212Page from './pages/GhidTrading212Page';
 import GhidRevolutPage from './pages/GhidRevolutPage';
 import GhidCassPage from './pages/GhidCassPage';
 import GhidDividendePage from './pages/GhidDividendePage';
 import GhidDeclaratieUnicaPage from './pages/GhidDeclaratieUnicaPage';
+import {
+  GHID_INDEX_COLLECTION_SCHEMA,
+  GHID_INDEX_META,
+} from './lib/ghidIndexSchemas';
 import {
   GHID_T212_ARTICLE_SCHEMA,
   GHID_T212_FAQ_SCHEMA,
@@ -56,6 +61,14 @@ const PRERENDER_PAGES: Record<string, PageConfig> = {
     description: HOMEPAGE_META.description,
     canonicalUrl: HOMEPAGE_META.url,
     schemas: [],
+    ogType: 'website',
+  },
+  '/ghid': {
+    component: () => <GhidIndexPage />,
+    title: GHID_INDEX_META.title,
+    description: GHID_INDEX_META.description,
+    canonicalUrl: GHID_INDEX_META.url,
+    schemas: [GHID_INDEX_COLLECTION_SCHEMA],
     ogType: 'website',
   },
   '/ghid/declaratie-unica-trading212': {
