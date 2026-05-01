@@ -18,6 +18,7 @@ const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
 const ContactPage = lazy(() => import('./pages/ContactPage'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
+const GhidTrading212Page = lazy(() => import('./pages/GhidTrading212Page'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 export default function App() {
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/ghid/declaratie-unica-trading212" element={<GhidTrading212Page />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
