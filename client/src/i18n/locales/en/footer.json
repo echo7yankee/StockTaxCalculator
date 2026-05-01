@@ -4,6 +4,7 @@
   "disclaimer": "InvesTax is a software tool for investment tax calculation. We are not licensed tax advisors. Calculations are based on Romanian tax legislation valid for tax year 2025 (declaration filed by May 25, 2026). For complex cases or ANAF audits, consult a licensed accountant. InvesTax assumes no liability for incorrect tax declarations.",
   "disclaimerTaxYear": "Calculator valid for tax year 2025 (declaration filed by May 25, 2026). For tax year 2026 and later, the tax rate changes per Law 239/2025. InvesTax will be updated before the 2027 filing season.",
   "links": {
+    "guides": "Guides",
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
     "contact": "Contact"
