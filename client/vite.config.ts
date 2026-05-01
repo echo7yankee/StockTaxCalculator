@@ -10,7 +10,13 @@ export default defineConfig({
     vitePrerenderPlugin({
       renderTarget: '#root',
       prerenderScript: path.resolve(__dirname, 'src/prerender.tsx'),
-      additionalPrerenderRoutes: ['/ghid/declaratie-unica-trading212'],
+      additionalPrerenderRoutes: [
+        '/ghid/declaratie-unica-trading212',
+        '/ghid/declaratie-unica-revolut',
+        '/ghid/cass-investitii',
+        '/ghid/dividende-broker-strain',
+        '/ghid/cum-completez-declaratia-unica',
+      ],
     }),
   ],
   resolve: {
