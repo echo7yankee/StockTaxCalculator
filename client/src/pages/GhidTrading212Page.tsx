@@ -9,7 +9,7 @@ const FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Ce fac dacă am pierdere netă?',
-    a: 'Treci pierderea în declarație ca sumă negativă. Nu plătești impozit pe câștig (pentru că nu ai). Pierderea se reportează până la 7 ani și se compensează cu câștiguri viitoare.',
+    a: 'Treci pierderea în declarație ca sumă negativă. Nu plătești impozit pe câștig (pentru că nu ai). Pentru brokeri fără reprezentanță în România (Trading212, Revolut, IBKR), pierderea se reportează 5 ani fiscali consecutivi și se compensează cu maxim 70% din câștigurile nete viitoare.',
   },
   {
     q: 'Cum convertesc dolarii și euro în RON?',
@@ -21,7 +21,7 @@ const FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Ce se întâmplă dacă uit deadline-ul de 25 mai?',
-    a: 'Dobânzi de întârziere de 0,02% pe zi din suma datorată, plus posibilă amendă administrativă (50-500 RON pentru persoane fizice). Tot trebuie să depui declarația, doar că plătești și extra.',
+    a: 'Dobânzi 0,02% pe zi + penalități 0,01% pe zi = 0,03% pe zi din suma datorată. Plus posibilă amendă administrativă (50-500 RON pentru persoane fizice). Dacă ANAF descoperă obligații nedeclarate prin inspecție, se aplică în plus o penalitate de nedeclarare de 0,08% pe zi. Tot trebuie să depui declarația, doar că plătești și extra.',
   },
   {
     q: 'Trebuie să declar și acțiunile fracționare?',
@@ -194,7 +194,8 @@ export default function GhidTrading212Page() {
         <Step number={4} title="Calculează dividendele cu credit pentru reținere străină">
           <p>
             Trading212 reține impozit pe dividende la sursă (în țara emitentului). Pentru acțiuni americane, reținerea
-            este 30% dacă nu ai completat formularul W-8BEN, sau 15% dacă l-ai completat.
+            este 30% dacă nu ai completat formularul W-8BEN, sau 10% dacă l-ai completat (rata aplicabilă conform
+            tratatului de evitare a dublei impuneri România-SUA).
           </p>
           <p className="mt-3">
             În România plătești 10% pe dividend. Primești credit pentru reținerea străină până la limita impozitului
@@ -202,14 +203,16 @@ export default function GhidTrading212Page() {
           </p>
           <ul className="list-disc list-outside pl-6 space-y-1 mt-3 text-sm">
             <li>Dividend brut: 100 USD</li>
-            <li>Reținut în SUA (cu W-8BEN): 15 USD</li>
+            <li>Reținut în SUA (cu W-8BEN): 10 USD</li>
             <li>Impozit datorat în RO: 10% × 100 = 10 USD</li>
-            <li>Credit pentru reținerea străină: 10 USD (limitat la impozitul RO, nu la cât a reținut SUA)</li>
+            <li>Credit pentru reținerea străină: 10 USD (limitat la impozitul RO)</li>
             <li>De plătit ANAF: <strong>0 USD</strong></li>
           </ul>
           <p className="mt-3">
-            Practic, dacă reținerea străină este mai mare sau egală cu 10%, nu mai plătești nimic în România pe acel
-            dividend. Dar îl treci totuși în declarație. Convertește totul în RON.
+            Practic, dacă reținerea străină este egală sau mai mare cu impozitul român (10%), nu mai plătești nimic
+            în România pe acel dividend. Dar îl treci totuși în declarație. Important: pentru a aplica creditul fiscal
+            ai nevoie de un document oficial care atestă reținerea (Form 1042-S de la IRS sau certificatul
+            brokerului). Fără el, ANAF poate să nu recunoască creditul. Convertește totul în RON.
           </p>
         </Step>
 
@@ -224,7 +227,8 @@ export default function GhidTrading212Page() {
             <li>Peste 24: CASS pe 24 salarii minime.</li>
           </ul>
           <p className="mt-3 text-sm text-gray-500 dark:text-slate-400 italic">
-            (Salariul minim brut pe 2025 se publică pe ANAF, verifică valoarea oficială.)
+            (Salariul minim brut pe 2025 a fost 4.050 RON/lună, conform Hotărârii de Guvern 1506/2024. Pragul de 6
+            salarii minime = 24.300 RON pe an.)
           </p>
           <p className="mt-3">
             Important: pragul se calculează pe SUMA tuturor veniturilor tale non-salariale (dividende + câștiguri din
@@ -264,7 +268,7 @@ export default function GhidTrading212Page() {
           <li>15 ianuarie: cumpărat 10 AAPL la 180 USD/acțiune.</li>
           <li>20 martie: cumpărat încă 5 AAPL la 200 USD.</li>
           <li>5 octombrie: vândut 8 AAPL la 220 USD.</li>
-          <li>4 plăți de dividend de la AAPL pe parcursul anului, totalizând 12 USD brut, cu reținere 1,80 USD (15%).</li>
+          <li>4 plăți de dividend de la AAPL pe parcursul anului, totalizând 12 USD brut, cu reținere 1,20 USD (10%, conform tratatului RO-SUA cu W-8BEN).</li>
         </ul>
 
         <p className="mt-4 font-medium">Calcule:</p>
@@ -286,18 +290,18 @@ export default function GhidTrading212Page() {
         <p className="mt-4 font-medium">Pentru dividende:</p>
         <ul className="list-disc list-outside pl-6 space-y-1 mt-3 text-sm">
           <li>Brut total: 12 USD. Convertit la cursurile zilelor de plată (presupunem mediat 4,50 RON/USD): 54 RON.</li>
-          <li>Reținut în SUA: 1,80 USD ≈ 8,10 RON.</li>
+          <li>Reținut în SUA: 1,20 USD ≈ 5,40 RON.</li>
           <li>Impozit datorat RO: 54 × 10% = 5,40 RON.</li>
           <li>Credit pentru reținere străină: 5,40 RON (limitat la impozitul RO).</li>
           <li><strong>De plătit ANAF pe dividende: 0 RON.</strong></li>
         </ul>
 
         <p className="mt-4">
-          Treci 54 RON la rubrica dividende din străinătate, cu 8,10 RON reținere străină.
+          Treci 54 RON la rubrica dividende din străinătate, cu 5,40 RON reținere străină.
         </p>
         <p className="mt-2">
-          Verificare CASS: total venituri non-salariale = 1.213,35 + 54 = 1.267,35 RON. Sub 6 salarii minime. Nu
-          datorezi CASS.
+          Verificare CASS: total venituri non-salariale = 1.213,35 + 54 = 1.267,35 RON. Sub pragul de 6 salarii
+          minime (24.300 RON pentru 2025). Nu datorezi CASS.
         </p>
         <p className="mt-4 p-3 bg-accent/10 rounded-lg font-medium">
           Total de plată ANAF: <strong>121,34 RON</strong> impozit pe câștig.
@@ -311,7 +315,10 @@ export default function GhidTrading212Page() {
         </Mistake>
         <Mistake>
           <strong>Omiterea pierderilor.</strong> Pierderile se declară. Nu schimbă suma de plată dacă ai pierdere
-          netă, dar fără declarare nu le poți reporta în anii următori (pierderile se reportează 7 ani).
+          netă, dar fără declarare nu le poți reporta în anii următori. Regula curentă pentru brokeri fără
+          reprezentanță în România (Trading212, Revolut, IBKR): pierderile se compensează cu câștigurile din același
+          an, iar diferența negativă se reportează 5 ani fiscali consecutivi, în limita a 70% din câștigurile nete
+          viitoare.
         </Mistake>
         <Mistake>
           <strong>Confuzia Trading212 cu XTB.</strong> XTB are sucursală în România și reține impozitul la sursă (1%
