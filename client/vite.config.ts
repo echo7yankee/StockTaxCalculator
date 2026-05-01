@@ -1,10 +1,18 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { vitePrerenderPlugin } from 'vite-prerender-plugin';
 import path from 'path';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    vitePrerenderPlugin({
+      renderTarget: '#root',
+      prerenderScript: path.resolve(__dirname, 'src/prerender.tsx'),
+      additionalPrerenderRoutes: ['/ghid/declaratie-unica-trading212'],
+    }),
+  ],
   resolve: {
     alias: {
       '@shared': path.resolve(__dirname, '../shared/src'),
