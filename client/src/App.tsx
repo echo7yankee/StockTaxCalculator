@@ -19,6 +19,10 @@ const TermsPage = lazy(() => import('./pages/TermsPage'));
 const ContactPage = lazy(() => import('./pages/ContactPage'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
 const GhidTrading212Page = lazy(() => import('./pages/GhidTrading212Page'));
+const GhidRevolutPage = lazy(() => import('./pages/GhidRevolutPage'));
+const GhidCassPage = lazy(() => import('./pages/GhidCassPage'));
+const GhidDividendePage = lazy(() => import('./pages/GhidDividendePage'));
+const GhidDeclaratieUnicaPage = lazy(() => import('./pages/GhidDeclaratieUnicaPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 export default function App() {
@@ -43,6 +47,10 @@ export default function App() {
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/ghid/declaratie-unica-trading212" element={<GhidTrading212Page />} />
+          <Route path="/ghid/declaratie-unica-revolut" element={<GhidRevolutPage />} />
+          <Route path="/ghid/cass-investitii" element={<GhidCassPage />} />
+          <Route path="/ghid/dividende-broker-strain" element={<GhidDividendePage />} />
+          <Route path="/ghid/cum-completez-declaratia-unica" element={<GhidDeclaratieUnicaPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
