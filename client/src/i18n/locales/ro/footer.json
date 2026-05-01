@@ -4,6 +4,7 @@
   "disclaimer": "InvesTax este un instrument software pentru calculul taxelor pe investitii. Nu suntem consultanti fiscali autorizati. Calculele se bazeaza pe legislatia fiscala romaneasca valabila pentru anul fiscal 2025 (declaratie depusa pana la 25 mai 2026). Pentru cazuri complexe sau audituri ANAF, consulta un contabil autorizat. InvesTax nu isi asuma raspunderea pentru declaratii fiscale incorecte.",
   "disclaimerTaxYear": "Calculator valabil pentru anul fiscal 2025 (declaratie depusa pana la 25 mai 2026). Pentru anul fiscal 2026 si ulteriori, cota de impozitare se modifica conform Legii 239/2025. InvesTax va fi actualizat inainte de sezonul de depunere 2027.",
   "links": {
+    "guides": "Ghiduri",
     "privacy": "Politica de Confidentialitate",
     "terms": "Termeni si Conditii",
     "contact": "Contact"

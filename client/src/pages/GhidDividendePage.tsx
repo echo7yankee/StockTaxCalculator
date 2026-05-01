@@ -342,7 +342,16 @@ export default function GhidDividendePage() {
         </div>
       </Section>
 
-      <footer className="mt-16 pt-8 border-t border-gray-200 dark:border-navy-700 text-sm text-gray-500 dark:text-slate-400">
+      <nav className="mt-12">
+        <button
+          onClick={() => navigate('/ghid')}
+          className="flex items-center gap-1 text-sm text-accent dark:text-accent-light hover:underline transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" /> Toate ghidurile
+        </button>
+      </nav>
+
+      <footer className="mt-12 pt-8 border-t border-gray-200 dark:border-navy-700 text-sm text-gray-500 dark:text-slate-400">
         <p>
           Acest ghid este informativ și se aplică pentru anul fiscal 2025 (depus în 2026). Tratatele de evitare a
           dublei impuneri se actualizează ocazional. Pentru jurisdicții mai puțin frecvente, verifică tratatul exact

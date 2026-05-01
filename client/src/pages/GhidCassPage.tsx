@@ -293,7 +293,16 @@ export default function GhidCassPage() {
         </div>
       </Section>
 
-      <footer className="mt-16 pt-8 border-t border-gray-200 dark:border-navy-700 text-sm text-gray-500 dark:text-slate-400">
+      <nav className="mt-12">
+        <button
+          onClick={() => navigate('/ghid')}
+          className="flex items-center gap-1 text-sm text-accent dark:text-accent-light hover:underline transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" /> Toate ghidurile
+        </button>
+      </nav>
+
+      <footer className="mt-12 pt-8 border-t border-gray-200 dark:border-navy-700 text-sm text-gray-500 dark:text-slate-400">
         <p>
           Acest ghid este informativ. Pragurile CASS sunt valabile pentru anul fiscal 2025. Pentru cazuri complexe
           (pensionar + investitor, PFA + investitor, scutiri pe handicap) consultă un contabil. ANAF publică ghidul
