@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /*.map$
 
 Sitemap: https://investax.app/sitemap.xml
