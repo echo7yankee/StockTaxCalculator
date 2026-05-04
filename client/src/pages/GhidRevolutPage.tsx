@@ -18,13 +18,13 @@ export default function GhidRevolutPage() {
           name="description"
           content="Ghid pentru investitorii Revolut Stocks / Trading: cum declari câștigurile, pierderile și dividendele în Declarația Unică 2026. Pași, exemplu, FAQ. Deadline 25 mai."
         />
-        <link rel="canonical" href="https://investax.app/ghid/declaratie-unica-revolut" />
+        <link rel="canonical" href="https://investax.app/ghid/declaratie-unica-revolut/" />
         <meta property="og:title" content="Cum declar Revolut Trading în Declarația Unică 2026" />
         <meta
           property="og:description"
           content="Ghid pentru investitorii Revolut: pași, exemplu lucrat, greșeli frecvente, FAQ. Deadline 25 mai 2026."
         />
-        <meta property="og:url" content="https://investax.app/ghid/declaratie-unica-revolut" />
+        <meta property="og:url" content="https://investax.app/ghid/declaratie-unica-revolut/" />
         <meta property="og:type" content="article" />
         <script type="application/ld+json">{JSON.stringify(articleSchema)}</script>
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>

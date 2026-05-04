@@ -45,7 +45,7 @@ export const GHID_REVOLUT_ARTICLE_SCHEMA = {
     url: 'https://investax.app/',
   },
   inLanguage: 'ro',
-  mainEntityOfPage: 'https://investax.app/ghid/declaratie-unica-revolut',
+  mainEntityOfPage: 'https://investax.app/ghid/declaratie-unica-revolut/',
 };
 
 export const GHID_REVOLUT_FAQ_SCHEMA = {
@@ -62,5 +62,5 @@ export const GHID_REVOLUT_META = {
   title: 'Cum declar Revolut Trading în Declarația Unică 2026 | InvesTax',
   description:
     'Ghid pentru investitorii Revolut Stocks / Trading: cum declari câștigurile, pierderile și dividendele în Declarația Unică 2026. Pași, exemplu, FAQ. Deadline 25 mai.',
-  url: 'https://investax.app/ghid/declaratie-unica-revolut',
+  url: 'https://investax.app/ghid/declaratie-unica-revolut/',
 };

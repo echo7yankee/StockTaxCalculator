@@ -18,13 +18,13 @@ export default function GhidTrading212Page() {
           name="description"
           content="Ghid complet: cum declari câștigurile, pierderile și dividendele de la Trading212 în Declarația Unică 2026. Pași, exemplu lucrat, greșeli frecvente, FAQ. Deadline 25 mai."
         />
-        <link rel="canonical" href="https://investax.app/ghid/declaratie-unica-trading212" />
+        <link rel="canonical" href="https://investax.app/ghid/declaratie-unica-trading212/" />
         <meta property="og:title" content="Cum declar Trading212 în Declarația Unică 2026" />
         <meta
           property="og:description"
           content="Ghid complet pentru investitorii Trading212: pași, exemplu lucrat, greșeli frecvente, FAQ. Deadline 25 mai 2026."
         />
-        <meta property="og:url" content="https://investax.app/ghid/declaratie-unica-trading212" />
+        <meta property="og:url" content="https://investax.app/ghid/declaratie-unica-trading212/" />
         <meta property="og:type" content="article" />
         <script type="application/ld+json">{JSON.stringify(articleSchema)}</script>
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>

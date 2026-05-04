@@ -21,32 +21,32 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://investax.app/ghid</loc>
+    <loc>https://investax.app/ghid/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://investax.app/ghid/declaratie-unica-trading212</loc>
+    <loc>https://investax.app/ghid/declaratie-unica-trading212/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://investax.app/ghid/declaratie-unica-revolut</loc>
+    <loc>https://investax.app/ghid/declaratie-unica-revolut/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://investax.app/ghid/cass-investitii</loc>
+    <loc>https://investax.app/ghid/cass-investitii/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://investax.app/ghid/dividende-broker-strain</loc>
+    <loc>https://investax.app/ghid/dividende-broker-strain/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://investax.app/ghid/cum-completez-declaratia-unica</loc>
+    <loc>https://investax.app/ghid/cum-completez-declaratia-unica/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
