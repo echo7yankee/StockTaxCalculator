@@ -45,7 +45,7 @@ export const GHID_DU_ARTICLE_SCHEMA = {
     url: 'https://investax.app/',
   },
   inLanguage: 'ro',
-  mainEntityOfPage: 'https://investax.app/ghid/cum-completez-declaratia-unica',
+  mainEntityOfPage: 'https://investax.app/ghid/cum-completez-declaratia-unica/',
 };
 
 export const GHID_DU_FAQ_SCHEMA = {
@@ -62,5 +62,5 @@ export const GHID_DU_META = {
   title: 'Cum completez Declarația Unică 2026: ghid complet | InvesTax',
   description:
     'Pas cu pas: SPV, capitolele D212, ce documente îți trebuie, cum corectezi greșelile, cum eviți amenzile. Pentru anul fiscal 2025, depus până pe 25 mai 2026.',
-  url: 'https://investax.app/ghid/cum-completez-declaratia-unica',
+  url: 'https://investax.app/ghid/cum-completez-declaratia-unica/',
 };

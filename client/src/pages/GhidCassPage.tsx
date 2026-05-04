@@ -18,13 +18,13 @@ export default function GhidCassPage() {
           name="description"
           content="Cum se calculează CASS pentru investitorii la bursă: pragurile de 6, 12, 24 salarii minime, ce venituri intră în calcul, exemple, FAQ. Pentru anul fiscal 2025, depus în 2026."
         />
-        <link rel="canonical" href="https://investax.app/ghid/cass-investitii" />
+        <link rel="canonical" href="https://investax.app/ghid/cass-investitii/" />
         <meta property="og:title" content="CASS pe investiții 2025: praguri, calcul, exemple" />
         <meta
           property="og:description"
           content="Pragurile CASS pentru investitori, ce venituri intră în calcul, exemple concrete. Anul fiscal 2025."
         />
-        <meta property="og:url" content="https://investax.app/ghid/cass-investitii" />
+        <meta property="og:url" content="https://investax.app/ghid/cass-investitii/" />
         <meta property="og:type" content="article" />
         <script type="application/ld+json">{JSON.stringify(articleSchema)}</script>
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>

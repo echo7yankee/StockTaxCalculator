@@ -18,13 +18,13 @@ export default function GhidDeclaratieUnicaPage() {
           name="description"
           content="Pas cu pas: SPV, capitolele D212, ce documente îți trebuie, cum corectezi greșelile, cum eviți amenzile. Pentru anul fiscal 2025, depus până pe 25 mai 2026."
         />
-        <link rel="canonical" href="https://investax.app/ghid/cum-completez-declaratia-unica" />
+        <link rel="canonical" href="https://investax.app/ghid/cum-completez-declaratia-unica/" />
         <meta property="og:title" content="Cum completez Declarația Unică 2026: ghid complet" />
         <meta
           property="og:description"
           content="SPV, capitolele D212, ce documente îți trebuie, cum corectezi greșelile, cum eviți amenzile."
         />
-        <meta property="og:url" content="https://investax.app/ghid/cum-completez-declaratia-unica" />
+        <meta property="og:url" content="https://investax.app/ghid/cum-completez-declaratia-unica/" />
         <meta property="og:type" content="article" />
         <script type="application/ld+json">{JSON.stringify(articleSchema)}</script>
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>

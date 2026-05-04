@@ -18,13 +18,13 @@ export default function GhidDividendePage() {
           name="description"
           content="Cum declari dividendele primite de la Trading212, Revolut, IBKR, eToro: rata în RO, creditul pentru reținerea străină, ratele pe țară (SUA, UK, IE, NL), exemple, FAQ."
         />
-        <link rel="canonical" href="https://investax.app/ghid/dividende-broker-strain" />
+        <link rel="canonical" href="https://investax.app/ghid/dividende-broker-strain/" />
         <meta property="og:title" content="Dividende de la broker străin în Declarația Unică 2026" />
         <meta
           property="og:description"
           content="Reținerea străină, creditul fiscal, ratele pe țară, exemple lucrate. Pentru investitorii cu Trading212, Revolut, IBKR, eToro."
         />
-        <meta property="og:url" content="https://investax.app/ghid/dividende-broker-strain" />
+        <meta property="og:url" content="https://investax.app/ghid/dividende-broker-strain/" />
         <meta property="og:type" content="article" />
         <script type="application/ld+json">{JSON.stringify(articleSchema)}</script>
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
