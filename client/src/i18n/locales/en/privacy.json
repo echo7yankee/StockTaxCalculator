@@ -30,7 +30,7 @@
       "description": "We do not sell, rent, or share your personal data with third parties, except for the following service providers who process data on our behalf:",
       "providers": {
         "hetzner": "Hetzner Online GmbH: server hosting (Germany, EU)",
-        "lemonSqueezy": "Lemon Squeezy: payment processing (merchant of record)",
+        "stripe": "Stripe: payment processing",
         "resend": "Resend: transactional email delivery",
         "plausible": "Plausible Analytics: anonymous, cookieless website analytics"
       }

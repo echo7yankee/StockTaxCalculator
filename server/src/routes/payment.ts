@@ -11,11 +11,6 @@ const CHECKOUT_UNAVAILABLE_MESSAGE =
 
 export const paymentRouter = Router();
 
-function currentPaymentProvider(): 'lemon' | 'stripe' {
-  const v = (process.env.PAYMENT_PROVIDER || 'lemon').toLowerCase();
-  return v === 'stripe' ? 'stripe' : 'lemon';
-}
-
 // GET /api/payment/promo-status — public, returns launch promo counter
 paymentRouter.get('/promo-status', async (_req, res) => {
   try {
@@ -33,8 +28,7 @@ paymentRouter.get('/promo-status', async (_req, res) => {
   }
 });
 
-// GET /api/payment/checkout — requires auth, returns a provider-specific checkout URL.
-// Provider selected via PAYMENT_PROVIDER env var ("lemon" default, "stripe" alternate).
+// GET /api/payment/checkout — requires auth, returns a Stripe checkout URL.
 paymentRouter.get('/checkout', async (req, res) => {
   if (!req.isAuthenticated() || !req.user) {
     res.status(401).json({ error: 'Authentication required' });
@@ -47,120 +41,42 @@ paymentRouter.get('/checkout', async (req, res) => {
     return;
   }
 
-  const provider = currentPaymentProvider();
-
-  if (provider === 'stripe') {
-    if (!isStripeEnabled()) {
-      res.status(503).json({ error: 'Payment system not configured yet' });
-      return;
-    }
-
-    // For Stripe we pre-apply the launch coupon server-side when spots remain.
-    // LS flow differs: user types LAUNCH2026 at LS-hosted checkout, we don't branch here.
-    let applyLaunchCoupon = false;
-    try {
-      const counter = await prisma.promoCounter.findUnique({ where: { id: 'launch_2026' } });
-      if (counter && counter.count < counter.limit) applyLaunchCoupon = true;
-    } catch {
-      applyLaunchCoupon = false;
-    }
-
-    try {
-      const result = await createStripeCheckoutSession({
-        userId: user.id,
-        email: user.email,
-        name: user.name || undefined,
-        applyLaunchCoupon,
-      });
-      if (!result) {
-        res.status(503).json({ error: 'Payment system not configured yet' });
-        return;
-      }
-      res.json({ checkoutUrl: result.url });
-    } catch (err) {
-      console.error('Stripe checkout error:', err);
-      // StripeCheckoutError is already captured in services/stripe.ts with
-      // service+op tags; only capture here for unexpected non-Stripe errors so
-      // we don't double-fire Sentry on the same incident.
-      if (!(err instanceof StripeCheckoutError)) {
-        Sentry.captureException(err, {
-          tags: { endpoint: 'payment.checkout', provider: 'stripe' },
-          extra: { userId: user.id, applyLaunchCoupon },
-        });
-      }
-      res.status(502).json({ error: CHECKOUT_UNAVAILABLE_MESSAGE });
-    }
-    return;
-  }
-
-  // Default: Lemon Squeezy flow
-  const storeId = process.env.LEMON_SQUEEZY_STORE_ID;
-  const variantId = process.env.LEMON_SQUEEZY_VARIANT_ID;
-  const apiKey = process.env.LEMON_SQUEEZY_API_KEY;
-
-  if (!storeId || !variantId || !apiKey) {
+  if (!isStripeEnabled()) {
     res.status(503).json({ error: 'Payment system not configured yet' });
     return;
   }
 
+  // Pre-apply the launch coupon server-side when promo spots remain.
+  let applyLaunchCoupon = false;
   try {
-    const response = await fetch('https://api.lemonsqueezy.com/v1/checkouts', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/vnd.api+json',
-        'Content-Type': 'application/vnd.api+json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        data: {
-          type: 'checkouts',
-          attributes: {
-            checkout_data: {
-              email: user.email,
-              name: user.name || undefined,
-              custom: {
-                user_id: user.id,
-              },
-            },
-            product_options: {
-              redirect_url: `${process.env.CLIENT_URL || 'https://investax.app'}/upload?welcome=1`,
-            },
-          },
-          relationships: {
-            store: {
-              data: { type: 'stores', id: storeId },
-            },
-            variant: {
-              data: { type: 'variants', id: variantId },
-            },
-          },
-        },
-      }),
+    const counter = await prisma.promoCounter.findUnique({ where: { id: 'launch_2026' } });
+    if (counter && counter.count < counter.limit) applyLaunchCoupon = true;
+  } catch {
+    applyLaunchCoupon = false;
+  }
+
+  try {
+    const result = await createStripeCheckoutSession({
+      userId: user.id,
+      email: user.email,
+      name: user.name || undefined,
+      applyLaunchCoupon,
     });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error('Lemon Squeezy checkout API error:', response.status, errorBody);
-      res.status(502).json({ error: CHECKOUT_UNAVAILABLE_MESSAGE });
+    if (!result) {
+      res.status(503).json({ error: 'Payment system not configured yet' });
       return;
     }
-
-    const result = await response.json();
-    const checkoutUrl = result.data?.attributes?.url;
-
-    if (!checkoutUrl) {
-      console.error('Lemon Squeezy checkout response missing URL:', JSON.stringify(result));
-      res.status(502).json({ error: CHECKOUT_UNAVAILABLE_MESSAGE });
-      return;
-    }
-
-    res.json({ checkoutUrl });
+    res.json({ checkoutUrl: result.url });
   } catch (err) {
-    console.error('Lemon Squeezy checkout error:', err);
-    Sentry.captureException(err, {
-      tags: { endpoint: 'payment.checkout', provider: 'lemon' },
-      extra: { userId: user.id },
-    });
+    console.error('Stripe checkout error:', err);
+    // StripeCheckoutError is already captured in services/stripe.ts; only
+    // capture here for unexpected non-Stripe errors so we don't double-fire.
+    if (!(err instanceof StripeCheckoutError)) {
+      Sentry.captureException(err, {
+        tags: { endpoint: 'payment.checkout' },
+        extra: { userId: user.id, applyLaunchCoupon },
+      });
+    }
     res.status(502).json({ error: CHECKOUT_UNAVAILABLE_MESSAGE });
   }
 });

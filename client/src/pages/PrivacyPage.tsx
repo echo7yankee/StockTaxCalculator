@@ -50,7 +50,7 @@ export default function PrivacyPage() {
           <p className="text-gray-600 dark:text-slate-400 mb-3">{t('sections.sharing.description')}</p>
           <ul className="list-disc list-inside space-y-2 text-gray-600 dark:text-slate-400">
             <li>{t('sections.sharing.providers.hetzner')}</li>
-            <li>{t('sections.sharing.providers.lemonSqueezy')}</li>
+            <li>{t('sections.sharing.providers.stripe')}</li>
             <li>{t('sections.sharing.providers.resend')}</li>
             <li>{t('sections.sharing.providers.plausible')}</li>
           </ul>

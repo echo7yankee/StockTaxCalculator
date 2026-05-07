@@ -30,7 +30,7 @@
         "pricing": "InvesTax offers a free calculator for quick estimates and a paid annual plan for full PDF/CSV processing features.",
         "annual": "The paid plan is a one-time annual payment, not a recurring subscription.",
         "refund": "We offer a 14-day refund policy, no questions asked. Contact support@investax.app to request a refund.",
-        "processor": "Payments are processed by Lemon Squeezy, which acts as the merchant of record and handles VAT compliance."
+        "processor": "Payments are processed by Stripe. InvesTax (operated by IFRIM DRAGOS-COSMIN PFA, Romania) is the seller of record."
       }
     },
     "data": {

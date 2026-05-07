@@ -7,7 +7,7 @@ import { test, expect, type Page } from '@playwright/test';
  * - Scenario A: Free user, manual calculator (full flow with result verification)
  * - Scenario G: Account deletion / GDPR (signup → delete → verify purged)
  *
- * Scenarios B-F are blocked on external services (Google OAuth, Lemon Squeezy live mode, Resend).
+ * Scenarios B-F are blocked on external services (Google OAuth in CI, Stripe live mode, Resend).
  * Scenario H (server error handling) is a manual verification step.
  */
 

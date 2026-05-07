@@ -1,29 +1,14 @@
 import { test, expect, type Page } from '@playwright/test';
-import { createHmac } from 'crypto';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+// Provider-agnostic payment flow E2E.
+//
+// Webhook security + paid-user-access tests live in `payment-flow-stripe.spec.ts`,
+// which simulates a signed Stripe webhook to upgrade users and exercises the
+// signature-validation + idempotency paths against the live Stripe webhook
+// route. This file covers the parts of the flow that don't depend on a
+// specific processor: paywall enforcement on free users, the checkout button
+// calling `/api/payment/checkout`, and promo-counter rendering.
 
-/** Read webhook secret from server/.env so we can simulate signed webhooks. */
-function getWebhookSecret(): string | null {
-  try {
-    const envPath = resolve(__dirname, '..', 'server', '.env');
-    const content = readFileSync(envPath, 'utf-8');
-    const match = content.match(/^LEMON_SQUEEZY_WEBHOOK_SECRET=(.+)$/m);
-    return match?.[1]?.trim() || null;
-  } catch {
-    return null;
-  }
-}
-
-function signPayload(body: string, secret: string): string {
-  return createHmac('sha256', secret).update(body).digest('hex');
-}
-
-const WEBHOOK_SECRET = getWebhookSecret();
 const uid = Date.now();
 const PASSWORD = 'TestPass123!';
 
@@ -75,7 +60,8 @@ test.describe('Payment Flow — Free User Paywall', () => {
     await login(page, email);
     await page.goto('/pricing');
 
-    // Mock the checkout endpoint so we don't hit LS and don't navigate away
+    // Mock the checkout endpoint so we don't hit the real provider and don't
+    // navigate away.
     let checkoutCalled = false;
     await page.route('**/api/payment/checkout', async (route) => {
       checkoutCalled = true;
@@ -121,106 +107,7 @@ test.describe('Payment Flow — Free User Paywall', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 2. Authenticated PAID user — access granted
-//    Requires LEMON_SQUEEZY_WEBHOOK_SECRET in server/.env to simulate webhook.
-// ---------------------------------------------------------------------------
-
-(WEBHOOK_SECRET ? test.describe : test.describe.skip)(
-  'Payment Flow — Paid User Access',
-  () => {
-    const email = `e2e-payflow-paid-${uid}@example.com`;
-    let userId: string;
-
-    test.beforeAll(async ({ request }) => {
-      // Create user
-      const signupRes = await request.post('/api/auth/signup', {
-        data: { email, password: PASSWORD, name: 'Paid User' },
-      });
-      const signupBody = await signupRes.json();
-      userId = signupBody.user?.id;
-      expect(userId).toBeTruthy();
-
-      // Upgrade via simulated webhook
-      const eventId = `evt-paid-${uid}`;
-      const payload = JSON.stringify({
-        meta: {
-          event_name: 'order_created',
-          webhook_id: eventId,
-          custom_data: { user_id: userId },
-        },
-        data: {
-          id: `order-${eventId}`,
-          attributes: {
-            customer_id: `cust-${eventId}`,
-            discount_total_formatted: '$7.00',
-          },
-        },
-      });
-      const sig = signPayload(payload, WEBHOOK_SECRET!);
-
-      const whRes = await request.post('/api/webhooks/lemon', {
-        headers: { 'Content-Type': 'application/json', 'x-signature': sig },
-        data: payload,
-      });
-      expect(whRes.status()).toBe(200);
-    });
-
-    test('paid user can access /upload without redirect', async ({ page }) => {
-      await login(page, email);
-      await page.goto('/upload');
-      await expect(page).toHaveURL(/upload/);
-      await expect(page.locator('h1')).toBeVisible();
-    });
-
-    test('paid user can access /dashboard without redirect', async ({ page }) => {
-      await login(page, email);
-      await page.goto('/dashboard');
-      await expect(page).toHaveURL(/dashboard/);
-    });
-
-    test('pricing page shows active-plan indicator for paid user', async ({ page }) => {
-      await login(page, email);
-      await page.goto('/pricing');
-      // PricingPage renders t('alreadyPaid') for paid users
-      await expect(page.getByText(/active|activ|already/i)).toBeVisible();
-    });
-
-    test('payment status API returns paid plan', async ({ page }) => {
-      await login(page, email);
-      const res = await page.request.get('/api/payment/status');
-      expect(res.status()).toBe(200);
-      const body = await res.json();
-      expect(body.plan).toBe('paid');
-      expect(body.isActive).toBe(true);
-      expect(body.planExpiresAt).toBeTruthy();
-    });
-
-    test('uploads API returns 200 for paid user', async ({ page }) => {
-      await login(page, email);
-      const res = await page.request.get('/api/uploads');
-      expect(res.status()).toBe(200);
-    });
-
-    test('tax-years API returns 200 for paid user', async ({ page }) => {
-      await login(page, email);
-      const res = await page.request.get('/api/tax-years');
-      expect(res.status()).toBe(200);
-    });
-
-    test('/upload?welcome=1 shows post-payment welcome banner', async ({ page }) => {
-      await login(page, email);
-      await page.goto('/upload?welcome=1');
-      await expect(page).toHaveURL(/upload/);
-      // Welcome toast: "Welcome to InvesTax!" or localised equivalent
-      await expect(
-        page.getByText(/welcome to investax|bine ai venit/i),
-      ).toBeVisible({ timeout: 5_000 });
-    });
-  },
-);
-
-// ---------------------------------------------------------------------------
-// 3. Promo counter display
+// 2. Promo counter display
 // ---------------------------------------------------------------------------
 
 test.describe('Payment Flow — Promo Counter', () => {
@@ -254,80 +141,4 @@ test.describe('Payment Flow — Promo Counter', () => {
       await expect(page.getByText('€19')).toBeVisible();
     }
   });
-});
-
-// ---------------------------------------------------------------------------
-// 4. Webhook security (extended)
-// ---------------------------------------------------------------------------
-
-test.describe('Payment Flow — Webhook Security', () => {
-  test('webhook rejects missing signature', async ({ request }) => {
-    const res = await request.post('/api/webhooks/lemon', {
-      headers: { 'Content-Type': 'application/json' },
-      data: JSON.stringify({
-        meta: { event_name: 'order_created', webhook_id: `no-sig-${uid}` },
-      }),
-    });
-    expect([401, 500]).toContain(res.status());
-  });
-
-  test('webhook rejects invalid signature', async ({ request }) => {
-    const res = await request.post('/api/webhooks/lemon', {
-      headers: {
-        'Content-Type': 'application/json',
-        'x-signature': 'deadbeef',
-      },
-      data: JSON.stringify({
-        meta: { event_name: 'order_created', webhook_id: `bad-sig-${uid}` },
-      }),
-    });
-    expect([401, 500]).toContain(res.status());
-  });
-
-  (WEBHOOK_SECRET ? test : test.skip)(
-    'webhook accepts valid HMAC signature',
-    async ({ request }) => {
-      const payload = JSON.stringify({
-        meta: {
-          event_name: 'test_event',
-          webhook_id: `valid-sig-${uid}`,
-          custom_data: {},
-        },
-        data: { id: `test-${uid}` },
-      });
-      const sig = signPayload(payload, WEBHOOK_SECRET!);
-      const res = await request.post('/api/webhooks/lemon', {
-        headers: { 'Content-Type': 'application/json', 'x-signature': sig },
-        data: payload,
-      });
-      expect(res.status()).toBe(200);
-    },
-  );
-
-  (WEBHOOK_SECRET ? test : test.skip)(
-    'webhook handles duplicate events idempotently',
-    async ({ request }) => {
-      const eventId = `idem-${uid}`;
-      const payload = JSON.stringify({
-        meta: {
-          event_name: 'test_idempotency',
-          webhook_id: eventId,
-          custom_data: {},
-        },
-        data: { id: `order-idem-${uid}` },
-      });
-      const sig = signPayload(payload, WEBHOOK_SECRET!);
-      const headers = { 'Content-Type': 'application/json', 'x-signature': sig };
-
-      // First request
-      const res1 = await request.post('/api/webhooks/lemon', { headers, data: payload });
-      expect(res1.status()).toBe(200);
-
-      // Duplicate — should succeed with "Already processed"
-      const res2 = await request.post('/api/webhooks/lemon', { headers, data: payload });
-      expect(res2.status()).toBe(200);
-      const body2 = await res2.json();
-      expect(body2.message).toContain('Already processed');
-    },
-  );
 });

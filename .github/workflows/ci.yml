@@ -5,9 +5,9 @@ name: CI
 #   2. `e2e` job (depends on verify): Playwright E2E across all spec files
 #      (~3-5 min). Skips automatically if `verify` fails — no point burning
 #      runner minutes on broken PRs. Payment-flow specs auto-skip when
-#      LEMON_SQUEEZY_WEBHOOK_SECRET / STRIPE_WEBHOOK_SECRET are absent (they
-#      always are in CI), so signature-validation and idempotency suites
-#      execute as a smoke check of the surrounding flow only.
+#      STRIPE_WEBHOOK_SECRET is absent (it always is in CI), so signature
+#      validation and idempotency suites execute as a smoke check of the
+#      surrounding flow only.
 #
 # History: E2E was deliberately deferred per 09-backlog-and-discipline.md
 # Section 8.1 item #16 to keep `verify` runs under 3 min. After Stripe Phase 1

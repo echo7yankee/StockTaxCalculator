@@ -24,15 +24,6 @@ test.describe('Payment Infrastructure', () => {
     expect(res.status()).toBe(401);
   });
 
-  test('webhook endpoint rejects requests without signature', async ({ request }) => {
-    const res = await request.post('/api/webhooks/lemon', {
-      headers: { 'Content-Type': 'application/json' },
-      data: JSON.stringify({ meta: { event_name: 'test' } }),
-    });
-    // Should be 401 (invalid signature) or 500 (not configured)
-    expect([401, 500]).toContain(res.status());
-  });
-
   test('uploads endpoint returns 401 for unauthenticated users', async ({ request }) => {
     const res = await request.get('/api/uploads');
     expect(res.status()).toBe(401);
