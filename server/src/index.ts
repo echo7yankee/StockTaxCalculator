@@ -11,7 +11,6 @@ import { exchangeRatesRouter } from './routes/exchangeRates.js';
 import { uploadsRouter } from './routes/uploads.js';
 import { taxYearsRouter } from './routes/taxYears.js';
 import { paymentRouter } from './routes/payment.js';
-import { webhookRouter } from './routes/webhook.js';
 import { stripeWebhookRouter } from './routes/webhook.stripe.js';
 
 // Initialize Sentry (only active when SENTRY_DSN is set + production)
@@ -38,8 +37,7 @@ app.use(rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 }));
-// Webhook routes need raw body for signature verification — must be before express.json()
-app.use('/api/webhooks/lemon', express.raw({ type: 'application/json' }), webhookRouter);
+// Webhook route needs raw body for signature verification — must be before express.json()
 app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }), stripeWebhookRouter);
 
 app.use(express.json({ limit: '10mb' }));
