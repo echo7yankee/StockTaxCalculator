@@ -30,7 +30,7 @@
         "pricing": "InvesTax ofera un calculator gratuit pentru estimari rapide si un plan anual platit pentru functiile complete de procesare PDF/CSV.",
         "annual": "Planul platit este o plata unica anuala, nu un abonament recurent.",
         "refund": "Oferim o politica de rambursare de 14 zile, fara intrebari. Contacteaza support@investax.app pentru a solicita o rambursare.",
-        "processor": "Platile sunt procesate de Lemon Squeezy, care actioneaza ca merchant of record si gestioneaza conformitatea TVA."
+        "processor": "Platile sunt procesate de Stripe. InvesTax (operat de IFRIM DRAGOS-COSMIN PFA, Romania) este vanzatorul oficial."
       }
     },
     "data": {

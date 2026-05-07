@@ -3,8 +3,9 @@ import path from 'path';
 
 test.describe('PDF Upload Flow', () => {
   // Upload page requires paid plan — these tests need a paid user session
-  // which requires Lemon Squeezy integration. Skipping until LS is configured.
-  // TODO: Re-enable when payment integration is live (set user.plan='paid' in test setup)
+  // which requires the Stripe webhook to upgrade the user. Skipping until a
+  // CI-friendly Stripe-webhook simulator harness is in place.
+  // TODO: Re-enable with set user.plan='paid' in test setup once the harness lands.
 
   test.skip('uploads PDF and shows preview', async ({ page }) => {
     await page.goto('/upload');
