@@ -16,8 +16,6 @@ model User {
   plan            String    @default("free")
   planPurchasedAt DateTime?
   planExpiresAt   DateTime?
-  lemonCustomerId String?   @unique
-  lemonOrderId    String?
   stripeCustomerId      String? @unique
   stripePaymentIntentId String?
   launchPriceUsed Boolean   @default(false)
