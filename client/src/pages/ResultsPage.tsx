@@ -51,7 +51,7 @@ export default function ResultsPage() {
     } finally {
       setSaving(false);
     }
-  }, [taxResult, taxYear, countryConfig, fileName, securities, user, navigate]);
+  }, [taxResult, taxYear, countryConfig, fileName, securities, user, navigate, t]);
 
   if (!taxResult) {
     return (
