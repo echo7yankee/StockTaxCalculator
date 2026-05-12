@@ -71,7 +71,7 @@ export default function Dashboard() {
       .then(data => setTaxYears(data))
       .catch(() => setError(t('dashboard:fetchError')))
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [user, logout, navigate, t]);
 
   const handleRowClick = async (ty: SavedTaxYear) => {
     setLoadingId(ty.id);

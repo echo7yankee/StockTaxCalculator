@@ -169,7 +169,7 @@ export default function UploadPage() {
         setProcessing(false);
       },
     });
-  }, []);
+  }, [t]);
 
   const processPdf = useCallback(async (file: File) => {
     try {
@@ -200,7 +200,7 @@ export default function UploadPage() {
       setError(t('failedParsePdf', { message: err instanceof Error ? err.message : 'Unknown error' }));
       setProcessing(false);
     }
-  }, [fetchBnrRate]);
+  }, [fetchBnrRate, t]);
 
   const processFile = useCallback((file: File) => {
     setError(null);
@@ -239,7 +239,7 @@ export default function UploadPage() {
     } else {
       processPdf(file);
     }
-  }, [processCsv, processPdf, activeTab]);
+  }, [processCsv, processPdf, activeTab, t]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -353,7 +353,7 @@ export default function UploadPage() {
     }
 
     navigate('/results');
-  }, [countryConfig, preview, pdfData, csvRows, selectedYear, exchangeRate, setUploadData, navigate]);
+  }, [countryConfig, preview, pdfData, csvRows, selectedYear, exchangeRate, setUploadData, navigate, t]);
 
   const clearUpload = () => {
     setPreview(null);
