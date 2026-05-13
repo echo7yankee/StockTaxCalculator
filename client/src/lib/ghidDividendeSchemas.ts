@@ -13,7 +13,7 @@ export const GHID_DIVIDENDE_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Cum convertesc dividendele primite în USD în RON?',
-    a: 'Cursul BNR oficial din ZIUA primirii dividendului (ex-date sau data plății, în funcție de sursă), nu cursul brokerului și nu cursul mediu anual. Sursa cea mai practică pentru istoric: cursbnr.ro.',
+    a: 'Pentru dividendele primite în valută străină, conversia în RON se face la cursul mediu anual BNR al pieței valutare, comunicat pentru anul în care s-a realizat venitul (Codul Fiscal art. 131 alin. 6), nu la cursul din ziua plății și nu la cursul brokerului. De exemplu, dividende în USD primite în 2025 se convertesc la cursul mediu BNR USD/RON pentru anul 2025 (4,4705 RON/USD). Sursa oficială este bnr.ro, secțiunea cursului mediu anual.',
   },
   {
     q: 'Diferența între cota dividendului și impozitul reținut: cum se reflectă?',
