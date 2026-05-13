@@ -11,8 +11,11 @@ export default function Footer() {
         <p className="text-xs text-gray-500 dark:text-slate-400 mb-2 leading-relaxed">
           {t('disclaimer')}
         </p>
-        <p className="text-xs text-gray-500 dark:text-slate-400 mb-6 leading-relaxed">
+        <p className="text-xs text-gray-500 dark:text-slate-400 mb-2 leading-relaxed">
           {t('disclaimerTaxYear')}
+        </p>
+        <p className="text-xs text-gray-500 dark:text-slate-400 mb-6 leading-relaxed">
+          {t('disclaimerMethodology')}
         </p>
 
         {/* Links + Copyright */}
