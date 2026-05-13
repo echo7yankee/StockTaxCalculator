@@ -147,9 +147,11 @@ export default function GhidTrading212Page() {
 
         <Step number={4} title="Calculează dividendele cu credit pentru reținere străină">
           <p>
-            Trading212 reține impozit pe dividende la sursă (în țara emitentului). Pentru acțiuni americane, reținerea
-            este 30% dacă nu ai completat formularul W-8BEN, sau 10% dacă l-ai completat (rata aplicabilă conform
-            tratatului de evitare a dublei impuneri România-SUA).
+            Trading 212 colectează formularul W-8BEN la deschiderea contului, iar pentru rezidenții români impozitul
+            reținut la sursă în SUA pe dividendele din acțiuni americane este de 10% conform tratatului RO-SUA.
+            Verifică totuși extrasul fiscal anual: pentru REIT-uri și pentru acțiuni non-SUA rata poate diferi (de
+            exemplu REIT-urile americane pot avea 30% la sursă, iar dividendele din alte jurisdicții se rețin conform
+            legislației locale).
           </p>
           <p className="mt-3">
             În România plătești 10% pe dividend. Primești credit pentru reținerea străină până la limita impozitului
@@ -234,11 +236,12 @@ export default function GhidTrading212Page() {
         </ul>
 
         <p className="mt-4">
-          Conversie în RON la cursul BNR din 5 octombrie 2025 (presupunem 4,55 RON/USD): 266,67 × 4,55 ≈ 1.213,35 RON.
-          Treci la rubrica de transfer titluri.
+          Conversie în RON la cursul BNR din data tranzacției. 5 octombrie 2025 a fost duminică, deci se folosește
+          cursul de la următoarea zi lucrătoare, 6 octombrie 2025. Conform BNR, cursul oficial din 6 octombrie 2025 a
+          fost 4,3619 RON/USD: 266,67 × 4,3619 ≈ 1.163,19 RON. Treci la rubrica de transfer titluri.
         </p>
         <p className="mt-2">
-          Impozit pe câștig: 1.213,35 × 10% = <strong>121,34 RON</strong>.
+          Impozit pe câștig: 1.163,19 × 10% = <strong>116,32 RON</strong>.
         </p>
 
         <p className="mt-4 font-medium">Pentru dividende:</p>
@@ -254,11 +257,11 @@ export default function GhidTrading212Page() {
           Treci 53,65 RON la rubrica dividende din străinătate, cu 5,36 RON reținere străină.
         </p>
         <p className="mt-2">
-          Verificare CASS: total venituri non-salariale = 1.213,35 + 53,65 = 1.267,00 RON. Sub pragul de 6 salarii
+          Verificare CASS: total venituri non-salariale = 1.163,19 + 53,65 = 1.216,84 RON. Sub pragul de 6 salarii
           minime (24.300 RON pentru 2025). Nu datorezi CASS.
         </p>
         <p className="mt-4 p-3 bg-accent/10 rounded-lg font-medium">
-          Total de plată ANAF: <strong>121,34 RON</strong> impozit pe câștig.
+          Total de plată ANAF: <strong>116,32 RON</strong> impozit pe câștig.
         </p>
       </Section>
 
@@ -276,10 +279,11 @@ export default function GhidTrading212Page() {
         </Mistake>
         <Mistake>
           <strong>Omiterea pierderilor.</strong> Pierderile se declară. Nu schimbă suma de plată dacă ai pierdere
-          netă, dar fără declarare nu le poți reporta în anii următori. Regula curentă pentru brokeri fără
-          reprezentanță în România (Trading212, Revolut, IBKR): pierderile se compensează cu câștigurile din același
-          an, iar diferența negativă se reportează 5 ani fiscali consecutivi, în limita a 70% din câștigurile nete
-          viitoare.
+          netă, dar fără declarare nu le poți reporta în anii următori. Pierderea netă anuală din transferul
+          titlurilor de valoare prin brokeri fără reprezentanță în România (Trading212, Revolut, IBKR) se reportează 5
+          ani fiscali consecutivi, în limita a 70% din câștigurile nete viitoare. Pentru pierderile din străinătate,
+          compensarea se face cu câștiguri de aceeași natură și sursă, pentru fiecare țară în parte (Codul Fiscal art.
+          119).
         </Mistake>
         <Mistake>
           <strong>Confuzia Trading212 cu XTB.</strong> XTB are sucursală în România și reține impozitul la sursă (1%

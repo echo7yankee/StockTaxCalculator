@@ -25,7 +25,7 @@ export const GHID_DIVIDENDE_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Cum tratez ETF-urile cu acumulare (accumulating)?',
-    a: 'ETF-urile de acumulare (ex. CSPX, VWCE) NU plătesc dividende către tine. Veniturile sunt reinvestite în fond. Nu ai dividende de declarat, dar când vinzi ETF-ul, câștigul realizat (inclusiv componenta de dividende reinvestite implicit) intră la rubrica de transfer titluri, nu la dividende.',
+    a: 'ETF-urile de acumulare NU plătesc dividende către tine. Veniturile sunt reinvestite în fond. Nu ai dividende de declarat, dar când vinzi ETF-ul, câștigul realizat (inclusiv componenta de dividende reinvestite implicit) intră la rubrica de transfer titluri, nu la dividende. Exemple populare: VWCE (Vanguard FTSE All-World, ISIN IE00BK5BQT80), CSPX (iShares Core S&P 500, ISIN IE00B5BMR087), EUNL / IWDA / SWDA (iShares Core MSCI World, ISIN IE00B4L5Y983, listări diferite ale aceluiași fond).',
   },
   {
     q: 'Trebuie să plătesc CASS pe dividende?',

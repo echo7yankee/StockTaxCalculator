@@ -5,7 +5,7 @@ export const GHID_T212_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Ce fac dacă am pierdere netă?',
-    a: 'Treci pierderea în declarație ca sumă negativă. Nu plătești impozit pe câștig (pentru că nu ai). Pentru brokeri fără reprezentanță în România (Trading212, Revolut, IBKR), pierderea se reportează 5 ani fiscali consecutivi și se compensează cu maxim 70% din câștigurile nete viitoare.',
+    a: 'Treci pierderea în declarație ca sumă negativă. Nu plătești impozit pe câștig (pentru că nu ai). Pierderea netă anuală din transferul titlurilor de valoare prin brokeri fără reprezentanță în România (Trading212, Revolut, IBKR) se reportează 5 ani fiscali consecutivi, în limita a 70% din câștigurile nete viitoare. Pentru pierderile din străinătate, compensarea se face cu câștiguri de aceeași natură și sursă, pentru fiecare țară în parte (Codul Fiscal art. 119).',
   },
   {
     q: 'Cum convertesc dolarii și euro în RON?',
@@ -17,7 +17,7 @@ export const GHID_T212_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Ce se întâmplă dacă uit deadline-ul de 25 mai?',
-    a: 'Dobânzi 0,02% pe zi + penalități 0,01% pe zi = 0,03% pe zi din suma datorată. Plus posibilă amendă administrativă (50-500 RON pentru persoane fizice). Dacă ANAF descoperă obligații nedeclarate prin inspecție, se aplică în plus o penalitate de nedeclarare de 0,08% pe zi. Tot trebuie să depui declarația, doar că plătești și extra.',
+    a: 'Pentru declarațiile depuse după termen cu sumă declarată dar neplătită: dobândă 0,02% pe zi + penalitate de întârziere 0,01% pe zi = 0,03% pe zi total. Pentru sume nedeclarate descoperite de ANAF la inspecție: dobândă 0,02% pe zi + penalitate de nedeclarare 0,08% pe zi = 0,10% pe zi total. Plus amenda administrativă 50-500 RON pentru persoane fizice. Tot trebuie să depui declarația, doar că plătești și extra (Codul de Procedură Fiscală art. 174, 176, 181).',
   },
   {
     q: 'Trebuie să declar și acțiunile fracționare?',
