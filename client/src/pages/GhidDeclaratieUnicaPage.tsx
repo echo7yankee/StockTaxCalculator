@@ -269,8 +269,11 @@ export default function GhidDeclaratieUnicaPage() {
           provin din vânzări sau dividende.
         </Mistake>
         <Mistake>
-          <strong>Cursul greșit pe valută.</strong> Cursul BNR oficial din ZIUA tranzacției, nu cursul brokerului, nu
-          cursul mediu anual.
+          <strong>Cursul greșit pe valută.</strong> Cursul BNR oficial, dar cu reguli diferite pe tip de venit:
+          pentru câștigurile din transferul titlurilor de valoare se aplică cursul BNR din data fiecărei tranzacții
+          (Codul Fiscal art. 96); pentru dividendele primite în valută străină se aplică cursul mediu anual BNR
+          pentru anul în care s-a realizat venitul (Codul Fiscal art. 131 alin. 6). Nu cursul brokerului în niciun
+          caz.
         </Mistake>
         <Mistake>
           <strong>„Am pierdere, nu declar."</strong> Pierderile se declară. Nu plătești impozit pe câștig (n-ai), dar

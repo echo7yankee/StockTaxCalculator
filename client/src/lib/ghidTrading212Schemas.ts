@@ -9,7 +9,7 @@ export const GHID_T212_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Cum convertesc dolarii și euro în RON?',
-    a: 'Cursul BNR oficial din ZIUA tranzacției. Pentru dividende, ziua plății. Sursa oficială este bnr.ro. Practic, cursbnr.ro îți dă instant cursul pe orice dată.',
+    a: 'Pentru câștigurile din vânzări de acțiuni / ETF-uri se aplică cursul BNR oficial din data fiecărei tranzacții (Codul Fiscal art. 96). Pentru dividendele primite în valută străină se aplică cursul mediu anual BNR pentru anul în care s-a realizat venitul (Codul Fiscal art. 131 alin. 6), nu cursul din ziua plății. Sursa oficială este bnr.ro.',
   },
   {
     q: 'Pot deduce comisioanele?',

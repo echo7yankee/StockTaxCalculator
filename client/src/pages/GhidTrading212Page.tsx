@@ -124,16 +124,25 @@ export default function GhidTrading212Page() {
           </p>
         </Step>
 
-        <Step number={3} title="Convertește totul în RON la cursul BNR pe data tranzacției">
+        <Step number={3} title="Convertește totul în RON la cursul BNR">
           <p>
-            ANAF vrea cifrele în RON. Pentru fiecare tranzacție, iei cursul BNR oficial din ziua respectivă și
-            convertești suma valutară.
+            ANAF vrea cifrele în RON, dar regula de curs BNR diferă între tranzacții și dividende, conform Codului
+            Fiscal:
           </p>
-          <p className="mt-3">
-            Punct important: cursul se aplică pe <strong>data tranzacției</strong>, nu pe data raportului și nici
-            cursul mediu anual. Dacă ai cumpărat în martie și ai vândut în octombrie, fiecare leg are cursul lui.
-            Diferența de curs se reflectă în câștig.
-          </p>
+          <ul className="list-disc list-outside pl-6 space-y-2 mt-3">
+            <li>
+              <strong>Câștiguri din transferul titlurilor de valoare</strong> (vânzări de acțiuni / ETF-uri): se
+              aplică cursul BNR valabil la <strong>data fiecărei tranzacții</strong> (Codul Fiscal art. 96). Dacă ai
+              cumpărat în martie și ai vândut în octombrie, fiecare leg are cursul lui și diferența de curs se
+              reflectă în câștig.
+            </li>
+            <li>
+              <strong>Dividende primite în valută străină</strong>: conversia în RON se face la <strong>cursul mediu
+              anual BNR al pieței valutare, comunicat pentru anul în care s-a realizat venitul</strong> (Codul
+              Fiscal art. 131 alin. 6), nu la cursul din ziua fiecărei plăți. De exemplu, dividende în USD primite
+              în 2025 se convertesc la cursul mediu BNR USD/RON pentru anul 2025 (4,4705 RON/USD).
+            </li>
+          </ul>
         </Step>
 
         <Step number={4} title="Calculează dividendele cu credit pentru reținere străină">
@@ -234,18 +243,18 @@ export default function GhidTrading212Page() {
 
         <p className="mt-4 font-medium">Pentru dividende:</p>
         <ul className="list-disc list-outside pl-6 space-y-1 mt-3 text-sm">
-          <li>Brut total: 12 USD. Convertit la cursurile zilelor de plată (presupunem mediat 4,50 RON/USD): 54 RON.</li>
-          <li>Reținut în SUA: 1,20 USD ≈ 5,40 RON.</li>
-          <li>Impozit datorat RO: 54 × 10% = 5,40 RON.</li>
-          <li>Credit pentru reținere străină: 5,40 RON (limitat la impozitul RO).</li>
-          <li><strong>De plătit ANAF pe dividende: 0 RON.</strong></li>
+          <li>Brut total: 12 USD. Convertit la cursul mediu anual BNR USD/RON pentru 2025 (4,4705 RON/USD): 12 × 4,4705 ≈ 53,65 RON.</li>
+          <li>Reținut în SUA: 1,20 USD × 4,4705 ≈ 5,36 RON.</li>
+          <li>Impozit datorat RO: 53,65 × 10% ≈ 5,37 RON.</li>
+          <li>Credit pentru reținere străină: 5,36 RON (limitat la impozitul RO).</li>
+          <li><strong>De plătit ANAF pe dividende: 0,01 RON (efectiv 0 după rotunjire).</strong></li>
         </ul>
 
         <p className="mt-4">
-          Treci 54 RON la rubrica dividende din străinătate, cu 5,40 RON reținere străină.
+          Treci 53,65 RON la rubrica dividende din străinătate, cu 5,36 RON reținere străină.
         </p>
         <p className="mt-2">
-          Verificare CASS: total venituri non-salariale = 1.213,35 + 54 = 1.267,35 RON. Sub pragul de 6 salarii
+          Verificare CASS: total venituri non-salariale = 1.213,35 + 53,65 = 1.267,00 RON. Sub pragul de 6 salarii
           minime (24.300 RON pentru 2025). Nu datorezi CASS.
         </p>
         <p className="mt-4 p-3 bg-accent/10 rounded-lg font-medium">
@@ -255,8 +264,15 @@ export default function GhidTrading212Page() {
 
       <Section title="Greșeli frecvente">
         <Mistake>
-          <strong>Cursul greșit.</strong> Cursul BNR din ziua tranzacției. Nu cursul mediu anual, nu cursul de la
-          sfârșitul anului, nu cursul afișat de Trading212.
+          <strong>Cursul greșit pe tranzacții.</strong> Pentru câștigurile din vânzări de acțiuni / ETF-uri se
+          aplică cursul BNR din ziua fiecărei tranzacții (Codul Fiscal art. 96), nu cursul de la sfârșitul anului
+          și nici cursul afișat de Trading212.
+        </Mistake>
+        <Mistake>
+          <strong>Cursul greșit pe dividende.</strong> Pentru dividendele primite în valută străină se aplică
+          cursul mediu anual BNR al pieței valutare, comunicat pentru anul în care s-a realizat venitul (Codul
+          Fiscal art. 131 alin. 6), nu cursul din ziua fiecărei plăți. Regula e diferită față de tranzacții, ușor
+          de confundat.
         </Mistake>
         <Mistake>
           <strong>Omiterea pierderilor.</strong> Pierderile se declară. Nu schimbă suma de plată dacă ai pierdere

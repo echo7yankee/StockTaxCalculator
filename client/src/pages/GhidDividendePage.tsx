@@ -52,9 +52,10 @@ export default function GhidDividendePage() {
         <h2 className="text-lg font-semibold mb-2">TL;DR</h2>
         <p className="text-sm text-gray-700 dark:text-slate-300 leading-relaxed">
           Dividendele primite de la brokeri fără reprezentanță fiscală în România (Trading212, Revolut, IBKR, eToro)
-          se declară în D212 la rubrica „Venituri din dividende din străinătate". Datorezi 10% pe dividend brut, în RON
-          la cursul BNR din ziua primirii. Primești credit pentru reținerea străină, limitat la impozitul român.
-          Ratele pe țară diferă: 10% (SUA cu W-8BEN), 0% (Marea Britanie), 15% (Germania, Olanda) etc.
+          se declară în D212 la rubrica „Venituri din dividende din străinătate". Datorezi 10% pe dividend brut, în
+          RON la cursul mediu anual BNR pentru anul fiscal respectiv (Codul Fiscal art. 131 alin. 6). Primești credit
+          pentru reținerea străină, limitat la impozitul român. Ratele pe țară diferă: 10% (SUA cu W-8BEN), 0%
+          (Marea Britanie), 15% (Germania, Olanda) etc.
         </p>
       </section>
 
@@ -172,10 +173,17 @@ export default function GhidDividendePage() {
           </p>
         </Step>
 
-        <Step number={2} title="Convertește fiecare dividend la cursul BNR din ziua plății">
+        <Step number={2} title="Convertește dividendele la cursul mediu anual BNR">
           <p>
-            Cursul BNR oficial din ziua plății (settlement date), nu cursul brokerului și nu un curs mediu. Sursă:
-            bnr.ro sau cursbnr.ro pentru istoric rapid.
+            Pentru dividendele primite în valută străină, conversia în RON se face la <strong>cursul mediu anual BNR
+            al pieței valutare, comunicat pentru anul în care s-a realizat venitul</strong> (Codul Fiscal art. 131
+            alin. 6), nu la cursul din ziua fiecărei plăți și nici la cursul brokerului. De exemplu, dividende în
+            USD primite în 2025 se convertesc la cursul mediu BNR USD/RON pentru anul 2025 (4,4705 RON/USD).
+          </p>
+          <p className="mt-3">
+            Regula e diferită față de câștigurile din transferul titlurilor de valoare, unde se aplică cursul BNR
+            valabil la data fiecărei tranzacții (Codul Fiscal art. 96). Sursă pentru cursurile medii anuale: bnr.ro,
+            secțiunea „Cursul de schimb mediu anual".
           </p>
         </Step>
 
@@ -204,11 +212,11 @@ export default function GhidDividendePage() {
         <Example title="Exemplul 1: AAPL (SUA, cu W-8BEN)">
           <ul className="list-disc list-outside pl-6 space-y-1 mt-2">
             <li>Dividend brut: 100 USD</li>
-            <li>Curs BNR ziua plății: 4,50 RON/USD</li>
-            <li>Brut RON: 450 RON</li>
-            <li>Reținut SUA (10% cu W-8BEN): 10 USD = 45 RON</li>
-            <li>Impozit RO datorat: 10% × 450 = 45 RON</li>
-            <li>Credit reținere străină: 45 RON</li>
+            <li>Curs mediu anual BNR USD/RON pentru 2025: 4,4705 RON/USD</li>
+            <li>Brut RON: 100 × 4,4705 = 447,05 RON</li>
+            <li>Reținut SUA (10% cu W-8BEN): 10 USD × 4,4705 ≈ 44,71 RON</li>
+            <li>Impozit RO datorat: 10% × 447,05 ≈ 44,71 RON</li>
+            <li>Credit reținere străină: 44,71 RON</li>
             <li><strong>De plătit ANAF: 0 RON</strong></li>
           </ul>
         </Example>
@@ -216,12 +224,12 @@ export default function GhidDividendePage() {
         <Example title="Exemplul 2: Vodafone (Marea Britanie)">
           <ul className="list-disc list-outside pl-6 space-y-1 mt-2">
             <li>Dividend brut: 50 GBP</li>
-            <li>Curs BNR ziua plății: 5,80 RON/GBP</li>
-            <li>Brut RON: 290 RON</li>
+            <li>Curs mediu anual BNR GBP/RON pentru 2025: 5,9655 RON/GBP (presupunere ilustrativă, verifică valoarea reală pe bnr.ro)</li>
+            <li>Brut RON: 50 × 5,9655 ≈ 298,28 RON</li>
             <li>Reținut UK: 0 GBP = 0 RON</li>
-            <li>Impozit RO datorat: 10% × 290 = 29 RON</li>
+            <li>Impozit RO datorat: 10% × 298,28 ≈ 29,83 RON</li>
             <li>Credit reținere străină: 0 RON</li>
-            <li><strong>De plătit ANAF: 29 RON</strong></li>
+            <li><strong>De plătit ANAF: 29,83 RON</strong></li>
           </ul>
           <p className="mt-2 text-sm italic">
             UK nu reține pe dividendele plătite către non-rezidenți, deci plătești 10% complet în RO.
@@ -231,11 +239,11 @@ export default function GhidDividendePage() {
         <Example title="Exemplul 3: SHEL (Olanda)">
           <ul className="list-disc list-outside pl-6 space-y-1 mt-2">
             <li>Dividend brut: 80 EUR</li>
-            <li>Curs BNR ziua plății: 5,00 RON/EUR</li>
-            <li>Brut RON: 400 RON</li>
-            <li>Reținut NL (15%): 12 EUR = 60 RON</li>
-            <li>Impozit RO datorat: 10% × 400 = 40 RON</li>
-            <li>Credit reținere străină: 40 RON (limitat la impozitul RO)</li>
+            <li>Curs mediu anual BNR EUR/RON pentru 2025: 4,9745 RON/EUR (presupunere ilustrativă, verifică valoarea reală pe bnr.ro)</li>
+            <li>Brut RON: 80 × 4,9745 ≈ 397,96 RON</li>
+            <li>Reținut NL (15%): 12 EUR × 4,9745 ≈ 59,69 RON</li>
+            <li>Impozit RO datorat: 10% × 397,96 ≈ 39,80 RON</li>
+            <li>Credit reținere străină: 39,80 RON (limitat la impozitul RO)</li>
             <li><strong>De plătit ANAF: 0 RON</strong></li>
           </ul>
           <p className="mt-2 text-sm italic">
@@ -289,7 +297,11 @@ export default function GhidDividendePage() {
           se trece separat ca credit.
         </Mistake>
         <Mistake>
-          <strong>Cursul greșit.</strong> Cursul BNR din ziua plății, nu cursul brokerului și nu cursul mediu anual.
+          <strong>Cursul greșit.</strong> Pentru dividendele primite în valută străină, regula este cursul mediu
+          anual BNR pentru anul în care s-a realizat venitul (Codul Fiscal art. 131 alin. 6), nu cursul din ziua
+          fiecărei plăți și nici cursul brokerului. Regula e diferită față de câștigurile din transferul titlurilor
+          de valoare, unde se aplică cursul BNR de la data fiecărei tranzacții (Codul Fiscal art. 96), ușor de
+          confundat.
         </Mistake>
         <Mistake>
           <strong>Aplicarea creditului peste impozitul RO.</strong> Reținerea străină de 30% (SUA fără W-8BEN) NU îți

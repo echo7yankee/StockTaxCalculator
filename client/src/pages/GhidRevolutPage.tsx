@@ -129,16 +129,24 @@ export default function GhidRevolutPage() {
           </p>
         </Step>
 
-        <Step number={3} title="Convertește în RON la cursul BNR pe data tranzacției">
+        <Step number={3} title="Convertește în RON la cursul BNR">
           <p>
-            ANAF acceptă numai cifrele în RON. Pentru fiecare tranzacție iei cursul BNR oficial din ziua respectivă.
-            Cursul intern Revolut (cel cu care s-a executat ordinul) nu este acceptat.
+            ANAF acceptă numai cifrele în RON, iar regula de curs BNR diferă între tranzacții și dividende, conform
+            Codului Fiscal. Cursul intern Revolut (cel cu care s-a executat ordinul) nu este acceptat în niciun caz.
           </p>
-          <p className="mt-3">
-            Punct important: cursul se aplică pe <strong>data tranzacției</strong>, nu pe data raportului și nici un
-            curs mediu anual. Diferențele de curs între cumpărare și vânzare sunt o componentă reală a câștigului tău
-            în RON.
-          </p>
+          <ul className="list-disc list-outside pl-6 space-y-2 mt-3">
+            <li>
+              <strong>Câștiguri din transferul titlurilor de valoare</strong> (vânzări de acțiuni / ETF-uri): se
+              aplică cursul BNR valabil la <strong>data fiecărei tranzacții</strong> (Codul Fiscal art. 96).
+              Diferențele de curs între cumpărare și vânzare sunt o componentă reală a câștigului tău în RON.
+            </li>
+            <li>
+              <strong>Dividende primite în valută străină</strong>: conversia în RON se face la <strong>cursul mediu
+              anual BNR al pieței valutare, comunicat pentru anul în care s-a realizat venitul</strong> (Codul
+              Fiscal art. 131 alin. 6), nu la cursul din ziua fiecărei plăți. De exemplu, dividende în USD primite
+              în 2025 se convertesc la cursul mediu BNR USD/RON pentru anul 2025 (4,4705 RON/USD).
+            </li>
+          </ul>
         </Step>
 
         <Step number={4} title="Calculează dividendele cu credit pentru reținerea străină">
@@ -247,19 +255,20 @@ export default function GhidRevolutPage() {
 
         <p className="mt-4 font-medium">Pentru dividende:</p>
         <ul className="list-disc list-outside pl-6 space-y-1 mt-3 text-sm">
-          <li>Brut total: 18 USD. Convertit la cursurile zilelor de plată (presupunem 4,50 RON/USD în medie): 81 RON.</li>
-          <li>Reținut în SUA: 1,80 USD ≈ 8,10 RON.</li>
-          <li>Impozit datorat RO: 81 × 10% = 8,10 RON.</li>
-          <li>Credit pentru reținere străină: 8,10 RON.</li>
+          <li>Brut total: 18 USD. Convertit la cursul mediu anual BNR USD/RON pentru 2025 (4,4705 RON/USD): 18 × 4,4705 ≈ 80,47 RON.</li>
+          <li>Reținut în SUA: 1,80 USD × 4,4705 ≈ 8,05 RON.</li>
+          <li>Impozit datorat RO: 80,47 × 10% ≈ 8,05 RON.</li>
+          <li>Credit pentru reținere străină: 8,05 RON (limitat la impozitul RO).</li>
           <li><strong>De plătit ANAF pe dividende: 0 RON.</strong></li>
         </ul>
 
         <p className="mt-4">
-          Treci 81 RON la dividende din străinătate, cu 8,10 RON reținere străină.
+          Treci 80,47 RON la dividende din străinătate, cu 8,05 RON reținere străină.
         </p>
         <p className="mt-2">
-          Verificare CASS: total venituri non-salariale din Revolut = 2.957,50 + 81 = 3.038,50 RON. Mult sub pragul de
-          24.300 RON pentru 2025. Dacă nu ai alte venituri non-salariale care să te ducă peste prag, nu datorezi CASS.
+          Verificare CASS: total venituri non-salariale din Revolut = 2.957,50 + 80,47 = 3.037,97 RON. Mult sub
+          pragul de 24.300 RON pentru 2025. Dacă nu ai alte venituri non-salariale care să te ducă peste prag, nu
+          datorezi CASS.
         </p>
         <p className="mt-4 p-3 bg-accent/10 rounded-lg font-medium">
           Total de plată ANAF: <strong>295,75 RON</strong> impozit pe câștig.
@@ -269,7 +278,9 @@ export default function GhidRevolutPage() {
       <Section title="Greșeli frecvente">
         <Mistake>
           <strong>Cursul intern Revolut.</strong> ANAF nu acceptă cursul de schimb folosit de Revolut la executarea
-          ordinului. Doar cursul BNR oficial din ziua tranzacției.
+          ordinului. Folosești doar cursul BNR oficial, cu reguli diferite pe tip de venit: pentru tranzacții,
+          cursul BNR din ziua fiecărei tranzacții (Codul Fiscal art. 96); pentru dividende, cursul mediu anual BNR
+          pentru anul fiscal respectiv (Codul Fiscal art. 131 alin. 6).
         </Mistake>
         <Mistake>
           <strong>Confuzia Revolut Bank vs Revolut Trading.</strong> Card-ul Revolut Bank și serviciile bancare nu
