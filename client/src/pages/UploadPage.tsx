@@ -8,8 +8,9 @@ import {
   calculateTaxes,
   parseTrading212AnnualStatement,
   calculateTaxesFromPdf,
+  applyBnrRates,
 } from '@shared/index';
-import type { RawCsvRow, PdfParseResult, Transaction } from '@shared/index';
+import type { RawCsvRow, PdfParseResult } from '@shared/index';
 import { extractPdfPageTexts } from '../utils/pdfExtractor';
 import { useCountry } from '../contexts/CountryContext';
 import { useUpload } from '../contexts/UploadContext';
@@ -262,35 +263,6 @@ export default function UploadPage() {
     setCsvHistoryWarning(false);
   };
 
-  function applyBnrRates(transactions: Transaction[], dailyRates: Record<string, number>, localCurrency: string): Transaction[] {
-    const rateDates = Object.keys(dailyRates).sort();
-
-    function findRateOnOrBefore(dateStr: string): number | null {
-      let lo = 0, hi = rateDates.length - 1, best: string | null = null;
-      while (lo <= hi) {
-        const mid = Math.floor((lo + hi) / 2);
-        if (rateDates[mid] <= dateStr) { best = rateDates[mid]; lo = mid + 1; }
-        else hi = mid - 1;
-      }
-      return best ? dailyRates[best] : null;
-    }
-
-    return transactions.map(tx => {
-      if (tx.priceCurrency === localCurrency) {
-        return { ...tx, exchangeRateToLocal: 1, totalAmountLocal: tx.totalAmountOriginal, withholdingTaxLocal: tx.withholdingTaxOriginal };
-      }
-      const dateStr = new Date(tx.transactionDate).toISOString().split('T')[0];
-      const bnrRate = findRateOnOrBefore(dateStr);
-      if (!bnrRate) return tx;
-      return {
-        ...tx,
-        exchangeRateToLocal: bnrRate,
-        totalAmountLocal: Math.round(tx.totalAmountOriginal * bnrRate * 100) / 100,
-        withholdingTaxLocal: Math.round(tx.withholdingTaxOriginal * bnrRate * 100) / 100,
-      };
-    });
-  }
-
   const handleCalculate = useCallback(async () => {
     if (!countryConfig) return;
 
@@ -326,11 +298,28 @@ export default function UploadPage() {
         try {
           setCsvRateLoading(true);
           setCsvRateStatus(null);
-          const res = await fetch(`/api/exchange-rates/${selectedYear}/daily?currency=${foreignCurrency}`);
-          if (!res.ok) throw new Error('Failed to fetch BNR rates');
-          const data = await res.json();
-          enrichedTransactions = applyBnrRates(parsed.transactions, data.rates, countryConfig.currency);
-          setCsvRateStatus(`BNR ${selectedYear} daily rates (${data.count} dates)`);
+          // Per ANAF: capital gains use per-date BNR, dividends use annual average.
+          const [dailyRes, avgRes] = await Promise.all([
+            fetch(`/api/exchange-rates/${selectedYear}/daily?currency=${foreignCurrency}`),
+            fetch(`/api/exchange-rates/${selectedYear}/average?currency=${foreignCurrency}`),
+          ]);
+          if (!dailyRes.ok) throw new Error('Failed to fetch BNR rates');
+          const dailyData = await dailyRes.json();
+          // Annual-avg failure must not kill the daily path — dividends degrade to per-date instead.
+          let annualAvgRate: number | null = null;
+          if (avgRes.ok) {
+            try {
+              const avgData = await avgRes.json();
+              if (typeof avgData?.rate === 'number') annualAvgRate = avgData.rate;
+            } catch { /* leave annualAvgRate as null */ }
+          }
+          enrichedTransactions = applyBnrRates(
+            parsed.transactions,
+            dailyData.rates,
+            countryConfig.currency,
+            annualAvgRate,
+          );
+          setCsvRateStatus(`BNR ${selectedYear} daily rates (${dailyData.count} dates)`);
         } catch {
           setCsvRateStatus(t('bnrRateFallback'));
         } finally {
