@@ -151,8 +151,10 @@ export default function GhidRevolutPage() {
 
         <Step number={4} title="Calculează dividendele cu credit pentru reținerea străină">
           <p>
-            Revolut reține impozit pe dividende la sursă, în țara emitentului. Pentru acțiunile americane, rata
-            standard fără W-8BEN este 30%; cu W-8BEN rezolvat de Revolut e 10%, conform tratatului România-SUA.
+            Revolut Stocks (Revolut Securities Europe UAB) generează și semnează automat formularul W-8BEN la
+            deschiderea contului. Pentru rezidenții români, impozitul reținut la sursă pe dividendele din acțiuni
+            americane este 10% conform tratatului RO-SUA, nu 30%. Verifică extrasul fiscal anual pentru rata efectivă
+            pe fiecare dividend, în special pentru REIT-uri sau acțiuni non-SUA.
           </p>
           <p className="mt-3">
             În România datorezi 10% pe dividend brut. Primești credit pentru reținerea străină până la limita
@@ -246,11 +248,11 @@ export default function GhidRevolutPage() {
         </ul>
 
         <p className="mt-4">
-          Conversie la cursul BNR din 14 noiembrie 2025 (presupunem 4,55 RON/USD): 650 × 4,55 ≈ 2.957,50 RON. Treci la
-          rubrica de transfer titluri.
+          Conversie la cursul BNR din data tranzacției. Conform BNR, cursul oficial din 14 noiembrie 2025 a fost
+          4,3768 RON/USD: 650 × 4,3768 ≈ 2.844,92 RON. Treci la rubrica de transfer titluri.
         </p>
         <p className="mt-2">
-          Impozit pe câștig: 2.957,50 × 10% = <strong>295,75 RON</strong>.
+          Impozit pe câștig: 2.844,92 × 10% = <strong>284,49 RON</strong>.
         </p>
 
         <p className="mt-4 font-medium">Pentru dividende:</p>
@@ -266,12 +268,12 @@ export default function GhidRevolutPage() {
           Treci 80,47 RON la dividende din străinătate, cu 8,05 RON reținere străină.
         </p>
         <p className="mt-2">
-          Verificare CASS: total venituri non-salariale din Revolut = 2.957,50 + 80,47 = 3.037,97 RON. Mult sub
+          Verificare CASS: total venituri non-salariale din Revolut = 2.844,92 + 80,47 = 2.925,39 RON. Mult sub
           pragul de 24.300 RON pentru 2025. Dacă nu ai alte venituri non-salariale care să te ducă peste prag, nu
           datorezi CASS.
         </p>
         <p className="mt-4 p-3 bg-accent/10 rounded-lg font-medium">
-          Total de plată ANAF: <strong>295,75 RON</strong> impozit pe câștig.
+          Total de plată ANAF: <strong>284,49 RON</strong> impozit pe câștig.
         </p>
       </Section>
 
@@ -292,8 +294,11 @@ export default function GhidRevolutPage() {
           declară la rubrica de venituri din dobânzi.
         </Mistake>
         <Mistake>
-          <strong>Ignorarea pierderilor.</strong> Pierderile nete se reportează 5 ani fiscali consecutivi, în limita
-          a 70% din câștigurile nete viitoare. Fără declararea în anul curent, beneficiul reportării se pierde.
+          <strong>Ignorarea pierderilor.</strong> Pierderea netă anuală din transferul titlurilor de valoare prin
+          brokeri fără reprezentanță în România se reportează 5 ani fiscali consecutivi, în limita a 70% din
+          câștigurile nete viitoare. Pentru pierderile din străinătate, compensarea se face cu câștiguri de aceeași
+          natură și sursă, pentru fiecare țară în parte (Codul Fiscal art. 119). Fără declararea în anul curent,
+          beneficiul reportării se pierde.
         </Mistake>
         <Mistake>
           <strong>Considerarea Revolut ca având reprezentanță în RO.</strong> Revolut Securities Europe UAB este în

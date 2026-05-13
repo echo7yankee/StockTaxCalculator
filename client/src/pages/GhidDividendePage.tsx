@@ -146,18 +146,23 @@ export default function GhidDividendePage() {
               <tr>
                 <td className="py-2 pr-4">Spania</td>
                 <td className="py-2 pr-4">19%</td>
-                <td className="py-2 pr-4">10% (tratat)</td>
+                <td className="py-2 pr-4">5% (tratat)</td>
                 <td className="py-2">0 (credit complet)</td>
               </tr>
               <tr>
                 <td className="py-2 pr-4">Elveția</td>
                 <td className="py-2 pr-4">35%</td>
-                <td className="py-2 pr-4">10% (tratat, cu cerere recuperare diferență)</td>
+                <td className="py-2 pr-4">15% (tratat, cu cerere recuperare diferență)</td>
                 <td className="py-2">0 (credit pe partea de 10%)</td>
               </tr>
             </tbody>
           </table>
         </div>
+        <p className="mt-3 text-sm text-gray-700 dark:text-slate-300">
+          Notă: brokerii spanioli aplică deseori rata domestică de 19% la sursă; pentru a beneficia de rata redusă a
+          tratatului (5%), investitorii non-rezidenți trebuie să depună o cerere de recuperare conform procedurii
+          Hacienda. Verifică extrasul fiscal al brokerului.
+        </p>
         <p className="mt-3 text-sm text-gray-500 dark:text-slate-400 italic">
           Pentru SUA, Trading212 și Revolut gestionează W-8BEN automat la deschiderea contului. Pentru alte țări,
           ratele aplicate sunt cele standard sau de tratat, în funcție de procedurile interne ale brokerului. Pe
@@ -309,7 +314,10 @@ export default function GhidDividendePage() {
         </Mistake>
         <Mistake>
           <strong>Confundarea ETF-urilor de acumulare cu cele cu distribuție.</strong> Doar ETF-urile distribuibile
-          plătesc dividende. ETF-urile cu acumulare (VWCE, CSPX, EUNL, IWDA) nu generează dividende declarabile.
+          plătesc dividende. Exemple de ETF-uri acumulative populare care nu generează dividende declarabile: VWCE
+          (Vanguard FTSE All-World, ISIN IE00BK5BQT80), CSPX (iShares Core S&amp;P 500, ISIN IE00B5BMR087),
+          EUNL / IWDA / SWDA (iShares Core MSCI World, ISIN IE00B4L5Y983, listări diferite pe XETRA / Euronext /
+          Borsa Italiana ale aceluiași fond).
         </Mistake>
         <Mistake>
           <strong>Omiterea dividendelor mici.</strong> Indiferent de sumă, toate dividendele primite în 2025 se

@@ -85,8 +85,8 @@ export default function GhidDeclaratieUnicaPage() {
         <ol className="list-decimal list-outside pl-6 space-y-3">
           <li>
             <strong>Cont SPV pe anaf.ro.</strong> Dacă nu ai, fă-ți unul cu CNP-ul. Validare prin Buletin (la ghișeu cu
-            certificat) sau prin IBAN (online, dar tot necesită câteva zile pentru aprobare). Nu lăsa pentru ultima
-            săptămână.
+            certificat) sau prin IBAN (online, dar tot necesită de regulă câteva zile pentru aprobare). Nu lăsa pentru
+            ultima săptămână.
           </li>
           <li>
             <strong>Documente fiscale per sursă de venit:</strong>
@@ -111,8 +111,8 @@ export default function GhidDeclaratieUnicaPage() {
       <Section title="Pașii completi pe SPV">
         <Step number={1} title="Autentifică-te în SPV">
           <p>
-            anaf.ro → SPV → autentificare cu credențialele tale. Dacă ai uitat parola, recuperarea durează 1-2 zile,
-            deci nu amâna.
+            anaf.ro → SPV → autentificare cu credențialele tale. Dacă ai uitat parola, recuperarea durează de regulă
+            câteva zile, deci nu amâna pentru ultima săptămână.
           </p>
         </Step>
 
@@ -204,8 +204,9 @@ export default function GhidDeclaratieUnicaPage() {
 
         <Step number={6} title="Transmite declarația">
           <p>
-            La final apasă „Transmite" / „Depune". Sistemul îți generează un număr de înregistrare. Salvează-l. Treci
-            în secțiunea „Mesaje" sau „Documente trimise" ca să vezi confirmarea oficială.
+            După încărcarea fișierului pe formularespv-pf.anaf.ro, apasă „Transmitere formular" și notează indexul de
+            încărcare. Confirmarea reală vine prin recipisa pe care o primești în secțiunea „Mesaje" din SPV și prin
+            email-ul automat de la ANAF.
           </p>
           <p className="mt-3">
             Plata impozitului calculat se face la termenul afișat de ANAF după validare. Codurile de plată ANAF
@@ -219,7 +220,7 @@ export default function GhidDeclaratieUnicaPage() {
           Greșelile se întâmplă. Mai ales prima dată. Soluția este declarația rectificativă: o nouă D212 cu opțiunea
           „Rectificativă" bifată, care înlocuiește pe cea inițială.
         </p>
-        <p className="mt-3">Termen: 5 ani fiscali consecutivi (perioada de prescripție). Pentru declarația 2025 depusă în 2026, poți depune rectificativă până în 2031.</p>
+        <p className="mt-3">Termen: în termenul general de prescripție de 5 ani (până la 1 iulie 2031 pentru declarația aferentă anului fiscal 2025), conform Codului de Procedură Fiscală art. 110 alin. (2).</p>
         <p className="mt-3">Cum se face:</p>
         <ol className="list-decimal list-outside pl-6 space-y-1 mt-2">
           <li>În SPV, intri din nou la D212 pentru anul fiscal corespunzător.</li>
@@ -292,8 +293,11 @@ export default function GhidDeclaratieUnicaPage() {
           apărea blocaje. Plus contul SPV durează zile pentru validare dacă nu îl ai deja.
         </Mistake>
         <Mistake>
-          <strong>Netransmiterea declarației după salvare.</strong> Salvarea NU înseamnă depunere. Trebuie explicit să
-          apeși „Transmite" și să verifici confirmarea în Mesaje / Documente trimise.
+          <strong>Netransmiterea declarației după salvare.</strong> Salvarea PDF-ului local NU înseamnă depunere. După
+          încărcarea fișierului în SPV pe formularespv-pf.anaf.ro, apasă butonul „Transmitere formular" și notează
+          indexul de încărcare. Confirmarea reală vine prin recipisa pe care o primești în secțiunea „Mesaje" din SPV
+          și prin email-ul automat de la ANAF. Depunerea e considerată completă doar când recipisa indică validare
+          fără erori; dacă apar erori, corectează declarația și reîncarcă.
         </Mistake>
       </Section>
 

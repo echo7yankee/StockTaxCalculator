@@ -25,7 +25,7 @@ export const GHID_REVOLUT_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Ce se întâmplă dacă am avut și pierderi pe Revolut?',
-    a: 'Pierderile se trec în declarație ca sumă negativă. Se compensează cu câștigurile din același an de la alți brokeri fără reprezentanță în România. Pierderea netă rămasă se reportează 5 ani fiscali consecutivi, în limita a 70% din câștigurile nete viitoare.',
+    a: 'Pierderile se trec în declarație ca sumă negativă. Pierderea netă anuală din transferul titlurilor de valoare prin brokeri fără reprezentanță în România se reportează 5 ani fiscali consecutivi, în limita a 70% din câștigurile nete viitoare. Pentru pierderile din străinătate, compensarea se face cu câștiguri de aceeași natură și sursă, pentru fiecare țară în parte (Codul Fiscal art. 119).',
   },
   {
     q: 'Dobânzile la cardul Revolut Pockets / Savings se declară?',
