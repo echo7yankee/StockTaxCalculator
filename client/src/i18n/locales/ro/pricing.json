@@ -46,7 +46,7 @@
     "q4": "Pot primi banii înapoi?",
     "a4": "Da. Contactează-ne în primele 14 zile de la cumpărare pentru o rambursare completă, fără întrebări.",
     "q5": "Cât de precise sunt calculele?",
-    "a5": "Folosim cursurile oficiale BNR, metoda costului mediu ponderat cerută de legislația fiscală din România și aplicăm regulile fiscale valabile pentru anul fiscal 2025: 10% impozit pe câștigul net din tranzacționare prin brokeri nerezidenți (Trading212, IBKR, eToro, Revolut), plus CASS și impozit pe dividende conform codului fiscal. Toate sumele sunt convertite în RON.",
+    "a5": "Folosim cursurile oficiale BNR și metoda costului mediu ponderat (CMP), una dintre metodele folosite în practica retail pentru auto-declarare la broker nerezident (FIFO este și ea acceptată; alege o metodă și aplic-o consistent). Aplicăm regulile fiscale valabile pentru anul fiscal 2025: 10% impozit pe câștigul net din tranzacționare prin brokeri nerezidenți (Trading212, IBKR, eToro, Revolut), plus CASS și impozit pe dividende conform codului fiscal. Toate sumele sunt convertite în RON.",
     "q6": "Sunt datele mele în siguranță?",
     "a6": "Extrasele tale sunt procesate și nu sunt niciodată partajate. Poți exporta sau șterge toate datele tale oricând din Setări. Nu vindem niciodată datele utilizatorilor.",
     "q7": "Ce brokeri sunt suportați?",

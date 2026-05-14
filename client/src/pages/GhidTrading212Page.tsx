@@ -53,9 +53,8 @@ export default function GhidTrading212Page() {
         <p className="text-sm text-gray-700 dark:text-slate-300 leading-relaxed">
           Trading212 nu are reprezentanță în România, deci brokerul nu reține impozitul. Trebuie să-ți faci singur
           calculele și să le treci în Declarația Unică (D212), depusă online pe portalul ANAF SPV până pe 25 mai.
-          Plătești 10% pe câștigul net din tranzacții (calculat pe metoda costului mediu ponderat) și 10% pe
-          dividende, cu credit pentru reținerea străină. Plus CASS dacă totalul tău de venituri non-salariale
-          depășește 6 salarii minime.
+          Plătești 10% pe câștigul net din tranzacții și 10% pe dividende, cu credit pentru reținerea străină.
+          Plus CASS dacă totalul tău de venituri non-salariale depășește 6 salarii minime.
         </p>
       </section>
 
@@ -107,9 +106,12 @@ export default function GhidTrading212Page() {
 
         <Step number={2} title="Calculează câștigul net pe metoda CMP">
           <p>
-            În România, metoda standard pentru câștigul din vânzarea de acțiuni este{' '}
-            <strong>Costul Mediu Ponderat (CMP)</strong>. Logica: faci o medie ponderată a prețurilor la care ai
-            cumpărat o acțiune, iar câștigul tău este diferența dintre prețul de vânzare și costul mediu.
+            Pentru auto-declarare prin Declarația Unică la broker fără reprezentanță în România, ambele metode sunt
+            folosite în practica retail: <strong>FIFO</strong> (cel mai vechi cumpărat este primul vândut) sau{' '}
+            <strong>Costul Mediu Ponderat (CMP)</strong> (medie ponderată pe instrument). Alege una și aplic-o
+            consistent pe toate vânzările. InvesTax folosește CMP,
+            iar exemplul de mai jos arată logica: faci o medie ponderată a prețurilor la care ai cumpărat o acțiune,
+            iar câștigul tău este diferența dintre prețul de vânzare și costul mediu.
           </p>
           <div className="my-4 p-4 bg-navy-700/20 dark:bg-navy-750/40 rounded-lg text-sm">
             <p className="font-medium mb-2">Exemplu:</p>

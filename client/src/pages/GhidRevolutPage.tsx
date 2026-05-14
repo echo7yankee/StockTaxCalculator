@@ -53,8 +53,8 @@ export default function GhidRevolutPage() {
         <p className="text-sm text-gray-700 dark:text-slate-300 leading-relaxed">
           Revolut Trading operează prin Revolut Securities Europe UAB (Lituania) și nu are reprezentanță fiscală în
           România. Brokerul nu reține impozitul, deci tu calculezi și declari în Declarația Unică (D212) până pe 25
-          mai. Plătești 10% pe câștigul net din vânzări (cost mediu ponderat) și 10% pe dividendele primite, cu credit
-          pentru reținerea străină. CASS dacă suma veniturilor tale non-salariale depășește pragurile.
+          mai. Plătești 10% pe câștigul net din vânzări și 10% pe dividendele primite, cu credit pentru reținerea
+          străină. CASS dacă suma veniturilor tale non-salariale depășește pragurile.
         </p>
       </section>
 
@@ -111,9 +111,12 @@ export default function GhidRevolutPage() {
 
         <Step number={2} title="Calculează câștigul net pe metoda CMP">
           <p>
-            În România se aplică <strong>Costul Mediu Ponderat (CMP)</strong> pentru fiecare instrument. Ideea: faci o
-            medie ponderată a prețurilor la care ai cumpărat o acțiune și câștigul tău este diferența dintre prețul de
-            vânzare și costul mediu actual.
+            Pentru auto-declarare la broker nerezident, ambele metode sunt folosite în practica retail:{' '}
+            <strong>FIFO</strong> (cel mai vechi cumpărat este primul vândut) sau{' '}
+            <strong>Costul Mediu Ponderat (CMP)</strong> (medie ponderată pe instrument). Alege una și aplic-o
+            consistent pe toate vânzările. InvesTax folosește CMP.
+            Ideea CMP: faci o medie ponderată a prețurilor la care ai cumpărat o acțiune și câștigul tău este
+            diferența dintre prețul de vânzare și costul mediu actual.
           </p>
           <div className="my-4 p-4 bg-navy-700/20 dark:bg-navy-750/40 rounded-lg text-sm">
             <p className="font-medium mb-2">Exemplu:</p>

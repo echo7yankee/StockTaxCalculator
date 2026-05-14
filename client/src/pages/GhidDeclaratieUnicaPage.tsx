@@ -136,7 +136,8 @@ export default function GhidDeclaratieUnicaPage() {
           <ul className="list-disc list-outside pl-6 space-y-1 mt-2">
             <li>
               <strong>Capitolul „Veniturile din transferul titlurilor de valoare":</strong> câștigul net (sau
-              pierderea ca sumă negativă) calculat pe metoda Costului Mediu Ponderat. Detalii în{' '}
+              pierderea ca sumă negativă), calculat fie pe metoda Costului Mediu Ponderat (CMP), fie pe FIFO (alege
+              una și aplic-o consistent). Detalii în{' '}
               <button
                 onClick={() => navigate('/ghid/declaratie-unica-trading212')}
                 className="text-accent dark:text-accent-light underline hover:no-underline"
