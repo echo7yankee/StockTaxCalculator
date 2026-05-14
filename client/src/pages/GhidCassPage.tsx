@@ -118,21 +118,21 @@ export default function GhidCassPage() {
         </p>
         <ul className="list-disc list-outside pl-6 space-y-2 mt-3">
           <li>
-            <strong>Câștiguri din transferul titlurilor de valoare</strong> (Trading212, Revolut, IBKR, eToro etc.) —
+            <strong>Câștiguri din transferul titlurilor de valoare</strong> (Trading212, Revolut, IBKR, eToro etc.):
             câștigul brut realizat, nu net pe ansamblul anului.
           </li>
           <li>
-            <strong>Dividende</strong> — sumă brută în RON, indiferent de țara emitentului.
+            <strong>Dividende</strong>: sumă brută în RON, indiferent de țara emitentului.
           </li>
           <li>
-            <strong>Dobânzi</strong> — depozite bancare, conturi de economii, obligațiuni, produse Revolut Pockets /
+            <strong>Dobânzi</strong>: depozite bancare, conturi de economii, obligațiuni, produse Revolut Pockets /
             Savings, P2P lending.
           </li>
           <li>
-            <strong>Venituri din chirii</strong> — venitul brut sau net, în funcție de regimul ales.
+            <strong>Venituri din chirii</strong>: venitul brut sau net, în funcție de regimul ales.
           </li>
           <li>
-            <strong>Venituri din activități independente</strong> (PFA, drepturi de autor) — netul pentru sistem real,
+            <strong>Venituri din activități independente</strong> (PFA, drepturi de autor): netul pentru sistem real,
             sau norma de venit pentru forfetar.
           </li>
           <li>
