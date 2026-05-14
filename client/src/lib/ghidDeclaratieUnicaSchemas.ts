@@ -9,7 +9,7 @@ export const GHID_DU_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Trebuie să declar dacă am scos doar 200 lei de pe broker în 2025?',
-    a: 'Suma scoasă (retrasă) nu contează pentru declarație. Contează ce ai realizat ca venit (vânzări, dividende, dobânzi). Dacă din vânzări brute ai obținut 200 lei și nu ai alte venituri non-salariale, probabil ești sub orice prag de impozit relevant — dar tot trebuie să declari câștigul. Lipsa unei declarații poate atrage amendă, chiar dacă suma datorată e zero.',
+    a: 'Suma scoasă (retrasă) nu contează pentru declarație. Contează ce ai realizat ca venit (vânzări, dividende, dobânzi). Dacă din vânzări brute ai obținut 200 lei și nu ai alte venituri non-salariale, probabil ești sub orice prag de impozit relevant, dar tot trebuie să declari câștigul. Lipsa unei declarații poate atrage amendă, chiar dacă suma datorată e zero.',
   },
   {
     q: 'Pot să fac declarație rectificativă dacă am greșit?',
