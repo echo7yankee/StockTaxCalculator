@@ -4,7 +4,11 @@ import type { Prisma } from '@prisma/client';
 import * as Sentry from '@sentry/node';
 import prisma from '../lib/prisma.js';
 import { getStripeInstance } from '../services/stripe.js';
-import { sendPaymentConfirmationEmail } from '../services/email.js';
+import {
+  sendPaymentConfirmationEmail,
+  sendNewCustomerNotification,
+  type NewCustomerNotificationParams,
+} from '../services/email.js';
 
 type Language = 'ro' | 'en';
 
@@ -67,6 +71,7 @@ stripeWebhookRouter.post('/', async (req, res) => {
   // processing would leave the idempotency row committed and permanently mask the failure
   // from retries — the user's plan would never upgrade despite a successful charge.
   let confirmationEmailJob: ConfirmationEmailJob | null = null;
+  let adminNotificationJob: NewCustomerNotificationParams | null = null;
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -133,6 +138,18 @@ stripeWebhookRouter.post('/', async (req, res) => {
             expiresAt,
             language: pickStripeLocaleLanguage(session.locale),
           };
+          adminNotificationJob = {
+            customerEmail: user.email,
+            customerName: user.name,
+            amountMinorUnits: session.amount_total ?? 0,
+            currency: session.currency || 'eur',
+            stripeCustomerId: typeof session.customer === 'string' ? session.customer : null,
+            stripePaymentIntentId:
+              typeof session.payment_intent === 'string' ? session.payment_intent : null,
+            orderId: session.id,
+            planExpiresAt: expiresAt,
+            isLaunchPrice,
+          };
           break;
         }
 
@@ -180,6 +197,18 @@ stripeWebhookRouter.post('/', async (req, res) => {
         console.error('[Email] Payment confirmation send failed:', emailErr);
         Sentry.captureException(emailErr, {
           tags: { endpoint: 'webhook.stripe.paymentConfirmationEmail' },
+        });
+      });
+    }
+
+    // Admin notification: ping the operator inbox so we know about a new customer
+    // within seconds, not hours. Same fire-and-forget posture as the customer email.
+    if (adminNotificationJob) {
+      const job: NewCustomerNotificationParams = adminNotificationJob;
+      sendNewCustomerNotification(job).catch((emailErr) => {
+        console.error('[Email] Admin new-customer notification failed:', emailErr);
+        Sentry.captureException(emailErr, {
+          tags: { endpoint: 'webhook.stripe.adminNotification' },
         });
       });
     }

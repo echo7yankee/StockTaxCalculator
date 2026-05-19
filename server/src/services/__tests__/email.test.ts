@@ -3,6 +3,8 @@ import {
   sendPasswordResetEmail,
   sendWelcomeEmail,
   sendPaymentConfirmationEmail,
+  sendNewCustomerNotification,
+  sendContactMessageNotification,
   pickLanguage,
 } from '../email.js';
 
@@ -362,5 +364,204 @@ describe('sendPaymentConfirmationEmail', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     warnSpy.mockRestore();
     logSpy.mockRestore();
+  });
+});
+
+describe('sendNewCustomerNotification', () => {
+  const originalFetch = global.fetch;
+  const originalResend = process.env.RESEND_API_KEY;
+  const originalAdmin = process.env.ADMIN_NOTIFICATION_EMAIL;
+  const originalNodeEnv = process.env.NODE_ENV;
+
+  const baseParams = {
+    customerEmail: 'paul@example.com',
+    customerName: 'Paul Adam',
+    amountMinorUnits: 1200,
+    currency: 'eur',
+    stripeCustomerId: 'cus_test_abc',
+    stripePaymentIntentId: 'pi_test_def',
+    orderId: 'cs_live_xyz',
+    planExpiresAt: new Date('2027-05-19T07:33:00.000Z'),
+    isLaunchPrice: true,
+  };
+
+  beforeEach(() => {
+    process.env.RESEND_API_KEY = 'test_key_123';
+    process.env.ADMIN_NOTIFICATION_EMAIL = 'admin@example.com';
+    process.env.NODE_ENV = 'test';
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.RESEND_API_KEY = originalResend;
+    if (originalAdmin === undefined) delete process.env.ADMIN_NOTIFICATION_EMAIL;
+    else process.env.ADMIN_NOTIFICATION_EMAIL = originalAdmin;
+    process.env.NODE_ENV = originalNodeEnv;
+    vi.restoreAllMocks();
+  });
+
+  it('posts an admin notification to ADMIN_NOTIFICATION_EMAIL with customer + Stripe metadata', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: 'email_admin_1' }), { status: 200 })
+    );
+    global.fetch = fetchMock;
+
+    await sendNewCustomerNotification(baseParams);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.resend.com/emails');
+
+    const body = JSON.parse(init.body as string);
+    expect(body.from).toBe('InvesTax <noreply@investax.app>');
+    expect(body.to).toBe('admin@example.com');
+    expect(body.subject).toBe('[InvesTax] New paying customer: paul@example.com');
+
+    // Text body contains all the operator-facing fields
+    expect(body.text).toContain('paul@example.com');
+    expect(body.text).toContain('Paul Adam');
+    expect(body.text).toContain('12.00 EUR');
+    expect(body.text).toContain('launch promo (€12)');
+    expect(body.text).toContain('cus_test_abc');
+    expect(body.text).toContain('pi_test_def');
+    expect(body.text).toContain('cs_live_xyz');
+    expect(body.text).toContain('2027-05-19');
+    expect(body.text).toContain('https://dashboard.stripe.com/customers/cus_test_abc');
+  });
+
+  it('labels standard tier when isLaunchPrice is false', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendNewCustomerNotification({ ...baseParams, isLaunchPrice: false, amountMinorUnits: 1900 });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.text).toContain('standard (€19)');
+    expect(body.text).toContain('19.00 EUR');
+  });
+
+  it('handles missing customer name + missing Stripe IDs without crashing', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendNewCustomerNotification({
+      ...baseParams,
+      customerName: null,
+      stripeCustomerId: null,
+      stripePaymentIntentId: null,
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.text).toContain('(not provided)');
+    expect(body.text).toContain('(missing)');
+  });
+
+  it('silently no-ops when ADMIN_NOTIFICATION_EMAIL is unset', async () => {
+    delete process.env.ADMIN_NOTIFICATION_EMAIL;
+    const fetchMock = vi.fn();
+    global.fetch = fetchMock;
+
+    await expect(sendNewCustomerNotification(baseParams)).resolves.toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('throws when Resend returns non-2xx so the caller can capture in Sentry', async () => {
+    global.fetch = vi.fn().mockResolvedValue(new Response('boom', { status: 500 }));
+    await expect(sendNewCustomerNotification(baseParams)).rejects.toThrow(/Resend API 500/);
+  });
+});
+
+describe('sendContactMessageNotification', () => {
+  const originalFetch = global.fetch;
+  const originalResend = process.env.RESEND_API_KEY;
+  const originalAdmin = process.env.ADMIN_NOTIFICATION_EMAIL;
+  const originalNodeEnv = process.env.NODE_ENV;
+
+  const baseParams = {
+    fromName: 'Maria Popescu',
+    fromEmail: 'maria@example.com',
+    topic: 'support' as const,
+    message: 'Salut, am o întrebare despre dividende.',
+    language: 'ro' as const,
+    ipAddress: '203.0.113.42',
+    userAgent: 'Mozilla/5.0 (X11; Linux x86_64)',
+  };
+
+  beforeEach(() => {
+    process.env.RESEND_API_KEY = 'test_key_123';
+    process.env.ADMIN_NOTIFICATION_EMAIL = 'admin@example.com';
+    process.env.NODE_ENV = 'test';
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.RESEND_API_KEY = originalResend;
+    if (originalAdmin === undefined) delete process.env.ADMIN_NOTIFICATION_EMAIL;
+    else process.env.ADMIN_NOTIFICATION_EMAIL = originalAdmin;
+    process.env.NODE_ENV = originalNodeEnv;
+    vi.restoreAllMocks();
+  });
+
+  it('posts a contact-form notification with reply_to set to the submitter', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendContactMessageNotification(baseParams);
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.to).toBe('admin@example.com');
+    expect(body.reply_to).toBe('maria@example.com');
+    expect(body.subject).toBe('[InvesTax] Support message from Maria Popescu <maria@example.com>');
+    expect(body.text).toContain('Maria Popescu');
+    expect(body.text).toContain('maria@example.com');
+    expect(body.text).toContain('203.0.113.42');
+    expect(body.text).toContain('Salut, am o întrebare despre dividende.');
+    expect(body.text).toContain('Reply directly to maria@example.com');
+  });
+
+  it('uses correct topic label for general and business inquiries', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendContactMessageNotification({ ...baseParams, topic: 'general' });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).subject)
+      .toContain('General inquiry');
+
+    fetchMock.mockClear();
+    await sendContactMessageNotification({ ...baseParams, topic: 'business' });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).subject)
+      .toContain('Business message');
+  });
+
+  it('escapes HTML in submitted message and name', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendContactMessageNotification({
+      ...baseParams,
+      fromName: '<script>alert(1)</script>',
+      message: '<img src=x onerror=alert(2)>',
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.html).toContain('&lt;script&gt;');
+    expect(body.html).not.toContain('<script>alert(1)</script>');
+    expect(body.html).toContain('&lt;img src=x onerror=alert(2)&gt;');
+  });
+
+  it('handles null IP and UA gracefully', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendContactMessageNotification({ ...baseParams, ipAddress: null, userAgent: null });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.text).toContain('IP:       (unknown)');
+    expect(body.text).toContain('UA:       (unknown)');
+  });
+
+  it('silently no-ops when ADMIN_NOTIFICATION_EMAIL is unset', async () => {
+    delete process.env.ADMIN_NOTIFICATION_EMAIL;
+    const fetchMock = vi.fn();
+    global.fetch = fetchMock;
+
+    await expect(sendContactMessageNotification(baseParams)).resolves.toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
