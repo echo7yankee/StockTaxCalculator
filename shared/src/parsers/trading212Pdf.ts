@@ -412,12 +412,17 @@ export function parseTrading212AnnualStatement(pageTexts: string[]): PdfParseRes
   }
 
   // Cross-check: sell-trades parsed total vs overview.closedResult (fires for losses too).
+  // Per-row totalResult is in each trade's TRANSACTION currency (USD/EUR/RON depending
+  // on the row); overview.closedResult is in the account's PRIMARY currency. For
+  // single-currency PDFs they match; for mixed-currency PDFs they diverge by design.
+  // The engine uses overview as authoritative; this warning surfaces the per-security
+  // breakdown inconsistency that mixed-currency users will see.
   {
     const parsedTotal = sellTrades.reduce((s, t) => s + t.totalResult, 0);
     const diff = Math.abs(parsedTotal - overview.closedResult);
     if (diff > 1) {
       warnings.push(
-        `Parsed sell trades total (${parsedTotal.toFixed(2)}) differs from overview (${overview.closedResult.toFixed(2)}). Some rows may not have been parsed.`
+        `Parsed sell-trade per-row sum (${parsedTotal.toFixed(2)}) differs from overview (${overview.closedResult.toFixed(2)}). PDF may have mixed transaction currencies; using overview as authoritative net P/L source.`
       );
     }
   }

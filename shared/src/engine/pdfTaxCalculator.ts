@@ -89,9 +89,18 @@ export function calculateTaxesFromPdf(
   for (const div of pdfData.dividends) processDividend(div);
   for (const dist of pdfData.distributions) processDividend(dist);
 
-  // Tax calculations
-  const netGains = Math.max(0, totalProceeds - totalCostBasis);
-  const losses = Math.max(0, totalCostBasis - totalProceeds);
+  // Net P/L source: T212 PDF overview.closedResult is the authoritative net result
+  // because T212 already converts mixed-currency trades into the account's primary
+  // currency. Per-row trade.totalResult is in each trade's TRANSACTION currency
+  // (USD, EUR, or RON depending on row), so summing them is unit-inconsistent for
+  // multi-currency users. Single-currency PDFs (e.g. all-USD Dragos fixture) have
+  // overview.closedResult equal to per-row sum, so this change is a no-op there.
+  // When there are no sell trades, netGains/losses are 0 regardless of overview.
+  const closedResultLocal = pdfData.sellTrades.length > 0
+    ? (pdfData.overview.closedResult ?? 0) * exchangeRate
+    : 0;
+  const netGains = Math.max(0, closedResultLocal);
+  const losses = Math.max(0, -closedResultLocal);
   const capitalGainsTax = netGains * config.capitalGainsTaxRate;
 
   const dividendTaxGross = totalDividends * config.dividendTaxRate;
