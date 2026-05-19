@@ -207,4 +207,114 @@ describe('parseTrading212AnnualStatement', () => {
       expect(result.warnings.some(w => w.includes('No sell trades'))).toBe(true);
     });
   });
+
+  // ─── Multi-page section continuation (Paul Adam 2026-05-19 regression) ───
+  // T212 statements with high transaction counts split each section across multiple
+  // pages. Only the FIRST page of a section carries the section heading; continuation
+  // pages have only rows (sometimes with a repeated column header). Pre-fix parser
+  // skipped continuation pages — Paul's PDF parsed 19/142 sell trades and 11/49
+  // dividends. These tests pin the multi-page behavior.
+  describe('multi-page section continuation', () => {
+    function sellTradesHeadingPage(): string {
+      return [
+        'Sell Trades',
+        'EXECUTION TIME\tINSTRUMENT\tISIN\tTYPE\tCURRENCY\tSIZE\tAVG PRICE\tEXEC PRICE\tFX RATE\tTRANS CURRENCY\tTOTAL RESULT',
+        '15.03.2025 10:30\tApple Inc.\tUS0378331005\tStock\tUSD\t10\t130.00\t155.00\t1\tUSD\t250.00',
+        '15.03.2025 10:31\tMicrosoft\tUS5949181045\tStock\tUSD\t5\t300.00\t350.00\t1\tUSD\t250.00',
+        '15.03.2025 10:32\tAlphabet\tUS02079K3059\tStock\tUSD\t2\t100.00\t150.00\t1\tUSD\t100.00',
+      ].join('\n');
+    }
+
+    function sellTradesContinuationPage(): string {
+      // No section heading — just rows. T212's typical layout for page 2+ of sells.
+      return [
+        '15.04.2025 11:00\tAmazon\tUS0231351067\tStock\tUSD\t3\t140.00\t160.00\t1\tUSD\t60.00',
+        '15.04.2025 11:01\tTesla\tUS88160R1014\tStock\tUSD\t1\t200.00\t250.00\t1\tUSD\t50.00',
+        '15.04.2025 11:02\tNvidia\tUS67066G1040\tStock\tUSD\t4\t100.00\t125.00\t1\tUSD\t100.00',
+        '15.04.2025 11:03\tMeta\tUS30303M1027\tStock\tUSD\t2\t250.00\t300.00\t1\tUSD\t100.00',
+      ].join('\n');
+    }
+
+    function dividendHeadingPage(): string {
+      return [
+        'Dividend Overview',
+        'by instrument',
+        'INSTRUMENT\tISIN\tCURRENCY\tCOUNTRY\tHOLDINGS\tDATE\tGROSS/SHARE\tGROSS\tFX RATE\tGROSS USD\tWHT RATE\tWHT\tNET',
+        'Apple Inc.\tUS0378331005\tUSD\tUS\t10\t15.06.2025\t0.25\t2.50\t1\t2.50\t15%\t0.38\t2.12',
+        'Microsoft\tUS5949181045\tUSD\tUS\t5\t15.06.2025\t0.50\t2.50\t1\t2.50\t15%\t0.38\t2.12',
+        'Alphabet\tUS02079K3059\tUSD\tUS\t2\t15.06.2025\t0.25\t0.50\t1\t0.50\t15%\t0.08\t0.42',
+      ].join('\n');
+    }
+
+    function dividendContinuationPage(): string {
+      // No section heading, no "by instrument" marker — just rows (with repeated column header).
+      return [
+        'INSTRUMENT\tISIN\tCURRENCY\tCOUNTRY\tHOLDINGS\tDATE\tGROSS/SHARE\tGROSS\tFX RATE\tGROSS USD\tWHT RATE\tWHT\tNET',
+        'Amazon\tUS0231351067\tUSD\tUS\t3\t15.09.2025\t0.30\t0.90\t1\t0.90\t15%\t0.14\t0.76',
+        'Tesla\tUS88160R1014\tUSD\tUS\t1\t15.09.2025\t0.20\t0.20\t1\t0.20\t15%\t0.03\t0.17',
+      ].join('\n');
+    }
+
+    it('parses sell-trade rows from a continuation page (no section heading)', () => {
+      const result = parseTrading212AnnualStatement([
+        overviewPage({ 'Closed result': '$910.00' }),
+        '',
+        sellTradesHeadingPage(),
+        sellTradesContinuationPage(),
+      ]);
+      // 3 from heading page + 4 from continuation page = 7
+      expect(result.sellTrades).toHaveLength(7);
+      expect(result.sellTrades.map(t => t.isin)).toContain('US30303M1027'); // Meta from continuation page
+      expect(result.sellTrades.map(t => t.isin)).toContain('US0231351067'); // Amazon from continuation page
+      const parsedTotal = result.sellTrades.reduce((s, t) => s + t.totalResult, 0);
+      expect(parsedTotal).toBeCloseTo(910);
+    });
+
+    it('parses dividend rows from a continuation page (no heading, no "by instrument" marker)', () => {
+      const result = parseTrading212AnnualStatement([
+        overviewPage({ 'Gross Dividends': '$6.60' }),
+        '',
+        '',
+        dividendHeadingPage(),
+        dividendContinuationPage(),
+      ]);
+      // 3 from heading page + 2 from continuation page = 5
+      expect(result.dividends).toHaveLength(5);
+      expect(result.dividends.map(d => d.isin)).toContain('US0231351067'); // Amazon
+      expect(result.dividends.map(d => d.isin)).toContain('US88160R1014'); // Tesla
+    });
+
+    it('stops parsing at the next section heading (sell rows on dividend page do not leak)', () => {
+      const result = parseTrading212AnnualStatement([
+        overviewPage(),
+        '',
+        sellTradesHeadingPage(),
+        dividendHeadingPage(), // section boundary — sells should NOT pick up dividend page
+      ]);
+      // Only the 3 from sells heading page; dividend page is not a sell continuation.
+      expect(result.sellTrades).toHaveLength(3);
+      expect(result.dividends).toHaveLength(3);
+    });
+
+    it('cross-check warns when sell trades are missing rows (losses too — closedResult < 0)', () => {
+      // Overview says -500 closed, but we only parse rows summing to a different number.
+      const result = parseTrading212AnnualStatement([
+        overviewPage({ 'Closed result': '-$500.00', Profit: '$0.00', Loss: '$500.00' }),
+        '',
+        sellTradesHeadingPage(), // 600 total result
+      ]);
+      // 600 vs -500 → diff = 1100 → warning fires regardless of sign
+      expect(result.warnings.some(w => w.includes('differs from overview'))).toBe(true);
+    });
+
+    it('cross-check warns when parsed dividend gross differs from overview', () => {
+      const result = parseTrading212AnnualStatement([
+        overviewPage({ 'Gross Dividends': '$100.00' }), // overview says 100
+        '',
+        '',
+        dividendHeadingPage(), // parsed total ~5.50
+      ]);
+      expect(result.warnings.some(w => w.includes('dividend gross'))).toBe(true);
+    });
+  });
 });

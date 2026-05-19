@@ -180,12 +180,23 @@ function parseOverview(text: string): PdfOverview {
  * Parse sell trades table.
  * Each row starts with a date DD.MM.YYYY HH:MM and has tab-separated columns:
  * EXECUTION TIME | INSTRUMENT | ISIN | TYPE | CURRENCY | SIZE | AVG PRICE | EXEC PRICE | FX RATE | TRANS CURRENCY | EXEC PRICE | TOTAL RESULT
+ *
+ * T212 statements can span multiple pages per section: only the first page carries the
+ * section heading, continuation pages have just rows. We track "in section" state across
+ * pages and exit when a different section's heading appears.
  */
 function parseSellTrades(pageTexts: string[]): PdfSellTrade[] {
   const trades: PdfSellTrade[] = [];
+  let inSection = false;
 
   for (const text of pageTexts) {
-    if (!matchesAny(text, KEYWORDS.sellTrades)) continue;
+    if (matchesAny(text, KEYWORDS.sellTrades)) {
+      inSection = true;
+    } else if (matchesAny(text, KEYWORDS.dividendOverview) ||
+               matchesAny(text, KEYWORDS.distributionOverview)) {
+      inSection = false;
+    }
+    if (!inSection) continue;
 
     const lines = text.split('\n');
     for (const line of lines) {
@@ -251,82 +262,106 @@ function parseSellTrades(pageTexts: string[]): PdfSellTrade[] {
 /**
  * Parse dividend/distribution table rows.
  * Each row contains an ISIN and has tab-separated columns.
+ *
+ * Multi-page sections: the first page carries the section heading + "by instrument"
+ * marker; continuation pages have just rows (sometimes with a repeated column header).
+ * State-track across pages and parse continuation pages from line 0.
  */
 function parseDividendRows(pageTexts: string[], sectionKeywords: readonly string[]): PdfDividend[] {
   const dividends: PdfDividend[] = [];
+  let inSection = false;
+
+  const otherSectionKeywords: readonly string[] =
+    sectionKeywords === KEYWORDS.dividendOverview
+      ? [...KEYWORDS.distributionOverview, ...KEYWORDS.sellTrades]
+      : sectionKeywords === KEYWORDS.distributionOverview
+        ? [...KEYWORDS.dividendOverview, ...KEYWORDS.sellTrades]
+        : [];
+
+  const parseLine = (line: string): void => {
+    const cols = line.split('\t').map(c => c.trim());
+    if (cols.length < 8) return;
+
+    const isinIdx = cols.findIndex(c => /^[A-Z]{2}[A-Z0-9]{9,10}$/.test(c));
+    if (isinIdx < 0) return;
+
+    // Skip repeated column-header lines (often present on continuation pages)
+    if (cols.some(c => c === 'INSTRUMENT' || c === 'ISIN')) return;
+
+    const instrument = cols.slice(0, isinIdx).join(' ').trim();
+    const isin = cols[isinIdx];
+
+    // Columns after ISIN: CURRENCY | COUNTRY | HOLDINGS | PAY DATE | GROSS/SHARE | GROSS | FX RATE | GROSS(USD) | WHT RATE | WHT(USD) | NET(USD)
+    const afterIsin = cols.slice(isinIdx + 1);
+
+    const instrumentCurrency = afterIsin.find(c => /^(USD|EUR|GBP|RON)$/i.test(c)) || 'USD';
+    const country = afterIsin.find(c => /^[A-Z]{2}$/.test(c) && !/^(USD|EUR|GBP|RON)$/i.test(c)) || '';
+    const payDate = afterIsin.find(c => /^\d{2}\.\d{2}\.\d{4}/.test(c)) || '';
+    const whtRateCol = afterIsin.find(c => c.includes('%')) || '-';
+
+    // Positional parsing from end: NET | WHT(USD) | WHT RATE | GROSS(USD) | FX RATE | GROSS | GROSS/SHARE | ...
+    const lastIdx = afterIsin.length - 1;
+    const netAmountUsd = parseNum(afterIsin[lastIdx] || '0');
+    const whtUsd = parseNum(afterIsin[lastIdx - 1] || '0');
+    const grossAmountUsd = parseNum(afterIsin[lastIdx - 3] || '0');
+    const fxRate = parseNum(afterIsin[lastIdx - 4] || '1') || 1;
+    const grossAmount = parseNum(afterIsin[lastIdx - 5] || '0');
+    const grossPerShare = parseNum(afterIsin[lastIdx - 6] || '0');
+
+    const holdingsIdx = afterIsin.findIndex(c => {
+      const n = parseFloat(c.replace(/,/g, ''));
+      return !isNaN(n) && !/^[A-Z]{2,3}$/i.test(c);
+    });
+    const eligibleHoldings = holdingsIdx >= 0 ? parseNum(afterIsin[holdingsIdx]) : 0;
+
+    if (grossAmountUsd === 0 && grossAmount === 0) return;
+
+    dividends.push({
+      instrument,
+      isin,
+      instrumentCurrency,
+      issuingCountry: country,
+      eligibleHoldings,
+      payDate,
+      grossAmountPerShare: grossPerShare,
+      grossAmount,
+      fxRate,
+      grossAmountUsd: grossAmountUsd || grossAmount,
+      whtRate: whtRateCol,
+      whtUsd,
+      netAmountUsd: netAmountUsd || grossAmountUsd,
+    });
+  };
 
   for (const text of pageTexts) {
-    if (!matchesAny(text, sectionKeywords)) continue;
+    const matchesTarget = matchesAny(text, sectionKeywords);
+    const matchesOther = matchesAny(text, otherSectionKeywords);
 
-    // Find the "by instrument" section (EN: "by instrument", RO: "după instrument")
-    let byInstrumentIdx = -1;
-    for (const variant of KEYWORDS.byInstrument) {
-      const idx = text.toLowerCase().indexOf(variant);
-      if (idx >= 0) { byInstrumentIdx = idx; break; }
+    if (matchesTarget) {
+      // Heading page: locate "by instrument" marker and parse from there.
+      let byInstrumentIdx = -1;
+      for (const variant of KEYWORDS.byInstrument) {
+        const idx = text.toLowerCase().indexOf(variant);
+        if (idx >= 0) { byInstrumentIdx = idx; break; }
+      }
+      if (byInstrumentIdx < 0) {
+        // Heading without "by instrument" table — likely no rows on this page.
+        inSection = false;
+        continue;
+      }
+      inSection = true;
+      text.substring(byInstrumentIdx).split('\n').forEach(parseLine);
+      continue;
     }
-    if (byInstrumentIdx < 0) continue;
 
-    const sectionText = text.substring(byInstrumentIdx);
-    const lines = sectionText.split('\n');
+    if (matchesOther) {
+      inSection = false;
+      continue;
+    }
 
-    for (const line of lines) {
-      const cols = line.split('\t').map(c => c.trim());
-      if (cols.length < 8) continue;
-
-      // Find ISIN column
-      const isinIdx = cols.findIndex(c => /^[A-Z]{2}[A-Z0-9]{9,10}$/.test(c));
-      if (isinIdx < 0) continue;
-
-      // Skip header lines
-      if (cols.some(c => c === 'INSTRUMENT' || c === 'ISIN')) continue;
-
-      const instrument = cols.slice(0, isinIdx).join(' ').trim();
-      const isin = cols[isinIdx];
-
-      // Columns after ISIN follow a fixed layout:
-      // CURRENCY | COUNTRY | HOLDINGS | PAY DATE | GROSS/SHARE | GROSS | FX RATE | GROSS(USD) | WHT RATE | WHT(USD) | NET(USD)
-      const afterIsin = cols.slice(isinIdx + 1);
-
-      const instrumentCurrency = afterIsin.find(c => /^(USD|EUR|GBP|RON)$/i.test(c)) || 'USD';
-      const country = afterIsin.find(c => /^[A-Z]{2}$/.test(c) && !/^(USD|EUR|GBP|RON)$/i.test(c)) || '';
-      const payDate = afterIsin.find(c => /^\d{2}\.\d{2}\.\d{4}/.test(c)) || '';
-      const whtRateCol = afterIsin.find(c => c.includes('%')) || '-';
-
-      // Use positional parsing: from the end, columns are NET | WHT(USD) | WHT RATE | GROSS(USD) | FX RATE | GROSS | GROSS/SHARE | PAY DATE | HOLDINGS | COUNTRY | CURRENCY
-      // Work from end backwards for reliability
-      const lastIdx = afterIsin.length - 1;
-      const netAmountUsd = parseNum(afterIsin[lastIdx] || '0');
-      const whtUsd = parseNum(afterIsin[lastIdx - 1] || '0');
-      // whtRate is at lastIdx - 2 (already captured above)
-      const grossAmountUsd = parseNum(afterIsin[lastIdx - 3] || '0');
-      const fxRate = parseNum(afterIsin[lastIdx - 4] || '1') || 1;
-      const grossAmount = parseNum(afterIsin[lastIdx - 5] || '0');
-      const grossPerShare = parseNum(afterIsin[lastIdx - 6] || '0');
-
-      // eligibleHoldings: find first numeric value after currency/country
-      const holdingsIdx = afterIsin.findIndex(c => {
-        const n = parseFloat(c.replace(/,/g, ''));
-        return !isNaN(n) && !/^[A-Z]{2,3}$/i.test(c);
-      });
-      const eligibleHoldings = holdingsIdx >= 0 ? parseNum(afterIsin[holdingsIdx]) : 0;
-
-      if (grossAmountUsd === 0 && grossAmount === 0) continue;
-
-      dividends.push({
-        instrument,
-        isin,
-        instrumentCurrency,
-        issuingCountry: country,
-        eligibleHoldings,
-        payDate,
-        grossAmountPerShare: grossPerShare,
-        grossAmount,
-        fxRate,
-        grossAmountUsd: grossAmountUsd || grossAmount,
-        whtRate: whtRateCol,
-        whtUsd,
-        netAmountUsd: netAmountUsd || grossAmountUsd,
-      });
+    // Continuation page: parse entire page as rows if section is active.
+    if (inSection) {
+      text.split('\n').forEach(parseLine);
     }
   }
 
@@ -376,13 +411,25 @@ export function parseTrading212AnnualStatement(pageTexts: string[]): PdfParseRes
     warnings.push('Dividend section found but no rows could be parsed.');
   }
 
-  // Cross-check: compare parsed sell total with overview
-  if (sellTrades.length > 0 && overview.closedResult > 0) {
+  // Cross-check: sell-trades parsed total vs overview.closedResult (fires for losses too).
+  {
     const parsedTotal = sellTrades.reduce((s, t) => s + t.totalResult, 0);
     const diff = Math.abs(parsedTotal - overview.closedResult);
     if (diff > 1) {
       warnings.push(
         `Parsed sell trades total (${parsedTotal.toFixed(2)}) differs from overview (${overview.closedResult.toFixed(2)}). Some rows may not have been parsed.`
+      );
+    }
+  }
+
+  // Cross-check: dividends + distributions gross vs overview.grossDividends.
+  // grossAmountUsd carries the overview-currency-denominated gross (mislabeled field name).
+  {
+    const parsedGross = [...dividends, ...distributions].reduce((s, d) => s + d.grossAmountUsd, 0);
+    const diff = Math.abs(parsedGross - overview.grossDividends);
+    if (diff > 1) {
+      warnings.push(
+        `Parsed dividend gross (${parsedGross.toFixed(2)}) differs from overview gross dividends (${overview.grossDividends.toFixed(2)}). Some rows may not have been parsed.`
       );
     }
   }
