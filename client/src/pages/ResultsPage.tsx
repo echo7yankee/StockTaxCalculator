@@ -139,7 +139,7 @@ export default function ResultsPage() {
           icon={<TrendingUp className="w-6 h-6" />}
           label={t('results:capitalGainsTax')}
           value={`${fmt(taxResult.capitalGains.taxOwed)} ${sym}`}
-          detail={t('results:capitalGainsTaxDetail', { netGains: fmt(taxResult.capitalGains.netGains), rate: `${(taxResult.capitalGains.taxRate * 100)}%` })}
+          detail={t('results:capitalGainsTaxDetail', { netGains: fmt(taxResult.capitalGains.netGains), rate: taxResult.capitalGains.taxRate * 100 })}
           color="green"
         />
         <SummaryCard
@@ -153,7 +153,12 @@ export default function ResultsPage() {
           icon={<Heart className="w-6 h-6" />}
           label={t('results:healthContribution')}
           value={`${fmt(taxResult.healthContribution.amountOwed)} ${sym}`}
-          detail={t('results:healthContributionDetail', { bracket: taxResult.healthContribution.thresholdHit, income: fmt(taxResult.healthContribution.totalNonSalaryIncome) })}
+          detail={t('results:healthContributionDetail', {
+            bracket: taxResult.healthContribution.thresholdHit === 'none'
+              ? t('results:noBracket')
+              : taxResult.healthContribution.thresholdHit,
+            income: fmt(taxResult.healthContribution.totalNonSalaryIncome),
+          })}
           color="purple"
         />
         <SummaryCard

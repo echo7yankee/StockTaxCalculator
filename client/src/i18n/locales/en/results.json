@@ -12,6 +12,7 @@
   "dividendTaxDetail": "{{gross}} gross, {{withholding}} withholding",
   "healthContribution": "Health Contribution (CASS)",
   "healthContributionDetail": "Bracket: {{bracket}} ({{income}} income)",
+  "noBracket": "No bracket",
   "totalTaxOwed": "Total Tax Owed",
   "totalTaxOwedDetail": "After early filing discount: {{amount}} {{symbol}}",
   "capitalGainsBreakdown": "Capital Gains Breakdown",

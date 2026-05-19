@@ -672,7 +672,7 @@ export default function UploadPage() {
             </div>
             {countryConfig && (
               <p className="text-xs text-gray-500 dark:text-slate-400 mt-3">
-                {t('usingTaxRules', { country: countryConfig.name, rate: `${(countryConfig.capitalGainsTaxRate * 100)}%` })}
+                {t('usingTaxRules', { country: countryConfig.name, rate: countryConfig.capitalGainsTaxRate * 100 })}
                 {' · '}
                 {t('taxRulesUpdated')}
               </p>
