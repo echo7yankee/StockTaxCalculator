@@ -440,3 +440,117 @@ A separate Stripe receipt will arrive shortly. For any question, email us at sup
 
 InvesTax · investax.app`;
 }
+
+// ─── Admin notifications (operator-only, English, plain) ────────────────────
+// Internal pings to ADMIN_NOTIFICATION_EMAIL when something operationally
+// meaningful happens (new paying customer, contact-form submission). NOT
+// customer-facing copy: deliberately plain, single language, easy to parse
+// in an inbox.
+
+export interface NewCustomerNotificationParams {
+  customerEmail: string;
+  customerName: string | null;
+  amountMinorUnits: number;
+  currency: string;
+  stripeCustomerId: string | null;
+  stripePaymentIntentId: string | null;
+  orderId: string;
+  planExpiresAt: Date;
+  isLaunchPrice: boolean;
+}
+
+export async function sendNewCustomerNotification(
+  params: NewCustomerNotificationParams
+): Promise<void> {
+  const adminTo = process.env.ADMIN_NOTIFICATION_EMAIL;
+  if (!adminTo) {
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn('[Email] ADMIN_NOTIFICATION_EMAIL not set; admin payment notification skipped');
+    }
+    return;
+  }
+
+  const amount = formatAmount(params.amountMinorUnits, params.currency);
+  const tier = params.isLaunchPrice ? 'launch promo (€12)' : 'standard (€19)';
+  const subject = `[InvesTax] New paying customer: ${params.customerEmail}`;
+
+  const lines = [
+    `New paying customer just completed checkout.`,
+    ``,
+    `Customer email: ${params.customerEmail}`,
+    `Customer name:  ${params.customerName ?? '(not provided)'}`,
+    `Amount:         ${amount}`,
+    `Tier:           ${tier}`,
+    `Access until:   ${params.planExpiresAt.toISOString().slice(0, 10)}`,
+    ``,
+    `Stripe customer ID:       ${params.stripeCustomerId ?? '(missing)'}`,
+    `Stripe payment intent ID: ${params.stripePaymentIntentId ?? '(missing)'}`,
+    `Checkout session ID:      ${params.orderId}`,
+    ``,
+    `Stripe dashboard: https://dashboard.stripe.com/customers/${params.stripeCustomerId ?? ''}`,
+    ``,
+    `Sent automatically from the InvesTax production server.`,
+  ];
+
+  await postToResend({
+    from: FROM_ADDRESS,
+    to: adminTo,
+    subject,
+    html: `<pre style="font-family:ui-monospace,monospace;font-size:13px;line-height:1.5;">${escapeHtml(lines.join('\n'))}</pre>`,
+    text: lines.join('\n'),
+  });
+}
+
+export interface ContactMessageNotificationParams {
+  fromName: string;
+  fromEmail: string;
+  topic: 'support' | 'general' | 'business';
+  message: string;
+  language: Language;
+  ipAddress: string | null;
+  userAgent: string | null;
+}
+
+export async function sendContactMessageNotification(
+  params: ContactMessageNotificationParams
+): Promise<void> {
+  const adminTo = process.env.ADMIN_NOTIFICATION_EMAIL;
+  if (!adminTo) {
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn('[Email] ADMIN_NOTIFICATION_EMAIL not set; contact-form notification skipped');
+    }
+    return;
+  }
+
+  const topicLabel: Record<typeof params.topic, string> = {
+    support: 'Support',
+    general: 'General inquiry',
+    business: 'Business',
+  };
+  const subject = `[InvesTax] ${topicLabel[params.topic]} message from ${params.fromName} <${params.fromEmail}>`;
+
+  const lines = [
+    `New message submitted via the contact form.`,
+    ``,
+    `From:     ${params.fromName} <${params.fromEmail}>`,
+    `Topic:    ${topicLabel[params.topic]}`,
+    `Language: ${params.language}`,
+    `IP:       ${params.ipAddress ?? '(unknown)'}`,
+    `UA:       ${params.userAgent ?? '(unknown)'}`,
+    ``,
+    `--- Message ---`,
+    params.message,
+    `--- End message ---`,
+    ``,
+    `Reply directly to ${params.fromEmail} to respond.`,
+  ];
+
+  await postToResend({
+    from: FROM_ADDRESS,
+    to: adminTo,
+    subject,
+    html: `<pre style="font-family:ui-monospace,monospace;font-size:13px;line-height:1.5;white-space:pre-wrap;">${escapeHtml(lines.join('\n'))}</pre>`,
+    text: lines.join('\n'),
+    reply_to: params.fromEmail,
+  });
+}
