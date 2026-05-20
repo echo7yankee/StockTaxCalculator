@@ -5,6 +5,7 @@ import {
   sendPaymentConfirmationEmail,
   sendNewCustomerNotification,
   sendContactMessageNotification,
+  sendParseAlertNotification,
   pickLanguage,
 } from '../email.js';
 
@@ -563,5 +564,114 @@ describe('sendContactMessageNotification', () => {
 
     await expect(sendContactMessageNotification(baseParams)).resolves.toBeUndefined();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('sendParseAlertNotification', () => {
+  const originalFetch = global.fetch;
+  const originalResend = process.env.RESEND_API_KEY;
+  const originalAdmin = process.env.ADMIN_NOTIFICATION_EMAIL;
+  const originalNodeEnv = process.env.NODE_ENV;
+
+  const baseParams = {
+    userEmail: 'paul@example.com',
+    userName: 'Paul Adam',
+    fileType: 'pdf' as const,
+    outcome: 'error' as const,
+    fileName: 'annual-statement-2025.pdf',
+    errorMessage: 'No statement period found in PDF',
+    warnings: [] as string[],
+    summary: { sells: 144, dividends: 49, distributions: 0, pages: 14, year: 2025 },
+  };
+
+  beforeEach(() => {
+    process.env.RESEND_API_KEY = 'test_key_123';
+    process.env.ADMIN_NOTIFICATION_EMAIL = 'admin@example.com';
+    process.env.NODE_ENV = 'test';
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.RESEND_API_KEY = originalResend;
+    if (originalAdmin === undefined) delete process.env.ADMIN_NOTIFICATION_EMAIL;
+    else process.env.ADMIN_NOTIFICATION_EMAIL = originalAdmin;
+    process.env.NODE_ENV = originalNodeEnv;
+    vi.restoreAllMocks();
+  });
+
+  it('posts a parse alert to ADMIN_NOTIFICATION_EMAIL with reply_to set to the customer', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendParseAlertNotification(baseParams);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.to).toBe('admin@example.com');
+    expect(body.reply_to).toBe('paul@example.com');
+    expect(body.subject).toBe('[InvesTax] PDF parse FAILED for paul@example.com');
+    expect(body.text).toContain('Paul Adam <paul@example.com>');
+    expect(body.text).toContain('annual-statement-2025.pdf');
+    expect(body.text).toContain('No statement period found in PDF');
+  });
+
+  it('renders a distinct subject for each outcome', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendParseAlertNotification({ ...baseParams, outcome: 'success' });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).subject)
+      .toBe('[InvesTax] PDF parsed OK for paul@example.com');
+
+    fetchMock.mockClear();
+    await sendParseAlertNotification({ ...baseParams, outcome: 'warning', fileType: 'csv' });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).subject)
+      .toBe('[InvesTax] CSV parse warning for paul@example.com');
+  });
+
+  it('lists warnings and parsed counts in the body', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendParseAlertNotification({
+      ...baseParams,
+      outcome: 'warning',
+      errorMessage: null,
+      warnings: ['PDF may have mixed transaction currencies', 'Row count cross-check mismatch'],
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.text).toContain('Warnings (2):');
+    expect(body.text).toContain('PDF may have mixed transaction currencies');
+    expect(body.text).toContain('sells');
+    expect(body.text).toContain('144');
+    expect(body.text).toContain('Tax year: 2025');
+  });
+
+  it('escapes HTML in warning text and filename', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendParseAlertNotification({
+      ...baseParams,
+      fileName: '<script>alert(1)</script>.pdf',
+      warnings: ['<img src=x onerror=alert(2)>'],
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.html).toContain('&lt;script&gt;');
+    expect(body.html).not.toContain('<script>alert(1)</script>');
+  });
+
+  it('silently no-ops when ADMIN_NOTIFICATION_EMAIL is unset', async () => {
+    delete process.env.ADMIN_NOTIFICATION_EMAIL;
+    const fetchMock = vi.fn();
+    global.fetch = fetchMock;
+
+    await expect(sendParseAlertNotification(baseParams)).resolves.toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('throws when Resend returns non-2xx so the caller can capture in Sentry', async () => {
+    global.fetch = vi.fn().mockResolvedValue(new Response('boom', { status: 500 }));
+    await expect(sendParseAlertNotification(baseParams)).rejects.toThrow(/Resend API 500/);
   });
 });
