@@ -554,3 +554,104 @@ export async function sendContactMessageNotification(
     reply_to: params.fromEmail,
   });
 }
+
+export interface ParseSummary {
+  buys?: number;
+  sells?: number;
+  dividends?: number;
+  distributions?: number;
+  skipped?: number;
+  totalRows?: number;
+  pages?: number;
+  year?: number;
+}
+
+export interface ParseAlertNotificationParams {
+  userEmail: string;
+  userName: string | null;
+  fileType: 'pdf' | 'csv';
+  outcome: 'success' | 'warning' | 'error';
+  fileName: string | null;
+  errorMessage: string | null;
+  warnings: string[];
+  summary: ParseSummary;
+}
+
+// Operator alert fired when a paying customer parses a broker statement, so a
+// parse failure or an invariant warning reaches the operator inbox in minutes
+// instead of staying invisible until the customer complains.
+export async function sendParseAlertNotification(
+  params: ParseAlertNotificationParams
+): Promise<void> {
+  const adminTo = process.env.ADMIN_NOTIFICATION_EMAIL;
+  if (!adminTo) {
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn('[Email] ADMIN_NOTIFICATION_EMAIL not set; parse alert skipped');
+    }
+    return;
+  }
+
+  const fileTypeLabel = params.fileType.toUpperCase();
+  const outcomeLabel: Record<ParseAlertNotificationParams['outcome'], string> = {
+    success: 'parsed OK',
+    warning: 'parsed WITH WARNINGS',
+    error: 'PARSE FAILED',
+  };
+  const subjectOutcome: Record<ParseAlertNotificationParams['outcome'], string> = {
+    success: 'parsed OK',
+    warning: 'parse warning',
+    error: 'parse FAILED',
+  };
+  const subject = `[InvesTax] ${fileTypeLabel} ${subjectOutcome[params.outcome]} for ${params.userEmail}`;
+
+  const lines = [
+    `A paying customer just processed a statement upload.`,
+    ``,
+    `Outcome:  ${outcomeLabel[params.outcome]}`,
+    `User:     ${params.userName ?? '(no name)'} <${params.userEmail}>`,
+    `File:     ${params.fileName ?? '(no filename)'}  (${fileTypeLabel})`,
+  ];
+  if (typeof params.summary.year === 'number') {
+    lines.push(`Tax year: ${params.summary.year}`);
+  }
+
+  const countKeys = [
+    'buys', 'sells', 'dividends', 'distributions', 'skipped', 'totalRows', 'pages',
+  ] as const;
+  const countEntries = countKeys
+    .filter((k) => typeof params.summary[k] === 'number')
+    .map((k) => [k, params.summary[k] as number] as const);
+  if (countEntries.length > 0) {
+    lines.push(``, `Parsed counts:`);
+    for (const [key, value] of countEntries) {
+      lines.push(`  ${key.padEnd(14)}${value}`);
+    }
+  }
+
+  if (params.warnings.length > 0) {
+    lines.push(``, `Warnings (${params.warnings.length}):`);
+    for (const w of params.warnings) {
+      lines.push(`  - ${w}`);
+    }
+  }
+
+  if (params.errorMessage) {
+    lines.push(``, `Error:`, `  ${params.errorMessage}`);
+  }
+
+  lines.push(
+    ``,
+    `Reply directly to ${params.userEmail} to reach the customer.`,
+    ``,
+    `Sent automatically from the InvesTax production server.`,
+  );
+
+  await postToResend({
+    from: FROM_ADDRESS,
+    to: adminTo,
+    subject,
+    html: `<pre style="font-family:ui-monospace,monospace;font-size:13px;line-height:1.5;white-space:pre-wrap;">${escapeHtml(lines.join('\n'))}</pre>`,
+    text: lines.join('\n'),
+    reply_to: params.userEmail,
+  });
+}

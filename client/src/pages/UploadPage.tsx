@@ -16,6 +16,7 @@ import { useCountry } from '../contexts/CountryContext';
 import { useUpload } from '../contexts/UploadContext';
 import { useAuth } from '../contexts/AuthContext';
 import { analytics } from '../lib/analytics';
+import { reportParseEvent } from '../lib/parseMonitor';
 import PageMeta from '../components/common/PageMeta';
 
 type FileType = 'csv' | 'pdf';
@@ -118,6 +119,12 @@ export default function UploadPage() {
         if (rows.length === 0) {
           setError(t('csvNoData'));
           setProcessing(false);
+          reportParseEvent({
+            fileType: 'csv',
+            outcome: 'error',
+            fileName: file.name,
+            errorMessage: 'CSV contains no data rows',
+          });
           return;
         }
 
@@ -164,10 +171,32 @@ export default function UploadPage() {
         });
         setProcessing(false);
         analytics.csvUploaded();
+        reportParseEvent({
+          fileType: 'csv',
+          outcome: warnings.length > 0 || historyWarning ? 'warning' : 'success',
+          fileName: file.name,
+          warnings: historyWarning
+            ? [...warnings, 'Sells exceed buys for at least one security; CSV may be missing historical buy transactions']
+            : warnings,
+          summary: {
+            buys,
+            sells,
+            dividends,
+            skipped: parsed.skipped.length,
+            totalRows: parsed.transactions.length,
+            year: years[0],
+          },
+        });
       },
       error: (err) => {
         setError(t('failedParseCsv', { message: err.message }));
         setProcessing(false);
+        reportParseEvent({
+          fileType: 'csv',
+          outcome: 'error',
+          fileName: file.name,
+          errorMessage: err.message,
+        });
       },
     });
   }, [t]);
@@ -192,14 +221,34 @@ export default function UploadPage() {
       });
       setProcessing(false);
       analytics.pdfUploaded();
+      reportParseEvent({
+        fileType: 'pdf',
+        outcome: parsed.warnings.length > 0 ? 'warning' : 'success',
+        fileName: file.name,
+        warnings: parsed.warnings,
+        summary: {
+          sells: parsed.sellTrades.length,
+          dividends: parsed.dividends.length,
+          distributions: parsed.distributions.length,
+          pages: pageTexts.length,
+          year: parsed.year,
+        },
+      });
 
       // Auto-fetch BNR exchange rate
       if (parsed.overview.currency) {
         fetchBnrRate(parsed.year, parsed.overview.currency);
       }
     } catch (err) {
-      setError(t('failedParsePdf', { message: err instanceof Error ? err.message : 'Unknown error' }));
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setError(t('failedParsePdf', { message }));
       setProcessing(false);
+      reportParseEvent({
+        fileType: 'pdf',
+        outcome: 'error',
+        fileName: file.name,
+        errorMessage: message,
+      });
     }
   }, [fetchBnrRate, t]);
 

@@ -13,6 +13,7 @@ import { taxYearsRouter } from './routes/taxYears.js';
 import { paymentRouter } from './routes/payment.js';
 import { stripeWebhookRouter } from './routes/webhook.stripe.js';
 import { contactRouter } from './routes/contact.js';
+import { parseReportsRouter } from './routes/parseReports.js';
 
 // Initialize Sentry (only active when SENTRY_DSN is set + production)
 if (process.env.SENTRY_DSN && process.env.NODE_ENV === 'production') {
@@ -69,6 +70,7 @@ app.use('/api/contact', contactRouter);
 // Protected routes (require auth + paid plan)
 app.use('/api/uploads', requirePaidPlan, uploadsRouter);
 app.use('/api/tax-years', requirePaidPlan, taxYearsRouter);
+app.use('/api/parse-reports', requirePaidPlan, parseReportsRouter);
 
 // Sentry error handler (must be after all routes)
 if (process.env.SENTRY_DSN && process.env.NODE_ENV === 'production') {
