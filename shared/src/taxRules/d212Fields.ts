@@ -21,7 +21,7 @@ const capGainsFields: D212Field[] = [
   {
     id: 'cg-proceeds',
     section: 'I.1',
-    sectionTitle: 'Capitolul I — Secțiunea 1',
+    sectionTitle: 'Capitolul I, Secțiunea 1',
     roLabel: 'Venit',
     enLabel: 'Total Proceeds',
     getValue: (r) => r.capitalGains.totalProceeds,
@@ -29,7 +29,7 @@ const capGainsFields: D212Field[] = [
   {
     id: 'cg-cost',
     section: 'I.1',
-    sectionTitle: 'Capitolul I — Secțiunea 1',
+    sectionTitle: 'Capitolul I, Secțiunea 1',
     roLabel: 'Cheltuieli',
     enLabel: 'Total Cost Basis',
     getValue: (r) => r.capitalGains.totalCostBasis,
@@ -37,7 +37,7 @@ const capGainsFields: D212Field[] = [
   {
     id: 'cg-net',
     section: 'I.1',
-    sectionTitle: 'Capitolul I — Secțiunea 1',
+    sectionTitle: 'Capitolul I, Secțiunea 1',
     roLabel: 'Venit net',
     enLabel: 'Net Capital Gain',
     getValue: (r) => r.capitalGains.netGains,
@@ -45,7 +45,7 @@ const capGainsFields: D212Field[] = [
   {
     id: 'cg-tax',
     section: 'I.1',
-    sectionTitle: 'Capitolul I — Secțiunea 1',
+    sectionTitle: 'Capitolul I, Secțiunea 1',
     roLabel: 'Impozit',
     enLabel: 'Capital Gains Tax',
     getValue: (r) => r.capitalGains.taxOwed,
@@ -56,7 +56,7 @@ const dividendFields: D212Field[] = [
   {
     id: 'div-gross',
     section: 'I.3',
-    sectionTitle: 'Capitolul I — Secțiunea 3',
+    sectionTitle: 'Capitolul I, Secțiunea 3',
     roLabel: 'Venit brut',
     enLabel: 'Gross Dividends',
     getValue: (r) => r.dividends.grossTotal,
@@ -64,7 +64,7 @@ const dividendFields: D212Field[] = [
   {
     id: 'div-foreign-tax',
     section: 'I.3',
-    sectionTitle: 'Capitolul I — Secțiunea 3',
+    sectionTitle: 'Capitolul I, Secțiunea 3',
     roLabel: 'Impozit plătit în străinătate',
     enLabel: 'Foreign Withholding Tax Paid',
     getValue: (r) => r.dividends.withholdingTaxPaid,
@@ -72,7 +72,7 @@ const dividendFields: D212Field[] = [
   {
     id: 'div-tax',
     section: 'I.3',
-    sectionTitle: 'Capitolul I — Secțiunea 3',
+    sectionTitle: 'Capitolul I, Secțiunea 3',
     roLabel: 'Impozit datorat în România',
     enLabel: 'Tax Owed in Romania',
     getValue: (r) => r.dividends.taxOwed,
@@ -128,7 +128,7 @@ export function getAllD212Fields(): D212Field[] {
 
 export function formatD212Summary(result: TaxCalculationResult): string {
   const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const lines: string[] = ['D212 — Declarația Unică — Field Values', ''];
+  const lines: string[] = ['D212 Declarația Unică: Field Values', ''];
 
   for (const section of d212Sections) {
     lines.push(`${section.roTitle}`);
