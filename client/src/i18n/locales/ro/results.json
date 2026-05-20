@@ -12,7 +12,6 @@
   "dividendTaxDetail": "{{gross}} brut, {{withholding}} re\u021binere",
   "healthContribution": "Contribu\u021bie de s\u0103n\u0103tate (CASS)",
   "healthContributionDetail": "Prag: {{bracket}} (venituri {{income}})",
-  "noBracket": "Niciun prag",
   "totalTaxOwed": "Total impozit datorat",
   "totalTaxOwedDetail": "Dup\u0103 reducere depunere anticipat\u0103: {{amount}} {{symbol}}",
   "capitalGainsBreakdown": "Detaliere c\u00e2\u0219tiguri de capital",

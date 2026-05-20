@@ -89,7 +89,7 @@ test.describe('Scenario J: Calculator decimal input handling', () => {
     await expect(page.getByText('Results')).toBeVisible();
     // 5,000,000 * 10% = 500,000
     await expect(page.getByText('500000.00')).toBeVisible();
-    await expect(page.getByText(/bracket: 24x/)).toBeVisible();
+    await expect(page.getByText(/bracket: 24 minimum wages/)).toBeVisible();
   });
 });
 
@@ -108,7 +108,7 @@ test.describe('Scenario J: Calculator CASS bracket thresholds', () => {
 
     await page.getByText('Calculate').click();
 
-    await expect(page.getByText(/bracket: none/)).toBeVisible();
+    await expect(page.getByText(/bracket: No bracket/)).toBeVisible();
   });
 
   test('6x CASS bracket at exactly 24300', async ({ page }) => {
@@ -117,9 +117,9 @@ test.describe('Scenario J: Calculator CASS bracket thresholds', () => {
 
     await page.getByText('Calculate').click();
 
-    await expect(page.getByText(/bracket: 6x/)).toBeVisible();
+    await expect(page.getByText(/bracket: 6 minimum wages/)).toBeVisible();
     // Health contribution should be 2430
-    const cassRow = page.getByText(/bracket: 6x/).locator('..');
+    const cassRow = page.getByText(/bracket: 6 minimum wages/).locator('..');
     await expect(cassRow).toContainText('2430.00');
   });
 
@@ -129,8 +129,8 @@ test.describe('Scenario J: Calculator CASS bracket thresholds', () => {
 
     await page.getByText('Calculate').click();
 
-    await expect(page.getByText(/bracket: 12x/)).toBeVisible();
-    const cassRow = page.getByText(/bracket: 12x/).locator('..');
+    await expect(page.getByText(/bracket: 12 minimum wages/)).toBeVisible();
+    const cassRow = page.getByText(/bracket: 12 minimum wages/).locator('..');
     await expect(cassRow).toContainText('4860.00');
   });
 
@@ -140,8 +140,8 @@ test.describe('Scenario J: Calculator CASS bracket thresholds', () => {
 
     await page.getByText('Calculate').click();
 
-    await expect(page.getByText(/bracket: 24x/)).toBeVisible();
-    const cassRow = page.getByText(/bracket: 24x/).locator('..');
+    await expect(page.getByText(/bracket: 24 minimum wages/)).toBeVisible();
+    const cassRow = page.getByText(/bracket: 24 minimum wages/).locator('..');
     await expect(cassRow).toContainText('9720.00');
   });
 
@@ -154,7 +154,7 @@ test.describe('Scenario J: Calculator CASS bracket thresholds', () => {
 
     await page.getByText('Calculate').click();
 
-    await expect(page.getByText(/bracket: 6x/)).toBeVisible();
+    await expect(page.getByText(/bracket: 6 minimum wages/)).toBeVisible();
   });
 
   test('early filing discount calculated correctly', async ({ page }) => {

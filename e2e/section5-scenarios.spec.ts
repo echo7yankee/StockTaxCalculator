@@ -75,7 +75,7 @@ test.describe('Scenario A — Free user, manual calculator', () => {
     await expect(dividendRow).toBeVisible();
 
     // Step 5: Verify CASS bracket (12x for 51000 total)
-    await expect(page.getByText(/bracket: 12x/)).toBeVisible();
+    await expect(page.getByText(/bracket: 12 minimum wages/)).toBeVisible();
     await expect(page.getByText('4860.00')).toBeVisible();
 
     // Verify total tax owed: 9860.00

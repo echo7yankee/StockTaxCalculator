@@ -57,9 +57,9 @@ describe('CalculatorPage', () => {
     await user.click(screen.getByText('Calculate'));
 
     // CASS for >97200 RON = 9720 RON
-    expect(screen.getByText(/bracket: 24x/)).toBeInTheDocument();
+    expect(screen.getByText(/bracket: 24 minimum wages/)).toBeInTheDocument();
     // The health contribution row contains 9720.00
-    const cassRow = screen.getByText(/bracket: 24x/).closest('div');
+    const cassRow = screen.getByText(/bracket: 24 minimum wages/).closest('div');
     expect(cassRow?.textContent).toContain('9720.00');
   });
 

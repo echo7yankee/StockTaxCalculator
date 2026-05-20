@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useCountry } from '../contexts/CountryContext';
 import PageMeta from '../components/common/PageMeta';
 import { analytics } from '../lib/analytics';
+import { cassBracketLabelKey } from '../utils/cassBracket';
 import { calculateQuickTax } from '@shared/engine/quickCalculator';
 import type { QuickTaxResult } from '@shared/engine/quickCalculator';
 import type { ManualCalculatorInput } from '@shared/types/tax';
@@ -122,7 +123,7 @@ export default function CalculatorPage() {
           <div className="space-y-3">
             <Row label={t('capitalGainsTax', { rate: `${(countryConfig.capitalGainsTaxRate * 100).toFixed(0)}%` })} amount={result.capitalGainsTax} currency={countryConfig.currency} />
             <Row label={t('dividendTax', { rate: `${(countryConfig.dividendTaxRate * 100).toFixed(0)}%` })} amount={result.dividendTax} currency={countryConfig.currency} />
-            <Row label={t('healthContribution', { bracket: result.bracketLabel })} amount={result.healthContribution} currency={countryConfig.currency} />
+            <Row label={t('healthContribution', { bracket: t(cassBracketLabelKey(result.bracketLabel)) })} amount={result.healthContribution} currency={countryConfig.currency} />
             <div className="border-t border-gray-200 dark:border-navy-500 pt-3">
               <Row label={t('totalTaxOwed')} amount={result.totalOwed} currency={countryConfig.currency} bold />
             </div>
