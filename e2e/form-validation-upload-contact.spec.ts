@@ -49,13 +49,15 @@ test.describe('Scenario K: Contact page content', () => {
     await expect(page.locator('h1')).toContainText('Get in touch');
     await expect(page.getByText(/reply to all messages/i)).toBeVisible();
 
-    // Support card
+    // Channel cards (informational — mailto buttons removed, the form is the channel now)
     await expect(page.getByText('Need help?')).toBeVisible();
-    await expect(page.getByText('support@investax.app')).toBeVisible();
-
-    // General card
     await expect(page.getByText('Other questions?')).toBeVisible();
-    await expect(page.getByText('hello@investax.app').first()).toBeVisible();
+
+    // Contact form
+    await expect(page.locator('#contact-name')).toBeVisible();
+    await expect(page.locator('#contact-email')).toBeVisible();
+    await expect(page.locator('#contact-topic')).toBeVisible();
+    await expect(page.locator('#contact-message')).toBeVisible();
 
     // FAQ section
     await expect(page.getByText('Frequently Asked Questions')).toBeVisible();
@@ -64,16 +66,28 @@ test.describe('Scenario K: Contact page content', () => {
     await expect(page.getByText('Business Information')).toBeVisible();
   });
 
-  test('support email link has correct mailto', async ({ page }) => {
-    const supportLink = page.locator('a[href="mailto:support@investax.app"]').first();
-    await expect(supportLink).toBeVisible();
-    await expect(supportLink).toHaveAttribute('href', 'mailto:support@investax.app');
+  test('contact form submit is gated until the form is valid', async ({ page }) => {
+    const submit = page.locator('button[type="submit"]');
+    await expect(submit).toBeDisabled();
+
+    await page.locator('#contact-name').fill('Playwright Tester');
+    await page.locator('#contact-email').fill('tester@example.com');
+    await page.locator('#contact-message').fill('This is an end-to-end test message.');
+    await expect(submit).toBeEnabled();
   });
 
-  test('general email link has correct mailto', async ({ page }) => {
-    const generalLink = page.locator('a[href="mailto:hello@investax.app"]').first();
-    await expect(generalLink).toBeVisible();
-    await expect(generalLink).toHaveAttribute('href', 'mailto:hello@investax.app');
+  test('contact form submits and shows the success panel', async ({ page }) => {
+    await page.locator('#contact-name').fill('Playwright Tester');
+    await page.locator('#contact-email').fill('tester@example.com');
+    await page.locator('#contact-topic').selectOption('general');
+    await page
+      .locator('#contact-message')
+      .fill('This is an end-to-end test message for the contact form.');
+    await page.locator('button[type="submit"]').click();
+
+    // Server route returns 200 even when ADMIN_NOTIFICATION_EMAIL is unset (CI),
+    // so the success panel should appear.
+    await expect(page.getByText('Message sent!')).toBeVisible();
   });
 
   test('FAQ accordion items expand and collapse', async ({ page }) => {

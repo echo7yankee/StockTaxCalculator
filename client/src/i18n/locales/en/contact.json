@@ -13,20 +13,43 @@
     "email": "hello@investax.app",
     "responseTime": "Reply within 1-2 days"
   },
+  "form": {
+    "heading": "Send us a message",
+    "subheading": "Fill in the form below. We reply to the email address you provide.",
+    "name": "Your name",
+    "namePlaceholder": "Maria Popescu",
+    "email": "Your email address",
+    "emailPlaceholder": "maria@example.com",
+    "topic": "Topic",
+    "topicSupport": "Help / technical issue",
+    "topicGeneral": "General inquiry",
+    "topicBusiness": "Partnership / business",
+    "message": "Your message",
+    "messagePlaceholder": "Briefly describe what you need. If it is about a calculation issue, mention the statement type (Trading 212 PDF, CSV, etc.) and what does not match.",
+    "messageHint": "{{count}} / {{max}} characters",
+    "submit": "Send message",
+    "sending": "Sending...",
+    "sendAnother": "Send another message",
+    "successTitle": "Message sent!",
+    "successDetail": "We reply within 24 hours on business days. Check your Spam folder too — the reply may come from noreply@investax.app or directly from the operator.",
+    "errorGeneric": "The message could not be sent. Check your details and try again.",
+    "errorRateLimit": "You have sent too many messages recently. Please try again in 15 minutes.",
+    "errorNetwork": "Connection interrupted. Check your internet and try again."
+  },
   "faq": {
     "title": "Frequently Asked Questions",
     "items": {
       "noEmail": {
         "question": "I didn't receive my payment confirmation email",
-        "answer": "Check your Spam folder. If it doesn't appear within 10 minutes, email us at support@investax.app with your email address."
+        "answer": "Check your Spam folder. If it doesn't appear within 10 minutes, use the form above and include your email address and the approximate time of payment."
       },
       "wrongCalc": {
         "question": "My calculation seems wrong",
-        "answer": "Send us an email at support@investax.app with a screenshot of the result and (if possible) your anonymized statement. We investigate every discrepancy."
+        "answer": "Use the form above, pick the Help topic, and include a screenshot of the result plus (if possible) your anonymized statement. We investigate every discrepancy."
       },
       "refund": {
         "question": "I want a refund",
-        "answer": "We offer a 14-day no-questions-asked refund. Email us at support@investax.app."
+        "answer": "We offer a 14-day no-questions-asked refund. Use the form above with the Help topic."
       },
       "deleteAccount": {
         "question": "How do I delete my account?",

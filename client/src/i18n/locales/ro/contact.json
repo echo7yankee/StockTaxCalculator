@@ -13,20 +13,43 @@
     "email": "hello@investax.app",
     "responseTime": "Raspuns in 1-2 zile"
   },
+  "form": {
+    "heading": "Trimite-ne un mesaj",
+    "subheading": "Completeaza formularul de mai jos. Iti raspundem pe adresa de email indicata.",
+    "name": "Numele tau",
+    "namePlaceholder": "Maria Popescu",
+    "email": "Adresa ta de email",
+    "emailPlaceholder": "maria@exemplu.ro",
+    "topic": "Subiect",
+    "topicSupport": "Ajutor / probleme tehnice",
+    "topicGeneral": "Intrebare generala",
+    "topicBusiness": "Parteneriat / business",
+    "message": "Mesajul tau",
+    "messagePlaceholder": "Descrie pe scurt ce te intereseaza. Daca e o problema cu un calcul, mentioneaza tipul de extras (Trading 212 PDF, CSV, etc.) si ce nu se potriveste.",
+    "messageHint": "{{count}} / {{max}} caractere",
+    "submit": "Trimite mesajul",
+    "sending": "Se trimite...",
+    "sendAnother": "Trimite alt mesaj",
+    "successTitle": "Mesajul a fost trimis!",
+    "successDetail": "Iti raspundem in maxim 24 de ore in zilele lucratoare. Verifica si folderul de Spam, raspunsul vine de pe noreply@investax.app sau direct de la operator.",
+    "errorGeneric": "Mesajul nu s-a putut trimite. Verifica datele si reincearca.",
+    "errorRateLimit": "Ai trimis prea multe mesaje recent. Reincearca peste 15 minute.",
+    "errorNetwork": "Conexiune intrerupta. Verifica internetul si reincearca."
+  },
   "faq": {
     "title": "Intrebari frecvente",
     "items": {
       "noEmail": {
         "question": "Nu primesc emailul de confirmare a platii",
-        "answer": "Verifica folderul Spam. Daca tot nu apare in 10 minute, scrie-ne la support@investax.app cu adresa ta de email."
+        "answer": "Verifica folderul Spam. Daca tot nu apare in 10 minute, foloseste formularul de mai sus si include adresa ta de email plus ora aproximativa a platii."
       },
       "wrongCalc": {
         "question": "Calculul meu pare gresit",
-        "answer": "Trimite-ne un email la support@investax.app cu o captura de ecran a rezultatului si (daca e posibil) extrasul tau anonimizat. Investigam orice discrepanta."
+        "answer": "Foloseste formularul de mai sus, alege subiectul Ajutor si include o captura de ecran a rezultatului plus (daca e posibil) extrasul tau anonimizat. Investigam orice discrepanta."
       },
       "refund": {
         "question": "Vreau sa-mi rambursez plata",
-        "answer": "Oferim rambursare 14 zile fara intrebari. Scrie-ne la support@investax.app."
+        "answer": "Oferim rambursare 14 zile fara intrebari. Foloseste formularul de mai sus cu subiectul Ajutor."
       },
       "deleteAccount": {
         "question": "Cum imi sterg contul?",
