@@ -12,6 +12,7 @@ import { uploadsRouter } from './routes/uploads.js';
 import { taxYearsRouter } from './routes/taxYears.js';
 import { paymentRouter } from './routes/payment.js';
 import { stripeWebhookRouter } from './routes/webhook.stripe.js';
+import { contactRouter } from './routes/contact.js';
 
 // Initialize Sentry (only active when SENTRY_DSN is set + production)
 if (process.env.SENTRY_DSN && process.env.NODE_ENV === 'production') {
@@ -61,6 +62,9 @@ app.use('/api/exchange-rates', exchangeRatesRouter);
 
 // Payment routes (public — checkout and promo counter)
 app.use('/api/payment', paymentRouter);
+
+// Contact form (public — anyone can submit a message)
+app.use('/api/contact', contactRouter);
 
 // Protected routes (require auth + paid plan)
 app.use('/api/uploads', requirePaidPlan, uploadsRouter);
