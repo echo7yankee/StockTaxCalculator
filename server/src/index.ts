@@ -4,6 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { sessionMiddleware, requirePaidPlan } from './middleware/auth.js';
+import { jsonErrorHandler } from './middleware/errorHandler.js';
 import passport from './config/passport.js';
 import { authRouter } from './routes/auth.js';
 import { calculatorRouter } from './routes/calculator.js';
@@ -76,6 +77,9 @@ app.use('/api/parse-reports', requirePaidPlan, parseReportsRouter);
 if (process.env.SENTRY_DSN && process.env.NODE_ENV === 'production') {
   Sentry.setupExpressErrorHandler(app);
 }
+
+// JSON error handler — must be last, after the Sentry handler.
+app.use(jsonErrorHandler);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
