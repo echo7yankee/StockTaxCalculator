@@ -410,7 +410,7 @@ Sumă: ${amount}
 Acces până la: ${expiresAt}
 ID comandă: ${orderId}
 
-Următorul pas: ${clientUrl}/upload — încarcă extrasul anual PDF de la Trading212.
+Următorul pas: ${clientUrl}/upload. Încarcă extrasul anual PDF de la Trading212.
 
 Vei primi separat o chitanță Stripe pentru această plată. Pentru orice întrebare, scrie-ne la support@investax.app.
 
@@ -434,7 +434,7 @@ Amount: ${amount}
 Access until: ${expiresAt}
 Order ID: ${orderId}
 
-Next step: ${clientUrl}/upload — upload your Trading212 annual PDF statement.
+Next step: ${clientUrl}/upload. Upload your Trading212 annual PDF statement.
 
 A separate Stripe receipt will arrive shortly. For any question, email us at support@investax.app.
 
