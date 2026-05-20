@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { analytics } from '../lib/analytics';
 import PageMeta from '../components/common/PageMeta';
 import { isBeforeEarlyFilingDeadline } from '../utils/earlyFiling';
+import { cassBracketLabelKey } from '../utils/cassBracket';
 
 export default function ResultsPage() {
   const { t } = useTranslation(['results', 'common']);
@@ -154,9 +155,7 @@ export default function ResultsPage() {
           label={t('results:healthContribution')}
           value={`${fmt(taxResult.healthContribution.amountOwed)} ${sym}`}
           detail={t('results:healthContributionDetail', {
-            bracket: taxResult.healthContribution.thresholdHit === 'none'
-              ? t('results:noBracket')
-              : taxResult.healthContribution.thresholdHit,
+            bracket: t(cassBracketLabelKey(taxResult.healthContribution.thresholdHit)),
             income: fmt(taxResult.healthContribution.totalNonSalaryIncome),
           })}
           color="purple"

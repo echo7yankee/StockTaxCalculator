@@ -38,9 +38,9 @@ test.describe('Quick Calculator', () => {
 
     await page.getByText('Calculate').click();
 
-    await expect(page.getByText(/bracket: 24x/)).toBeVisible();
+    await expect(page.getByText(/bracket: 24 minimum wages/)).toBeVisible();
     // Health contribution row contains 9720.00
-    const cassRow = page.getByText(/bracket: 24x/).locator('..');
+    const cassRow = page.getByText(/bracket: 24 minimum wages/).locator('..');
     await expect(cassRow).toContainText('9720.00');
   });
 
@@ -50,6 +50,6 @@ test.describe('Quick Calculator', () => {
 
     await page.getByText('Calculate').click();
 
-    await expect(page.getByText(/bracket: none/)).toBeVisible();
+    await expect(page.getByText(/bracket: No bracket/)).toBeVisible();
   });
 });

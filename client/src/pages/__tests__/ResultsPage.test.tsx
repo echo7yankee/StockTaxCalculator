@@ -151,7 +151,7 @@ describe('ResultsPage', () => {
   it('shows CASS bracket and amount', () => {
     renderResults();
     expect(screen.getByText(/9,720.00/)).toBeInTheDocument();
-    expect(screen.getByText(/24x/)).toBeInTheDocument();
+    expect(screen.getByText(/24 minimum wages/)).toBeInTheDocument();
   });
 
   it('shows early filing discount banner when deadline is still in the future', () => {
