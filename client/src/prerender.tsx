@@ -48,9 +48,9 @@ interface PageConfig {
 }
 
 const HOMEPAGE_META = {
-  title: 'InvesTax | Calculator taxe investitii Romania',
+  title: 'InvesTax | Calculator taxe investiții România',
   description:
-    'Calculeaza impozitul pe investitii Trading212 pentru anul fiscal 2025. Castiguri de capital, dividende, CASS. Deadline 25 mai 2026.',
+    'Calculează impozitul pe investiții pentru Declarația Unică 2025: câștiguri, dividende și CASS. Încarci extrasul Trading212, obții cifrele. Termen 25 mai 2026.',
   url: 'https://investax.app/',
 };
 
