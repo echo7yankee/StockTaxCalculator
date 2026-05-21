@@ -17,6 +17,7 @@ import enHeader from '../i18n/locales/en/header.json';
 import enFooter from '../i18n/locales/en/footer.json';
 import enD212 from '../i18n/locales/en/d212.json';
 import enPricing from '../i18n/locales/en/pricing.json';
+import enContact from '../i18n/locales/en/contact.json';
 
 i18n.use(initReactI18next).init({
   lng: 'en',
@@ -38,6 +39,7 @@ i18n.use(initReactI18next).init({
       footer: enFooter,
       d212: enD212,
       pricing: enPricing,
+      contact: enContact,
     },
   },
   interpolation: { escapeValue: false },
