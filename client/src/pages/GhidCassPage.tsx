@@ -53,7 +53,7 @@ export default function GhidCassPage() {
         <p className="text-sm text-gray-700 dark:text-slate-300 leading-relaxed">
           CASS este 10% și se plătește separat de impozitul pe venit dacă suma veniturilor tale non-salariale
           depășește 6 salarii minime brute pe an (24.300 RON pentru anul 2025). Suma se calculează pe TOTAL: dividende
-          + câștiguri din titluri + dobânzi + chirii + altele. Pragurile sunt fixe (6, 12, 24 salarii minime), iar
+          + câștigul net din titluri + dobânzi + chirii + altele. Pragurile sunt fixe (6, 12, 24 salarii minime), iar
           contribuția este 10% aplicat pe pragul atins, nu pe veniturile efective.
         </p>
       </section>
@@ -119,7 +119,8 @@ export default function GhidCassPage() {
         <ul className="list-disc list-outside pl-6 space-y-2 mt-3">
           <li>
             <strong>Câștiguri din transferul titlurilor de valoare</strong> (Trading212, Revolut, IBKR, eToro etc.):
-            câștigul brut realizat, nu net pe ansamblul anului.
+            câștigul net anual, adică totalul câștigurilor minus pierderile din tranzacțiile aceluiași an, însumate pe
+            toate brokerele și toate țările.
           </li>
           <li>
             <strong>Dividende</strong>: sumă brută în RON, indiferent de țara emitentului.
@@ -151,7 +152,7 @@ export default function GhidCassPage() {
       <Section title="Exemple de calcul">
         <Example title="Exemplul 1: investitor mic, sub prag">
           <ul className="list-disc list-outside pl-6 space-y-1 mt-2">
-            <li>Câștig brut Trading212: 8.000 RON</li>
+            <li>Câștig net Trading212: 8.000 RON</li>
             <li>Dividende primite: 2.500 RON brut</li>
             <li>Dobânzi conturi de economii: 600 RON</li>
             <li>Chirii: 0</li>
@@ -163,7 +164,7 @@ export default function GhidCassPage() {
 
         <Example title="Exemplul 2: pragul al doilea">
           <ul className="list-disc list-outside pl-6 space-y-1 mt-2">
-            <li>Câștig brut Trading212: 28.000 RON</li>
+            <li>Câștig net Trading212: 28.000 RON</li>
             <li>Dividende: 4.000 RON</li>
             <li>Dobânzi: 1.500 RON</li>
             <li>Chirii: 0</li>
@@ -180,7 +181,7 @@ export default function GhidCassPage() {
 
         <Example title="Exemplul 3: chiriaș + investitor">
           <ul className="list-disc list-outside pl-6 space-y-1 mt-2">
-            <li>Câștig brut Trading212: 12.000 RON</li>
+            <li>Câștig net Trading212: 12.000 RON</li>
             <li>Dividende: 3.000 RON</li>
             <li>Chirii (regim impunere reală, venit net): 36.000 RON</li>
           </ul>
@@ -197,9 +198,10 @@ export default function GhidCassPage() {
             <li>Dobânzi: 0</li>
           </ul>
           <p className="mt-3">
-            Câștigul net pe broker este negativ, deci nu plătești impozit pe câștig (10%). DAR pragul CASS se
-            calculează pe SUMA veniturilor (dividendele intră aici cu suma brută), nu pe câștigul net. Total relevant
-            pentru CASS: 30.000 RON. Între 24.300 și 48.600, deci pragul al doilea.
+            Câștigul net anual pe broker este negativ, deci nu plătești impozit pe câștig (10%). Partea de titluri
+            intră în baza CASS cu 0, fiindcă o pierdere netă nu se scade din dividende sau dobânzi. Dividendele intră
+            însă cu suma lor: 30.000 RON. Total relevant pentru CASS: 30.000 RON. Între 24.300 și 48.600, deci pragul
+            al doilea.
             <strong> CASS de plată: 2.430 RON.</strong>
           </p>
           <p className="mt-2 text-sm italic">
@@ -243,9 +245,10 @@ export default function GhidCassPage() {
 
       <Section title="Greșeli frecvente">
         <Mistake>
-          <strong>„Am pierdere, nu plătesc CASS."</strong> Pragul se calculează pe veniturile BRUTE realizate (vânzări,
-          dividende, dobânzi), nu pe câștigul NET. O pierdere pe Trading212 nu anulează dividendele primite când vine
-          vorba de prag.
+          <strong>„Am pierdere pe acțiuni, nu plătesc CASS."</strong> Câștigurile din titluri intră în prag cu
+          câștigul net anual, nu cu brutul. O pierdere netă pe tranzacții intră însă cu 0: nu îți reduce dividendele
+          și dobânzile, care rămân în calculul pragului. Dacă acestea depășesc pragul, datorezi CASS chiar dacă pe
+          tranzacții ai ieșit pe minus.
         </Mistake>
         <Mistake>
           <strong>Aplicarea procentului pe câștig, nu pe prag.</strong> Mulți cred că CASS = 10% × câștigul lor. Greșit:
