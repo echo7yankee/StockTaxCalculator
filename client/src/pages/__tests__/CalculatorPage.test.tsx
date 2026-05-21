@@ -45,6 +45,10 @@ describe('CalculatorPage', () => {
     expect(screen.getByText(/5000\.00/)).toBeInTheDocument();
     // Total should be visible
     expect(screen.getByText('Total tax owed')).toBeInTheDocument();
+    // Rate label shows a single percent sign — regression guard for the
+    // "(10%%)" double-percent bug (code template + i18n string both added %).
+    expect(screen.getByText(/Capital gains tax \(10%\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Dividend tax \(10% minus withholding\)/)).toBeInTheDocument();
   });
 
   it('calculates CASS bracket for high income', async () => {
