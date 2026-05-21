@@ -5,7 +5,7 @@ export const GHID_CASS_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Am avut pierdere netă pe Trading212 / Revolut. Mai datorez CASS?',
-    a: 'Posibil, da. Pragul CASS se calculează pe SUMA veniturilor non-salariale, nu pe câștigul net. Dividendele și dobânzile primite intră în calcul chiar dacă ai pierdere pe partea de tranzacții.',
+    a: 'Posibil, da. O pierdere netă pe tranzacții intră în baza CASS cu 0, deci nu îți reduce dividendele și dobânzile primite. Dacă acestea depășesc pragul, datorezi CASS chiar dacă pe partea de tranzacții ai ieșit pe minus.',
   },
   {
     q: 'Care e baza de calcul pentru CASS în 2025?',
@@ -25,7 +25,7 @@ export const GHID_CASS_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'CASS se aplică doar pe câștigul realizat sau și pe sumele neretrase?',
-    a: 'Doar pe veniturile realizate efectiv în 2025: vânzări (câștig brut), dividende primite, dobânzi încasate. Acțiunile pe care doar le deții nu generează venit, deci nu intră în calcul CASS.',
+    a: 'Doar pe veniturile realizate efectiv în 2025: câștigul net anual din transferuri, dividende primite, dobânzi încasate. Acțiunile pe care doar le deții nu generează venit, deci nu intră în calcul CASS.',
   },
   {
     q: 'Dacă încadrarea mea pe prag se schimbă în timpul anului, ce fac?',
