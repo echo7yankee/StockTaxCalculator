@@ -91,7 +91,9 @@ jobs:
         run: npm run lint
 
       - name: Test
-        run: npm test
+        # Runs the full unit suite with v8 coverage. Coverage is printed to the
+        # log for visibility; it is not a merge gate (no threshold yet).
+        run: npm run test:coverage
 
       - name: Build
         run: npm run build
