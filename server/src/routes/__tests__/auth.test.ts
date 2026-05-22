@@ -22,8 +22,9 @@ const { default: passport } = await import('../../config/passport.js');
 type ApiResponse = Awaited<ReturnType<typeof fetch>>;
 
 let server: Server;
-const PORT = 3096;
-const BASE = `http://localhost:${PORT}`;
+// Listen on an OS-assigned free port so this file can never collide with another
+// server test file's hardcoded port. BASE is filled in once the server is listening.
+let BASE = '';
 
 // Every test user shares this email prefix so cleanup deletes them in one query
 // without touching other test files' fixtures. PasswordResetToken rows cascade.
@@ -33,7 +34,7 @@ const PREFIX = 'authtest-';
 // routes themselves still hash new passwords at the production cost of 12).
 const SEED_COST = 8;
 
-beforeAll(() => {
+beforeAll(async () => {
   const app = express();
   app.use(express.json({ limit: '10mb' }));
   // Plain MemoryStore session. The prod PrismaSessionStore starts a prune interval
@@ -42,7 +43,14 @@ beforeAll(() => {
   app.use(passport.initialize());
   app.use(passport.session());
   app.use('/api/auth', authRouter);
-  server = app.listen(PORT);
+  await new Promise<void>((resolve) => {
+    server = app.listen(0, () => resolve());
+  });
+  const address = server.address();
+  if (address === null || typeof address === 'string') {
+    throw new Error('Expected a TCP address from app.listen(0)');
+  }
+  BASE = `http://localhost:${address.port}`;
 });
 
 async function cleanupUsers() {
