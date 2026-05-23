@@ -210,11 +210,16 @@ describe('SettingsPage - change password submission', () => {
     await user.type(screen.getByLabelText('Confirm new password'), VALID_PASSWORD);
     await user.click(screen.getByRole('button', { name: 'Change Password' }));
 
-    // The server-mapped field error appears under the currentPassword input.
-    // Page-level alert may also surface the same message; tolerate either-or-both.
+    // The server-mapped field error appears under the currentPassword input,
+    // and the page-level alert is suppressed (no duplication). The message
+    // must appear exactly once in the document.
     await waitFor(() => {
-      expect(screen.getAllByText('Current password is incorrect').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Current password is incorrect')).toHaveLength(1);
     });
+    // The per-field error owns role="alert" on the input; confirm the form's
+    // top-level error banner (different id) is not the one that surfaced it.
+    const fieldError = screen.getByText('Current password is incorrect');
+    expect(fieldError).toHaveAttribute('id', 'settings-current-password-error');
   });
 
   it('shows the server error message in an alert on a 4xx with no fields map', async () => {

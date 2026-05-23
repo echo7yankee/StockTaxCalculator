@@ -126,7 +126,9 @@ export default function SettingsPage() {
       setNewPassword('');
       setConfirmNewPassword('');
     } catch (err) {
-      if (!passwordFieldErrors.currentPassword) {
+      const hasCurrentPasswordFieldError =
+        err instanceof ApiError && Boolean(err.fields?.currentPassword);
+      if (!hasCurrentPasswordFieldError) {
         setPasswordError(err instanceof Error ? err.message : t('changePassword.error'));
       }
     } finally {
