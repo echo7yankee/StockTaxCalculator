@@ -29,8 +29,8 @@ beforeAll(async () => {
     server = app.listen(0, () => resolve());
   });
   const address = server.address();
-  if (address === null || typeof address === 'string') {
-    throw new Error('Expected a TCP address from app.listen(0)');
+  if (address === null || typeof address === 'string' || address.port === 0) {
+    throw new Error('Expected a TCP address with non-zero port from app.listen(0)');
   }
   BASE = `http://localhost:${address.port}`;
 });
