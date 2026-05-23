@@ -9,8 +9,9 @@ const TEST_USER_ID = 'test-user-auth-00000';
 const TEST_USER_EMAIL = 'test-auth@test.com';
 
 let server: Server;
-const PORT = 3099;
-const BASE = `http://localhost:${PORT}`;
+// Listen on an OS-assigned free port so this file can never collide with another
+// server test file's hardcoded port. BASE is filled in once the server is listening.
+let BASE = '';
 
 beforeAll(async () => {
   // Create test user
@@ -23,7 +24,7 @@ beforeAll(async () => {
   const app = express();
   app.use(express.json({ limit: '10mb' }));
 
-  // Mock auth middleware — simulate authenticated user
+  // Mock auth middleware, simulate authenticated user
   app.use((req, _res, next) => {
     (req as any).user = { id: TEST_USER_ID, email: TEST_USER_EMAIL, name: 'Test User', plan: 'free' };
     (req as any).isAuthenticated = () => true;
@@ -32,7 +33,14 @@ beforeAll(async () => {
 
   app.use('/api/uploads', uploadsRouter);
   app.use('/api/tax-years', taxYearsRouter);
-  server = app.listen(PORT);
+  await new Promise<void>((resolve) => {
+    server = app.listen(0, () => resolve());
+  });
+  const address = server.address();
+  if (address === null || typeof address === 'string') {
+    throw new Error('Expected a TCP address from app.listen(0)');
+  }
+  BASE = `http://localhost:${address.port}`;
 });
 
 afterAll(async () => {
