@@ -13,14 +13,22 @@ vi.mock('../../services/email.js', () => ({
 const { contactRouter } = await import('../contact.js');
 
 let server: Server;
-const PORT = 3098;
-const BASE = `http://localhost:${PORT}`;
+// Listen on an OS-assigned free port so this file can never collide with another
+// server test file's hardcoded port. BASE is filled in once the server is listening.
+let BASE = '';
 
-beforeAll(() => {
+beforeAll(async () => {
   const app = express();
   app.use(express.json({ limit: '10mb' }));
   app.use('/api/contact', contactRouter);
-  server = app.listen(PORT);
+  await new Promise<void>((resolve) => {
+    server = app.listen(0, () => resolve());
+  });
+  const address = server.address();
+  if (address === null || typeof address === 'string') {
+    throw new Error('Expected a TCP address from app.listen(0)');
+  }
+  BASE = `http://localhost:${address.port}`;
 });
 
 afterAll(() => {
