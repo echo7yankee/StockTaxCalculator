@@ -129,12 +129,15 @@ jobs:
       # block unrelated PRs whenever copy/i18n drift moves text widths a few
       # pixels. playwright.config.ts honors this via testIgnore.
       SKIP_VISUAL: "1"
-      # Synthetic Stripe webhook secret so e2e/payment-flow-stripe.spec.ts can
+      # Synthetic Stripe credentials so e2e/payment-flow-stripe.spec.ts can
       # exercise the paid-user + valid-signature + idempotency suites in CI.
       # Both the spawned server (via dotenv non-override) and the test read
-      # this same value, keeping HMAC verification consistent end-to-end.
-      # NOT a real Stripe key, placeholder shape committed safely.
+      # the webhook secret, keeping HMAC verification consistent end-to-end.
+      # STRIPE_SECRET_KEY is needed only to instantiate the Stripe SDK so the
+      # webhook route can call constructEvent (a local HMAC op, no network).
+      # NEITHER is a real Stripe key, placeholder shapes committed safely.
       STRIPE_WEBHOOK_SECRET: "whsec_ci_test_not_a_real_stripe_secret_xxxxxxxx"
+      STRIPE_SECRET_KEY: "sk_test_ci_dummy_not_a_real_stripe_key_xxxxxxxxxxxx"
     steps:
       - uses: actions/checkout@v4
 
