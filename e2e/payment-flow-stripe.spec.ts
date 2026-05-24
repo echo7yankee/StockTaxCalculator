@@ -115,10 +115,14 @@ async function login(page: Page, email: string) {
       expect(body.planExpiresAt).toBeTruthy();
     });
 
-    test('uploads API returns 200 for Stripe-paid user', async ({ page }) => {
+    test('uploads endpoint auth middleware passes Stripe-paid user (404, not 403)', async ({ page }) => {
       await login(page, email);
+      // /api/uploads only defines POST. For free users requirePaidPlan returns
+      // 403 PLAN_REQUIRED before Express routing. For paid users auth passes
+      // and the missing GET handler yields Express's default 404. Either side
+      // of 404 (route exists for POST) vs 403 (auth blocked) is the signal.
       const res = await page.request.get('/api/uploads');
-      expect(res.status()).toBe(200);
+      expect(res.status()).toBe(404);
     });
 
     test('tax-years API returns 200 for Stripe-paid user', async ({ page }) => {
