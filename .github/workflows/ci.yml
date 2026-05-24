@@ -124,11 +124,17 @@ jobs:
       # Server reads this for OAuth/redirect URLs; defaults match the dev
       # server Playwright's webServer config spawns on port 5173.
       CLIENT_URL: "http://localhost:5173"
-      # Skip visual-regression spec in this generic E2E job — it has its own
+      # Skip visual-regression spec in this generic E2E job, it has its own
       # dedicated workflow (.github/workflows/visual-baselines.yml) and would
       # block unrelated PRs whenever copy/i18n drift moves text widths a few
       # pixels. playwright.config.ts honors this via testIgnore.
       SKIP_VISUAL: "1"
+      # Synthetic Stripe webhook secret so e2e/payment-flow-stripe.spec.ts can
+      # exercise the paid-user + valid-signature + idempotency suites in CI.
+      # Both the spawned server (via dotenv non-override) and the test read
+      # this same value, keeping HMAC verification consistent end-to-end.
+      # NOT a real Stripe key, placeholder shape committed safely.
+      STRIPE_WEBHOOK_SECRET: "whsec_ci_test_not_a_real_stripe_secret_xxxxxxxx"
     steps:
       - uses: actions/checkout@v4
 

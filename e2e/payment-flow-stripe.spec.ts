@@ -11,6 +11,12 @@ import { resolve } from 'path';
 // the paid-user + signature-valid + idempotency suites skip rather than fail.
 
 function getStripeWebhookSecret(): string | null {
+  // CI exports STRIPE_WEBHOOK_SECRET via the workflow env block so both the
+  // spawned server (via dotenv non-override) and the test sign with the same
+  // value. Local dev (no shell export) falls through to server/.env, matching
+  // the server's own resolution order.
+  const fromEnv = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+  if (fromEnv) return fromEnv;
   try {
     const envPath = resolve(__dirname, '..', 'server', '.env');
     const content = readFileSync(envPath, 'utf-8');
