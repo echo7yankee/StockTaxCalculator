@@ -9,6 +9,12 @@ async function login(page: Page, email: string) {
   await page.getByPlaceholder('Enter your password').fill(PASSWORD);
   await page.getByRole('button', { name: 'Log in' }).click();
   await expect(page).toHaveURL(/dashboard|pricing/, { timeout: 10_000 });
+  // Wait for the post-login navigation to settle so the session cookie is
+  // committed to page.context()'s cookie jar before any subsequent
+  // page.request.* call. Without this, page.request can race and fire its
+  // request without the cookie, surfacing as a 401 instead of the expected
+  // 200/403. See session log #59 for the failure pattern.
+  await page.waitForLoadState('networkidle');
 }
 
 test.describe('API Endpoints', () => {
