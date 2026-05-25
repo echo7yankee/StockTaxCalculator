@@ -14,9 +14,11 @@ test.describe('Navigation', () => {
     await expect(page.getByText('Calculate')).toBeVisible();
   });
 
-  test('upload page redirects unauthenticated users to pricing', async ({ page }) => {
+  test('upload page redirects unauthenticated users to login', async ({ page }) => {
+    // PR #124: /upload is a login wall, not a paywall. Free logged-in users
+    // get the full upload surface; only logged-out users are bounced.
     await page.goto('/upload');
-    await expect(page).toHaveURL(/pricing/);
+    await expect(page).toHaveURL(/login\?redirect=%2Fupload|login\?redirect=\/upload/);
   });
 
   test('dashboard shows login prompt for unauthenticated users', async ({ page }) => {
