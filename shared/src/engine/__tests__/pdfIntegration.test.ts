@@ -19,7 +19,7 @@ const BNR_RATE_2025 = 4.7; // approximate average USD/RON for 2025
 
 describe('PDF Integration: Annual Statement 2025', () => {
   const parsed = parseTrading212AnnualStatement(pageTexts);
-  const { taxResult, securities } = calculateTaxesFromPdf(parsed, romaniaTaxConfig, BNR_RATE_2025);
+  const { taxResult, securities, warnings: engineWarnings } = calculateTaxesFromPdf(parsed, romaniaTaxConfig, BNR_RATE_2025);
 
   describe('parsing', () => {
     it('detects year 2025', () => {
@@ -136,6 +136,10 @@ describe('PDF Integration: Annual Statement 2025', () => {
       expect(taxResult.totals.totalAfterDiscount).toBeCloseTo(
         taxResult.totals.totalTaxOwed - incomeTax * 0.03, 0
       );
+    });
+
+    it('engine emits no sanity warnings (Dragos 2025 statement is internally consistent)', () => {
+      expect(engineWarnings).toEqual([]);
     });
   });
 
