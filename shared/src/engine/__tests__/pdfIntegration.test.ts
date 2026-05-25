@@ -12,8 +12,11 @@ import { parseTrading212AnnualStatement } from '../../parsers/trading212Pdf.js';
 import { calculateTaxesFromPdf } from '../pdfTaxCalculator.js';
 import { romaniaTaxConfig } from '../../taxRules/romania.js';
 
-const fixturePath = join(__dirname, '../../../../test-data/fixtures/annual-statement-2025-pages.json');
-const pageTexts: string[] = JSON.parse(readFileSync(fixturePath, 'utf8'));
+const fixtureDir = join(__dirname, '../../../../test-data/fixtures');
+const loadFixture = (name: string): string[] =>
+  JSON.parse(readFileSync(join(fixtureDir, name), 'utf8'));
+
+const pageTexts: string[] = loadFixture('annual-statement-2025-pages.json');
 
 const BNR_RATE_2025 = 4.7; // approximate average USD/RON for 2025
 
@@ -161,6 +164,229 @@ describe('PDF Integration: Annual Statement 2025', () => {
       expect(voo!.totalSoldShares).toBe(0);
       expect(voo!.totalDividends).toBeGreaterThan(0);
       expect(voo!.totalWithholdingTax).toBe(0); // Ireland distributions have 0 WHT
+    });
+  });
+});
+
+// Shape 2: Romanian-localized single-account RON. See docs/t212-pdf-formats.md.
+describe('PDF Integration: RO single-account RON (Shape 2)', () => {
+  const parsed = parseTrading212AnnualStatement(loadFixture('annual-statement-2025-ro-single-account.json'));
+  const { taxResult, warnings: engineWarnings } = calculateTaxesFromPdf(parsed, romaniaTaxConfig, 1);
+
+  describe('parsing', () => {
+    it('detects year 2025 from Romanian header', () => {
+      expect(parsed.year).toBe(2025);
+    });
+
+    it('detects RON as overview currency', () => {
+      expect(parsed.overview.currency).toBe('RON');
+    });
+
+    it('parses Romanian overview labels', () => {
+      expect(parsed.overview.closedResult).toBeCloseTo(30000, 2);
+      expect(parsed.overview.grossDividends).toBeCloseTo(100, 2);
+      expect(parsed.overview.taxWithheld).toBeCloseTo(10, 2);
+    });
+
+    it('parses one Romanian-language sell trade (Acțiune type)', () => {
+      expect(parsed.sellTrades).toHaveLength(1);
+      const trade = parsed.sellTrades[0];
+      expect(trade.isin).toBe('ROHIELACNOR9');
+      expect(trade.instrumentType).toMatch(/Acțiune/i);
+      expect(trade.transactionCurrency).toBe('RON');
+      expect(trade.totalResult).toBeCloseTo(30000, 2);
+    });
+
+    it('parses one US dividend', () => {
+      expect(parsed.dividends).toHaveLength(1);
+      const div = parsed.dividends[0];
+      expect(div.isin).toBe('US0378331005');
+      expect(div.grossAmountUsd).toBeCloseTo(100, 2);
+      expect(div.whtUsd).toBeCloseTo(10, 2);
+    });
+
+    it('produces no parser warnings', () => {
+      expect(parsed.warnings).toEqual([]);
+    });
+  });
+
+  describe('tax calculation (exchangeRate=1, values already in RON)', () => {
+    it('per-row sum used (RON trades match RON overview)', () => {
+      expect(taxResult.capitalGains.netGains).toBeCloseTo(30000, 2);
+    });
+
+    it('capital gains tax: 3,000 RON', () => {
+      expect(taxResult.capitalGains.taxOwed).toBeCloseTo(3000, 2);
+    });
+
+    it('dividend tax: 0 (WHT covers the 10%)', () => {
+      expect(taxResult.dividends.taxOwed).toBe(0);
+      expect(taxResult.dividends.withholdingTaxPaid).toBeCloseTo(10, 2);
+    });
+
+    it('CASS: 6x bracket (24,300 to 48,600 RON), fixed 2,430 RON', () => {
+      expect(taxResult.healthContribution.thresholdHit).toBe('6x');
+      expect(taxResult.healthContribution.amountOwed).toBe(2430);
+    });
+
+    it('total tax: 5,430 RON', () => {
+      expect(taxResult.totals.totalTaxOwed).toBeCloseTo(5430, 2);
+    });
+
+    it('total after early-filing discount: 5,340 RON', () => {
+      expect(taxResult.totals.totalAfterDiscount).toBeCloseTo(5340, 2);
+    });
+
+    it('engine emits no sanity warnings', () => {
+      expect(engineWarnings).toEqual([]);
+    });
+  });
+});
+
+// Shape 3: post-Cyprus multi-account horizontal (Invest + CFD + Crypto).
+// Mirrors Florin Pop 2026-05-24 PDF shape with anonymized identity.
+// See docs/t212-pdf-formats.md.
+describe('PDF Integration: post-Cyprus multi-account (Shape 3)', () => {
+  const parsed = parseTrading212AnnualStatement(loadFixture('annual-statement-2025-multi-account.json'));
+  const { taxResult, warnings: engineWarnings } = calculateTaxesFromPdf(parsed, romaniaTaxConfig, 1);
+
+  describe('parsing', () => {
+    it('detects year 2025', () => {
+      expect(parsed.year).toBe(2025);
+    });
+
+    it('extracts Invest column closed result (leftmost), not CFD or Crypto', () => {
+      expect(parsed.overview.closedResult).toBeCloseTo(3273.75, 2);
+    });
+
+    it('detects RON as overview currency from Invest column', () => {
+      expect(parsed.overview.currency).toBe('RON');
+    });
+
+    it('extracts Invest column dividend fields, ignores CFD/Crypto siblings', () => {
+      expect(parsed.overview.grossDividends).toBeCloseTo(332.34, 2);
+      expect(parsed.overview.netDividends).toBeCloseTo(264.70, 2);
+      expect(parsed.overview.taxWithheld).toBeCloseTo(67.63, 2);
+    });
+
+    it('parses 2 Invest sell trades summing to 3,273.75 RON', () => {
+      expect(parsed.sellTrades).toHaveLength(2);
+      const sum = parsed.sellTrades.reduce((s, t) => s + t.totalResult, 0);
+      expect(sum).toBeCloseTo(3273.75, 2);
+    });
+
+    it('sell trades fall back to USD transactionCurrency (no standalone column in Cyprus format)', () => {
+      // T212's Cyprus PDF omits the standalone currency column; the parser's
+      // default fallback is 'USD'. This is the trigger condition for the
+      // engine's overview-fallback branch.
+      for (const trade of parsed.sellTrades) {
+        expect(trade.transactionCurrency).toBe('USD');
+      }
+    });
+
+    it('parses 2 US dividends summing to overview gross', () => {
+      expect(parsed.dividends).toHaveLength(2);
+      const gross = parsed.dividends.reduce((s, d) => s + d.grossAmountUsd, 0);
+      expect(gross).toBeCloseTo(332.34, 2);
+    });
+
+    it('emits no "No Invest account section" warning (Invest is present)', () => {
+      const investWarning = parsed.warnings.find(w => w.includes('No Invest account section'));
+      expect(investWarning).toBeUndefined();
+    });
+  });
+
+  describe('tax calculation (exchangeRate=1, overview in RON)', () => {
+    it('engine falls back to overview.closedResult (trade USD != overview RON)', () => {
+      // The trades parse with transactionCurrency='USD' but overview.currency='RON'.
+      // matchesOverviewCurrency=false, so the engine uses overview.closedResult * 1.
+      expect(taxResult.capitalGains.netGains).toBeCloseTo(3273.75, 2);
+    });
+
+    it('capital gains tax: 327.38 RON', () => {
+      expect(taxResult.capitalGains.taxOwed).toBeCloseTo(327.38, 2);
+    });
+
+    it('dividend tax: 0 (WHT 67.63 covers gross tax 33.23)', () => {
+      expect(taxResult.dividends.taxOwed).toBe(0);
+      expect(taxResult.dividends.withholdingTaxPaid).toBeCloseTo(67.63, 2);
+    });
+
+    it('CASS: none bracket (3,606 RON total income < 24,300 threshold)', () => {
+      expect(taxResult.healthContribution.thresholdHit).toBe('none');
+      expect(taxResult.healthContribution.amountOwed).toBe(0);
+    });
+
+    it('total tax: 327.38 RON', () => {
+      expect(taxResult.totals.totalTaxOwed).toBeCloseTo(327.38, 2);
+    });
+
+    it('total after early-filing discount: 317.55 RON', () => {
+      expect(taxResult.totals.totalAfterDiscount).toBeCloseTo(317.55, 2);
+    });
+
+    it('engine sanity warnings stay silent under currency guard', () => {
+      // The currency guard requires allSameCurrency AND matchesOverviewCurrency
+      // before sign/magnitude checks fire. Here trades are all-USD (default)
+      // and overview is RON, so the guard blocks the check and no warnings fire.
+      // Florin's pre-PR-118 PDF tripped the warning because the parser had
+      // picked the WRONG overview value (CFD's -226.80 instead of Invest's
+      // +3273.75), making per-row vs overview disagree under the same currency.
+      expect(engineWarnings).toEqual([]);
+    });
+  });
+});
+
+// Shape 4: ligature-broken labels. See docs/t212-pdf-formats.md.
+describe('PDF Integration: ligature-broken labels (Shape 4)', () => {
+  const parsed = parseTrading212AnnualStatement(loadFixture('annual-statement-2025-ligature-broken.json'));
+  const { taxResult, warnings: engineWarnings } = calculateTaxesFromPdf(parsed, romaniaTaxConfig, BNR_RATE_2025);
+
+  describe('parsing', () => {
+    it('detects year 2025', () => {
+      expect(parsed.year).toBe(2025);
+    });
+
+    it('overview.closedResult parses correctly (no ligature on this line)', () => {
+      expect(parsed.overview.closedResult).toBeCloseTo(10000, 2);
+    });
+
+    it('overview.profit parses to 0 when label is ligature-broken (Pro\\tfi\\tt)', () => {
+      // Engine does not depend on this field; the engine uses closedResult only.
+      // Locking down the current behavior so a parser change that affects it
+      // surfaces clearly.
+      expect(parsed.overview.profit).toBe(0);
+    });
+
+    it('parses one sell trade and one dividend', () => {
+      expect(parsed.sellTrades).toHaveLength(1);
+      expect(parsed.dividends).toHaveLength(1);
+    });
+
+    it('produces no parser warnings', () => {
+      // The ligature breaks adjacent to "profit"/"confirmation" labels do not
+      // produce warnings because the parser cross-checks use closedResult and
+      // grossAmountUsd (both unaffected by the ligature on this fixture).
+      expect(parsed.warnings).toEqual([]);
+    });
+  });
+
+  describe('tax calculation (BNR rate 4.7, USD trades + USD overview)', () => {
+    it('capital gains netGains: 47,000 RON (10,000 USD * 4.7)', () => {
+      expect(taxResult.capitalGains.netGains).toBeCloseTo(47000, 0);
+    });
+
+    it('CASS: 6x bracket (24,300 to 48,600 RON), fixed 2,430 RON', () => {
+      expect(taxResult.healthContribution.thresholdHit).toBe('6x');
+      expect(taxResult.healthContribution.amountOwed).toBe(2430);
+    });
+
+    it('total tax: 7,130 RON', () => {
+      expect(taxResult.totals.totalTaxOwed).toBeCloseTo(7130, 0);
+    });
+
+    it('engine emits no sanity warnings (closedResult is internally consistent)', () => {
+      expect(engineWarnings).toEqual([]);
     });
   });
 });
