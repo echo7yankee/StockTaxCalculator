@@ -317,4 +317,91 @@ describe('parseTrading212AnnualStatement', () => {
       expect(result.warnings.some(w => w.includes('dividend gross'))).toBe(true);
     });
   });
+
+  // ─── Multi-account horizontal layout (Florin Pop 2026-05-24 regression) ───
+  // T212 places Invest, CFD, and Crypto overview blocks side-by-side as columns
+  // on a single page-1 line, like:
+  //   `Closed result\tRON 3,273.75\tClosed result\tRON -226.80\tClosed result\t€0.00`
+  // Pre-fix parser scanned right-to-left and returned the CFD value (-226.80)
+  // because €0.00 wasn't recognized as an explicit zero. Fix scans left-to-right
+  // starting after the first keyword occurrence so it always lands on the
+  // leftmost (Invest) value.
+  describe('multi-account horizontal layout', () => {
+    function multiAccountOverviewPage(): string {
+      // Mirrors the actual extracted page 1 from Florin's PDF (anonymized).
+      return [
+        'CUSTOMER ID\tCUSTOMER NAME',
+        '99999999\tAnonymized User',
+        'Annual Statement - 2025',
+        'Overview',
+        'Trading 212 Invest\tTrading 212 CFD\tTrading 212 Crypto',
+        'Account ID: 11111\tAccount ID: 22222\tAccount ID: 33333',
+        'Closed result\tRON 3,273.75\tClosed result\tRON -226.80\tClosed result\t€0.00',
+        'Net Dividends\tRON 264.70\tDividend adjustments\tRON 0.00\tAccount value\t€400.87',
+        'Gross Dividends\tRON 332.34\tReceived\tRON 0.00',
+        'Tax Withheld\tRON 67.63\tDeducted\tRON 0.00',
+        'Open result\tRON -16,310.37\tOpen result\tRON 0.00',
+        'Account value\tRON 24,805.60\tAccount value\tRON 0.00',
+      ].join('\n');
+    }
+
+    it('returns Invest closed result, not CFD, when both are on the same line', () => {
+      const result = parseTrading212AnnualStatement([multiAccountOverviewPage()]);
+      expect(result.overview.closedResult).toBeCloseTo(3273.75, 2);
+    });
+
+    it('detects RON currency from the Invest column', () => {
+      const result = parseTrading212AnnualStatement([multiAccountOverviewPage()]);
+      expect(result.overview.currency).toBe('RON');
+    });
+
+    it('extracts the Invest column values for dividend fields', () => {
+      const result = parseTrading212AnnualStatement([multiAccountOverviewPage()]);
+      expect(result.overview.netDividends).toBeCloseTo(264.70, 2);
+      expect(result.overview.grossDividends).toBeCloseTo(332.34, 2);
+      expect(result.overview.taxWithheld).toBeCloseTo(67.63, 2);
+    });
+
+    it('extracts the Invest column for account value (not CFD or Crypto)', () => {
+      const result = parseTrading212AnnualStatement([multiAccountOverviewPage()]);
+      expect(result.overview.accountValue).toBeCloseTo(24805.60, 2);
+    });
+
+    it('emits no CFD-only warning when both Invest and CFD are present', () => {
+      const result = parseTrading212AnnualStatement([multiAccountOverviewPage()]);
+      expect(result.warnings.some(w => w.includes('No Invest account section'))).toBe(false);
+    });
+  });
+
+  // ─── CFD-only or Crypto-only PDF upload (defensive warning) ───
+  describe('non-Invest statement detection', () => {
+    it('warns when only CFD section is present', () => {
+      const cfdOnlyPage = [
+        'Annual Statement - 2025',
+        'Overview',
+        'Trading 212 CFD',
+        'Account ID: 22222',
+        'Closed result\tRON -226.80',
+      ].join('\n');
+      const result = parseTrading212AnnualStatement([cfdOnlyPage]);
+      expect(result.warnings.some(w => w.includes('No Invest account section'))).toBe(true);
+    });
+
+    it('warns when only Crypto section is present', () => {
+      const cryptoOnlyPage = [
+        'Annual Statement - 2025',
+        'Overview',
+        'Trading 212 Crypto',
+        'Account ID: 33333',
+        'Closed result\t€0.00',
+      ].join('\n');
+      const result = parseTrading212AnnualStatement([cryptoOnlyPage]);
+      expect(result.warnings.some(w => w.includes('No Invest account section'))).toBe(true);
+    });
+
+    it('does not warn when Invest section is present (single-account PDF)', () => {
+      const result = parseTrading212AnnualStatement([overviewPage()]);
+      expect(result.warnings.some(w => w.includes('No Invest account section'))).toBe(false);
+    });
+  });
 });
