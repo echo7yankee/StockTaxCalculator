@@ -23,6 +23,7 @@ model User {
   updatedAt       DateTime  @updatedAt
   taxYears            TaxYear[]
   passwordResetTokens PasswordResetToken[]
+  parseAlertLogs      ParseAlertLog[]
 }
 
 model PromoCounter {
@@ -160,4 +161,26 @@ model SecurityCalculation {
   realizedGainLoss   Float?
   totalDividends     Float?
   totalWithholdingTax Float?
+}
+
+model ParseAlertLog {
+  id                String   @id @default(uuid())
+  userId            String?
+  user              User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  parsedAt          DateTime @default(now())
+  fileType          String
+  fileName          String?
+  taxYear           Int?
+  outcome           String
+  parserWarnings    Json
+  engineWarnings    Json
+  errorMessage      String?
+  sellCount         Int?
+  dividendCount     Int?
+  distributionCount Int?
+  pageCount         Int?
+
+  @@index([parsedAt])
+  @@index([userId, parsedAt])
+  @@index([outcome])
 }

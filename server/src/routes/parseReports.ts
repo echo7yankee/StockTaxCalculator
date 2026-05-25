@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import * as Sentry from '@sentry/node';
 import { sendParseAlertNotification } from '../services/email.js';
+import { logParseAlert, deriveParseOutcome } from '../services/parseAlertLog.js';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -25,6 +26,7 @@ const parseReportSchema = z.object({
   fileName: z.string().trim().max(255).nullish(),
   errorMessage: z.string().trim().max(2000).nullish(),
   warnings: z.array(z.string().trim().max(500)).max(50).default([]),
+  engineWarnings: z.array(z.string().trim().max(500)).max(50).default([]),
   summary: z
     .object({
       buys: countField,
@@ -57,8 +59,35 @@ parseReportsRouter.post('/', parseReportLimiter, async (req, res) => {
     return;
   }
 
-  const { fileType, outcome, fileName, errorMessage, warnings, summary } = parseResult.data;
+  const { fileType, outcome, fileName, errorMessage, warnings, engineWarnings, summary } =
+    parseResult.data;
   const user = req.user!;
+
+  // Best-effort DB log. A DB failure here must not block the operator email,
+  // and an email failure must not silently drop the DB row, so each channel
+  // gets its own try/catch. Both are observability sinks for the same event.
+  try {
+    await logParseAlert({
+      userId: user.id,
+      fileType,
+      fileName: fileName ?? null,
+      taxYear: summary.year ?? null,
+      outcome: deriveParseOutcome(outcome, warnings, engineWarnings),
+      parserWarnings: warnings,
+      engineWarnings,
+      errorMessage: errorMessage ?? null,
+      sellCount: summary.sells ?? null,
+      dividendCount: summary.dividends ?? null,
+      distributionCount: summary.distributions ?? null,
+      pageCount: summary.pages ?? null,
+    });
+  } catch (err) {
+    console.error('[ParseReports] logParseAlert failed:', err);
+    Sentry.captureException(err, {
+      tags: { endpoint: 'parse-reports.submit', failure: 'db-write' },
+      extra: { userEmail: user.email, fileType, outcome },
+    });
+  }
 
   try {
     await sendParseAlertNotification({
@@ -75,7 +104,7 @@ parseReportsRouter.post('/', parseReportLimiter, async (req, res) => {
   } catch (err) {
     console.error('[ParseReports] sendParseAlertNotification failed:', err);
     Sentry.captureException(err, {
-      tags: { endpoint: 'parse-reports.submit' },
+      tags: { endpoint: 'parse-reports.submit', failure: 'email-send' },
       extra: { userEmail: user.email, fileType, outcome },
     });
     res.status(500).json({ error: 'Failed to record report' });

@@ -3,12 +3,26 @@ import express from 'express';
 import { Server } from 'http';
 
 // Mock the email service before importing the router so the route picks up the
-// mocked binding (same approach as contact.test.ts — avoids global.fetch mocking
+// mocked binding (same approach as contact.test.ts to avoid global.fetch mocking
 // which would also intercept the test's own HTTP calls to the local server).
 const sendParseAlertNotificationMock = vi.fn();
 vi.mock('../../services/email.js', () => ({
   sendParseAlertNotification: sendParseAlertNotificationMock,
 }));
+
+// Mock the parseAlertLog service so the DB write side of the handler is
+// asserted without touching the test SQLite file. logParseAlert is unit-tested
+// against the real DB in services/__tests__/parseAlertLog.test.ts.
+const logParseAlertMock = vi.fn();
+vi.mock('../../services/parseAlertLog.js', async () => {
+  const actual = await vi.importActual<typeof import('../../services/parseAlertLog.js')>(
+    '../../services/parseAlertLog.js'
+  );
+  return {
+    ...actual,
+    logParseAlert: logParseAlertMock,
+  };
+});
 
 const { parseReportsRouter } = await import('../parseReports.js');
 
@@ -63,6 +77,8 @@ beforeEach(() => {
   process.env.NODE_ENV = 'test';
   sendParseAlertNotificationMock.mockReset();
   sendParseAlertNotificationMock.mockResolvedValue(undefined);
+  logParseAlertMock.mockReset();
+  logParseAlertMock.mockResolvedValue({ id: 'mock-row-id' });
 });
 
 afterEach(() => {
@@ -171,5 +187,79 @@ describe('POST /api/parse-reports', () => {
     const res = await post(validPdfReport);
     expect(res.status).toBe(500);
     expect((await res.json()).error).toMatch(/Failed to record report/);
+  });
+
+  it('writes a ParseAlertLog row alongside the email send', async () => {
+    const res = await post(validPdfReport);
+    expect(res.status).toBe(200);
+
+    expect(logParseAlertMock).toHaveBeenCalledTimes(1);
+    const args = logParseAlertMock.mock.calls[0][0];
+    expect(args.userId).toBe('test-parse-user-0001');
+    expect(args.fileType).toBe('pdf');
+    expect(args.fileName).toBe('annual-statement-2025.pdf');
+    expect(args.taxYear).toBe(2025);
+    expect(args.outcome).toBe('ok');
+    expect(args.parserWarnings).toEqual([]);
+    expect(args.engineWarnings).toEqual([]);
+    expect(args.sellCount).toBe(144);
+    expect(args.dividendCount).toBe(49);
+    expect(args.distributionCount).toBe(0);
+    expect(args.pageCount).toBe(14);
+    expect(args.errorMessage).toBeNull();
+  });
+
+  it('derives outcome=warning in the DB row when parserWarnings is non-empty', async () => {
+    const res = await post({
+      fileType: 'pdf',
+      outcome: 'warning',
+      warnings: ['mixed currencies detected'],
+    });
+    expect(res.status).toBe(200);
+    expect(logParseAlertMock.mock.calls[0][0].outcome).toBe('warning');
+    expect(logParseAlertMock.mock.calls[0][0].parserWarnings).toEqual(['mixed currencies detected']);
+  });
+
+  it('derives outcome=warning when engineWarnings is non-empty even if outcome is success', async () => {
+    const res = await post({
+      fileType: 'pdf',
+      outcome: 'success',
+      warnings: [],
+      engineWarnings: ['Sign mismatch: per-row sum positive, overview negative'],
+    });
+    expect(res.status).toBe(200);
+    expect(logParseAlertMock.mock.calls[0][0].outcome).toBe('warning');
+    expect(logParseAlertMock.mock.calls[0][0].engineWarnings).toEqual([
+      'Sign mismatch: per-row sum positive, overview negative',
+    ]);
+  });
+
+  it('derives outcome=error in the DB row when input outcome is error', async () => {
+    const res = await post({
+      fileType: 'pdf',
+      outcome: 'error',
+      fileName: 'broken.pdf',
+      errorMessage: 'No statement period found',
+    });
+    expect(res.status).toBe(200);
+    expect(logParseAlertMock.mock.calls[0][0].outcome).toBe('error');
+    expect(logParseAlertMock.mock.calls[0][0].errorMessage).toBe('No statement period found');
+  });
+
+  it('still sends the email when the DB write fails (channels are independent)', async () => {
+    logParseAlertMock.mockRejectedValueOnce(new Error('SQLite locked'));
+    const res = await post(validPdfReport);
+
+    expect(res.status).toBe(200);
+    expect(sendParseAlertNotificationMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns 500 from email failure even when DB write succeeded', async () => {
+    logParseAlertMock.mockResolvedValueOnce({ id: 'mock-row-id' });
+    sendParseAlertNotificationMock.mockRejectedValueOnce(new Error('Resend down'));
+    const res = await post(validPdfReport);
+
+    expect(res.status).toBe(500);
+    expect(logParseAlertMock).toHaveBeenCalledTimes(1);
   });
 });

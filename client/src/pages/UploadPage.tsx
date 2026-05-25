@@ -322,6 +322,25 @@ export default function UploadPage() {
 
       const { taxResult, securities, warnings: engineWarnings } = calculateTaxesFromPdf(pdfData, countryConfig, rate);
 
+      // Engine-emitted warnings (sign + magnitude mismatch) reach the operator
+      // through the same channel as parser warnings, but tagged separately so
+      // Sentry + DB queries can distinguish parser drift from engine drift.
+      if (engineWarnings.length > 0) {
+        reportParseEvent({
+          fileType: 'pdf',
+          outcome: 'warning',
+          fileName: preview.fileName,
+          warnings: [],
+          engineWarnings,
+          summary: {
+            sells: pdfData.sellTrades.length,
+            dividends: pdfData.dividends.length,
+            distributions: pdfData.distributions.length,
+            year: pdfData.year,
+          },
+        });
+      }
+
       setUploadData({
         parseResult: null,
         parseWarnings: [...pdfData.warnings, ...engineWarnings],
