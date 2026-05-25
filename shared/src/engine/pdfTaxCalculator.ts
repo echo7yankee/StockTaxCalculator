@@ -89,16 +89,32 @@ export function calculateTaxesFromPdf(
   for (const div of pdfData.dividends) processDividend(div);
   for (const dist of pdfData.distributions) processDividend(dist);
 
-  // Net P/L source: T212 PDF overview.closedResult is the authoritative net result
-  // because T212 already converts mixed-currency trades into the account's primary
-  // currency. Per-row trade.totalResult is in each trade's TRANSACTION currency
-  // (USD, EUR, or RON depending on row), so summing them is unit-inconsistent for
-  // multi-currency users. Single-currency PDFs (e.g. all-USD Dragos fixture) have
-  // overview.closedResult equal to per-row sum, so this change is a no-op there.
-  // When there are no sell trades, netGains/losses are 0 regardless of overview.
-  const closedResultLocal = pdfData.sellTrades.length > 0
-    ? (pdfData.overview.closedResult ?? 0) * exchangeRate
-    : 0;
+  // Net P/L source: pick whichever total is unit-consistent.
+  //
+  // Per-row trade.totalResult is in each trade's TRANSACTION currency. Summing
+  // is reliable when all trades share that currency AND it matches the overview
+  // currency (e.g. Florin Pop: all-RON trades, RON account; Dragos: all-USD,
+  // USD account). Per-row is also more directly tied to the parsed rows than
+  // overview, which can be wrong if a multi-account T212 PDF causes the parser
+  // to pick the wrong account's closedResult.
+  //
+  // Overview is authoritative when per-row is unit-inconsistent: mixed
+  // transaction currencies (Paul Adam: USD + EUR + RON rows) or trade currency
+  // not matching overview currency (e.g. RO user holding only USD instruments).
+  let closedResultLocal: number;
+  if (pdfData.sellTrades.length === 0) {
+    closedResultLocal = 0;
+  } else {
+    const firstCurrency = pdfData.sellTrades[0].transactionCurrency;
+    const allSameCurrency = pdfData.sellTrades.every(t => t.transactionCurrency === firstCurrency);
+    const matchesOverviewCurrency = !!pdfData.overview.currency && firstCurrency === pdfData.overview.currency;
+    if (allSameCurrency && matchesOverviewCurrency) {
+      const perRowSum = pdfData.sellTrades.reduce((s, t) => s + t.totalResult, 0);
+      closedResultLocal = perRowSum * exchangeRate;
+    } else {
+      closedResultLocal = (pdfData.overview.closedResult ?? 0) * exchangeRate;
+    }
+  }
   const netGains = Math.max(0, closedResultLocal);
   const losses = Math.max(0, -closedResultLocal);
   const capitalGainsTax = netGains * config.capitalGainsTaxRate;

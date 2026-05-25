@@ -168,14 +168,12 @@ describe('calculateTaxesFromPdf', () => {
     expect(result.taxResult.capitalGains.taxOwed).toBe(0);
   });
 
-  describe('overview-authoritative net P/L (mixed-currency PDFs)', () => {
-    // Paul Adam case 2026-05-19: T212 PDF with overview in RON, but per-row trades
-    // in mixed transaction currencies (USD, EUR, RON). Per-row sum is unit-inconsistent;
-    // overview.closedResult is the only correctly-converted total.
-
-    function paulLikeTrades(): PdfSellTrade[] {
-      // Two USD-trans trades that sum to +30 USD (unit-inconsistent if treated as RON)
-      // but real RON net is -365 (per overview).
+  describe('net P/L source selection (currency-aware fallback)', () => {
+    // Paul Adam 2026-05-19: RON account, mixed USD + EUR + RON transaction
+    // currencies across rows. Per-row sum is unit-inconsistent so the engine
+    // must fall back to overview.closedResult (the only correctly converted
+    // total for that PDF). Two-row mixed fixture exercises the fallback.
+    function paulLikeMixedCurrencyTrades(): PdfSellTrade[] {
       return [
         {
           executionTime: '27.01.2025 10:00',
@@ -183,15 +181,21 @@ describe('calculateTaxesFromPdf', () => {
           instrumentCurrency: 'USD', positionSize: 1, averagePrice: 100,
           executionPrice: 130, fxRate: 1, transactionCurrency: 'USD', totalResult: 30,
         } as PdfSellTrade,
+        {
+          executionTime: '28.01.2025 10:00',
+          instrument: 'BBB', isin: 'IE0000000001', instrumentType: 'Stock',
+          instrumentCurrency: 'EUR', positionSize: 2, averagePrice: 50,
+          executionPrice: 25, fxRate: 1, transactionCurrency: 'EUR', totalResult: -50,
+        } as PdfSellTrade,
       ];
     }
 
-    it('uses overview.closedResult instead of per-row sum when they disagree', () => {
-      // Per-row sum = 30 (USD treated as RON). Overview says -365 (RON, correctly converted).
-      // Engine must trust overview.
+    it('mixed transaction currencies: falls back to overview.closedResult (Paul Adam case)', () => {
+      // Mixed USD + EUR trades. Per-row sum is unit-inconsistent. Overview says
+      // -365 RON which T212 correctly converted from the row currencies.
       const data = makePdfData({
-        sellTrades: paulLikeTrades(),
-        overview: { closedResult: -365 } as PdfParseResult['overview'],
+        sellTrades: paulLikeMixedCurrencyTrades(),
+        overview: { closedResult: -365, currency: 'RON' } as PdfParseResult['overview'],
       });
       const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 1);
       expect(result.taxResult.capitalGains.netGains).toBe(0);
@@ -199,8 +203,47 @@ describe('calculateTaxesFromPdf', () => {
       expect(result.taxResult.capitalGains.taxOwed).toBe(0);
     });
 
-    it('multiplies overview.closedResult by exchangeRate (USD overview → RON local)', () => {
-      // Dragos-like single-currency: USD overview, USD trades, exchangeRate 4.7
+    it('single-currency trades matching overview currency: uses per-row sum (Florin Pop case)', () => {
+      // Florin Pop 2026-05-24: RON account with all-RON-transaction trades.
+      // T212 PDF page 1 has Invest + CFD + Crypto columns side-by-side. Parser
+      // had picked CFD overview (-226.80) but per-row sum (3273.75) is the
+      // correct Invest result. With matching currencies engine trusts per-row.
+      const data = makePdfData({
+        sellTrades: [{
+          executionTime: '01.03.2025 10:00',
+          instrument: 'XYZ', isin: 'RO0000000001', instrumentType: 'Stock',
+          instrumentCurrency: 'RON', positionSize: 100, averagePrice: 10,
+          executionPrice: 42.74, fxRate: 1, transactionCurrency: 'RON', totalResult: 3273.75,
+        } as PdfSellTrade],
+        overview: { closedResult: -226.80, currency: 'RON' } as PdfParseResult['overview'],
+      });
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 1);
+      expect(result.taxResult.capitalGains.netGains).toBeCloseTo(3273.75, 2);
+      expect(result.taxResult.capitalGains.losses).toBe(0);
+      expect(result.taxResult.capitalGains.taxOwed).toBeCloseTo(327.38, 2);
+    });
+
+    it('single currency NOT matching overview currency: falls back to overview', () => {
+      // RO customer trading only US stocks. Per-row totals in USD; overview is
+      // in RON. Engine cannot apply the exchangeRate to per-row safely so it
+      // falls back to the T212-converted overview value.
+      const data = makePdfData({
+        sellTrades: [{
+          executionTime: '01.03.2025 10:00',
+          instrument: 'AAPL', isin: 'US0378331005', instrumentType: 'Stock',
+          instrumentCurrency: 'USD', positionSize: 10, averagePrice: 100,
+          executionPrice: 110, fxRate: 1, transactionCurrency: 'USD', totalResult: 100,
+        } as PdfSellTrade],
+        overview: { closedResult: 460, currency: 'RON' } as PdfParseResult['overview'],
+      });
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 1);
+      expect(result.taxResult.capitalGains.netGains).toBeCloseTo(460, 2);
+    });
+
+    it('Dragos all-USD with exchangeRate 4.7 multiplies per-row sum (USD overview equals per-row)', () => {
+      // Single USD trade, USD overview, USD account. allSameCurrency match
+      // overview, per-row sum used. Result equivalent to overview path since
+      // closedResult equals per-row sum in single-currency PDFs.
       const data = makePdfData({
         sellTrades: [{
           executionTime: '15.03.2025', instrument: 'NVDA', isin: 'US67066G1040',
@@ -208,19 +251,17 @@ describe('calculateTaxesFromPdf', () => {
           averagePrice: 30, executionPrice: 146, fxRate: 1, transactionCurrency: 'USD',
           totalResult: 8094,
         } as PdfSellTrade],
-        overview: { closedResult: 8094 } as PdfParseResult['overview'],
+        overview: { closedResult: 8094, currency: 'USD' } as PdfParseResult['overview'],
       });
       const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 4.7);
-      // 8094 USD × 4.7 = 38,041.80 RON
       expect(result.taxResult.capitalGains.netGains).toBeCloseTo(38041.80, 0);
       expect(result.taxResult.capitalGains.taxOwed).toBeCloseTo(3804.18, 0);
     });
 
-    it('zero sell trades → netGains and losses both 0 regardless of overview', () => {
-      // Spurious overview.closedResult should not create phantom cap gains tax.
+    it('zero sell trades: netGains and losses both 0 regardless of overview', () => {
       const data = makePdfData({
         sellTrades: [],
-        overview: { closedResult: 999 } as PdfParseResult['overview'],
+        overview: { closedResult: 999, currency: 'USD' } as PdfParseResult['overview'],
       });
       const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 1);
       expect(result.taxResult.capitalGains.netGains).toBe(0);
@@ -229,10 +270,9 @@ describe('calculateTaxesFromPdf', () => {
     });
 
     it('CASS bracket reflects overview-derived netGains (Paul case below threshold)', () => {
-      // Paul: loss year, only dividends. totalNonSalaryIncome should be dividends only.
       const data = makePdfData({
-        sellTrades: paulLikeTrades(),
-        overview: { closedResult: -365 } as PdfParseResult['overview'],
+        sellTrades: paulLikeMixedCurrencyTrades(),
+        overview: { closedResult: -365, currency: 'RON' } as PdfParseResult['overview'],
         dividends: [{
           instrument: 'X', isin: 'US0000000002', instrumentCurrency: 'USD',
           issuingCountry: 'US', eligibleHoldings: 1, payDate: '15.06.2025',

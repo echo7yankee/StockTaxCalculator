@@ -43,6 +43,13 @@ const KEYWORDS = {
 
   // Instrument types
   instrumentTypes: ['stock', 'etf', 'fund', 'acțiune', 'actiune'],
+
+  // Account section anchors. T212 PDFs can place Invest, CFD, and Crypto
+  // overview blocks on the same page 1 (horizontal columns) or on separate
+  // pages. We only compute tax for the Invest (equity) account.
+  investAccount: ['trading 212 invest'],
+  cfdAccount: ['trading 212 cfd'],
+  cryptoAccount: ['trading 212 crypto'],
 } as const;
 
 /** Check if text contains any of the keyword variants (case-insensitive) */
@@ -124,41 +131,63 @@ function parseOverview(text: string): PdfOverview {
   const currency = detectCurrency(text);
   const lines = text.split('\n');
 
-  const getVal = (keyword: string): number => {
-    for (const line of lines) {
-      if (line.toLowerCase().includes(keyword.toLowerCase())) {
-        // Find a number in the line (possibly after a tab)
-        const parts = line.split('\t');
-        for (let i = parts.length - 1; i >= 0; i--) {
-          const n = parseNum(parts[i]);
-          if (n !== 0 || parts[i].trim() === '0' || parts[i].trim() === '$0.00' || parts[i].trim() === '0.00') {
-            return n;
-          }
-        }
-      }
+  // Multi-account T212 PDFs (Invest + CFD + Crypto) place each metric row as
+  // `Label\tInvestVal\tLabel\tCFDVal\tLabel\tCryptoVal` on a single line.
+  // T212 places Invest leftmost, so the Invest label is always at line-start
+  // (position 0) of its row. CFD and Crypto labels appear after tab separators
+  // mid-line. Two-pass strategy:
+  //   Pass 1: lines that START with the keyword (Invest's dedicated row).
+  //   Pass 2: keyword at any tab-aligned cell-start position (single-account
+  //           PDFs that prepend other labels in the same row).
+  // Within either pass, scan rightward after the matched label and take the
+  // first numeric cell (or explicit zero). Break on a non-numeric continuation
+  // so we never walk past Invest's slot into a sibling account's value.
+  const isExplicitZero = (s: string): boolean =>
+    s === '0' || s === '0.00' || s === '$0.00' || /^[A-Z]{3}\s+0\.00$/.test(s) || /^[€£$]\s*0\.00$/.test(s);
+
+  const valueAfter = (after: string): number | null => {
+    for (const part of after.split('\t')) {
+      const trimmed = part.trim();
+      if (!trimmed) continue;
+      const n = parseNum(trimmed);
+      if (n !== 0) return n;
+      if (isExplicitZero(trimmed)) return 0;
+      return null;
     }
-    return 0;
+    return null;
   };
 
-  /** Try multiple keyword variants, return first match */
+  const getVal = (keyword: string): number | null => {
+    const keywordLower = keyword.toLowerCase();
+    // Pass 1: line-start matches (leftmost column = Invest).
+    for (const line of lines) {
+      if (line.toLowerCase().startsWith(keywordLower)) {
+        const v = valueAfter(line.substring(keyword.length));
+        if (v !== null) return v;
+      }
+    }
+    // Pass 2: keyword at a tab-aligned cell-start anywhere on the line.
+    for (const line of lines) {
+      const lineLower = line.toLowerCase();
+      let searchFrom = 0;
+      while (true) {
+        const idx = lineLower.indexOf(keywordLower, searchFrom);
+        if (idx < 0) break;
+        if (idx === 0 || line[idx - 1] === '\t') {
+          const v = valueAfter(line.substring(idx + keyword.length));
+          if (v !== null) return v;
+          break;
+        }
+        searchFrom = idx + 1;
+      }
+    }
+    return null;
+  };
+
   const getValMulti = (variants: readonly string[]): number => {
     for (const keyword of variants) {
-      const val = getVal(keyword);
-      if (val !== 0) return val;
-    }
-    // Check for explicit zero values (e.g., "Closed result 0.00")
-    for (const keyword of variants) {
-      for (const line of lines) {
-        if (line.toLowerCase().includes(keyword.toLowerCase())) {
-          const parts = line.split('\t');
-          for (let i = parts.length - 1; i >= 0; i--) {
-            const trimmed = parts[i].trim();
-            if (trimmed === '0' || trimmed === '0.00' || /^[A-Z]{3}\s+0\.00$/.test(trimmed)) {
-              return 0;
-            }
-          }
-        }
-      }
+      const v = getVal(keyword);
+      if (v !== null) return v;
     }
     return 0;
   };
@@ -411,18 +440,29 @@ export function parseTrading212AnnualStatement(pageTexts: string[]): PdfParseRes
     warnings.push('Dividend section found but no rows could be parsed.');
   }
 
-  // Cross-check: sell-trades parsed total vs overview.closedResult (fires for losses too).
-  // Per-row totalResult is in each trade's TRANSACTION currency (USD/EUR/RON depending
-  // on the row); overview.closedResult is in the account's PRIMARY currency. For
-  // single-currency PDFs they match; for mixed-currency PDFs they diverge by design.
-  // The engine uses overview as authoritative; this warning surfaces the per-security
-  // breakdown inconsistency that mixed-currency users will see.
+  // CFD-only or Crypto-only statement detection. InvesTax only computes tax for
+  // the Invest (equity) account; if the user uploads a statement that only
+  // contains CFD or Crypto sections, the numbers we produce would be meaningless.
+  if (!matchesAny(fullText, KEYWORDS.investAccount)) {
+    if (matchesAny(fullText, KEYWORDS.cfdAccount) || matchesAny(fullText, KEYWORDS.cryptoAccount)) {
+      warnings.push(
+        'No Invest account section found in this PDF. InvesTax only calculates tax for Trading 212 Invest accounts. Please upload your Invest account annual statement.'
+      );
+    }
+  }
+
+  // Cross-check: parsed sell-trade per-row sum vs overview.closedResult. Both
+  // are expected to be in the account primary currency. Discrepancies typically
+  // mean (a) mixed transaction currencies (Paul Adam case, per-row is unit-
+  // inconsistent so engine uses overview), or (b) a multi-account PDF where
+  // the parser previously picked the wrong overview value. Both are now handled
+  // by the engine and parser respectively; this warning is informational.
   {
     const parsedTotal = sellTrades.reduce((s, t) => s + t.totalResult, 0);
     const diff = Math.abs(parsedTotal - overview.closedResult);
     if (diff > 1) {
       warnings.push(
-        `Parsed sell-trade per-row sum (${parsedTotal.toFixed(2)}) differs from overview (${overview.closedResult.toFixed(2)}). PDF may have mixed transaction currencies; using overview as authoritative net P/L source.`
+        `Parsed sell-trade per-row sum (${parsedTotal.toFixed(2)}) differs from overview (${overview.closedResult.toFixed(2)}). Engine will pick the most reliable source based on transaction currency consistency.`
       );
     }
   }
