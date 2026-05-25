@@ -324,6 +324,7 @@ export default function UploadPage() {
 
       setUploadData({
         parseResult: null,
+        parseWarnings: pdfData.warnings,
         transactions: [],
         taxResult,
         securities,
@@ -380,6 +381,7 @@ export default function UploadPage() {
 
       setUploadData({
         parseResult: parsed,
+        parseWarnings: parsed.warnings,
         transactions: enrichedTransactions,
         taxResult,
         securities,

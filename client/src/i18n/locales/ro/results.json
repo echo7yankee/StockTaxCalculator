@@ -38,5 +38,9 @@
   "saveToDashboard": "Salveaz\u0103 \u00een panou",
   "saveError": "Salvarea a e\u0219uat. Serverul ruleaz\u0103?",
   "readyToFile": "Gata de depunerea declara\u021biei fiscale?",
-  "readyToFileDetail": "Folose\u0219te Ghidul de depunere pentru a copia valorile direct \u00een formularul fiscal."
+  "readyToFileDetail": "Folose\u0219te Ghidul de depunere pentru a copia valorile direct \u00een formularul fiscal.",
+  "parseWarningTitle": "Am detectat o inconsisten\u021b\u0103 \u00een extras",
+  "parseWarningBody": "Calculele de mai jos pot fi gre\u0219ite. Contacteaz\u0103-m\u0103 \u00eenainte s\u0103 depui declara\u021bia \u0219i verific\u0103m manual ce nu se potrive\u0219te.",
+  "parseWarningListIntro": "Avertismente de la parser:",
+  "parseWarningCta": "Contacteaz\u0103-m\u0103"
 }

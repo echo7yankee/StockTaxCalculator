@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, TrendingUp, DollarSign, Heart, Percent, FileText, Save, Check, ClipboardList, LogIn } from 'lucide-react';
+import { ArrowLeft, TrendingUp, DollarSign, Heart, Percent, FileText, Save, Check, ClipboardList, LogIn, AlertTriangle, MessageCircle } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
 import { useCountry } from '../contexts/CountryContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,7 +13,8 @@ import { cassBracketLabelKey } from '../utils/cassBracket';
 export default function ResultsPage() {
   const { t } = useTranslation(['results', 'common']);
   const navigate = useNavigate();
-  const { taxResult, securities, fileName, taxYear, transactions } = useUpload();
+  const { taxResult, securities, fileName, taxYear, transactions, parseWarnings } = useUpload();
+  const hasWarnings = parseWarnings.length > 0;
   const { countryConfig } = useCountry();
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
@@ -117,22 +118,68 @@ export default function ResultsPage() {
         </div>
       </div>
 
-      {/* Filing guide banner */}
-      <div className="mb-8 p-4 bg-accent/5 dark:bg-accent/10 border border-accent/20 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h3 className="font-semibold">{t('results:readyToFile')}</h3>
-          <p className="text-sm text-gray-600 dark:text-slate-400">
-            {t('results:readyToFileDetail')}
-          </p>
-        </div>
-        <button
-          onClick={() => navigate('/filing-guide')}
-          className="btn-primary flex items-center gap-2 whitespace-nowrap self-start sm:self-auto"
+      {hasWarnings && (
+        <div
+          className="mb-8 p-5 bg-red-50 dark:bg-red-900/20 border-2 border-red-400 dark:border-red-600 rounded-xl"
+          role="alert"
+          data-testid="parse-warning-banner"
         >
-          <ClipboardList className="w-4 h-4" />
-          {t('common:filingGuide')}
-        </button>
-      </div>
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-6 h-6 text-red-500 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-red-700 dark:text-red-400 text-base mb-2">
+                {t('results:parseWarningTitle')}
+              </h3>
+              <p className="text-sm text-red-600 dark:text-red-400 mb-3">
+                {t('results:parseWarningBody')}
+              </p>
+              <p className="text-xs font-medium text-red-700 dark:text-red-400 mb-1">
+                {t('results:parseWarningListIntro')}
+              </p>
+              <ul className="text-xs text-red-600 dark:text-red-400 mb-4 list-disc pl-5 space-y-1">
+                {parseWarnings.map((w, i) => (
+                  <li key={i}>{w}</li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={() => navigate('/contact', {
+                  state: {
+                    topic: 'support',
+                    subject: 'parseWarning',
+                    fileName,
+                    warnings: parseWarnings,
+                  },
+                })}
+                className="btn-primary inline-flex items-center gap-2"
+                data-testid="parse-warning-contact-cta"
+              >
+                <MessageCircle className="w-4 h-4" />
+                {t('results:parseWarningCta')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!hasWarnings && (
+        <div className="mb-8 p-4 bg-accent/5 dark:bg-accent/10 border border-accent/20 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 className="font-semibold">{t('results:readyToFile')}</h3>
+            <p className="text-sm text-gray-600 dark:text-slate-400">
+              {t('results:readyToFileDetail')}
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/filing-guide')}
+            className="btn-primary flex items-center gap-2 whitespace-nowrap self-start sm:self-auto"
+            data-testid="filing-guide-cta"
+          >
+            <ClipboardList className="w-4 h-4" />
+            {t('common:filingGuide')}
+          </button>
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

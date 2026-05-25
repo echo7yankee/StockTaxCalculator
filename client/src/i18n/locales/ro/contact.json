@@ -34,7 +34,8 @@
     "successDetail": "Iti raspundem in maxim 24 de ore in zilele lucratoare. Verifica si folderul de Spam, raspunsul vine de pe noreply@investax.app sau direct de la operator.",
     "errorGeneric": "Mesajul nu s-a putut trimite. Verifica datele si reincearca.",
     "errorRateLimit": "Ai trimis prea multe mesaje recent. Reincearca peste 15 minute.",
-    "errorNetwork": "Conexiune intrerupta. Verifica internetul si reincearca."
+    "errorNetwork": "Conexiune intrerupta. Verifica internetul si reincearca.",
+    "parseWarningPrefill": "Buna, am incarcat extrasul {{fileName}} si aplicatia mi-a semnalat o problema la procesare. Pot sa-ti trimit extrasul ca sa verificam impreuna inainte sa depun declaratia?\n\nAvertismente de la parser:\n- {{warnings}}"
   },
   "faq": {
     "title": "Intrebari frecvente",

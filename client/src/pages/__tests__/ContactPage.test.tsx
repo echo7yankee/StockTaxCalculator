@@ -17,6 +17,16 @@ function renderPage() {
   );
 }
 
+function renderPageWithState(state: unknown) {
+  return render(
+    <HelmetProvider>
+      <MemoryRouter initialEntries={[{ pathname: '/contact', state }]}>
+        <ContactPage />
+      </MemoryRouter>
+    </HelmetProvider>
+  );
+}
+
 function submitButton() {
   return screen.getByRole('button', { name: /send message/i });
 }
@@ -223,5 +233,55 @@ describe('ContactPage - error mapping', () => {
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent(/connection interrupted/i);
     });
+  });
+});
+
+describe('ContactPage - parseWarning prefill from location.state', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('renders the empty form when no state is passed', () => {
+    renderPage();
+    expect(screen.getByLabelText('Your message')).toHaveValue('');
+  });
+
+  it('prefills the message field when navigation state carries a parseWarning subject', () => {
+    renderPageWithState({
+      topic: 'support',
+      subject: 'parseWarning',
+      fileName: 'annual-statement-2025.pdf',
+      warnings: ['Per-row vs overview mismatch', 'Currency column missing'],
+    });
+    const message = screen.getByLabelText('Your message') as HTMLTextAreaElement;
+    expect(message.value).toContain('annual-statement-2025.pdf');
+    expect(message.value).toContain('Per-row vs overview mismatch');
+    expect(message.value).toContain('Currency column missing');
+  });
+
+  it('selects the support topic from prefill state', () => {
+    renderPageWithState({
+      topic: 'support',
+      subject: 'parseWarning',
+      fileName: 'x.pdf',
+      warnings: ['w'],
+    });
+    expect(screen.getByLabelText('Topic')).toHaveValue('support');
+  });
+
+  it('falls back to a placeholder string when warnings array is empty', () => {
+    renderPageWithState({
+      topic: 'support',
+      subject: 'parseWarning',
+      fileName: 'x.pdf',
+      warnings: [],
+    });
+    const message = screen.getByLabelText('Your message') as HTMLTextAreaElement;
+    expect(message.value).toContain('no warnings reported');
+  });
+
+  it('ignores unrelated location state (no prefill)', () => {
+    renderPageWithState({ unrelated: 'data' });
+    expect(screen.getByLabelText('Your message')).toHaveValue('');
   });
 });

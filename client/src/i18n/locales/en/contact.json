@@ -34,7 +34,8 @@
     "successDetail": "We reply within 24 hours on business days. Check your Spam folder too — the reply may come from noreply@investax.app or directly from the operator.",
     "errorGeneric": "The message could not be sent. Check your details and try again.",
     "errorRateLimit": "You have sent too many messages recently. Please try again in 15 minutes.",
-    "errorNetwork": "Connection interrupted. Check your internet and try again."
+    "errorNetwork": "Connection interrupted. Check your internet and try again.",
+    "parseWarningPrefill": "Hi, I uploaded the statement {{fileName}} and the app flagged a parsing issue. Can I send you the file so we can check it together before I file?\n\nParser warnings:\n- {{warnings}}"
   },
   "faq": {
     "title": "Frequently Asked Questions",

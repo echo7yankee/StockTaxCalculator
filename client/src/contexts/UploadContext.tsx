@@ -3,6 +3,7 @@ import type { Transaction, TaxCalculationResult, SecurityBreakdown, ParseResult 
 
 interface UploadState {
   parseResult: ParseResult | null;
+  parseWarnings: string[];
   transactions: Transaction[];
   taxResult: TaxCalculationResult | null;
   securities: SecurityBreakdown[];
@@ -17,6 +18,7 @@ interface UploadContextType extends UploadState {
 
 const defaultState: UploadState = {
   parseResult: null,
+  parseWarnings: [],
   transactions: [],
   taxResult: null,
   securities: [],

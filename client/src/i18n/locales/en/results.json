@@ -38,5 +38,9 @@
   "saveToDashboard": "Save to Dashboard",
   "saveError": "Failed to save. Is the server running?",
   "readyToFile": "Ready to file your tax return?",
-  "readyToFileDetail": "Use the Filing Guide to copy values directly into your tax form."
+  "readyToFileDetail": "Use the Filing Guide to copy values directly into your tax form.",
+  "parseWarningTitle": "We detected an inconsistency in your statement",
+  "parseWarningBody": "The numbers below may be wrong. Contact me before filing and we will verify together what does not match.",
+  "parseWarningListIntro": "Parser warnings:",
+  "parseWarningCta": "Contact me"
 }
