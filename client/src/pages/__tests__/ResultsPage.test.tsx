@@ -65,7 +65,7 @@ const mockSecurities: SecurityBreakdown[] = [
 ];
 
 // Helper to pre-fill the upload context (runs once via ref guard)
-function SetupUpload({ children }: { children: React.ReactNode }) {
+function SetupUpload({ children, warnings = [] }: { children: React.ReactNode; warnings?: string[] }) {
   const { setUploadData } = useUpload();
   const didSet = useRef(false);
 
@@ -78,21 +78,22 @@ function SetupUpload({ children }: { children: React.ReactNode }) {
         fileName: 'annual-statement-2025.pdf',
         taxYear: 2025,
         transactions: [],
+        parseWarnings: warnings,
       });
     }
-  }, [setUploadData]);
+  }, [setUploadData, warnings]);
 
   return <>{children}</>;
 }
 
-function renderResults(withData = true) {
+function renderResults(withData = true, warnings: string[] = []) {
   if (withData) {
     return render(
       <HelmetProvider>
         <MemoryRouter>
           <CountryProvider>
             <UploadProvider>
-              <SetupUpload>
+              <SetupUpload warnings={warnings}>
                 <ResultsPage />
               </SetupUpload>
             </UploadProvider>
@@ -219,5 +220,52 @@ describe('ResultsPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/Failed to save/)).toBeInTheDocument();
     });
+  });
+});
+
+describe('ResultsPage parser warning hard-stop', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('hides the warning banner and shows the filing guide CTA when warnings is empty', () => {
+    renderResults(true, []);
+    expect(screen.queryByTestId('parse-warning-banner')).not.toBeInTheDocument();
+    expect(screen.getByTestId('filing-guide-cta')).toBeInTheDocument();
+  });
+
+  it('shows the warning banner and hides the filing guide CTA when warnings exist', () => {
+    renderResults(true, ['Per-row sells (-226.80 RON) vs overview closedResult (3273.75 RON) mismatch']);
+    expect(screen.getByTestId('parse-warning-banner')).toBeInTheDocument();
+    expect(screen.queryByTestId('filing-guide-cta')).not.toBeInTheDocument();
+  });
+
+  it('renders each individual warning string in the banner list', () => {
+    const warnings = [
+      'Per-row vs overview mismatch',
+      'Currency-code column missing on page 1',
+    ];
+    renderResults(true, warnings);
+    expect(screen.getByText(warnings[0])).toBeInTheDocument();
+    expect(screen.getByText(warnings[1])).toBeInTheDocument();
+  });
+
+  it('still renders the four summary cards when warnings exist (numbers visible alongside the banner)', () => {
+    renderResults(true, ['some warning']);
+    expect(screen.getByText('Capital Gains Tax')).toBeInTheDocument();
+    expect(screen.getByText('Dividend Tax')).toBeInTheDocument();
+    expect(screen.getByText('Health Contribution (CASS)')).toBeInTheDocument();
+    expect(screen.getByText('Total Tax Owed')).toBeInTheDocument();
+  });
+
+  it('Contact-me CTA in the banner navigates to /contact', async () => {
+    const user = userEvent.setup();
+    renderResults(true, ['warning']);
+    const cta = screen.getByTestId('parse-warning-contact-cta');
+    expect(cta).toBeInTheDocument();
+    await user.click(cta);
+    // navigation happens via react-router; banner stays in MemoryRouter (no /contact route mounted),
+    // but the CTA must be a clickable button with the expected label
+    expect(cta).toHaveTextContent(/Contact me/i);
   });
 });

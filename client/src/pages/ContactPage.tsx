@@ -1,10 +1,18 @@
 import { useTranslation } from 'react-i18next';
 import { HelpCircle, MessageCircle, ChevronDown, ChevronUp, MapPin, Send, Check, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import PageMeta from '../components/common/PageMeta';
 
 type Topic = 'support' | 'general' | 'business';
 type Status = 'idle' | 'submitting' | 'success' | 'error';
+
+interface ContactPrefillState {
+  topic?: Topic;
+  subject?: 'parseWarning';
+  fileName?: string;
+  warnings?: string[];
+}
 
 function FaqItem({ question, answer }: { question: string; answer: string }) {
   const [open, setOpen] = useState(false);
@@ -33,13 +41,24 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
 
 export default function ContactPage() {
   const { t, i18n } = useTranslation('contact');
+  const location = useLocation();
+  const prefill = (location.state ?? null) as ContactPrefillState | null;
   const faqKeys = ['noEmail', 'wrongCalc', 'refund', 'deleteAccount', 'mobileApp'] as const;
   const language = (i18n.language === 'en' ? 'en' : 'ro') as 'ro' | 'en';
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [topic, setTopic] = useState<Topic>('support');
-  const [message, setMessage] = useState('');
+  const [topic, setTopic] = useState<Topic>(prefill?.topic ?? 'support');
+  const [message, setMessage] = useState(() => {
+    if (prefill?.subject === 'parseWarning') {
+      const warningsList = (prefill.warnings ?? []).join('\n- ');
+      return t('form.parseWarningPrefill', {
+        fileName: prefill.fileName ?? '',
+        warnings: warningsList || '(no warnings reported)',
+      });
+    }
+    return '';
+  });
   const [status, setStatus] = useState<Status>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [fieldError, setFieldError] = useState<string>('');
