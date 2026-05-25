@@ -286,4 +286,139 @@ describe('calculateTaxesFromPdf', () => {
       expect(result.taxResult.healthContribution.totalNonSalaryIncome).toBeCloseTo(93.7, 1);
     });
   });
+
+  describe('per-row vs overview sanity warnings', () => {
+    function makeRonTrade(totalResult: number): PdfSellTrade {
+      return {
+        executionTime: '01.03.2025 10:00',
+        instrument: 'XYZ', isin: 'RO0000000001', instrumentType: 'Stock',
+        instrumentCurrency: 'RON', positionSize: 100, averagePrice: 10,
+        executionPrice: 42.74, fxRate: 1, transactionCurrency: 'RON', totalResult,
+      } as PdfSellTrade;
+    }
+
+    it('happy path: matching per-row and overview → empty warnings', () => {
+      const data = makePdfData();
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 1);
+      expect(result.warnings).toEqual([]);
+    });
+
+    it('sign mismatch fires (Florin pre-fix shape: +3273.75 RON per-row vs -226.80 RON overview)', () => {
+      const data = makePdfData({
+        sellTrades: [makeRonTrade(3273.75)],
+        overview: { closedResult: -226.80, currency: 'RON' } as PdfParseResult['overview'],
+      });
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 1);
+      expect(result.warnings.some(w => w.startsWith('Sign mismatch'))).toBe(true);
+      // 3273.75 / 226.80 ≈ 14.4 also trips magnitude
+      expect(result.warnings.some(w => w.startsWith('Magnitude mismatch'))).toBe(true);
+      expect(result.warnings).toHaveLength(2);
+    });
+
+    it('magnitude mismatch alone fires (same sign, >10x ratio)', () => {
+      const data = makePdfData({
+        sellTrades: [makeRonTrade(100)],
+        overview: { closedResult: 5000, currency: 'RON' } as PdfParseResult['overview'],
+      });
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 1);
+      expect(result.warnings.some(w => w.startsWith('Magnitude mismatch'))).toBe(true);
+      expect(result.warnings.some(w => w.startsWith('Sign mismatch'))).toBe(false);
+      expect(result.warnings).toHaveLength(1);
+    });
+
+    it('sign mismatch alone fires (different sign, <10x ratio)', () => {
+      const data = makePdfData({
+        sellTrades: [makeRonTrade(100)],
+        overview: { closedResult: -50, currency: 'RON' } as PdfParseResult['overview'],
+      });
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 1);
+      expect(result.warnings.some(w => w.startsWith('Sign mismatch'))).toBe(true);
+      expect(result.warnings.some(w => w.startsWith('Magnitude mismatch'))).toBe(false);
+      expect(result.warnings).toHaveLength(1);
+    });
+
+    it('within tolerance (1.5x) → no warnings (Dragos NVDA-only shape)', () => {
+      const data = makePdfData({
+        sellTrades: [makeRonTrade(100)],
+        overview: { closedResult: 150, currency: 'RON' } as PdfParseResult['overview'],
+      });
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 1);
+      expect(result.warnings).toEqual([]);
+    });
+
+    it('mixed transaction currencies → no engine warnings (Paul Adam case, engine falls back to overview)', () => {
+      const data = makePdfData({
+        sellTrades: [
+          {
+            executionTime: '27.01.2025 10:00', instrument: 'AAA', isin: 'US0000000001',
+            instrumentType: 'Stock', instrumentCurrency: 'USD', positionSize: 1,
+            averagePrice: 100, executionPrice: 130, fxRate: 1,
+            transactionCurrency: 'USD', totalResult: 30,
+          } as PdfSellTrade,
+          {
+            executionTime: '28.01.2025 10:00', instrument: 'BBB', isin: 'IE0000000001',
+            instrumentType: 'Stock', instrumentCurrency: 'EUR', positionSize: 2,
+            averagePrice: 50, executionPrice: 25, fxRate: 1,
+            transactionCurrency: 'EUR', totalResult: -50,
+          } as PdfSellTrade,
+        ],
+        overview: { closedResult: -365, currency: 'RON' } as PdfParseResult['overview'],
+      });
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 1);
+      expect(result.warnings).toEqual([]);
+    });
+
+    it('trade currency differs from overview currency → no engine warnings (RO user, USD stocks)', () => {
+      const data = makePdfData({
+        sellTrades: [{
+          executionTime: '01.03.2025 10:00', instrument: 'AAPL', isin: 'US0378331005',
+          instrumentType: 'Stock', instrumentCurrency: 'USD', positionSize: 10,
+          averagePrice: 100, executionPrice: 110, fxRate: 1,
+          transactionCurrency: 'USD', totalResult: 100,
+        } as PdfSellTrade],
+        overview: { closedResult: 460, currency: 'RON' } as PdfParseResult['overview'],
+      });
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 1);
+      expect(result.warnings).toEqual([]);
+    });
+
+    it('zero per-row sum → no warnings', () => {
+      const data = makePdfData({
+        sellTrades: [makeRonTrade(0)],
+        overview: { closedResult: -500, currency: 'RON' } as PdfParseResult['overview'],
+      });
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 1);
+      expect(result.warnings).toEqual([]);
+    });
+
+    it('zero overview → no warnings', () => {
+      const data = makePdfData({
+        sellTrades: [makeRonTrade(100)],
+        overview: { closedResult: 0, currency: 'RON' } as PdfParseResult['overview'],
+      });
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 1);
+      expect(result.warnings).toEqual([]);
+    });
+
+    it('empty sell trades → no warnings (no per-row to compare)', () => {
+      const data = makePdfData({
+        sellTrades: [],
+        overview: { closedResult: 999, currency: 'RON' } as PdfParseResult['overview'],
+      });
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 1);
+      expect(result.warnings).toEqual([]);
+    });
+
+    it('warning text includes both numbers and currency for diagnostic forwarding', () => {
+      const data = makePdfData({
+        sellTrades: [makeRonTrade(3273.75)],
+        overview: { closedResult: -226.80, currency: 'RON' } as PdfParseResult['overview'],
+      });
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 1);
+      const signWarning = result.warnings.find(w => w.startsWith('Sign mismatch'));
+      expect(signWarning).toContain('3273.75');
+      expect(signWarning).toContain('-226.80');
+      expect(signWarning).toContain('RON');
+    });
+  });
 });

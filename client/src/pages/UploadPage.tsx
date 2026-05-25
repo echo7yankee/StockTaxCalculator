@@ -320,11 +320,11 @@ export default function UploadPage() {
       const needsConversion = preview.currency !== countryConfig.currency;
       const rate = needsConversion ? exchangeRate : 1;
 
-      const { taxResult, securities } = calculateTaxesFromPdf(pdfData, countryConfig, rate);
+      const { taxResult, securities, warnings: engineWarnings } = calculateTaxesFromPdf(pdfData, countryConfig, rate);
 
       setUploadData({
         parseResult: null,
-        parseWarnings: pdfData.warnings,
+        parseWarnings: [...pdfData.warnings, ...engineWarnings],
         transactions: [],
         taxResult,
         securities,

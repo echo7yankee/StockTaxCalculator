@@ -20,6 +20,7 @@ import type { PdfParseResult, PdfDividend } from '../parsers/trading212Pdf.js';
 export interface PdfTaxEngineResult {
   taxResult: TaxCalculationResult;
   securities: SecurityBreakdown[];
+  warnings: string[];
 }
 
 export function calculateTaxesFromPdf(
@@ -180,7 +181,42 @@ export function calculateTaxesFromPdf(
     totalWithholdingTax: round2(s.totalWithholdingTax),
   }));
 
-  return { taxResult, securities };
+  // Sanity warnings: per-row sell-trade sum vs overview.closedResult. Only
+  // meaningful when both numbers share a currency (otherwise comparing units
+  // would produce false positives, e.g. Paul Adam mixed-currency case where
+  // the engine intentionally falls back to overview). When comparable, a sign
+  // flip or >10x magnitude gap is the strong signal of a parser misread on a
+  // multi-account PDF, which the UI hard-stops on via the warnings banner.
+  const warnings: string[] = [];
+  if (
+    pdfData.sellTrades.length > 0 &&
+    pdfData.overview.closedResult != null
+  ) {
+    const firstCurrency = pdfData.sellTrades[0].transactionCurrency;
+    const allSameCurrency = pdfData.sellTrades.every(t => t.transactionCurrency === firstCurrency);
+    const matchesOverviewCurrency = !!pdfData.overview.currency && firstCurrency === pdfData.overview.currency;
+
+    if (allSameCurrency && matchesOverviewCurrency) {
+      const perRowSum = pdfData.sellTrades.reduce((s, t) => s + t.totalResult, 0);
+      const overviewSum = pdfData.overview.closedResult;
+
+      if (perRowSum !== 0 && overviewSum !== 0) {
+        if (Math.sign(perRowSum) !== Math.sign(overviewSum)) {
+          warnings.push(
+            `Sign mismatch between per-row sell trades (${perRowSum.toFixed(2)} ${firstCurrency}) and overview closed result (${overviewSum.toFixed(2)} ${firstCurrency}). The PDF may have a multi-account layout the parser misread.`
+          );
+        }
+        const ratio = Math.max(Math.abs(perRowSum), Math.abs(overviewSum)) / Math.min(Math.abs(perRowSum), Math.abs(overviewSum));
+        if (ratio > 10) {
+          warnings.push(
+            `Magnitude mismatch (>10x) between per-row sell trades (${perRowSum.toFixed(2)} ${firstCurrency}) and overview closed result (${overviewSum.toFixed(2)} ${firstCurrency}). The PDF may have a multi-account layout the parser misread.`
+          );
+        }
+      }
+    }
+  }
+
+  return { taxResult, securities, warnings };
 }
 
 function round2(n: number): number {

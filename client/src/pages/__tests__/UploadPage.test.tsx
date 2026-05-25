@@ -194,7 +194,7 @@ beforeEach(() => {
   sharedExports.parseTrading212Csv.mockReturnValue(makeCsvParseResult());
   sharedExports.parseTrading212AnnualStatement.mockReturnValue(makePdfParseResult());
   sharedExports.calculateTaxes.mockReturnValue({ taxResult: {}, securities: [] });
-  sharedExports.calculateTaxesFromPdf.mockReturnValue({ taxResult: {}, securities: [] });
+  sharedExports.calculateTaxesFromPdf.mockReturnValue({ taxResult: {}, securities: [], warnings: [] });
   sharedExports.applyBnrRates.mockImplementation((txs: Transaction[]) => txs);
   mockExtractPdfPageTexts.mockResolvedValue(['page 1 text', 'page 2 text']);
   mockPapaParse.mockImplementation(
@@ -465,6 +465,7 @@ describe('UploadPage - Calculate Taxes flow', () => {
     sharedExports.calculateTaxesFromPdf.mockReturnValueOnce({
       taxResult: { totals: { totalTaxOwed: 1234 } },
       securities: [{ ticker: 'AAPL' }],
+      warnings: [],
     });
     const user = userEvent.setup();
     const { container } = renderPage();
@@ -483,6 +484,32 @@ describe('UploadPage - Calculate Taxes flow', () => {
         taxResult: expect.objectContaining({
           totals: expect.objectContaining({ totalTaxOwed: 1234 }),
         }),
+      }),
+    );
+  });
+
+  it('merges parser + engine warnings into parseWarnings on the PDF path', async () => {
+    sharedExports.parseTrading212AnnualStatement.mockReturnValueOnce(
+      makePdfParseResult({ warnings: ['Parser warning A'] }),
+    );
+    sharedExports.calculateTaxesFromPdf.mockReturnValueOnce({
+      taxResult: { totals: { totalTaxOwed: 0 } },
+      securities: [],
+      warnings: ['Sign mismatch ...', 'Magnitude mismatch ...'],
+    });
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.upload(findHiddenFileInput(container), makePdfFile());
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole('button', { name: /Calculate Taxes/ }));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
+    expect(mockSetUploadData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parseWarnings: ['Parser warning A', 'Sign mismatch ...', 'Magnitude mismatch ...'],
       }),
     );
   });
