@@ -1,11 +1,12 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, TrendingUp, DollarSign, Heart, Percent, FileText, Save, Check, ClipboardList, LogIn, AlertTriangle, MessageCircle } from 'lucide-react';
+import { ArrowLeft, TrendingUp, DollarSign, Heart, Percent, FileText, Save, Check, ClipboardList, LogIn, AlertTriangle, MessageCircle, Lock, Zap } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
 import { useCountry } from '../contexts/CountryContext';
 import { useAuth } from '../contexts/AuthContext';
 import { analytics } from '../lib/analytics';
+import { stashUploadForCheckout } from '../lib/uploadStash';
 import PageMeta from '../components/common/PageMeta';
 import { isBeforeEarlyFilingDeadline } from '../utils/earlyFiling';
 import { cassBracketLabelKey } from '../utils/cassBracket';
@@ -13,17 +14,81 @@ import { cassBracketLabelKey } from '../utils/cassBracket';
 export default function ResultsPage() {
   const { t } = useTranslation(['results', 'common']);
   const navigate = useNavigate();
-  const { taxResult, securities, fileName, taxYear, transactions, parseWarnings } = useUpload();
+  const { taxResult, securities, fileName, taxYear, transactions, parseWarnings, parseResult } = useUpload();
   const hasWarnings = parseWarnings.length > 0;
   const { countryConfig } = useCountry();
   const { user } = useAuth();
+  const isPaid = user?.plan === 'paid';
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [unlockLoading, setUnlockLoading] = useState(false);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+
+  // Pre-paywall preview abandonment: if a logged-in free user lands on
+  // /results with a real result and leaves without clicking Unlock, fire
+  // pdfPreviewAbandoned so Plausible captures the funnel drop. Guarded by
+  // a ref so navigating to Stripe (Confirmed) does not also count as
+  // Abandoned.
+  const confirmedRef = useRef(false);
+  useEffect(() => {
+    if (isPaid) return;
+    if (!taxResult) return;
+    return () => {
+      if (!confirmedRef.current) {
+        analytics.pdfPreviewAbandoned();
+      }
+    };
+  }, [isPaid, taxResult]);
+
+  const handleUnlock = useCallback(async () => {
+    if (!taxResult || !taxYear) return;
+    setUnlockLoading(true);
+    setUnlockError(null);
+
+    // Stash BEFORE the redirect. UploadContext is React state and is lost
+    // on the full-page navigation to checkout.stripe.com.
+    stashUploadForCheckout({
+      parseResult,
+      parseWarnings,
+      transactions,
+      taxResult,
+      securities,
+      fileName,
+      taxYear,
+    });
+
+    confirmedRef.current = true;
+    analytics.pdfPreviewConfirmed();
+
+    try {
+      const res = await fetch('/api/payment/checkout', { credentials: 'include' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.checkoutUrl) {
+        analytics.checkoutStarted();
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+      // Server error: unstash so the next attempt does not double-stash a
+      // stale snapshot, and clear the confirmed flag.
+      confirmedRef.current = false;
+      setUnlockError(t('results:unlockError'));
+    } catch {
+      confirmedRef.current = false;
+      setUnlockError(t('results:unlockError'));
+    } finally {
+      setUnlockLoading(false);
+    }
+  }, [parseResult, parseWarnings, transactions, taxResult, securities, fileName, taxYear, t]);
 
   const handleSave = useCallback(async () => {
     if (!user) {
       navigate('/login', { state: { from: { pathname: '/results' } } });
+      return;
+    }
+    if (!isPaid) {
+      // Free user clicked Save: route them through the unlock flow instead.
+      void handleUnlock();
       return;
     }
     if (!taxResult || !taxYear) return;
@@ -53,7 +118,7 @@ export default function ResultsPage() {
     } finally {
       setSaving(false);
     }
-  }, [taxResult, taxYear, countryConfig, fileName, securities, user, navigate, t]);
+  }, [taxResult, taxYear, countryConfig, fileName, securities, user, isPaid, navigate, handleUnlock, t]);
 
   if (!taxResult) {
     return (
@@ -95,25 +160,38 @@ export default function ResultsPage() {
           </p>
         </div>
         <div className="flex flex-col items-start sm:items-end gap-1">
-          <button
-            onClick={handleSave}
-            disabled={saving || saved}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              saved
-                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                : 'btn-primary'
-            }`}
-          >
-            {!user ? (
-              <><LogIn className="w-4 h-4" /> {t('results:logInToSave')}</>
-            ) : saved ? (
-              <><Check className="w-4 h-4" /> {t('results:savedToDashboard')}</>
-            ) : saving ? (
-              <><Save className="w-4 h-4" /> {t('results:saving')}</>
-            ) : (
-              <><Save className="w-4 h-4" /> {t('results:saveToDashboard')}</>
-            )}
-          </button>
+          {user && !isPaid ? (
+            <button
+              onClick={handleSave}
+              disabled={unlockLoading}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors btn-secondary"
+              title={t('results:unlockSavedTooltip')}
+              data-testid="save-locked-button"
+            >
+              <Lock className="w-4 h-4" /> {t('results:saveToDashboard')}
+            </button>
+          ) : (
+            <button
+              onClick={handleSave}
+              disabled={saving || saved}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                saved
+                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                  : 'btn-primary'
+              }`}
+              data-testid="save-button"
+            >
+              {!user ? (
+                <><LogIn className="w-4 h-4" /> {t('results:logInToSave')}</>
+              ) : saved ? (
+                <><Check className="w-4 h-4" /> {t('results:savedToDashboard')}</>
+              ) : saving ? (
+                <><Save className="w-4 h-4" /> {t('results:saving')}</>
+              ) : (
+                <><Save className="w-4 h-4" /> {t('results:saveToDashboard')}</>
+              )}
+            </button>
+          )}
           {saveError && <p className="text-xs text-red-500">{saveError}</p>}
         </div>
       </div>
@@ -162,7 +240,7 @@ export default function ResultsPage() {
         </div>
       )}
 
-      {!hasWarnings && (
+      {!hasWarnings && isPaid && (
         <div className="mb-8 p-4 bg-accent/5 dark:bg-accent/10 border border-accent/20 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h3 className="font-semibold">{t('results:readyToFile')}</h3>
@@ -177,6 +255,44 @@ export default function ResultsPage() {
           >
             <ClipboardList className="w-4 h-4" />
             {t('common:filingGuide')}
+          </button>
+        </div>
+      )}
+
+      {!hasWarnings && user && !isPaid && (
+        <div
+          className="mb-8 p-5 bg-accent/5 dark:bg-accent/10 border-2 border-accent/30 rounded-xl flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4"
+          data-testid="unlock-card"
+        >
+          <div className="flex-1">
+            <h3 className="font-semibold text-lg flex items-center gap-2">
+              <Lock className="w-5 h-5 text-accent dark:text-accent-light" />
+              {t('results:unlockTitle', { price: '€12' })}
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">
+              {t('results:unlockBody')}
+            </p>
+            {unlockError && (
+              <p className="text-xs text-red-500 mt-2">{unlockError}</p>
+            )}
+          </div>
+          <button
+            onClick={handleUnlock}
+            disabled={unlockLoading}
+            className="btn-primary flex items-center gap-2 whitespace-nowrap self-start sm:self-auto disabled:opacity-50"
+            data-testid="unlock-cta"
+          >
+            {unlockLoading ? (
+              <>
+                <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                {t('results:unlockLoading')}
+              </>
+            ) : (
+              <>
+                <Zap className="w-4 h-4" />
+                {t('results:unlockCta', { price: '€12' })}
+              </>
+            )}
           </button>
         </div>
       )}

@@ -9,12 +9,13 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('Scenario K: Upload page tab system and validation', () => {
-  // Upload page redirects unauthenticated users to pricing.
-  // These tests verify the redirect and the pricing page behavior.
+  // Per PR #124 (pre-paywall preview), /upload is a login wall, not a paywall.
+  // Logged-out users go to /login?redirect=/upload. Logged-in free users see
+  // the full upload + preview surface; the D212 export stays paywalled.
 
-  test('unauthenticated user redirected from upload to pricing', async ({ page }) => {
+  test('unauthenticated user redirected from upload to login', async ({ page }) => {
     await page.goto('/upload');
-    await expect(page).toHaveURL(/pricing/);
+    await expect(page).toHaveURL(/login\?redirect=%2Fupload|login\?redirect=\/upload/);
   });
 
   test('pricing page has feature comparison for free vs paid', async ({ page }) => {

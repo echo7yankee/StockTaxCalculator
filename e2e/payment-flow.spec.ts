@@ -25,7 +25,7 @@ async function login(page: Page, email: string) {
 // 1. Authenticated FREE user — paywall enforcement
 // ---------------------------------------------------------------------------
 
-test.describe('Payment Flow — Free User Paywall', () => {
+test.describe('Payment Flow - Free User Preview Access', () => {
   const email = `e2e-payflow-free-${uid}@example.com`;
 
   test.beforeAll(async ({ request }) => {
@@ -34,10 +34,13 @@ test.describe('Payment Flow — Free User Paywall', () => {
     });
   });
 
-  test('free user is redirected from /upload to /pricing', async ({ page }) => {
+  test('free user can access /upload (pre-paywall preview per PR #124)', async ({ page }) => {
     await login(page, email);
     await page.goto('/upload');
-    await expect(page).toHaveURL(/pricing/);
+    // Free users now see the full upload surface; D212 export stays paywalled
+    // on /results via the Unlock CTA.
+    await expect(page).toHaveURL(/\/upload(\?|$)/);
+    await expect(page.locator('h1')).toBeVisible();
   });
 
   test('free user is redirected from /dashboard to /pricing', async ({ page }) => {
