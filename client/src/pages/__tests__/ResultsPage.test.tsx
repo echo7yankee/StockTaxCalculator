@@ -8,29 +8,16 @@ import { UploadProvider, useUpload } from '../../contexts/UploadContext';
 import { CountryProvider } from '../../contexts/CountryContext';
 import ResultsPage from '../ResultsPage';
 
-// Mock useAuth to simulate logged-in user. Mutable so individual tests can
-// switch between paid + free + logged-out without remounting the whole module.
-let authPlan: 'paid' | 'free' | null = 'paid';
+// Mock useAuth to simulate logged-in user
 vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({
-    user: authPlan === null
-      ? null
-      : { id: 'test-id', email: 'test@test.com', name: 'Test', plan: authPlan },
+    user: { id: 'test-id', email: 'test@test.com', name: 'Test', plan: 'free' },
     loading: false,
     login: vi.fn(),
     signup: vi.fn(),
     loginWithGoogle: vi.fn(),
     logout: vi.fn(),
   }),
-}));
-
-vi.mock('../../lib/analytics', () => ({
-  analytics: {
-    calculationSaved: vi.fn(),
-    pdfPreviewAbandoned: vi.fn(),
-    pdfPreviewConfirmed: vi.fn(),
-    checkoutStarted: vi.fn(),
-  },
 }));
 import type { TaxCalculationResult, SecurityBreakdown } from '@shared/index';
 
@@ -131,8 +118,6 @@ function renderResults(withData = true, warnings: string[] = []) {
 describe('ResultsPage', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    authPlan = 'paid';
-    sessionStorage.clear();
   });
 
   it('shows empty state when no taxResult', () => {
@@ -241,8 +226,6 @@ describe('ResultsPage', () => {
 describe('ResultsPage parser warning hard-stop', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    authPlan = 'paid';
-    sessionStorage.clear();
   });
 
   it('hides the warning banner and shows the filing guide CTA when warnings is empty', () => {
@@ -284,162 +267,5 @@ describe('ResultsPage parser warning hard-stop', () => {
     // navigation happens via react-router; banner stays in MemoryRouter (no /contact route mounted),
     // but the CTA must be a clickable button with the expected label
     expect(cta).toHaveTextContent(/Contact me/i);
-  });
-});
-
-describe('ResultsPage - free user unlock CTA (PR 4)', () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-    authPlan = 'free';
-    sessionStorage.clear();
-  });
-
-  it('shows the Unlock card instead of the Filing Guide CTA for free users with no warnings', () => {
-    renderResults(true, []);
-    expect(screen.getByTestId('unlock-card')).toBeInTheDocument();
-    expect(screen.getByTestId('unlock-cta')).toBeInTheDocument();
-    expect(screen.queryByTestId('filing-guide-cta')).not.toBeInTheDocument();
-  });
-
-  it('renders the locked save button (not the green Save button) for free users', () => {
-    renderResults(true, []);
-    expect(screen.getByTestId('save-locked-button')).toBeInTheDocument();
-    expect(screen.queryByTestId('save-button')).not.toBeInTheDocument();
-  });
-
-  it('still renders all 4 summary cards with full numbers for free users (Option A: see-before-pay)', () => {
-    renderResults(true, []);
-    expect(screen.getByText('Capital Gains Tax')).toBeInTheDocument();
-    expect(screen.getByText('Dividend Tax')).toBeInTheDocument();
-    expect(screen.getByText('Health Contribution (CASS)')).toBeInTheDocument();
-    expect(screen.getByText('Total Tax Owed')).toBeInTheDocument();
-    expect(screen.getByText(/19,200.00/)).toBeInTheDocument();
-  });
-
-  it('hides the unlock card when warnings exist (warning banner takes precedence)', () => {
-    renderResults(true, ['Sign mismatch: per-row 100, overview -200']);
-    expect(screen.queryByTestId('unlock-card')).not.toBeInTheDocument();
-    expect(screen.getByTestId('parse-warning-banner')).toBeInTheDocument();
-  });
-
-  it('clicking Unlock stashes upload data, calls /api/payment/checkout, and redirects to Stripe', async () => {
-    const user = userEvent.setup();
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(JSON.stringify({ checkoutUrl: 'https://checkout.stripe.com/c/sess_123' }), { status: 200 }),
-    );
-
-    // Capture window.location.href assignment without actually navigating.
-    const originalLocation = window.location;
-    const hrefSetter = vi.fn();
-    Object.defineProperty(window, 'location', {
-      configurable: true,
-      value: new Proxy(originalLocation, {
-        set(_target, prop, value) {
-          if (prop === 'href') {
-            hrefSetter(value);
-            return true;
-          }
-          return Reflect.set(originalLocation, prop, value);
-        },
-        get(_target, prop) {
-          return Reflect.get(originalLocation, prop);
-        },
-      }),
-    });
-
-    try {
-      renderResults(true, []);
-      await user.click(screen.getByTestId('unlock-cta'));
-
-      await waitFor(() => {
-        expect(fetchSpy).toHaveBeenCalledWith(
-          '/api/payment/checkout',
-          expect.objectContaining({ credentials: 'include' }),
-        );
-      });
-
-      // Stash was written before the redirect.
-      const stash = sessionStorage.getItem('investax_upload_stash_v1');
-      expect(stash).not.toBeNull();
-      const parsed = JSON.parse(stash!);
-      expect(parsed.fileName).toBe('annual-statement-2025.pdf');
-      expect(parsed.taxYear).toBe(2025);
-      expect(parsed.taxResult.totals.totalTaxOwed).toBe(28974);
-
-      await waitFor(() => {
-        expect(hrefSetter).toHaveBeenCalledWith('https://checkout.stripe.com/c/sess_123');
-      });
-    } finally {
-      Object.defineProperty(window, 'location', {
-        configurable: true,
-        value: originalLocation,
-      });
-    }
-  });
-
-  it('shows an error and does NOT redirect when the checkout endpoint fails', async () => {
-    const user = userEvent.setup();
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(JSON.stringify({ error: 'unavailable' }), { status: 502 }),
-    );
-
-    renderResults(true, []);
-    await user.click(screen.getByTestId('unlock-cta'));
-
-    await waitFor(() => {
-      expect(screen.getByText(/Could not open checkout/)).toBeInTheDocument();
-    });
-  });
-
-  it('clicking the locked Save button routes the free user through the unlock flow', async () => {
-    const user = userEvent.setup();
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(JSON.stringify({ checkoutUrl: 'https://checkout.stripe.com/c/sess_456' }), { status: 200 }),
-    );
-
-    renderResults(true, []);
-    await user.click(screen.getByTestId('save-locked-button'));
-
-    await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledWith(
-        '/api/payment/checkout',
-        expect.objectContaining({ credentials: 'include' }),
-      );
-    });
-  });
-});
-
-describe('ResultsPage - paid user (regression: existing flow unchanged)', () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-    authPlan = 'paid';
-    sessionStorage.clear();
-  });
-
-  it('shows the Filing Guide CTA for paid users with no warnings', () => {
-    renderResults(true, []);
-    expect(screen.getByTestId('filing-guide-cta')).toBeInTheDocument();
-    expect(screen.queryByTestId('unlock-card')).not.toBeInTheDocument();
-  });
-
-  it('shows the regular Save button for paid users (not the locked variant)', () => {
-    renderResults(true, []);
-    expect(screen.getByTestId('save-button')).toBeInTheDocument();
-    expect(screen.queryByTestId('save-locked-button')).not.toBeInTheDocument();
-  });
-
-  it('paid user Save calls /api/uploads (not /api/payment/checkout)', async () => {
-    const user = userEvent.setup();
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(JSON.stringify({ id: 'upload_1' }), { status: 200 }),
-    );
-
-    renderResults(true, []);
-    await user.click(screen.getByTestId('save-button'));
-
-    await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledWith('/api/uploads', expect.objectContaining({ method: 'POST' }));
-    });
-    expect(fetchSpy).not.toHaveBeenCalledWith('/api/payment/checkout', expect.anything());
   });
 });

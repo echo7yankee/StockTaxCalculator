@@ -42,11 +42,5 @@
   "parseWarningTitle": "We detected an inconsistency in your statement",
   "parseWarningBody": "The numbers below may be wrong. Contact me before filing and we will verify together what does not match.",
   "parseWarningListIntro": "Parser warnings:",
-  "parseWarningCta": "Contact me",
-  "unlockTitle": "Unlock the D212 export for {{price}}",
-  "unlockBody": "You have seen the numbers. Pay once to download a D212-ready PDF, save this calculation to your dashboard, and keep last year's filings on hand.",
-  "unlockCta": "Unlock for {{price}}",
-  "unlockLoading": "Opening checkout...",
-  "unlockSavedTooltip": "Pay to save this calculation to your dashboard",
-  "unlockError": "Could not open checkout. Try again in a moment."
+  "parseWarningCta": "Contact me"
 }

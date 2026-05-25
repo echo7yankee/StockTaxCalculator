@@ -59,10 +59,9 @@ test.describe('Payment Infrastructure', () => {
     await expect(buyButton).toBeVisible();
   });
 
-  test('upload page redirects to login for unauthenticated users', async ({ page }) => {
-    // PR #124: /upload is a login wall, not a paywall.
+  test('upload page redirects to pricing for unauthenticated users', async ({ page }) => {
     await page.goto('/upload');
-    await expect(page).toHaveURL(/login\?redirect=%2Fupload|login\?redirect=\/upload/);
+    await expect(page).toHaveURL(/pricing/);
   });
 
   test('pricing page FAQ accordion works', async ({ page }) => {

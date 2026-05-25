@@ -82,11 +82,9 @@ test.describe('PDF Upload Flow', () => {
     await expect(page.getByText('PLTR').first()).toBeVisible();
   });
 
-  // PR #124: only LOGGED-OUT users are bounced. The bounce now goes to
-  // /login (not /pricing). Free logged-in users can reach /upload and see the
-  // pre-paywall preview.
-  test('unauthenticated user is redirected to login', async ({ page }) => {
+  // Free / unauthenticated users must not reach the upload page.
+  test('unauthenticated user is redirected to pricing', async ({ page }) => {
     await page.goto('/upload');
-    await expect(page).toHaveURL(/login\?redirect=%2Fupload|login\?redirect=\/upload/);
+    await expect(page).toHaveURL(/pricing/);
   });
 });

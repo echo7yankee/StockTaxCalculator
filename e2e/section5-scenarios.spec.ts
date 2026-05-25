@@ -307,7 +307,7 @@ test.describe('Scenario B — Signup flow (partial)', () => {
 // This test verifies the landing-page → pricing journey that a real user would take.
 // ===========================================================================
 
-test.describe('Scenario C - Free user pre-paywall preview journey (PR #124)', () => {
+test.describe('Scenario C — Free user paywall journey', () => {
   const email = `e2e-scenario-c-${uid}@example.com`;
 
   test.beforeAll(async ({ request }) => {
@@ -316,17 +316,20 @@ test.describe('Scenario C - Free user pre-paywall preview journey (PR #124)', ()
     });
   });
 
-  test('free user flow: login then reach /upload (D212 export stays paywalled on /results)', async ({ page }) => {
+  test('free user flow: login → try upload → redirected to pricing with CTA', async ({ page }) => {
     await login(page, email);
 
-    // Try to access upload. Free users can now upload and see the preview.
+    // Try to access upload (paid feature)
     await page.goto('/upload');
 
-    // Should stay on /upload (was: redirected to /pricing in pre-PR-#124).
-    await expect(page).toHaveURL(/\/upload(\?|$)/);
+    // Should be redirected to pricing
+    await expect(page).toHaveURL(/pricing/);
 
-    // Upload heading + PDF/CSV tabs visible.
-    await expect(page.locator('h1')).toBeVisible();
+    // Pricing page should show the buy CTA (not login variant since user is authenticated)
+    await expect(page.getByRole('button', { name: /full access|acces complet/i })).toBeVisible();
+
+    // Launch promo badge should be visible
+    await expect(page.getByText(/\d+\/100|\d+ (spots|locuri)/i).first()).toBeVisible({ timeout: 5_000 });
   });
 });
 

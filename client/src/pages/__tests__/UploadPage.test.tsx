@@ -70,18 +70,8 @@ vi.mock('../../lib/analytics', () => ({
   analytics: {
     pdfUploaded: vi.fn(),
     csvUploaded: vi.fn(),
-    pdfPreviewShown: vi.fn(),
-    pdfPreviewConfirmed: vi.fn(),
-    pdfPreviewAbandoned: vi.fn(),
-    checkoutStarted: vi.fn(),
-    calculationSaved: vi.fn(),
   },
 }));
-
-vi.mock('../../lib/uploadStash', async () => {
-  const actual = await vi.importActual<typeof import('../../lib/uploadStash')>('../../lib/uploadStash');
-  return { ...actual };
-});
 
 // Canned shared-engine outputs. Each helper resets between tests via fnMock fields.
 const sharedExports = {
@@ -214,23 +204,22 @@ beforeEach(() => {
   );
 });
 
-describe('UploadPage - login wall (PR 4: free users render, only logged-out redirect)', () => {
-  it('renders nothing and redirects to /login when no user is logged in', () => {
+describe('UploadPage - paywall gating', () => {
+  it('renders nothing and redirects to /pricing when no user is logged in', () => {
     authState = { user: null, loading: false };
     const { container } = renderPage();
     expect(container.firstChild).toBeNull();
-    expect(mockNavigate).toHaveBeenCalledWith('/login?redirect=/upload', { replace: true });
+    expect(mockNavigate).toHaveBeenCalledWith('/pricing', { replace: true });
   });
 
-  it('RENDERS the upload UI for logged-in free users (was: redirect to pricing)', () => {
+  it('renders nothing and redirects to /pricing when the user is on the free plan', () => {
     authState = {
       user: { id: 'u1', email: 'free@example.com', name: 'Free User', plan: 'free' },
       loading: false,
     };
-    renderPage();
-    expect(screen.getByRole('heading', { name: 'Upload Broker Statement', level: 1 }))
-      .toBeInTheDocument();
-    expect(mockNavigate).not.toHaveBeenCalled();
+    const { container } = renderPage();
+    expect(container.firstChild).toBeNull();
+    expect(mockNavigate).toHaveBeenCalledWith('/pricing', { replace: true });
   });
 
   it('does not redirect while auth is still loading', () => {
@@ -266,87 +255,6 @@ describe('UploadPage - welcome toast', () => {
   it('does not render the welcome toast when ?welcome=1 is absent', () => {
     renderPage();
     expect(screen.queryByText('Welcome to InvesTax!')).not.toBeInTheDocument();
-  });
-});
-
-describe('UploadPage - post-Stripe restore flow (PR 4)', () => {
-  const STASH_KEY = 'investax_upload_stash_v1';
-
-  beforeEach(() => {
-    sessionStorage.clear();
-  });
-
-  it('restores UploadContext from stash and navigates to /results when paid user lands with ?welcome=1', async () => {
-    sessionStorage.setItem(STASH_KEY, JSON.stringify({
-      parseResult: null,
-      parseWarnings: ['warn'],
-      transactions: [],
-      taxResult: { totals: { totalTaxOwed: 100 } },
-      securities: [],
-      fileName: 'restored.pdf',
-      taxYear: 2025,
-      stashedAt: Date.now(),
-    }));
-    searchParamsValue = new URLSearchParams('welcome=1');
-    authState = {
-      user: { id: 'u1', email: 'paul@example.com', name: 'Paul Adam', plan: 'paid' },
-      loading: false,
-    };
-
-    renderPage('/upload?welcome=1');
-
-    await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/results', { replace: true });
-    });
-    expect(mockSetUploadData).toHaveBeenCalledWith(
-      expect.objectContaining({
-        fileName: 'restored.pdf',
-        taxYear: 2025,
-        parseWarnings: ['warn'],
-      }),
-    );
-    // Stash must be consumed on restore so a second mount does not re-fire.
-    expect(sessionStorage.getItem(STASH_KEY)).toBeNull();
-  });
-
-  it('does NOT restore when ?welcome=1 but no stash present (regular post-pay flow)', () => {
-    searchParamsValue = new URLSearchParams('welcome=1');
-    authState = {
-      user: { id: 'u1', email: 'paul@example.com', name: 'Paul Adam', plan: 'paid' },
-      loading: false,
-    };
-
-    renderPage('/upload?welcome=1');
-
-    // Welcome toast shows; no /results navigation.
-    expect(screen.getByText('Welcome to InvesTax!')).toBeInTheDocument();
-    expect(mockNavigate).not.toHaveBeenCalledWith('/results', { replace: true });
-    expect(mockSetUploadData).not.toHaveBeenCalled();
-  });
-
-  it('does NOT restore when user is still on free plan after returning (webhook race)', async () => {
-    sessionStorage.setItem(STASH_KEY, JSON.stringify({
-      parseResult: null,
-      parseWarnings: [],
-      transactions: [],
-      taxResult: { totals: { totalTaxOwed: 100 } },
-      securities: [],
-      fileName: 'restored.pdf',
-      taxYear: 2025,
-      stashedAt: Date.now(),
-    }));
-    searchParamsValue = new URLSearchParams('welcome=1');
-    authState = {
-      user: { id: 'u1', email: 'free@example.com', name: 'Free', plan: 'free' },
-      loading: false,
-    };
-
-    renderPage('/upload?welcome=1');
-
-    // Free users see the upload UI (per the relaxed paywall), not /results.
-    expect(mockNavigate).not.toHaveBeenCalledWith('/results', { replace: true });
-    // Stash stays present so a subsequent auth refresh can still consume it.
-    expect(sessionStorage.getItem(STASH_KEY)).not.toBeNull();
   });
 });
 

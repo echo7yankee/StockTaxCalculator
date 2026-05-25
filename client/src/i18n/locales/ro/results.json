@@ -42,11 +42,5 @@
   "parseWarningTitle": "Am detectat o inconsisten\u021b\u0103 \u00een extras",
   "parseWarningBody": "Calculele de mai jos pot fi gre\u0219ite. Contacteaz\u0103-m\u0103 \u00eenainte s\u0103 depui declara\u021bia \u0219i verific\u0103m manual ce nu se potrive\u0219te.",
   "parseWarningListIntro": "Avertismente de la parser:",
-  "parseWarningCta": "Contacteaz\u0103-m\u0103",
-  "unlockTitle": "Deblocheaz\u0103 exportul D212 pentru {{price}}",
-  "unlockBody": "Ai v\u0103zut numerele. Pl\u0103te\u0219ti o singur\u0103 dat\u0103 pentru a desc\u0103rca un PDF gata de D212, salvezi calculul \u00een panou \u0219i p\u0103strezi declara\u021biile din anii trecu\u021bi la \u00eendem\u00e2n\u0103.",
-  "unlockCta": "Deblocheaz\u0103 pentru {{price}}",
-  "unlockLoading": "Se deschide checkout-ul...",
-  "unlockSavedTooltip": "Pl\u0103te\u0219te pentru a salva calculul \u00een panou",
-  "unlockError": "Nu am putut deschide checkout-ul. \u00cencearc\u0103 din nou imediat."
+  "parseWarningCta": "Contacteaz\u0103-m\u0103"
 }

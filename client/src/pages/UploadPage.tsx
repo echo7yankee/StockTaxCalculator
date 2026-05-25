@@ -17,7 +17,6 @@ import { useUpload } from '../contexts/UploadContext';
 import { useAuth } from '../contexts/AuthContext';
 import { analytics } from '../lib/analytics';
 import { reportParseEvent } from '../lib/parseMonitor';
-import { consumeUploadStash } from '../lib/uploadStash';
 import PageMeta from '../components/common/PageMeta';
 
 type FileType = 'csv' | 'pdf';
@@ -51,40 +50,13 @@ export default function UploadPage() {
 
   const [showWelcome, setShowWelcome] = useState(() => searchParams.get('welcome') === '1');
 
-  // Login wall (not paywall): logged-out users go to /login; logged-in free
-  // users see the same upload + preview surface as paid (they hit the paywall
-  // on the next step, not here).
+  // Paywall: redirect free/unauthenticated users to pricing
   useEffect(() => {
     if (authLoading) return;
-    if (!user) {
-      navigate('/login?redirect=/upload', { replace: true });
+    if (!user || user.plan !== 'paid') {
+      navigate('/pricing', { replace: true });
     }
   }, [user, authLoading, navigate]);
-
-  // Post-payment return path: if the user came back from Stripe with a
-  // stashed pre-paywall preview and is now paid, restore the parsed data and
-  // jump straight to /results instead of showing the welcome toast + empty
-  // upload zone. Stash TTL handled inside consumeUploadStash.
-  useEffect(() => {
-    if (authLoading || !user) return;
-    if (searchParams.get('welcome') !== '1') return;
-    if (user.plan !== 'paid') return;
-    const stash = consumeUploadStash();
-    if (!stash) return;
-    setUploadData({
-      parseResult: stash.parseResult,
-      parseWarnings: stash.parseWarnings,
-      transactions: stash.transactions,
-      taxResult: stash.taxResult,
-      securities: stash.securities,
-      fileName: stash.fileName,
-      taxYear: stash.taxYear,
-    });
-    // The component unmounts on navigation, so showWelcome no longer
-    // matters. Skip the redundant setShowWelcome(false) to satisfy the
-    // react-hooks/set-state-in-effect rule.
-    navigate('/results', { replace: true });
-  }, [user, authLoading, searchParams, setUploadData, navigate]);
 
   // Post-payment welcome toast: strip the ?welcome=1 query, auto-dismiss after 6s.
   useEffect(() => {
@@ -249,10 +221,6 @@ export default function UploadPage() {
       });
       setProcessing(false);
       analytics.pdfUploaded();
-      // Pre-paywall preview funnel entry: a parsed PDF is the moment the
-      // user first sees engine-shaped numbers (counts, closedResult,
-      // warnings). Plausible derives "abandoned" as shown minus confirmed.
-      analytics.pdfPreviewShown();
       reportParseEvent({
         fileType: 'pdf',
         outcome: parsed.warnings.length > 0 ? 'warning' : 'success',
@@ -454,8 +422,8 @@ export default function UploadPage() {
     setCsvHistoryWarning(false);
   };
 
-  // Don't render while checking auth, prevents flash. Free + paid both render.
-  if (authLoading || !user) {
+  // Don't render while checking auth — prevents flash
+  if (authLoading || !user || user.plan !== 'paid') {
     return null;
   }
 
