@@ -42,8 +42,14 @@ import roContact from './locales/ro/contact.json';
 import roPricing from './locales/ro/pricing.json';
 import roMeta from './locales/ro/meta.json';
 
+// LanguageDetector reads navigator + localStorage at init, so it must only run
+// in the browser. During Vite's prerender pass (Node), we skip detection and
+// let fallbackLng: 'ro' supply the prerendered language.
+if (typeof window !== 'undefined') {
+  i18n.use(LanguageDetector);
+}
+
 i18n
-  .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     resources: {
