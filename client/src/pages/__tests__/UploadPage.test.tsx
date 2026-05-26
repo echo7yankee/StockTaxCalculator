@@ -70,6 +70,7 @@ vi.mock('../../lib/analytics', () => ({
   analytics: {
     pdfUploaded: vi.fn(),
     csvUploaded: vi.fn(),
+    paymentCompleted: vi.fn(),
   },
 }));
 
@@ -102,6 +103,7 @@ vi.mock('papaparse', () => ({
 }));
 
 import UploadPage from '../UploadPage';
+import { analytics } from '../../lib/analytics';
 
 function renderPage(initialPath = '/upload') {
   return render(
@@ -255,6 +257,19 @@ describe('UploadPage - welcome toast', () => {
   it('does not render the welcome toast when ?welcome=1 is absent', () => {
     renderPage();
     expect(screen.queryByText('Welcome to InvesTax!')).not.toBeInTheDocument();
+  });
+
+  it('fires analytics.paymentCompleted exactly once when ?welcome=1 is present', async () => {
+    searchParamsValue = new URLSearchParams('welcome=1');
+    renderPage('/upload?welcome=1');
+    await waitFor(() => {
+      expect(analytics.paymentCompleted).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('does not fire analytics.paymentCompleted when ?welcome=1 is absent', () => {
+    renderPage();
+    expect(analytics.paymentCompleted).not.toHaveBeenCalled();
   });
 });
 
