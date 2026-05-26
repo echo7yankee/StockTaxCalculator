@@ -1,6 +1,12 @@
 import { renderToString } from 'react-dom/server';
 import { HelmetProvider, type HelmetServerState } from 'react-helmet-async';
 import { StaticRouter } from 'react-router-dom';
+import './i18n/i18n';
+import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { CountryProvider } from './contexts/CountryContext';
+import { UploadProvider } from './contexts/UploadContext';
+import Landing from './pages/Landing';
 import GhidIndexPage from './pages/GhidIndexPage';
 import GhidTrading212Page from './pages/GhidTrading212Page';
 import GhidRevolutPage from './pages/GhidRevolutPage';
@@ -50,13 +56,13 @@ interface PageConfig {
 const HOMEPAGE_META = {
   title: 'InvesTax | Calculator taxe investiții România',
   description:
-    'Calculează impozitul pe investiții pentru Declarația Unică 2025: câștiguri, dividende și CASS. Încarci extrasul Trading212, obții cifrele. Termen 25 mai 2026.',
+    'Declarația Unică 2025 pentru investitorii Trading 212, Revolut, IBKR. Câștiguri pe metoda CMP, dividende externe cu credit fiscal (W-8BEN), CASS. Termen 25 mai 2026.',
   url: 'https://investax.app/',
 };
 
 const PRERENDER_PAGES: Record<string, PageConfig> = {
   '/': {
-    component: null,
+    component: () => <Landing />,
     title: HOMEPAGE_META.title,
     description: HOMEPAGE_META.description,
     canonicalUrl: HOMEPAGE_META.url,
@@ -130,7 +136,15 @@ export async function prerender(data: { url: string }) {
     body = renderToString(
       <HelmetProvider context={helmetContext}>
         <StaticRouter location={data.url}>
-          <Component />
+          <AuthProvider>
+            <ThemeProvider>
+              <CountryProvider>
+                <UploadProvider>
+                  <Component />
+                </UploadProvider>
+              </CountryProvider>
+            </ThemeProvider>
+          </AuthProvider>
         </StaticRouter>
       </HelmetProvider>
     );

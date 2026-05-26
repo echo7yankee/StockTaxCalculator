@@ -12,6 +12,7 @@ interface CountryContextType {
 const CountryContext = createContext<CountryContextType | undefined>(undefined);
 
 function detectCountryFromLocale(): string {
+  if (typeof navigator === 'undefined') return 'RO';
   try {
     const locale = navigator.language || navigator.languages?.[0];
     if (locale) {
@@ -30,6 +31,7 @@ function detectCountryFromLocale(): string {
 
 export function CountryProvider({ children }: { children: ReactNode }) {
   const [countryCode, setCountryCode] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'RO';
     const stored = localStorage.getItem('country');
     if (stored && getCountryConfig(stored)) return stored;
     return detectCountryFromLocale();
