@@ -62,6 +62,7 @@ export default function UploadPage() {
   useEffect(() => {
     if (!showWelcome) return;
     if (searchParams.get('welcome') === '1') {
+      analytics.paymentCompleted();
       searchParams.delete('welcome');
       setSearchParams(searchParams, { replace: true });
     }
