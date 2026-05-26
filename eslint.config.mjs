@@ -5,7 +5,21 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import globals from 'globals';
 
 export default tseslint.config(
-  { ignores: ['**/dist/', '**/node_modules/', '**/*.js', '**/*.cjs', 'e2e/', '.claude/'] },
+  {
+    ignores: [
+      '**/dist/',
+      '**/node_modules/',
+      '**/*.js',
+      '**/*.cjs',
+      'e2e/',
+      '.claude/',
+      // Excluded from shared/tsconfig.json (these tests import the synthesizer
+      // from test-data/, which lives outside shared/src rootDir). ESLint's
+      // projectService requires tsconfig coverage, so we mirror the exclude
+      // here. Vitest still picks these up via its own include array.
+      'shared/src/**/*.synthesized.test.ts',
+    ],
+  },
 
   // Base JS recommended rules
   js.configs.recommended,
