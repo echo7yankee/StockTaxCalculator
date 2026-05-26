@@ -57,6 +57,14 @@ export default function GhidDividendePage() {
           pentru reținerea străină, limitat la impozitul român. Ratele pe țară diferă: 10% (SUA cu W-8BEN), 0%
           (Marea Britanie), 15% (Germania, Olanda) etc.
         </p>
+        <p className="mt-3 text-sm">
+          <button
+            onClick={() => navigate('/pricing')}
+            className="text-accent dark:text-accent-light font-medium underline hover:no-underline"
+          >
+            Vrei calculul automat din PDF Trading212? Vezi planuri →
+          </button>
+        </p>
       </section>
 
       <Section title="Cum funcționează creditul pentru dublă impunere">
@@ -343,10 +351,16 @@ export default function GhidDividendePage() {
               Trading212. Vezi cifrele finale gata de copiat în D212, în RON, cu cursurile BNR și ratele pe țară deja
               aplicate.
             </p>
-            <button onClick={() => navigate('/calculator')} className="btn-primary inline-flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Deschide calculatorul
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button onClick={() => navigate('/calculator')} className="btn-secondary inline-flex items-center gap-2">
+                <Calculator className="w-4 h-4" />
+                Calculator gratuit (manual)
+              </button>
+              <button onClick={() => navigate('/pricing')} className="btn-primary inline-flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Upload PDF (€12 lansare)
+              </button>
+            </div>
           </div>
         </div>
       </section>
