@@ -32,6 +32,29 @@ describe('anonymizePages', () => {
     expect(replacements.customerLines).toBe(1);
   });
 
+  it('replaces the customer line that follows the newer Romanian header "IDENTIFICARE CLIENT\\tNUMELE CLIENTULUI"', () => {
+    // Observed on Paul Adam's 2025 statement: T212 uses a different Romanian
+    // header phrasing than the older "ID CLIENT / NUME CLIENT" variant.
+    const input = [
+      'IDENTIFICARE CLIENT\tNUMELE CLIENTULUI\n10800681\tPaul-Alexandru Adam\nDeclarație anuală - 2025',
+    ];
+    const { pages, replacements } = anonymizePages(input);
+    expect(pages[0]).toContain('99999999\tAnonymized User');
+    expect(pages[0]).not.toContain('Paul-Alexandru Adam');
+    expect(pages[0]).not.toContain('10800681');
+    expect(replacements.customerLines).toBe(1);
+  });
+
+  it('replaces "ID cont:" (Romanian newer variant) with the same placeholder scheme', () => {
+    // Paul Adam's 2025 statement uses "ID cont: 21223423" instead of the older
+    // "Cont nr." variant.
+    const input = ['ID cont: 21223423\nPrezentare generală'];
+    const { pages, replacements } = anonymizePages(input);
+    expect(pages[0]).toContain('ID cont: 11111');
+    expect(pages[0]).not.toContain('21223423');
+    expect(replacements.accountIds).toBe(1);
+  });
+
   it('replaces "Account ID: NNNN" with a sequential placeholder', () => {
     const input = ['Account ID: 3688075\nOverview'];
     const { pages, replacements } = anonymizePages(input);

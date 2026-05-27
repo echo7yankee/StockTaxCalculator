@@ -390,3 +390,231 @@ describe('PDF Integration: ligature-broken labels (Shape 4)', () => {
     });
   });
 });
+
+// Shape 5: Real-customer Romanian multi-page with mixed transaction currencies.
+// Source: Paul Adam's 2025 statement (consent given 2026-05-27, anonymized).
+// Newer T212 Romanian header variant ("IDENTIFICARE CLIENT / NUMELE CLIENTULUI",
+// "ID cont:"), 14 pages, single Trading 212 Invest account, RON base, mixed
+// USD+EUR+RON sell-trade currencies, ligature-broken `Pro\tfi\tt` overview
+// label. The PR #94 multi-page section continuation bug is the original
+// regression case; with that fix in place, this fixture exercises the full
+// integration path end-to-end.
+//
+// Per-row sum (~30.75 RON-equivalent across mixed currencies) disagrees with
+// overview closed result (-365.58 RON), which is the expected behavior when
+// the parser refuses to mix currencies and the engine falls back to overview.
+describe('PDF Integration: real-customer Romanian multi-page mixed-currency (Shape 5)', () => {
+  const parsed = parseTrading212AnnualStatement(loadFixture('annual-statement-2025-multi-page.json'));
+  const { taxResult, warnings: engineWarnings } = calculateTaxesFromPdf(parsed, romaniaTaxConfig, 1);
+
+  describe('parsing', () => {
+    it('detects year 2025', () => {
+      expect(parsed.year).toBe(2025);
+    });
+
+    it('processes all 14 pages without throwing', () => {
+      // The PR #94 regression: pre-fix, multi-page section continuation lost
+      // sell trades + dividends silently. With the fix, the parser reads
+      // through all 14 pages and collects rows from continuation pages.
+      expect(parsed.sellTrades.length).toBeGreaterThan(100);
+      expect(parsed.dividends.length).toBeGreaterThan(40);
+    });
+
+    it('parses 144 sell trades across multi-page section continuation', () => {
+      expect(parsed.sellTrades).toHaveLength(144);
+    });
+
+    it('parses 49 dividends across multi-page section continuation', () => {
+      expect(parsed.dividends).toHaveLength(49);
+    });
+
+    it('overview currency is RON (Romanian-localized statement)', () => {
+      expect(parsed.overview.currency).toBe('RON');
+    });
+
+    it('overview closed result reflects the net loss (-365.58 RON)', () => {
+      expect(parsed.overview.closedResult).toBeCloseTo(-365.58, 2);
+    });
+
+    it('overview dividends parse: gross 93.70 RON, net 85.97 RON, WHT 7.74 RON', () => {
+      expect(parsed.overview.grossDividends).toBeCloseTo(93.70, 2);
+      expect(parsed.overview.netDividends).toBeCloseTo(85.97, 2);
+      expect(parsed.overview.taxWithheld).toBeCloseTo(7.74, 2);
+    });
+
+    it('overview profit parses to 0 due to ligature-broken `Pro\\tfi\\tt` label', () => {
+      // Shape 4 behavior reproduced naturally in Paul's real PDF: the `fi`
+      // ligature splits during PDF text extraction. Engine does not depend on
+      // overview.profit; it uses overview.closedResult only.
+      expect(parsed.overview.profit).toBe(0);
+    });
+
+    it('sell trades cover mixed transaction currencies (USD, EUR, RON)', () => {
+      const currencies = new Set(parsed.sellTrades.map((t) => t.transactionCurrency));
+      expect(currencies.has('USD')).toBe(true);
+      expect(currencies.has('EUR')).toBe(true);
+      expect(currencies.has('RON')).toBe(true);
+    });
+
+    it('emits parser warning when per-row sum disagrees with overview (mixed-currency case)', () => {
+      // Per-row sum (~30.75 RON-equivalent, mostly meaningless across mixed
+      // currencies) vs overview closedResult (-365.58 RON, authoritative)
+      // disagrees by sign + magnitude. The parser surfaces this to the UI
+      // banner; the engine falls back to overview.
+      expect(parsed.warnings.length).toBeGreaterThanOrEqual(1);
+      expect(parsed.warnings.some((w) => w.includes('per-row sum') && w.includes('overview'))).toBe(true);
+    });
+  });
+
+  describe('tax calculation (exchangeRate=1, overview in RON)', () => {
+    it('engine falls back to overview.closedResult (mixed transaction currencies)', () => {
+      // allSameCurrency=false (USD+EUR+RON) → engine uses overview, which
+      // is a net loss in RON. Loss → netGains=0 (no negative tax).
+      expect(taxResult.capitalGains.netGains).toBe(0);
+    });
+
+    it('capital gains tax: 0 RON (loss)', () => {
+      expect(taxResult.capitalGains.taxOwed).toBe(0);
+    });
+
+    it('gross dividends: 93.70 RON (overview * exchangeRate)', () => {
+      expect(taxResult.dividends.grossTotal).toBeCloseTo(93.70, 2);
+    });
+
+    it('dividend tax owed: ~1.6 RON (gross 9.37 minus WHT 7.74)', () => {
+      // Hand-computed: 93.70 * 10% = 9.37, minus WHT 7.74 → 1.63 RON.
+      // Engine emits 1.64 due to per-row rounding; precision 1 covers both.
+      expect(taxResult.dividends.taxOwed).toBeCloseTo(1.6, 1);
+    });
+
+    it('withholding tax credited: ~7.74 RON (overview)', () => {
+      expect(taxResult.dividends.withholdingTaxPaid).toBeCloseTo(7.74, 1);
+    });
+
+    it('CASS: none bracket (net income well below 24,300 RON threshold)', () => {
+      // Capital gains 0 (loss) + gross dividends 93.70 RON = far below 24,300.
+      expect(taxResult.healthContribution.thresholdHit).toBe('none');
+      expect(taxResult.healthContribution.amountOwed).toBe(0);
+    });
+
+    it('total tax owed: ~1.6 RON (dividends only)', () => {
+      expect(taxResult.totals.totalTaxOwed).toBeCloseTo(1.6, 1);
+    });
+
+    it('engine sanity warnings stay silent (mixed-currency guard blocks the check)', () => {
+      // Currency guard: allSameCurrency must be true for sign/magnitude check
+      // to fire. Paul has USD+EUR+RON, so guard returns early.
+      expect(engineWarnings).toEqual([]);
+    });
+  });
+});
+
+// Shape 6: Real-customer English full multi-account statement.
+// Source: Florin Pop's 2025 statement (consent given 2026-05-27, anonymized).
+// English, Cyprus footer, 21 pages, three Trading 212 accounts (Invest + CFD +
+// Crypto) in horizontal layout on the overview page, RON base for Invest+CFD,
+// EUR for Crypto. The PR #118 multi-account horizontal-layout bug is the
+// original regression case; with that fix in place, this fixture exercises
+// the full real-PDF integration path with all 21 pages of sell trades and
+// dividends.
+//
+// Versus the synthetic Shape 3 (3-page minimal repro): same financial overview
+// (3,273.75 / 264.70 / 332.34 / 67.63), but exercises the full real-statement
+// page count + multi-page continuation + Cyprus boilerplate text + English
+// localization end-to-end.
+describe('PDF Integration: real-customer full multi-account (Shape 6)', () => {
+  const parsed = parseTrading212AnnualStatement(loadFixture('annual-statement-2025-multi-account-full.json'));
+  const { taxResult, warnings: engineWarnings } = calculateTaxesFromPdf(parsed, romaniaTaxConfig, 1);
+
+  describe('parsing', () => {
+    it('detects year 2025', () => {
+      expect(parsed.year).toBe(2025);
+    });
+
+    it('processes all 21 pages without throwing', () => {
+      expect(parsed.sellTrades.length).toBeGreaterThan(100);
+      expect(parsed.dividends.length).toBeGreaterThan(10);
+    });
+
+    it('extracts Invest column closed result (leftmost), not CFD or Crypto', () => {
+      // CFD sits at +RON -226.80, Crypto at €0.00. Parser must select Invest's
+      // +3,273.75 RON (leftmost overview block).
+      expect(parsed.overview.closedResult).toBeCloseTo(3273.75, 2);
+    });
+
+    it('detects RON as overview currency from Invest column', () => {
+      expect(parsed.overview.currency).toBe('RON');
+    });
+
+    it('extracts Invest column dividend fields, ignores CFD/Crypto siblings', () => {
+      expect(parsed.overview.grossDividends).toBeCloseTo(332.34, 2);
+      expect(parsed.overview.netDividends).toBeCloseTo(264.70, 2);
+      expect(parsed.overview.taxWithheld).toBeCloseTo(67.63, 2);
+    });
+
+    it('parses 228 Invest sell trades summing to 3,273.75 RON', () => {
+      expect(parsed.sellTrades).toHaveLength(228);
+      const sum = parsed.sellTrades.reduce((s, t) => s + t.totalResult, 0);
+      expect(sum).toBeCloseTo(3273.75, 2);
+    });
+
+    it('parses 26 dividends across multi-page section continuation', () => {
+      expect(parsed.dividends).toHaveLength(26);
+    });
+
+    it('sell trades fall back to USD transactionCurrency (no standalone column in Cyprus format)', () => {
+      // T212's Cyprus PDF omits the standalone currency column; parser default
+      // is 'USD'. This is the trigger for the engine's overview-fallback branch.
+      for (const trade of parsed.sellTrades) {
+        expect(trade.transactionCurrency).toBe('USD');
+      }
+    });
+
+    it('produces no parser warnings (Invest section is consistent)', () => {
+      expect(parsed.warnings).toEqual([]);
+    });
+  });
+
+  describe('tax calculation (exchangeRate=1, overview in RON)', () => {
+    it('engine falls back to overview.closedResult (trade USD != overview RON)', () => {
+      // matchesOverviewCurrency=false (trades USD, overview RON), so the
+      // engine uses overview.closedResult * 1.
+      expect(taxResult.capitalGains.netGains).toBeCloseTo(3273.75, 2);
+    });
+
+    it('capital gains tax: 327.38 RON (3,273.75 * 10%)', () => {
+      // Hand-computed: 3,273.75 * 0.10 = 327.375 → 327.38 to 2 decimals.
+      expect(taxResult.capitalGains.taxOwed).toBeCloseTo(327.38, 2);
+    });
+
+    it('dividend tax: 0 (WHT 67.63 covers gross tax 33.23)', () => {
+      // Hand-computed: 332.34 * 10% = 33.23 RON owed; WHT 67.63 RON credit
+      // already paid → max(0, 33.23 - 67.63) = 0.
+      expect(taxResult.dividends.taxOwed).toBe(0);
+      expect(taxResult.dividends.withholdingTaxPaid).toBeCloseTo(67.63, 2);
+    });
+
+    it('CASS: none bracket (3,606 RON total income < 24,300 threshold)', () => {
+      // 3,273.75 capital gains + 332.34 gross dividends = 3,606.09 RON. Below
+      // the 24,300 RON 6x bracket entry.
+      expect(taxResult.healthContribution.thresholdHit).toBe('none');
+      expect(taxResult.healthContribution.amountOwed).toBe(0);
+    });
+
+    it('total tax: 327.38 RON', () => {
+      expect(taxResult.totals.totalTaxOwed).toBeCloseTo(327.38, 2);
+    });
+
+    it('total after early-filing discount: ~317.55 RON (3% off)', () => {
+      // Hand-computed: 327.38 - (327.38 * 0.03) = 327.38 - 9.82 = 317.56.
+      // Engine emits 317.55 due to per-component rounding; precision 1 covers.
+      expect(taxResult.totals.totalAfterDiscount).toBeCloseTo(317.55, 1);
+    });
+
+    it('engine sanity warnings stay silent under currency guard', () => {
+      // allSameCurrency=true (all USD) AND matchesOverviewCurrency=false
+      // (USD != RON) → guard requires both, so check does not fire.
+      expect(engineWarnings).toEqual([]);
+    });
+  });
+});

@@ -109,6 +109,68 @@ hits it.
   single-account USD with ligature-broken `Pro\tfi\tt` and
   `con\tfi\trmation`).
 
+### Shape 5: Real-customer Romanian multi-page with mixed transaction currencies
+
+- Footer: "Trading 212 Markets Ltd." (Cyprus).
+- Newer Romanian header variant: `IDENTIFICARE CLIENT\tNUMELE CLIENTULUI`
+  (versus Shape 2's older `ID CLIENT\tNUME CLIENT`). Account ID label is
+  `ID cont:` (versus Shape 2's `Cont nr.` / `Cont nr.:`).
+- Single Trading 212 Invest account, RON base.
+- 14 pages: sell-trades table spans pages 2-7, dividends table spans pages
+  8-11, overview on page 1, closed-positions detail spread across the rest.
+- Sell trades have MIXED transaction currencies (USD + EUR + RON in the same
+  fixture). The parser refuses to mix unit currencies when summing per-row
+  values, so the per-row sum is mostly meaningless (`~30.75 RON-equivalent`
+  in this fixture) versus the authoritative overview closed result
+  (`-365.58 RON`).
+- Ligature artifact (Shape 4) co-occurs naturally: overview `Profit` line
+  appears as `Pro\tfi\tt`.
+- Parser implications:
+  - Multi-page section continuation MUST be handled correctly (PR #94 fix).
+    Pre-fix, the parser silently truncated sell trades (19/142) and
+    dividends (11/49) on continuation pages.
+  - Per-row vs overview disagreement emits a parser warning. The UI hard-stop
+    banner (PR #119) surfaces this to the user and disables the D212 export.
+- Engine implications:
+  - Mixed transaction currencies trigger the overview-fallback branch
+    (PR #96): `allSameCurrency=false` → engine uses `overview.closedResult`
+    instead of summing per-row values.
+  - Currency guard on engine sanity checks (PR #120) silences sign/magnitude
+    warnings: `allSameCurrency` must be true for the check to fire, but the
+    parser warning has already done the job.
+  - Net loss overview → `netGains=0`, `capGainsTax=0`. Dividends still
+    compute normally.
+- Reference fixture:
+  `test-data/fixtures/annual-statement-2025-multi-page.json` (real customer
+  PDF, anonymized 2026-05-27 with written consent).
+- Coverage: `shared/src/engine/__tests__/pdfIntegration.test.ts` Shape 5
+  block.
+
+### Shape 6: Real-customer English full multi-account statement
+
+- Footer: "Trading 212 Markets Ltd." (Cyprus).
+- Three accounts in horizontal layout: Trading 212 Invest + Trading 212 CFD
+  + Trading 212 Crypto, side-by-side on the overview page.
+- Invest + CFD use RON base; Crypto uses EUR.
+- 21 pages: sell-trades and dividends span multiple continuation pages
+  end-to-end across the full real statement.
+- Versus Shape 3 (synthetic 3-page minimal repro with the same financial
+  overview): exercises the full real-statement page count + multi-page
+  section continuation + Cyprus boilerplate text + English localization on
+  every page.
+- Sell trades parse with default `transactionCurrency='USD'` (Cyprus PDF
+  omits the standalone column).
+- Parser implications: clean parse, zero warnings.
+- Engine implications:
+  - matchesOverviewCurrency=false (trades USD, overview RON) → engine falls
+    back to `overview.closedResult * exchangeRate` for capital gains.
+  - Currency guard silences sign/magnitude warnings under the same condition.
+- Reference fixture:
+  `test-data/fixtures/annual-statement-2025-multi-account-full.json` (real
+  customer PDF, anonymized 2026-05-27 with written consent).
+- Coverage: `shared/src/engine/__tests__/pdfIntegration.test.ts` Shape 6
+  block.
+
 ## Per-dimension reference
 
 T212 PDFs vary along the dimensions below. Each entry lists what we have SEEN
