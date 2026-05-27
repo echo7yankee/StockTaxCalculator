@@ -14,3 +14,10 @@ export function getSupportedCountries(): { code: string; name: string }[] {
 }
 
 export { romaniaTaxConfig };
+export {
+  TAX_YEARS,
+  getCurrentTaxYear,
+  getTaxYearConfig,
+  getCurrentTaxYearConfig,
+} from './taxYears.js';
+export type { TaxYearConfig } from './taxYears.js';
