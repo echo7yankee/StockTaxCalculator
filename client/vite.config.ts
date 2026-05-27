@@ -19,6 +19,7 @@ export default defineConfig({
         '/ghid/cass-investitii',
         '/ghid/dividende-broker-strain',
         '/ghid/cum-completez-declaratia-unica',
+        '/ghid/cum-calculam',
       ],
     }),
   ],

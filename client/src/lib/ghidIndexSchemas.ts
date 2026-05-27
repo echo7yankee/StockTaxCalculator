@@ -41,6 +41,13 @@ export const GHID_LIST: GhidEntry[] = [
     path: '/ghid/cass-investitii',
     fullUrl: 'https://investax.app/ghid/cass-investitii/',
   },
+  {
+    title: 'Cum calculează InvesTax: metodologia explicată',
+    description:
+      'Metodologia InvesTax pas cu pas: CMP, cursuri BNR (per-data sau anual, după regulă), credit fiscal pe dividende, CASS, raportare pierderi. Citate exacte din Codul Fiscal.',
+    path: '/ghid/cum-calculam',
+    fullUrl: 'https://investax.app/ghid/cum-calculam/',
+  },
 ];
 
 export const GHID_INDEX_COLLECTION_SCHEMA = {
