@@ -71,6 +71,7 @@ vi.mock('../../lib/analytics', () => ({
     pdfUploaded: vi.fn(),
     csvUploaded: vi.fn(),
     paymentCompleted: vi.fn(),
+    paywallSeen: vi.fn(),
   },
 }));
 
@@ -212,6 +213,7 @@ describe('UploadPage - paywall gating', () => {
     const { container } = renderPage();
     expect(container.firstChild).toBeNull();
     expect(mockNavigate).toHaveBeenCalledWith('/pricing', { replace: true });
+    expect(analytics.paywallSeen).toHaveBeenCalledTimes(1);
   });
 
   it('renders nothing and redirects to /pricing when the user is on the free plan', () => {
@@ -222,13 +224,21 @@ describe('UploadPage - paywall gating', () => {
     const { container } = renderPage();
     expect(container.firstChild).toBeNull();
     expect(mockNavigate).toHaveBeenCalledWith('/pricing', { replace: true });
+    expect(analytics.paywallSeen).toHaveBeenCalledTimes(1);
   });
 
-  it('does not redirect while auth is still loading', () => {
+  it('does not redirect or fire paywall_seen while auth is still loading', () => {
     authState = { user: null, loading: true };
     const { container } = renderPage();
     expect(container.firstChild).toBeNull();
     expect(mockNavigate).not.toHaveBeenCalled();
+    expect(analytics.paywallSeen).not.toHaveBeenCalled();
+  });
+
+  it('does not fire paywall_seen for paid users', () => {
+    // Default authState in beforeEach is plan: 'paid'; verifies the inverse case.
+    renderPage();
+    expect(analytics.paywallSeen).not.toHaveBeenCalled();
   });
 });
 
