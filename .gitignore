@@ -16,6 +16,7 @@ playwright-report/
 test-results/
 test-data/*.pdf
 !test-data/annual-statement-2025.pdf
+tmp/
 .claude/
 !.claude/skills/
 .claude/skills/**

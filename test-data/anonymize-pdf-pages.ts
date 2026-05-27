@@ -24,11 +24,14 @@ import { readFileSync, writeFileSync } from 'fs';
  * Anonymization rules:
  * - "CUSTOMER ID\tCUSTOMER NAME" header line: the line IMMEDIATELY after is the
  *   customer's ID + name; replace with "99999999\tAnonymized User".
- * - "ID CLIENT\tNUME CLIENT" (Romanian header): same handling.
- * - "Account ID: <digits>" / "Cont nr. <digits>" / "Cont nr.: <digits>": replace
- *   the digits with a sequential placeholder ("11111", "22222", "33333"...).
- *   Consistent across the file: the same source account ID always maps to the
- *   same placeholder, so cross-references stay coherent.
+ * - "ID CLIENT\tNUME CLIENT" (Romanian header, older T212 variant): same handling.
+ * - "IDENTIFICARE CLIENT\tNUMELE CLIENTULUI" (Romanian header, newer T212 variant
+ *   observed on Paul Adam's 2025 statement): same handling.
+ * - "Account ID: <digits>" / "Cont nr. <digits>" / "Cont nr.: <digits>" /
+ *   "ID cont: <digits>" (Romanian newer variant): replace the digits with a
+ *   sequential placeholder ("11111", "22222", "33333"...). Consistent across the
+ *   file: the same source account ID always maps to the same placeholder, so
+ *   cross-references stay coherent.
  * - Any line that consists only of a name pattern adjacent to the customer-header
  *   row (defensive fallback for layouts the strict next-line rule misses).
  *
@@ -43,11 +46,12 @@ import { readFileSync, writeFileSync } from 'fs';
 const CUSTOMER_HEADER_PATTERNS = [
   /^CUSTOMER ID\tCUSTOMER NAME$/i,
   /^ID CLIENT\tNUME CLIENT$/i,
+  /^IDENTIFICARE CLIENT\tNUMELE CLIENTULUI$/i,
 ];
 
 const ANONYMIZED_CUSTOMER_LINE = '99999999\tAnonymized User';
 
-const ACCOUNT_ID_PATTERN = /(Account ID:|Cont nr\.?:?)\s*(\d+)/gi;
+const ACCOUNT_ID_PATTERN = /(Account ID:|Cont nr\.?:?|ID cont:?)\s*(\d+)/gi;
 
 export interface AnonymizeResult {
   pages: string[];
