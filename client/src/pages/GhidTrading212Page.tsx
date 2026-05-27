@@ -56,6 +56,14 @@ export default function GhidTrading212Page() {
           Plătești 10% pe câștigul net din tranzacții și 10% pe dividende, cu credit pentru reținerea străină.
           Plus CASS dacă totalul tău de venituri non-salariale depășește 6 salarii minime.
         </p>
+        <p className="mt-3 text-sm">
+          <button
+            onClick={() => navigate('/pricing')}
+            className="text-accent dark:text-accent-light font-medium underline hover:no-underline"
+          >
+            Vrei calculul automat din PDF Trading212? Vezi planuri →
+          </button>
+        </p>
       </section>
 
       <Section title="Cine trebuie să declare?">
@@ -313,10 +321,16 @@ export default function GhidTrading212Page() {
               Trading212, primești cifrele formatate pentru Declarația Unică, în RON, cu calculele CMP și conversiile
               BNR deja aplicate. Versiune gratuită pentru sume mici, plătit pentru tranzacții multiple.
             </p>
-            <button onClick={() => navigate('/calculator')} className="btn-primary inline-flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Deschide calculatorul
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button onClick={() => navigate('/calculator')} className="btn-secondary inline-flex items-center gap-2">
+                <Calculator className="w-4 h-4" />
+                Calculator gratuit (manual)
+              </button>
+              <button onClick={() => navigate('/pricing')} className="btn-primary inline-flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Upload PDF (€12 lansare)
+              </button>
+            </div>
           </div>
         </div>
       </section>

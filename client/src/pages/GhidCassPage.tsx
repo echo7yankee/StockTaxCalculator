@@ -56,6 +56,14 @@ export default function GhidCassPage() {
           + câștigul net din titluri + dobânzi + chirii + altele. Pragurile sunt fixe (6, 12, 24 salarii minime), iar
           contribuția este 10% aplicat pe pragul atins, nu pe veniturile efective.
         </p>
+        <p className="mt-3 text-sm">
+          <button
+            onClick={() => navigate('/pricing')}
+            className="text-accent dark:text-accent-light font-medium underline hover:no-underline"
+          >
+            Vrei calculul automat din PDF Trading212? Vezi planuri →
+          </button>
+        </p>
       </section>
 
       <Section title="Cine plătește CASS pe veniturile din investiții?">
@@ -277,10 +285,16 @@ export default function GhidCassPage() {
               Calculatorul InvesTax aplică pragurile CASS pentru tine: introduci sumele tale de venituri non-salariale
               și primești pragul aplicabil + suma de plată. Funcționează gratuit pentru calculul manual.
             </p>
-            <button onClick={() => navigate('/calculator')} className="btn-primary inline-flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Deschide calculatorul
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button onClick={() => navigate('/calculator')} className="btn-secondary inline-flex items-center gap-2">
+                <Calculator className="w-4 h-4" />
+                Calculator gratuit (manual)
+              </button>
+              <button onClick={() => navigate('/pricing')} className="btn-primary inline-flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Upload PDF (€12 lansare)
+              </button>
+            </div>
           </div>
         </div>
       </section>

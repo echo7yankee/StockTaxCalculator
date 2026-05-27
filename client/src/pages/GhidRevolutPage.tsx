@@ -56,6 +56,14 @@ export default function GhidRevolutPage() {
           mai. Plătești 10% pe câștigul net din vânzări și 10% pe dividendele primite, cu credit pentru reținerea
           străină. CASS dacă suma veniturilor tale non-salariale depășește pragurile.
         </p>
+        <p className="mt-3 text-sm">
+          <button
+            onClick={() => navigate('/pricing')}
+            className="text-accent dark:text-accent-light font-medium underline hover:no-underline"
+          >
+            Vrei calculul automat din PDF Revolut? Vezi planuri →
+          </button>
+        </p>
       </section>
 
       <Section title="Cine trebuie să declare?">
@@ -320,10 +328,16 @@ export default function GhidRevolutPage() {
               Declarația Unică, în RON, cu CMP și conversiile BNR aplicate. Versiune gratuită pentru calculul manual,
               plan plătit pentru încărcarea automată a extraselor.
             </p>
-            <button onClick={() => navigate('/calculator')} className="btn-primary inline-flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Deschide calculatorul
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button onClick={() => navigate('/calculator')} className="btn-secondary inline-flex items-center gap-2">
+                <Calculator className="w-4 h-4" />
+                Calculator gratuit (manual)
+              </button>
+              <button onClick={() => navigate('/pricing')} className="btn-primary inline-flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Upload PDF (€12 lansare)
+              </button>
+            </div>
           </div>
         </div>
       </section>
