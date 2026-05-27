@@ -22,7 +22,7 @@ describe('Footer: methodology link', () => {
 
   it('renders the inline link pointing at the methodology ghid page', () => {
     renderFooter();
-    const link = screen.getByRole('link', { name: 'How we calculate' });
+    const link = screen.getByRole('link', { name: 'Methodology' });
     expect(link).toHaveAttribute('href', '/ghid/cum-calculam');
   });
 
