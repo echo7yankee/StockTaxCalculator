@@ -1,18 +1,27 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+import { getCurrentTaxYearConfig } from '@shared/taxRules/taxYears';
 
 export default function Footer() {
-  const { t } = useTranslation('footer');
+  const { t, i18n } = useTranslation('footer');
+  const taxYearConfig = getCurrentTaxYearConfig();
+  const isRo = i18n.language.startsWith('ro');
+  const disclaimerVars = {
+    taxYear: taxYearConfig.taxYear,
+    filingDeadline: isRo ? taxYearConfig.filingDeadlineRo : taxYearConfig.filingDeadlineEn,
+    nextTaxYear: taxYearConfig.taxYear + 1,
+    nextFilingYear: taxYearConfig.filingYear + 1,
+  };
 
   return (
     <footer className="border-t border-gray-200 dark:border-navy-500 py-8 mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Disclaimer */}
         <p className="text-xs text-gray-500 dark:text-slate-400 mb-2 leading-relaxed">
-          {t('disclaimer')}
+          {t('disclaimer', disclaimerVars)}
         </p>
         <p className="text-xs text-gray-500 dark:text-slate-400 mb-2 leading-relaxed">
-          {t('disclaimerTaxYear')}
+          {t('disclaimerTaxYear', disclaimerVars)}
         </p>
         <p className="text-xs text-gray-500 dark:text-slate-400 mb-6 leading-relaxed">
           {t('disclaimerMethodology')}{' '}
