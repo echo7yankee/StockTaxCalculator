@@ -15,7 +15,13 @@ export default function Footer() {
           {t('disclaimerTaxYear')}
         </p>
         <p className="text-xs text-gray-500 dark:text-slate-400 mb-6 leading-relaxed">
-          {t('disclaimerMethodology')}
+          {t('disclaimerMethodology')}{' '}
+          <Link
+            to="/ghid/cum-calculam"
+            className="underline underline-offset-2 hover:text-accent dark:hover:text-accent-light transition-colors"
+          >
+            {t('disclaimerMethodologyLink')}
+          </Link>
         </p>
 
         {/* Links + Copyright */}
