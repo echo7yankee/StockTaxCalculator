@@ -27,7 +27,7 @@ test.describe('Scenario J: Calculator decimal input handling', () => {
     const inputs = page.locator('input[inputmode="decimal"]');
     await inputs.nth(0).fill('10000.50');
 
-    await page.getByText('Calculate').click();
+    await page.getByRole('button', { name: 'Calculate' }).click();
 
     const results = page.getByText('Results');
     await expect(results).toBeVisible();
@@ -40,7 +40,7 @@ test.describe('Scenario J: Calculator decimal input handling', () => {
     const inputs = page.locator('input[inputmode="decimal"]');
     await inputs.nth(0).fill('10000,50');
 
-    await page.getByText('Calculate').click();
+    await page.getByRole('button', { name: 'Calculate' }).click();
 
     const results = page.getByText('Results');
     await expect(results).toBeVisible();
@@ -51,7 +51,7 @@ test.describe('Scenario J: Calculator decimal input handling', () => {
 
   test('empty fields show validation error — no empty results', async ({ page }) => {
     // Don't fill anything, just calculate
-    await page.getByText('Calculate').click();
+    await page.getByRole('button', { name: 'Calculate' }).click();
 
     // Should show validation error, not zero results
     await expect(page.getByText(/Enter at least one value/)).toBeVisible();
@@ -65,7 +65,7 @@ test.describe('Scenario J: Calculator decimal input handling', () => {
     await inputs.nth(2).fill('0');
     await inputs.nth(3).fill('0');
 
-    await page.getByText('Calculate').click();
+    await page.getByRole('button', { name: 'Calculate' }).click();
 
     await expect(page.getByText(/Enter at least one value/)).toBeVisible();
   });
@@ -74,7 +74,7 @@ test.describe('Scenario J: Calculator decimal input handling', () => {
     const inputs = page.locator('input[inputmode="decimal"]');
     await inputs.nth(0).fill('abc');
 
-    await page.getByText('Calculate').click();
+    await page.getByRole('button', { name: 'Calculate' }).click();
 
     // parseFloat("abc") → NaN → fallback to 0, so all inputs are 0 → validation error
     await expect(page.getByText(/Enter at least one value/)).toBeVisible();
@@ -84,7 +84,7 @@ test.describe('Scenario J: Calculator decimal input handling', () => {
     const inputs = page.locator('input[inputmode="decimal"]');
     await inputs.nth(0).fill('5000000');
 
-    await page.getByText('Calculate').click();
+    await page.getByRole('button', { name: 'Calculate' }).click();
 
     await expect(page.getByText('Results')).toBeVisible();
     // 5,000,000 * 10% = 500,000
@@ -106,7 +106,7 @@ test.describe('Scenario J: Calculator CASS bracket thresholds', () => {
     const inputs = page.locator('input[inputmode="decimal"]');
     await inputs.nth(0).fill('24299');
 
-    await page.getByText('Calculate').click();
+    await page.getByRole('button', { name: 'Calculate' }).click();
 
     await expect(page.getByText(/bracket: No bracket/)).toBeVisible();
   });
@@ -115,7 +115,7 @@ test.describe('Scenario J: Calculator CASS bracket thresholds', () => {
     const inputs = page.locator('input[inputmode="decimal"]');
     await inputs.nth(0).fill('24300');
 
-    await page.getByText('Calculate').click();
+    await page.getByRole('button', { name: 'Calculate' }).click();
 
     await expect(page.getByText(/bracket: 6 minimum wages/)).toBeVisible();
     // Health contribution should be 2430
@@ -127,7 +127,7 @@ test.describe('Scenario J: Calculator CASS bracket thresholds', () => {
     const inputs = page.locator('input[inputmode="decimal"]');
     await inputs.nth(0).fill('48600');
 
-    await page.getByText('Calculate').click();
+    await page.getByRole('button', { name: 'Calculate' }).click();
 
     await expect(page.getByText(/bracket: 12 minimum wages/)).toBeVisible();
     const cassRow = page.getByText(/bracket: 12 minimum wages/).locator('..');
@@ -138,7 +138,7 @@ test.describe('Scenario J: Calculator CASS bracket thresholds', () => {
     const inputs = page.locator('input[inputmode="decimal"]');
     await inputs.nth(0).fill('97200');
 
-    await page.getByText('Calculate').click();
+    await page.getByRole('button', { name: 'Calculate' }).click();
 
     await expect(page.getByText(/bracket: 24 minimum wages/)).toBeVisible();
     const cassRow = page.getByText(/bracket: 24 minimum wages/).locator('..');
@@ -152,7 +152,7 @@ test.describe('Scenario J: Calculator CASS bracket thresholds', () => {
     await inputs.nth(0).fill('20000');
     await inputs.nth(1).fill('5000');
 
-    await page.getByText('Calculate').click();
+    await page.getByRole('button', { name: 'Calculate' }).click();
 
     await expect(page.getByText(/bracket: 6 minimum wages/)).toBeVisible();
   });
@@ -161,7 +161,7 @@ test.describe('Scenario J: Calculator CASS bracket thresholds', () => {
     const inputs = page.locator('input[inputmode="decimal"]');
     await inputs.nth(0).fill('100000'); // capital gains tax = 10000
 
-    await page.getByText('Calculate').click();
+    await page.getByRole('button', { name: 'Calculate' }).click();
 
     // 3% discount on capital gains tax + dividend tax (but no dividends)
     // 10000 * 0.03 = 300
@@ -174,7 +174,7 @@ test.describe('Scenario J: Calculator CASS bracket thresholds', () => {
     await inputs.nth(1).fill('10000'); // gross dividends
     await inputs.nth(2).fill('800');   // withholding tax already paid
 
-    await page.getByText('Calculate').click();
+    await page.getByRole('button', { name: 'Calculate' }).click();
 
     await expect(page.getByText('Results')).toBeVisible();
     // Dividend tax: 10000 * 10% = 1000, minus 800 withholding = 200 owed
