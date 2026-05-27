@@ -52,6 +52,14 @@ export default function GhidIndexPage() {
           brokeri, ghidul de dividende străine îți explică creditul fiscal. CASS-ul are propriul ghid pentru că surpinde
           mulți investitori la prima declarație.
         </p>
+        <p className="mt-3 text-sm">
+          <button
+            onClick={() => navigate('/pricing')}
+            className="text-accent dark:text-accent-light font-medium underline hover:no-underline"
+          >
+            Vrei calculul automat din PDF Trading212? Vezi planuri →
+          </button>
+        </p>
       </section>
 
       <section className="mb-12 space-y-4">
@@ -82,10 +90,16 @@ export default function GhidIndexPage() {
               dividende și pragurile CASS. Calculator manual gratuit, plan plătit pentru încărcarea automată a
               extraselor PDF.
             </p>
-            <button onClick={() => navigate('/calculator')} className="btn-primary inline-flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Deschide calculatorul
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button onClick={() => navigate('/calculator')} className="btn-secondary inline-flex items-center gap-2">
+                <Calculator className="w-4 h-4" />
+                Calculator gratuit (manual)
+              </button>
+              <button onClick={() => navigate('/pricing')} className="btn-primary inline-flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Upload PDF (€12 lansare)
+              </button>
+            </div>
           </div>
         </div>
       </section>
