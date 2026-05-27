@@ -15,6 +15,7 @@ import GhidRevolutPage from './pages/GhidRevolutPage';
 import GhidCassPage from './pages/GhidCassPage';
 import GhidDividendePage from './pages/GhidDividendePage';
 import GhidDeclaratieUnicaPage from './pages/GhidDeclaratieUnicaPage';
+import GhidCumCalculamPage from './pages/GhidCumCalculamPage';
 import {
   GHID_INDEX_COLLECTION_SCHEMA,
   GHID_INDEX_META,
@@ -44,6 +45,11 @@ import {
   GHID_DU_FAQ_SCHEMA,
   GHID_DU_META,
 } from './lib/ghidDeclaratieUnicaSchemas';
+import {
+  GHID_CUM_CALCULAM_ARTICLE_SCHEMA,
+  GHID_CUM_CALCULAM_FAQ_SCHEMA,
+  GHID_CUM_CALCULAM_META,
+} from './lib/ghidCumCalculamSchemas';
 import './index.css';
 
 interface PageConfig {
@@ -147,6 +153,14 @@ const PRERENDER_PAGES: Record<string, PageConfig> = {
     description: GHID_DU_META.description,
     canonicalUrl: GHID_DU_META.url,
     schemas: [GHID_DU_ARTICLE_SCHEMA, GHID_DU_FAQ_SCHEMA],
+    ogType: 'article',
+  },
+  '/ghid/cum-calculam': {
+    component: () => <GhidCumCalculamPage />,
+    title: GHID_CUM_CALCULAM_META.title,
+    description: GHID_CUM_CALCULAM_META.description,
+    canonicalUrl: GHID_CUM_CALCULAM_META.url,
+    schemas: [GHID_CUM_CALCULAM_ARTICLE_SCHEMA, GHID_CUM_CALCULAM_FAQ_SCHEMA],
     ogType: 'article',
   },
 };
