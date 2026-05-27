@@ -11,6 +11,8 @@ export default defineConfig({
       renderTarget: '#root',
       prerenderScript: path.resolve(__dirname, 'src/prerender.tsx'),
       additionalPrerenderRoutes: [
+        '/pricing',
+        '/calculator',
         '/ghid',
         '/ghid/declaratie-unica-trading212',
         '/ghid/declaratie-unica-revolut',
