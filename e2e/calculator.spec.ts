@@ -10,7 +10,7 @@ test.describe('Quick Calculator', () => {
     const inputs = page.locator('input[inputmode="decimal"]');
     await inputs.nth(0).fill('50000'); // capital gains
 
-    await page.getByText('Calculate').click();
+    await page.getByRole('button', { name: 'Calculate' }).click();
 
     // Should show results
     await expect(page.getByText('Results')).toBeVisible();
@@ -25,7 +25,7 @@ test.describe('Quick Calculator', () => {
     await inputs.nth(1).fill('5000');  // dividends
     await inputs.nth(2).fill('500');   // withholding tax paid
 
-    await page.getByText('Calculate').click();
+    await page.getByRole('button', { name: 'Calculate' }).click();
 
     await expect(page.getByText('Results')).toBeVisible();
     // Should show early filing discount info
@@ -36,7 +36,7 @@ test.describe('Quick Calculator', () => {
     const inputs = page.locator('input[inputmode="decimal"]');
     await inputs.nth(0).fill('100000');
 
-    await page.getByText('Calculate').click();
+    await page.getByRole('button', { name: 'Calculate' }).click();
 
     await expect(page.getByText(/bracket: 24 minimum wages/)).toBeVisible();
     // Health contribution row contains 9720.00
@@ -48,7 +48,7 @@ test.describe('Quick Calculator', () => {
     const inputs = page.locator('input[inputmode="decimal"]');
     await inputs.nth(0).fill('5000');
 
-    await page.getByText('Calculate').click();
+    await page.getByRole('button', { name: 'Calculate' }).click();
 
     await expect(page.getByText(/bracket: No bracket/)).toBeVisible();
   });

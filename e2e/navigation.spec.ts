@@ -11,7 +11,7 @@ test.describe('Navigation', () => {
   test('navigates to calculator page', async ({ page }) => {
     await page.goto('/calculator');
     await expect(page.getByText('Tax Calculator')).toBeVisible();
-    await expect(page.getByText('Calculate')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeVisible();
   });
 
   test('upload page redirects unauthenticated users to pricing', async ({ page }) => {
