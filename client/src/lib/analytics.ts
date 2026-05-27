@@ -22,6 +22,7 @@ export const analytics = {
   signupCompleted: () => trackEvent('signup_completed'),
   calculatorUsed: () => trackEvent('calculator_used'),
   pricingViewed: () => trackEvent('pricing_viewed'),
+  paywallSeen: () => trackEvent('paywall_seen'),
   checkoutStarted: () => trackEvent('checkout_started'),
   paymentCompleted: () => trackEvent('payment_completed'),
   pdfUploaded: () => trackEvent('pdf_uploaded'),

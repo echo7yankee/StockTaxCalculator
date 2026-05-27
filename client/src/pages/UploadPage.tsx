@@ -54,6 +54,7 @@ export default function UploadPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!user || user.plan !== 'paid') {
+      analytics.paywallSeen();
       navigate('/pricing', { replace: true });
     }
   }, [user, authLoading, navigate]);
