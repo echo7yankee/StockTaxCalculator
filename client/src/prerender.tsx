@@ -7,6 +7,8 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { CountryProvider } from './contexts/CountryContext';
 import { UploadProvider } from './contexts/UploadContext';
 import Landing from './pages/Landing';
+import PricingPage from './pages/PricingPage';
+import CalculatorPage from './pages/CalculatorPage';
 import GhidIndexPage from './pages/GhidIndexPage';
 import GhidTrading212Page from './pages/GhidTrading212Page';
 import GhidRevolutPage from './pages/GhidRevolutPage';
@@ -60,12 +62,42 @@ const HOMEPAGE_META = {
   url: 'https://investax.app/',
 };
 
+const PRICING_META = {
+  title: 'Prețuri | InvesTax',
+  description:
+    'Încarci extrasul Trading212 și primești un raport fiscal complet, gata de copiat în Declarația Unică. Plată anuală unică.',
+  url: 'https://investax.app/pricing',
+};
+
+const CALCULATOR_META = {
+  title: 'Calculator taxe gratuit | InvesTax',
+  description:
+    'Calculează gratuit impozitul pe câștiguri de capital, dividende și CASS pentru anul fiscal 2025. Fără cont, fără card.',
+  url: 'https://investax.app/calculator',
+};
+
 const PRERENDER_PAGES: Record<string, PageConfig> = {
   '/': {
     component: () => <Landing />,
     title: HOMEPAGE_META.title,
     description: HOMEPAGE_META.description,
     canonicalUrl: HOMEPAGE_META.url,
+    schemas: [],
+    ogType: 'website',
+  },
+  '/pricing': {
+    component: () => <PricingPage />,
+    title: PRICING_META.title,
+    description: PRICING_META.description,
+    canonicalUrl: PRICING_META.url,
+    schemas: [],
+    ogType: 'website',
+  },
+  '/calculator': {
+    component: () => <CalculatorPage />,
+    title: CALCULATOR_META.title,
+    description: CALCULATOR_META.description,
+    canonicalUrl: CALCULATOR_META.url,
     schemas: [],
     ogType: 'website',
   },
