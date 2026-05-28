@@ -13,11 +13,12 @@ export function getSupportedCountries(): { code: string; name: string }[] {
   return Object.values(countryConfigs).map(c => ({ code: c.code, name: c.name }));
 }
 
-export { romaniaTaxConfig };
+export { romaniaTaxConfig, buildRomaniaTaxConfig, getTaxConfigForYear } from './romania.js';
 export {
   TAX_YEARS,
   getCurrentTaxYear,
   getTaxYearConfig,
   getCurrentTaxYearConfig,
+  getLatestEngineSupportedConfig,
 } from './taxYears.js';
 export type { TaxYearConfig } from './taxYears.js';
