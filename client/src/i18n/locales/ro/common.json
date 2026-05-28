@@ -28,7 +28,7 @@
     "commonPassword": "Această parolă este prea comună. Te rugăm să alegi o parolă mai unică.",
     "networkError": "Nu s-a putut conecta la server. Verifică conexiunea la internet și încearcă din nou."
   },
-  "taxRulesUpdated": "Reguli fiscale valabile pentru anul fiscal 2025 (actualizate ianuarie 2026)",
+  "taxRulesUpdated": "Reguli fiscale valabile pentru anul fiscal {{taxYear}} (actualizate ianuarie 2026)",
   "bracketNone": "Niciun prag",
   "bracket6x": "6 salarii minime",
   "bracket12x": "12 salarii minime",

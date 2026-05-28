@@ -5,12 +5,13 @@ interface PageMetaProps {
   titleKey: string;
   descriptionKey: string;
   ns?: string;
+  descriptionVars?: Record<string, unknown>;
 }
 
-export default function PageMeta({ titleKey, descriptionKey, ns = 'meta' }: PageMetaProps) {
+export default function PageMeta({ titleKey, descriptionKey, ns = 'meta', descriptionVars }: PageMetaProps) {
   const { t } = useTranslation(ns);
   const title = t(titleKey);
-  const description = t(descriptionKey);
+  const description = t(descriptionKey, descriptionVars);
 
   return (
     <Helmet>

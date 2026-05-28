@@ -7,11 +7,12 @@ import { useCountry } from '../contexts/CountryContext';
 import { useAuth } from '../contexts/AuthContext';
 import { analytics } from '../lib/analytics';
 import PageMeta from '../components/common/PageMeta';
+import { taxYearInterpVars } from '../utils/taxYearVars';
 import { isBeforeEarlyFilingDeadline } from '../utils/earlyFiling';
 import { cassBracketLabelKey } from '../utils/cassBracket';
 
 export default function ResultsPage() {
-  const { t } = useTranslation(['results', 'common']);
+  const { t, i18n } = useTranslation(['results', 'common']);
   const navigate = useNavigate();
   const { taxResult, securities, fileName, taxYear, transactions, parseWarnings } = useUpload();
   const hasWarnings = parseWarnings.length > 0;
@@ -20,6 +21,8 @@ export default function ResultsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // Disclaimer reflects the engine-applicable tax year, not the uploaded statement's year.
+  const yearVars = taxYearInterpVars(i18n.language);
 
   const handleSave = useCallback(async () => {
     if (!user) {
@@ -218,7 +221,7 @@ export default function ResultsPage() {
       </div>
 
       <p className="text-xs text-gray-500 dark:text-slate-400 mb-6 text-right">
-        {t('common:taxRulesUpdated')}
+        {t('common:taxRulesUpdated', yearVars)}
       </p>
 
       {/* Capital gains breakdown */}

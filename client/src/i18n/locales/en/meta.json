@@ -1,8 +1,8 @@
 {
   "landingTitle": "InvesTax | Investment Tax Calculator for Romania",
-  "landingDesc": "Romanian D212 tax filing for Trading 212, Revolut, IBKR investors. Capital gains via weighted-average cost, foreign dividends with W-8BEN credit, CASS. Deadline May 25, 2026.",
+  "landingDesc": "Romanian D212 tax filing for Trading 212, Revolut, IBKR investors. Capital gains via weighted-average cost, foreign dividends with W-8BEN credit, CASS. Deadline {{filingDeadline}}.",
   "calculatorTitle": "Free Tax Calculator | InvesTax",
-  "calculatorDesc": "Calculate your Romanian capital gains tax, dividend tax, and CASS for tax year 2025 for free. No account required.",
+  "calculatorDesc": "Calculate your Romanian capital gains tax, dividend tax, and CASS for tax year {{taxYear}} for free. No account required.",
   "pricingTitle": "Pricing | InvesTax",
   "pricingDesc": "Upload your Trading212 statement and get a complete tax report. One-time annual payment, launch pricing available.",
   "dashboardTitle": "Dashboard | InvesTax",
