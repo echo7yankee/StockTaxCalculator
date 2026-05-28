@@ -42,11 +42,33 @@ export const TAX_YEARS: Record<number, TaxYearConfig> = {
     earlyFilingDiscountRate: 0.03,
     engineSupported: true,
   },
-  // 2026 entry intentionally deferred. The H1/H2 minimum-wage split (4.050 RON Jan-Jun
-  // per HG 146/2025, 4.325 RON Jul-Dec) and the resulting CASS-threshold reference value
-  // need primary-source verification before shipping per backlog item #22. Adding 2026
-  // here is the natural first step of backlog item #13 (engine year-awareness for the
-  // Legea 239/2025 16% rate), which will land that verification in the same PR.
+  // 2026 entry: DORMANT. engineSupported is false, so getCurrentTaxYearConfig() never returns it
+  // and no user-facing copy or engine path consumes it yet. Verification + per-claim sources live in
+  // investax-docs/tax-facts-verification-2026.md. Do NOT flip engineSupported to true until the four
+  // FLAGGED items there (F1 CASS plafon anchor 4.050-vs-4.325, F2 CASS base-by-intermediary restructure,
+  // F3 16% on foreign dividends, F4 2027 deadline/bonificatie) are resolved AND the engine handles 2026
+  // rates end-to-end (backlog #13 PR B). Legea 239/2025 (in force 2025-12-18, applies to 2026+ income).
+  2026: {
+    taxYear: 2026,
+    filingYear: 2027,
+    filingDeadlineRo: '25 mai 2027', // F4: carried from 2025 cycle, unverified for 2027
+    filingDeadlineEn: 'May 25, 2027', // F4
+    earlyFilingDeadlineRo: '15 aprilie 2027', // F4
+    earlyFilingDeadlineEn: 'April 15, 2027', // F4
+    minimumWageMonthly: 4050, // V4: H1 2026 value (rises to 4.325 from Jul 1, HG 146/2025). F1: 4.050 anchors the annual investment plafon (best reading, flagged).
+    cassThresholds: {
+      // F1: 6/12/24 x 4.050, identical to 2025. Contested vs 4.325-based 25.950/51.900/103.800.
+      six: 24300,
+      twelve: 48600,
+      twentyFour: 97200,
+    },
+    nonResidentBrokerCapGainsRate: 0.16, // V1: Legea 239/2025, was 0.10 in 2025
+    residentBrokerLongHoldRate: 0.03, // V2: was 0.01 in 2025
+    residentBrokerShortHoldRate: 0.06, // V2: was 0.03 in 2025
+    romanianDividendWithholdingRate: 0.16, // V3 (foreign-dividend application flagged F3): was 0.10 in 2025
+    earlyFilingDiscountRate: 0.03, // F4: carried forward, unverified for 2026
+    engineSupported: false, // GATE: keep false until F1-F4 resolved + engine wired (backlog #13 PR B)
+  },
 };
 
 export function getCurrentTaxYear(now: Date = new Date()): number {
