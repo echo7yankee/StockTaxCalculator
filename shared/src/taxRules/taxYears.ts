@@ -85,11 +85,13 @@ export function getTaxYearConfig(year: number): TaxYearConfig | undefined {
   return TAX_YEARS[year];
 }
 
-export function getCurrentTaxYearConfig(now: Date = new Date()): TaxYearConfig {
-  const calendarYear = getCurrentTaxYear(now);
-  const exact = TAX_YEARS[calendarYear];
-  if (exact?.engineSupported) return exact;
-  // Fall back to the latest engine-supported year so user-facing copy never claims a year the engine cannot yet calculate.
+/**
+ * The most recent tax year the engine can calculate end-to-end. Used as the
+ * fallback whenever a requested year is not yet engine-supported, so neither
+ * user-facing copy nor the engine ever commits to a year whose rates have not
+ * been verified and signed off (backlog #13 / #22).
+ */
+export function getLatestEngineSupportedConfig(): TaxYearConfig {
   const supportedYears = Object.values(TAX_YEARS)
     .filter(cfg => cfg.engineSupported)
     .map(cfg => cfg.taxYear)
@@ -98,4 +100,12 @@ export function getCurrentTaxYearConfig(now: Date = new Date()): TaxYearConfig {
     throw new Error('No engine-supported tax years configured in TAX_YEARS');
   }
   return TAX_YEARS[supportedYears[0]];
+}
+
+export function getCurrentTaxYearConfig(now: Date = new Date()): TaxYearConfig {
+  const calendarYear = getCurrentTaxYear(now);
+  const exact = TAX_YEARS[calendarYear];
+  if (exact?.engineSupported) return exact;
+  // Fall back to the latest engine-supported year so user-facing copy never claims a year the engine cannot yet calculate.
+  return getLatestEngineSupportedConfig();
 }

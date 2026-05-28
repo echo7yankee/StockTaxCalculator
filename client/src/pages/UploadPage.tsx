@@ -9,6 +9,7 @@ import {
   parseTrading212AnnualStatement,
   calculateTaxesFromPdf,
   applyBnrRates,
+  getTaxConfigForYear,
 } from '@shared/index';
 import type { RawCsvRow, PdfParseResult } from '@shared/index';
 import { extractPdfPageTexts } from '../utils/pdfExtractor';
@@ -322,7 +323,11 @@ export default function UploadPage() {
       const needsConversion = preview.currency !== countryConfig.currency;
       const rate = needsConversion ? exchangeRate : 1;
 
-      const { taxResult, securities, warnings: engineWarnings } = calculateTaxesFromPdf(pdfData, countryConfig, rate);
+      // Dispatch tax rates by the statement's income year (backlog #13). 2025 →
+      // current rates; 2026+ falls back to the latest engine-supported year until
+      // its rates are signed off (TAX_YEARS[year].engineSupported gate).
+      const yearConfig = getTaxConfigForYear(countryConfig, pdfData.year);
+      const { taxResult, securities, warnings: engineWarnings } = calculateTaxesFromPdf(pdfData, yearConfig, rate);
 
       // Engine-emitted warnings (sign + magnitude mismatch) reach the operator
       // through the same channel as parser warnings, but tagged separately so
@@ -398,7 +403,9 @@ export default function UploadPage() {
         }
       }
 
-      const { taxResult, securities } = calculateTaxes(enrichedTransactions, countryConfig, selectedYear);
+      // Dispatch tax rates by the selected income year (backlog #13).
+      const yearConfig = getTaxConfigForYear(countryConfig, selectedYear);
+      const { taxResult, securities } = calculateTaxes(enrichedTransactions, yearConfig, selectedYear);
 
       setUploadData({
         parseResult: parsed,
