@@ -47,6 +47,16 @@ describe('CalculatorPage prerender (SSR)', () => {
     expect(html).toContain('anul fiscal 2025');
   });
 
+  it('resolves year-dynamic subtitle + tax-rules disclaimer to the engine-supported year (no raw placeholders)', () => {
+    // subtitle {{taxYear}}+{{filingDeadline}} and common:taxRulesUpdated {{taxYear}}
+    // read from getCurrentTaxYearConfig; the engineSupported fallback resolves to
+    // 2025 today, byte-identical to the previously hardcoded copy. Backlog #17 PR 2.
+    const html = renderCalculatorSsr();
+    expect(html).toContain('25 mai 2026');
+    expect(html).toContain('Reguli fiscale valabile pentru anul fiscal 2025');
+    expect(html).not.toContain('{{');
+  });
+
   it('emits all four numeric input fields with their RO labels', () => {
     const html = renderCalculatorSsr();
     expect(html).toMatch(/id="calc-capital-gains"/);

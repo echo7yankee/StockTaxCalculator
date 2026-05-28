@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCountry } from '../contexts/CountryContext';
 import PageMeta from '../components/common/PageMeta';
+import { taxYearInterpVars } from '../utils/taxYearVars';
 import { analytics } from '../lib/analytics';
 import { cassBracketLabelKey } from '../utils/cassBracket';
 import { calculateQuickTax } from '@shared/engine/quickCalculator';
@@ -9,7 +10,7 @@ import type { QuickTaxResult } from '@shared/engine/quickCalculator';
 import type { ManualCalculatorInput } from '@shared/types/tax';
 
 export default function CalculatorPage() {
-  const { t } = useTranslation(['calculator', 'common']);
+  const { t, i18n } = useTranslation(['calculator', 'common']);
   const { countryConfig } = useCountry();
   const [input, setInput] = useState<ManualCalculatorInput>({
     capitalGains: 0,
@@ -20,6 +21,7 @@ export default function CalculatorPage() {
   });
   const [result, setResult] = useState<QuickTaxResult | null>(null);
   const [error, setError] = useState('');
+  const yearVars = taxYearInterpVars(i18n.language);
 
   if (!countryConfig) return <div className="p-8 text-center">{t('countryNotSupported')}</div>;
 
@@ -45,14 +47,14 @@ export default function CalculatorPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
-      <PageMeta titleKey="calculatorTitle" descriptionKey="calculatorDesc" />
+      <PageMeta titleKey="calculatorTitle" descriptionKey="calculatorDesc" descriptionVars={yearVars} />
       <h1 className="text-3xl font-bold mb-2">{t('title')}</h1>
       <p className="text-gray-600 dark:text-slate-400 mb-8">
-        {t('subtitle')}
+        {t('subtitle', yearVars)}
       </p>
 
       <p className="text-xs text-gray-500 dark:text-slate-400 mb-6">
-        {t('common:taxRulesUpdated')}
+        {t('common:taxRulesUpdated', yearVars)}
       </p>
 
       {error && (

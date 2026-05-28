@@ -3,12 +3,14 @@ import { Upload, Calculator, FileText, ArrowRight, Shield, Scale, Lock, Zap, Mes
 import { useTranslation, Trans } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import PageMeta from '../components/common/PageMeta';
+import { taxYearInterpVars } from '../utils/taxYearVars';
 
 export default function Landing() {
-  const { t } = useTranslation('landing');
+  const { t, i18n } = useTranslation('landing');
   const { user } = useAuth();
   const isPaid = user?.plan === 'paid';
   const uploadLink = isPaid ? '/upload' : '/pricing';
+  const yearVars = taxYearInterpVars(i18n.language);
 
   const steps = [
     { icon: Upload, title: t('stepUploadTitle'), description: t('stepUploadDesc') },
@@ -18,21 +20,21 @@ export default function Landing() {
 
   const trustPoints = [
     { icon: Shield, title: t('trustAccurateTitle'), description: t('trustAccurateDesc') },
-    { icon: Scale, title: t('trustTaxLawTitle'), description: t('trustTaxLawDesc') },
+    { icon: Scale, title: t('trustTaxLawTitle'), description: t('trustTaxLawDesc', yearVars) },
     { icon: Lock, title: t('trustPrivacyTitle'), description: t('trustPrivacyDesc') },
     { icon: Zap, title: t('trustFastTitle'), description: t('trustFastDesc') },
   ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <PageMeta titleKey="landingTitle" descriptionKey="landingDesc" />
+      <PageMeta titleKey="landingTitle" descriptionKey="landingDesc" descriptionVars={yearVars} />
       {/* Hero */}
       <section className="py-20 text-center">
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
           <Trans i18nKey="landing:heroTitle" components={{ accent: <span className="text-accent dark:text-accent-light"> </span> }} />
         </h1>
         <p className="mt-6 text-lg sm:text-xl text-gray-600 dark:text-slate-400 max-w-2xl mx-auto">
-          {t('heroSubtitle')}
+          {t('heroSubtitle', yearVars)}
         </p>
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link to="/calculator" className="btn-primary text-lg px-8 py-3 flex items-center gap-2">

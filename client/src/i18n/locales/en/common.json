@@ -28,7 +28,7 @@
     "commonPassword": "This password is too common. Please choose a more unique password.",
     "networkError": "Unable to connect to the server. Please check your connection and try again."
   },
-  "taxRulesUpdated": "Tax rules valid for tax year 2025 (updated January 2026)",
+  "taxRulesUpdated": "Tax rules valid for tax year {{taxYear}} (updated January 2026)",
   "bracketNone": "No bracket",
   "bracket6x": "6 minimum wages",
   "bracket12x": "12 minimum wages",

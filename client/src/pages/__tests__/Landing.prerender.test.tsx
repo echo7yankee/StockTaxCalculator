@@ -62,6 +62,16 @@ describe('Landing prerender (SSR)', () => {
     expect(html).toContain('CASS');
   });
 
+  it('resolves year-dynamic copy to the engine-supported tax year (no raw placeholders)', () => {
+    // heroSubtitle + trustTaxLawDesc read {{taxYear}} from getCurrentTaxYearConfig.
+    // Today the engineSupported fallback resolves to 2025, byte-identical to the
+    // previously hardcoded copy. Backlog item #17 PR 2.
+    const html = renderLandingSsr();
+    expect(html).toContain('cifrele D212 pentru 2025');
+    expect(html).toContain('pentru anul 2025');
+    expect(html).not.toContain('{{');
+  });
+
   it('emits the primary calls-to-action (calculator + upload PDF)', () => {
     const html = renderLandingSsr();
     expect(html).toMatch(/href="\/calculator"/);

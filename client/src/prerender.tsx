@@ -1,4 +1,5 @@
 import { renderToString } from 'react-dom/server';
+import { getCurrentTaxYearConfig } from '@shared/taxRules/taxYears';
 import { HelmetProvider, type HelmetServerState } from 'react-helmet-async';
 import { StaticRouter } from 'react-router-dom';
 import './i18n/i18n';
@@ -61,10 +62,13 @@ interface PageConfig {
   ogType: 'website' | 'article';
 }
 
+// Build-time tax-year config. Mirrors the client-side PageMeta/i18n templating so
+// the prerendered static <head> matches the hydrated copy. Backlog item #17.
+const taxYearConfig = getCurrentTaxYearConfig();
+
 const HOMEPAGE_META = {
   title: 'InvesTax | Calculator taxe investiții România',
-  description:
-    'Declarația Unică 2025 pentru investitorii Trading 212, Revolut, IBKR. Câștiguri pe metoda CMP, dividende externe cu credit fiscal (W-8BEN), CASS. Termen 25 mai 2026.',
+  description: `Declarația Unică ${taxYearConfig.taxYear} pentru investitorii Trading 212, Revolut, IBKR. Câștiguri pe metoda CMP, dividende externe cu credit fiscal (W-8BEN), CASS. Termen ${taxYearConfig.filingDeadlineRo}.`,
   url: 'https://investax.app/',
 };
 
@@ -77,8 +81,7 @@ const PRICING_META = {
 
 const CALCULATOR_META = {
   title: 'Calculator taxe gratuit | InvesTax',
-  description:
-    'Calculează gratuit impozitul pe câștiguri de capital, dividende și CASS pentru anul fiscal 2025. Fără cont, fără card.',
+  description: `Calculează gratuit impozitul pe câștiguri de capital, dividende și CASS pentru anul fiscal ${taxYearConfig.taxYear}. Fără cont, fără card.`,
   url: 'https://investax.app/calculator',
 };
 
