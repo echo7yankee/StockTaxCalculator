@@ -16,6 +16,7 @@ export default defineConfig({
         '/ghid',
         '/ghid/declaratie-unica-trading212',
         '/ghid/declaratie-unica-revolut',
+        '/ghid/declaratie-unica-ibkr',
         '/ghid/cass-investitii',
         '/ghid/dividende-broker-strain',
         '/ghid/cum-completez-declaratia-unica',

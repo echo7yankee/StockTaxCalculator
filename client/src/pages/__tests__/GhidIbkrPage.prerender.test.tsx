@@ -1,0 +1,89 @@
+// @vitest-environment node
+import { describe, it, expect, beforeAll } from 'vitest';
+import i18n from 'i18next';
+import { renderToString } from 'react-dom/server';
+import { HelmetProvider } from 'react-helmet-async';
+import { StaticRouter } from 'react-router-dom';
+import '../../i18n/i18n';
+import { AuthProvider } from '../../contexts/AuthContext';
+import { ThemeProvider } from '../../contexts/ThemeContext';
+import { CountryProvider } from '../../contexts/CountryContext';
+import { UploadProvider } from '../../contexts/UploadContext';
+import GhidIbkrPage from '../GhidIbkrPage';
+
+beforeAll(async () => {
+  await i18n.changeLanguage('ro');
+});
+
+function renderSsr(url = '/ghid/declaratie-unica-ibkr') {
+  return renderToString(
+    <HelmetProvider>
+      <StaticRouter location={url}>
+        <AuthProvider>
+          <ThemeProvider>
+            <CountryProvider>
+              <UploadProvider>
+                <GhidIbkrPage />
+              </UploadProvider>
+            </CountryProvider>
+          </ThemeProvider>
+        </AuthProvider>
+      </StaticRouter>
+    </HelmetProvider>,
+  );
+}
+
+describe('GhidIbkrPage prerender (SSR)', () => {
+  it('renders to a non-empty HTML string without throwing on browser globals', () => {
+    const html = renderSsr();
+    expect(typeof html).toBe('string');
+    expect(html.length).toBeGreaterThan(2000);
+    expect(html).toContain('<h1');
+  });
+
+  it('emits the H1 headline', () => {
+    const html = renderSsr();
+    expect(html).toContain('Cum declar Interactive Brokers (IBKR)');
+  });
+
+  it('emits the export-recipe core (Activity Statement CSV, not Flex Query)', () => {
+    const html = renderSsr();
+    expect(html).toContain('Activity Statement');
+    expect(html).toContain('CSV');
+    expect(html).toContain('Flex Query');
+  });
+
+  it('surfaces the beta verify-before-filing caveat', () => {
+    const html = renderSsr();
+    expect(html).toContain('beta');
+    expect(html).toContain('Verifică cifrele înainte să depui');
+  });
+
+  it('stays scoped to tax year 2025 (10% rate, verified Codul Fiscal citations)', () => {
+    const html = renderSsr();
+    expect(html).toContain('10%');
+    expect(html).toContain('art. 96');
+    expect(html).toContain('art. 131');
+    // 16% is the dormant 2026 rate (Legea 239/2025), gated behind engineSupported;
+    // it must NOT appear on a public 2025-scoped page.
+    expect(html).not.toContain('16%');
+  });
+
+  it('cross-links to the shared-mechanics guides (crawlable anchors)', () => {
+    const html = renderSsr();
+    expect(html).toMatch(/href="\/ghid\/declaratie-unica-trading212"/);
+    expect(html).toMatch(/href="\/ghid\/cum-calculam"/);
+  });
+
+  it('emits FAQ questions used by the FAQPage schema', () => {
+    const html = renderSsr();
+    expect(html).toContain('Ce format de extras de la Interactive Brokers');
+    expect(html).toContain('reține impozitul pe câștiguri pentru ANAF');
+  });
+
+  it('confirms no browser globals leak into the SSR scope', () => {
+    expect(typeof window).toBe('undefined');
+    expect(typeof document).toBe('undefined');
+    expect(typeof localStorage).toBe('undefined');
+  });
+});

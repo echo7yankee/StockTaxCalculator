@@ -28,6 +28,13 @@ export const GHID_LIST: GhidEntry[] = [
     fullUrl: 'https://investax.app/ghid/declaratie-unica-revolut/',
   },
   {
+    title: 'Cum declar Interactive Brokers (IBKR) în Declarația Unică 2026',
+    description:
+      'Pentru investitorii cu cont IBKR: ce extras scoți (Activity Statement în CSV, nu Flex Query), ce este acoperit în beta, cum declari câștigurile și dividendele.',
+    path: '/ghid/declaratie-unica-ibkr',
+    fullUrl: 'https://investax.app/ghid/declaratie-unica-ibkr/',
+  },
+  {
     title: 'Dividende de la broker străin în Declarația Unică 2026',
     description:
       'Mecanica creditului pentru reținerea străină, ratele de impunere pe țară (SUA, UK, Germania, Olanda etc.), exemple lucrate.',

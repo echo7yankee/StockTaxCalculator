@@ -13,6 +13,7 @@ import CalculatorPage from './pages/CalculatorPage';
 import GhidIndexPage from './pages/GhidIndexPage';
 import GhidTrading212Page from './pages/GhidTrading212Page';
 import GhidRevolutPage from './pages/GhidRevolutPage';
+import GhidIbkrPage from './pages/GhidIbkrPage';
 import GhidCassPage from './pages/GhidCassPage';
 import GhidDividendePage from './pages/GhidDividendePage';
 import GhidDeclaratieUnicaPage from './pages/GhidDeclaratieUnicaPage';
@@ -31,6 +32,11 @@ import {
   GHID_REVOLUT_FAQ_SCHEMA,
   GHID_REVOLUT_META,
 } from './lib/ghidRevolutSchemas';
+import {
+  GHID_IBKR_ARTICLE_SCHEMA,
+  GHID_IBKR_FAQ_SCHEMA,
+  GHID_IBKR_META,
+} from './lib/ghidIbkrSchemas';
 import {
   GHID_CASS_ARTICLE_SCHEMA,
   GHID_CASS_FAQ_SCHEMA,
@@ -132,6 +138,14 @@ const PRERENDER_PAGES: Record<string, PageConfig> = {
     description: GHID_REVOLUT_META.description,
     canonicalUrl: GHID_REVOLUT_META.url,
     schemas: [GHID_REVOLUT_ARTICLE_SCHEMA, GHID_REVOLUT_FAQ_SCHEMA],
+    ogType: 'article',
+  },
+  '/ghid/declaratie-unica-ibkr': {
+    component: () => <GhidIbkrPage />,
+    title: GHID_IBKR_META.title,
+    description: GHID_IBKR_META.description,
+    canonicalUrl: GHID_IBKR_META.url,
+    schemas: [GHID_IBKR_ARTICLE_SCHEMA, GHID_IBKR_FAQ_SCHEMA],
     ogType: 'article',
   },
   '/ghid/cass-investitii': {
