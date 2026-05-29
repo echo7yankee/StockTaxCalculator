@@ -78,6 +78,7 @@ vi.mock('../../lib/analytics', () => ({
 // Canned shared-engine outputs. Each helper resets between tests via fnMock fields.
 const sharedExports = {
   parseTrading212Csv: vi.fn(),
+  parseIbkrCsv: vi.fn(),
   calculateTaxes: vi.fn(),
   parseTrading212AnnualStatement: vi.fn(),
   calculateTaxesFromPdf: vi.fn(),
@@ -89,6 +90,7 @@ vi.mock('@shared/index', async () => {
   return {
     ...actual,
     parseTrading212Csv: (...args: unknown[]) => sharedExports.parseTrading212Csv(...args),
+    parseIbkrCsv: (...args: unknown[]) => sharedExports.parseIbkrCsv(...args),
     calculateTaxes: (...args: unknown[]) => sharedExports.calculateTaxes(...args),
     parseTrading212AnnualStatement: (...args: unknown[]) =>
       sharedExports.parseTrading212AnnualStatement(...args),
@@ -195,6 +197,7 @@ beforeEach(() => {
     loading: false,
   };
   sharedExports.parseTrading212Csv.mockReturnValue(makeCsvParseResult());
+  sharedExports.parseIbkrCsv.mockReturnValue(makeCsvParseResult());
   sharedExports.parseTrading212AnnualStatement.mockReturnValue(makePdfParseResult());
   sharedExports.calculateTaxes.mockReturnValue({ taxResult: {}, securities: [] });
   sharedExports.calculateTaxesFromPdf.mockReturnValue({ taxResult: {}, securities: [], warnings: [] });
@@ -599,5 +602,84 @@ describe('UploadPage - drag-and-drop drop zone', () => {
     await waitFor(() => {
       expect(screen.getByText('dropped.pdf')).toBeInTheDocument();
     });
+  });
+});
+
+describe('UploadPage - IBKR CSV (beta)', () => {
+  it('swaps the Trading212 split warning for the IBKR beta notice when IBKR is selected', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    // Default broker is Trading 212: its stock-split pre-warning is shown.
+    expect(
+      screen.getByText('CSV does not account for stock splits. For most accurate results, use the PDF tab.'),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Interactive Brokers/ }));
+    expect(screen.getByText(/Interactive Brokers support is in beta/)).toBeInTheDocument();
+    expect(
+      screen.queryByText('CSV does not account for stock splits. For most accurate results, use the PDF tab.'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('routes an IBKR CSV through parseIbkrCsv (not the Trading212 parser) and shows the beta note', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.click(screen.getByRole('button', { name: /Interactive Brokers/ }));
+    await user.upload(findHiddenFileInput(container), makeCsvFile('ibkr-activity.csv'));
+
+    await waitFor(() => {
+      expect(screen.getByText('ibkr-activity.csv')).toBeInTheDocument();
+    });
+    expect(sharedExports.parseIbkrCsv).toHaveBeenCalled();
+    expect(sharedExports.parseTrading212Csv).not.toHaveBeenCalled();
+    // IBKR preview shows its own beta note, never the Trading212 split warning.
+    expect(screen.getByText('Interactive Brokers (beta)')).toBeInTheDocument();
+    expect(screen.queryByText('CSV does not account for stock splits')).not.toBeInTheDocument();
+    expect(mockReportParseEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ fileType: 'csv', outcome: 'success' }),
+    );
+  });
+
+  it('records broker:ibkr in the upload data on calculate', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ rates: {}, count: 0, rate: 4.9 }), { status: 200 }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.click(screen.getByRole('button', { name: /Interactive Brokers/ }));
+    await user.upload(findHiddenFileInput(container), makeCsvFile('ibkr-activity.csv'));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole('button', { name: /Calculate Taxes/ }));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
+    expect(mockSetUploadData).toHaveBeenCalledWith(
+      expect.objectContaining({ broker: 'ibkr' }),
+    );
+  });
+
+  it('still records broker:trading212 on the Trading212 CSV path', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ rates: {}, count: 0, rate: 4.9 }), { status: 200 }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.upload(findHiddenFileInput(container), makeCsvFile('t212.csv'));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole('button', { name: /Calculate Taxes/ }));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
+    expect(mockSetUploadData).toHaveBeenCalledWith(
+      expect.objectContaining({ broker: 'trading212' }),
+    );
   });
 });

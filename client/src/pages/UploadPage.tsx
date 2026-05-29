@@ -5,19 +5,21 @@ import { Upload, FileText, AlertTriangle, CheckCircle, X, PartyPopper } from 'lu
 import Papa from 'papaparse';
 import {
   parseTrading212Csv,
+  parseIbkrCsv,
   calculateTaxes,
   parseTrading212AnnualStatement,
   calculateTaxesFromPdf,
   applyBnrRates,
   getTaxConfigForYear,
 } from '@shared/index';
-import type { RawCsvRow, PdfParseResult } from '@shared/index';
+import type { RawCsvRow, ParseResult, PdfParseResult } from '@shared/index';
 import { extractPdfPageTexts } from '../utils/pdfExtractor';
 import { useCountry } from '../contexts/CountryContext';
 import { useUpload } from '../contexts/UploadContext';
 import { useAuth } from '../contexts/AuthContext';
 import { analytics } from '../lib/analytics';
 import { reportParseEvent } from '../lib/parseMonitor';
+import { CSV_BROKERS, type BrokerId } from '../lib/brokers';
 import PageMeta from '../components/common/PageMeta';
 
 type FileType = 'csv' | 'pdf';
@@ -89,7 +91,9 @@ export default function UploadPage() {
   const [csvHistoryWarning, setCsvHistoryWarning] = useState(false);
 
   // Store parsed data for calculate step
-  const [csvRows, setCsvRows] = useState<RawCsvRow[]>([]);
+  const [csvBroker, setCsvBroker] = useState<BrokerId>('trading212');
+  const [csvRows, setCsvRows] = useState<RawCsvRow[]>([]); // Trading212 CSV (header-keyed)
+  const [ibkrParse, setIbkrParse] = useState<ParseResult | null>(null); // IBKR multi-section CSV
   const [pdfData, setPdfData] = useState<PdfParseResult | null>(null);
 
   const fetchBnrRate = useCallback((year: number, currency: string) => {
@@ -113,96 +117,112 @@ export default function UploadPage() {
       .finally(() => setRateLoading(false));
   }, [countryConfig]);
 
-  const processCsv = useCallback((file: File) => {
+  // Shared CSV preview builder: counts, the single-year missing-history guard,
+  // the preview card, and parse telemetry. Used by both the Trading212 and IBKR
+  // CSV paths, which differ only in how the file is parsed into a ParseResult.
+  const buildCsvPreview = useCallback((file: File, parsed: ParseResult) => {
+    const buys = parsed.transactions.filter(t => t.action === 'buy').length;
+    const sells = parsed.transactions.filter(t => t.action === 'sell').length;
+    const dividends = parsed.transactions.filter(t => t.action === 'dividend').length;
+
+    const years = [...new Set(
+      parsed.transactions.map(t => new Date(t.transactionDate).getFullYear())
+    )].sort((a, b) => b - a);
+
+    if (years.length > 0) setSelectedYear(years[0]);
+
+    // Detect a single-year export that may be missing historical buys (cost basis
+    // would be wrong). Applies to any broker's CSV, not just Trading212.
+    const warnings = [...parsed.warnings];
+    let historyWarning = false;
+    if (years.length === 1) {
+      const sellShares: Record<string, number> = {};
+      const buyShares: Record<string, number> = {};
+      for (const tx of parsed.transactions) {
+        const key = tx.isin || tx.ticker;
+        if (tx.action === 'sell') sellShares[key] = (sellShares[key] || 0) + tx.shares;
+        if (tx.action === 'buy') buyShares[key] = (buyShares[key] || 0) + tx.shares;
+      }
+      historyWarning = Object.keys(sellShares).some(k => sellShares[k] > (buyShares[k] || 0) + 0.01);
+    }
+    setCsvHistoryWarning(historyWarning);
+
+    setPreview({
+      fileName: file.name,
+      fileType: 'csv',
+      buys,
+      sells,
+      dividends,
+      distributions: 0,
+      totalRows: parsed.transactions.length,
+      skipped: parsed.skipped.length,
+      warnings,
+      year: years[0] ?? new Date().getFullYear() - 1,
+      years,
+    });
+    setProcessing(false);
+    analytics.csvUploaded();
+    reportParseEvent({
+      fileType: 'csv',
+      outcome: warnings.length > 0 || historyWarning ? 'warning' : 'success',
+      fileName: file.name,
+      warnings: historyWarning
+        ? [...warnings, 'Sells exceed buys for at least one security; CSV may be missing historical buy transactions']
+        : warnings,
+      summary: {
+        buys,
+        sells,
+        dividends,
+        skipped: parsed.skipped.length,
+        totalRows: parsed.transactions.length,
+        year: years[0],
+      },
+    });
+  }, []);
+
+  const reportCsvNoData = useCallback((file: File) => {
+    setError(t('csvNoData'));
+    setProcessing(false);
+    reportParseEvent({ fileType: 'csv', outcome: 'error', fileName: file.name, errorMessage: 'CSV contains no data rows' });
+  }, [t]);
+
+  const reportCsvError = useCallback((file: File, message: string) => {
+    setError(t('failedParseCsv', { message }));
+    setProcessing(false);
+    reportParseEvent({ fileType: 'csv', outcome: 'error', fileName: file.name, errorMessage: message });
+  }, [t]);
+
+  // Trading212 CSV: one flat table parsed header-keyed into RawCsvRow[].
+  const processTrading212Csv = useCallback((file: File) => {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
         const rows = results.data as RawCsvRow[];
-        if (rows.length === 0) {
-          setError(t('csvNoData'));
-          setProcessing(false);
-          reportParseEvent({
-            fileType: 'csv',
-            outcome: 'error',
-            fileName: file.name,
-            errorMessage: 'CSV contains no data rows',
-          });
-          return;
-        }
-
+        if (rows.length === 0) { reportCsvNoData(file); return; }
         const parsed = parseTrading212Csv(rows);
         setCsvRows(rows);
-
-        const buys = parsed.transactions.filter(t => t.action === 'buy').length;
-        const sells = parsed.transactions.filter(t => t.action === 'sell').length;
-        const dividends = parsed.transactions.filter(t => t.action === 'dividend').length;
-
-        const years = [...new Set(
-          parsed.transactions.map(t => new Date(t.transactionDate).getFullYear())
-        )].sort((a, b) => b - a);
-
-        if (years.length > 0) setSelectedYear(years[0]);
-
-        // Detect single-year CSV that may be missing historical buys
-        const warnings = [...parsed.warnings];
-        let historyWarning = false;
-        if (years.length === 1) {
-          const sellShares: Record<string, number> = {};
-          const buyShares: Record<string, number> = {};
-          for (const tx of parsed.transactions) {
-            const key = tx.isin || tx.ticker;
-            if (tx.action === 'sell') sellShares[key] = (sellShares[key] || 0) + tx.shares;
-            if (tx.action === 'buy') buyShares[key] = (buyShares[key] || 0) + tx.shares;
-          }
-          historyWarning = Object.keys(sellShares).some(k => sellShares[k] > (buyShares[k] || 0) + 0.01);
-        }
-        setCsvHistoryWarning(historyWarning);
-
-        setPreview({
-          fileName: file.name,
-          fileType: 'csv',
-          buys,
-          sells,
-          dividends,
-          distributions: 0,
-          totalRows: parsed.transactions.length,
-          skipped: parsed.skipped.length,
-          warnings,
-          year: years[0] ?? new Date().getFullYear() - 1,
-          years,
-        });
-        setProcessing(false);
-        analytics.csvUploaded();
-        reportParseEvent({
-          fileType: 'csv',
-          outcome: warnings.length > 0 || historyWarning ? 'warning' : 'success',
-          fileName: file.name,
-          warnings: historyWarning
-            ? [...warnings, 'Sells exceed buys for at least one security; CSV may be missing historical buy transactions']
-            : warnings,
-          summary: {
-            buys,
-            sells,
-            dividends,
-            skipped: parsed.skipped.length,
-            totalRows: parsed.transactions.length,
-            year: years[0],
-          },
-        });
+        buildCsvPreview(file, parsed);
       },
-      error: (err) => {
-        setError(t('failedParseCsv', { message: err.message }));
-        setProcessing(false);
-        reportParseEvent({
-          fileType: 'csv',
-          outcome: 'error',
-          fileName: file.name,
-          errorMessage: err.message,
-        });
-      },
+      error: (err) => reportCsvError(file, err.message),
     });
-  }, [t]);
+  }, [buildCsvPreview, reportCsvNoData, reportCsvError]);
+
+  // IBKR Activity Statement CSV: multi-section, parsed as raw string[][].
+  const processIbkrCsv = useCallback((file: File) => {
+    Papa.parse(file, {
+      header: false,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const rows = results.data as string[][];
+        if (rows.length === 0) { reportCsvNoData(file); return; }
+        const parsed = parseIbkrCsv(rows);
+        setIbkrParse(parsed);
+        buildCsvPreview(file, parsed);
+      },
+      error: (err) => reportCsvError(file, err.message),
+    });
+  }, [buildCsvPreview, reportCsvNoData, reportCsvError]);
 
   const processPdf = useCallback(async (file: File) => {
     try {
@@ -288,11 +308,12 @@ export default function UploadPage() {
     setProcessing(true);
 
     if (isCsv) {
-      processCsv(file);
+      if (csvBroker === 'ibkr') processIbkrCsv(file);
+      else processTrading212Csv(file);
     } else {
       processPdf(file);
     }
-  }, [processCsv, processPdf, activeTab, t]);
+  }, [processTrading212Csv, processIbkrCsv, processPdf, activeTab, t, csvBroker]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -311,9 +332,85 @@ export default function UploadPage() {
     setError(null);
     setPreview(null);
     setCsvRows([]);
+    setIbkrParse(null);
     setPdfData(null);
     setCsvHistoryWarning(false);
   };
+
+  const handleCsvBrokerChange = (broker: BrokerId) => {
+    setCsvBroker(broker);
+    setError(null);
+    setPreview(null);
+    setCsvRows([]);
+    setIbkrParse(null);
+    setCsvHistoryWarning(false);
+  };
+
+  // Enrich CSV transactions with BNR rates and run the engine, then stash the
+  // result for the results page. Shared by the Trading212 and IBKR CSV paths,
+  // which both produce a ParseResult of Transactions; the `broker` is recorded so
+  // the results page can show the beta verify-before-filing caveat where needed.
+  const finalizeCsv = useCallback(async (parsed: ParseResult, broker: BrokerId, fileName: string) => {
+    if (!countryConfig) return;
+
+    // Detect foreign currency and fetch BNR per-date rates
+    const currencyCount: Record<string, number> = {};
+    for (const tx of parsed.transactions) {
+      if (tx.priceCurrency !== countryConfig.currency) {
+        currencyCount[tx.priceCurrency] = (currencyCount[tx.priceCurrency] || 0) + 1;
+      }
+    }
+    const foreignCurrency = Object.entries(currencyCount).sort((a, b) => b[1] - a[1])[0]?.[0];
+
+    let enrichedTransactions = parsed.transactions;
+    if (foreignCurrency) {
+      try {
+        setCsvRateLoading(true);
+        setCsvRateStatus(null);
+        // Per ANAF: capital gains use per-date BNR, dividends use annual average.
+        const [dailyRes, avgRes] = await Promise.all([
+          fetch(`/api/exchange-rates/${selectedYear}/daily?currency=${foreignCurrency}`),
+          fetch(`/api/exchange-rates/${selectedYear}/average?currency=${foreignCurrency}`),
+        ]);
+        if (!dailyRes.ok) throw new Error('Failed to fetch BNR rates');
+        const dailyData = await dailyRes.json();
+        // Annual-avg failure must not kill the daily path; dividends degrade to per-date instead.
+        let annualAvgRate: number | null = null;
+        if (avgRes.ok) {
+          try {
+            const avgData = await avgRes.json();
+            if (typeof avgData?.rate === 'number') annualAvgRate = avgData.rate;
+          } catch { /* leave annualAvgRate as null */ }
+        }
+        enrichedTransactions = applyBnrRates(
+          parsed.transactions,
+          dailyData.rates,
+          countryConfig.currency,
+          annualAvgRate,
+        );
+        setCsvRateStatus(`BNR ${selectedYear} daily rates (${dailyData.count} dates)`);
+      } catch {
+        setCsvRateStatus(t('bnrRateFallback'));
+      } finally {
+        setCsvRateLoading(false);
+      }
+    }
+
+    // Dispatch tax rates by the selected income year (backlog #13).
+    const yearConfig = getTaxConfigForYear(countryConfig, selectedYear);
+    const { taxResult, securities } = calculateTaxes(enrichedTransactions, yearConfig, selectedYear);
+
+    setUploadData({
+      parseResult: parsed,
+      parseWarnings: parsed.warnings,
+      transactions: enrichedTransactions,
+      taxResult,
+      securities,
+      fileName,
+      taxYear: selectedYear,
+      broker,
+    });
+  }, [countryConfig, selectedYear, setUploadData, t]);
 
   const handleCalculate = useCallback(async () => {
     if (!countryConfig) return;
@@ -356,76 +453,23 @@ export default function UploadPage() {
         securities,
         fileName: preview.fileName,
         taxYear: pdfData.year,
+        broker: 'trading212',
       });
-    } else if (preview?.fileType === 'csv' && csvRows.length > 0) {
-      const parsed = parseTrading212Csv(csvRows);
-
-      // Detect foreign currency and fetch BNR per-date rates
-      const currencyCount: Record<string, number> = {};
-      for (const tx of parsed.transactions) {
-        if (tx.priceCurrency !== countryConfig.currency) {
-          currencyCount[tx.priceCurrency] = (currencyCount[tx.priceCurrency] || 0) + 1;
-        }
-      }
-      const foreignCurrency = Object.entries(currencyCount).sort((a, b) => b[1] - a[1])[0]?.[0];
-
-      let enrichedTransactions = parsed.transactions;
-      if (foreignCurrency) {
-        try {
-          setCsvRateLoading(true);
-          setCsvRateStatus(null);
-          // Per ANAF: capital gains use per-date BNR, dividends use annual average.
-          const [dailyRes, avgRes] = await Promise.all([
-            fetch(`/api/exchange-rates/${selectedYear}/daily?currency=${foreignCurrency}`),
-            fetch(`/api/exchange-rates/${selectedYear}/average?currency=${foreignCurrency}`),
-          ]);
-          if (!dailyRes.ok) throw new Error('Failed to fetch BNR rates');
-          const dailyData = await dailyRes.json();
-          // Annual-avg failure must not kill the daily path — dividends degrade to per-date instead.
-          let annualAvgRate: number | null = null;
-          if (avgRes.ok) {
-            try {
-              const avgData = await avgRes.json();
-              if (typeof avgData?.rate === 'number') annualAvgRate = avgData.rate;
-            } catch { /* leave annualAvgRate as null */ }
-          }
-          enrichedTransactions = applyBnrRates(
-            parsed.transactions,
-            dailyData.rates,
-            countryConfig.currency,
-            annualAvgRate,
-          );
-          setCsvRateStatus(`BNR ${selectedYear} daily rates (${dailyData.count} dates)`);
-        } catch {
-          setCsvRateStatus(t('bnrRateFallback'));
-        } finally {
-          setCsvRateLoading(false);
-        }
-      }
-
-      // Dispatch tax rates by the selected income year (backlog #13).
-      const yearConfig = getTaxConfigForYear(countryConfig, selectedYear);
-      const { taxResult, securities } = calculateTaxes(enrichedTransactions, yearConfig, selectedYear);
-
-      setUploadData({
-        parseResult: parsed,
-        parseWarnings: parsed.warnings,
-        transactions: enrichedTransactions,
-        taxResult,
-        securities,
-        fileName: preview.fileName,
-        taxYear: selectedYear,
-      });
+    } else if (preview?.fileType === 'csv') {
+      const parsed = csvBroker === 'ibkr' ? ibkrParse : parseTrading212Csv(csvRows);
+      if (!parsed || parsed.transactions.length === 0) return;
+      await finalizeCsv(parsed, csvBroker, preview.fileName);
     } else {
       return;
     }
 
     navigate('/results');
-  }, [countryConfig, preview, pdfData, csvRows, selectedYear, exchangeRate, setUploadData, navigate, t]);
+  }, [countryConfig, preview, pdfData, csvRows, csvBroker, ibkrParse, exchangeRate, setUploadData, navigate, finalizeCsv]);
 
   const clearUpload = () => {
     setPreview(null);
     setCsvRows([]);
+    setIbkrParse(null);
     setPdfData(null);
     setError(null);
     setCsvHistoryWarning(false);
@@ -491,12 +535,43 @@ export default function UploadPage() {
         </div>
       )}
 
-      {/* CSV pre-upload warning */}
+      {/* CSV broker selector */}
+      {!preview && activeTab === 'csv' && (
+        <div className="mb-4">
+          <label className="block text-sm font-medium mb-2">{t('csvBrokerLabel')}</label>
+          <div className="flex flex-wrap gap-2">
+            {CSV_BROKERS.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => handleCsvBrokerChange(b.id)}
+                aria-pressed={csvBroker === b.id}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                  csvBroker === b.id
+                    ? 'border-accent bg-accent/10 text-accent dark:text-accent-light'
+                    : 'border-gray-200 dark:border-navy-600 text-gray-600 dark:text-slate-400 hover:border-accent/50'
+                }`}
+              >
+                {b.label}
+                {b.status === 'beta' && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-semibold uppercase tracking-wide">
+                    {t('beta')}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* CSV pre-upload warning (broker-aware) */}
       {!preview && activeTab === 'csv' && (
         <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg">
           <div className="flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-sm text-amber-700 dark:text-amber-400">{t('csvPreWarning')}</p>
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              {csvBroker === 'ibkr' ? t('ibkrBetaPreWarning') : t('csvPreWarning')}
+            </p>
           </div>
         </div>
       )}
@@ -534,11 +609,13 @@ export default function UploadPage() {
                   {activeTab === 'pdf' ? t('pdfOrClick') : t('csvOrClick')}
                 </p>
                 <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
-                  {activeTab === 'pdf' ? t('pdfHint') : t('csvHint')}
+                  {activeTab === 'pdf'
+                    ? t('pdfHint')
+                    : csvBroker === 'ibkr' ? t('ibkrCsvHint') : t('csvHint')}
                 </p>
                 {activeTab === 'csv' && (
                   <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
-                    {t('csvFullHistoryNote')}
+                    {csvBroker === 'ibkr' ? t('ibkrFullHistoryNote') : t('csvFullHistoryNote')}
                   </p>
                 )}
               </>
@@ -638,17 +715,29 @@ export default function UploadPage() {
                   </p>
                 )}
 
-                {/* Stock split warning for CSV */}
-                <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">{t('csvSplitWarningTitle')}</p>
-                      <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">{t('csvSplitWarningBody')}</p>
-                      <p className="text-xs text-amber-700 dark:text-amber-400 mt-1 font-medium">{t('csvSplitWarningAction')}</p>
+                {/* Broker-specific CSV note */}
+                {csvBroker === 'ibkr' ? (
+                  <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">{t('ibkrBetaNoteTitle')}</p>
+                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">{t('ibkrBetaNoteBody')}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">{t('csvSplitWarningTitle')}</p>
+                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">{t('csvSplitWarningBody')}</p>
+                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-1 font-medium">{t('csvSplitWarningAction')}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>

@@ -42,5 +42,7 @@
   "parseWarningTitle": "We detected an inconsistency in your statement",
   "parseWarningBody": "The numbers below may be wrong. Contact me before filing and we will verify together what does not match.",
   "parseWarningListIntro": "Parser warnings:",
-  "parseWarningCta": "Contact me"
+  "parseWarningCta": "Contact me",
+  "betaBrokerTitle": "{{broker}} support is in beta",
+  "betaBrokerBody": "We built the {{broker}} parser from the broker's published export format, without a real account to validate against. Check these numbers against your statement before you file. If anything looks off, contact me."
 }

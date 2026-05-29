@@ -39,8 +39,12 @@ describe('romaniaTaxConfig', () => {
     expect(romaniaTaxConfig.exchangeRateApi.historicalUrlTemplate).toContain('{YYYY}');
   });
 
-  it('includes trading212 in supported brokers', () => {
+  it('lists only brokers with a working parser in supportedBrokers', () => {
     expect(romaniaTaxConfig.supportedBrokers).toContain('trading212');
+    expect(romaniaTaxConfig.supportedBrokers).toContain('ibkr');
+    // Revolut / XTB are roadmap; not advertised as supported until a parser exists.
+    expect(romaniaTaxConfig.supportedBrokers).not.toContain('revolut');
+    expect(romaniaTaxConfig.supportedBrokers).not.toContain('xtb');
   });
 });
 

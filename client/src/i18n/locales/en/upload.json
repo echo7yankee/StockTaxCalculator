@@ -51,5 +51,12 @@
   "csvOrClick": "or click to browse",
   "csvHint": "Upload your full Trading212 transaction history (.csv)",
   "csvPreWarning": "CSV does not account for stock splits. For most accurate results, use the PDF tab.",
-  "taxRulesUpdated": "Tax rules current as of January 2026"
+  "taxRulesUpdated": "Tax rules current as of January 2026",
+  "csvBrokerLabel": "Which broker is this CSV from?",
+  "beta": "beta",
+  "ibkrBetaPreWarning": "Interactive Brokers support is in beta. We built it from IBKR's published export format, so check the numbers against your statement before you file.",
+  "ibkrCsvHint": "Upload your IBKR Activity Statement export (.csv).",
+  "ibkrFullHistoryNote": "Export your full account history (from account opening), not just the tax year, so cost basis is correct.",
+  "ibkrBetaNoteTitle": "Interactive Brokers (beta)",
+  "ibkrBetaNoteBody": "This parser is new and built without a real IBKR account to test against. Double-check the numbers against your Activity Statement before filing."
 }

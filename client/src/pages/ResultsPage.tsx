@@ -6,6 +6,7 @@ import { useUpload } from '../contexts/UploadContext';
 import { useCountry } from '../contexts/CountryContext';
 import { useAuth } from '../contexts/AuthContext';
 import { analytics } from '../lib/analytics';
+import { getBrokerMeta } from '../lib/brokers';
 import PageMeta from '../components/common/PageMeta';
 import { taxYearInterpVars } from '../utils/taxYearVars';
 import { isBeforeEarlyFilingDeadline } from '../utils/earlyFiling';
@@ -14,8 +15,13 @@ import { cassBracketLabelKey } from '../utils/cassBracket';
 export default function ResultsPage() {
   const { t, i18n } = useTranslation(['results', 'common']);
   const navigate = useNavigate();
-  const { taxResult, securities, fileName, taxYear, transactions, parseWarnings } = useUpload();
+  const { taxResult, securities, fileName, taxYear, transactions, parseWarnings, broker } = useUpload();
   const hasWarnings = parseWarnings.length > 0;
+  // Beta brokers (parser built to the broker's published format without a real
+  // account to validate against) must always carry a verify-before-filing caveat,
+  // even on a clean parse (Regression Firewall, 09-backlog 8.6 #5).
+  const brokerMeta = getBrokerMeta(broker);
+  const isBetaBroker = brokerMeta?.status === 'beta';
   const { countryConfig } = useCountry();
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
@@ -41,7 +47,7 @@ export default function ResultsPage() {
         body: JSON.stringify({
           year: taxYear,
           country: countryConfig?.code ?? 'RO',
-          broker: 'trading212',
+          broker,
           fileName,
           taxResult,
           securities,
@@ -56,7 +62,7 @@ export default function ResultsPage() {
     } finally {
       setSaving(false);
     }
-  }, [taxResult, taxYear, countryConfig, fileName, securities, user, navigate, t]);
+  }, [taxResult, taxYear, countryConfig, fileName, securities, broker, user, navigate, t]);
 
   if (!taxResult) {
     return (
@@ -120,6 +126,25 @@ export default function ResultsPage() {
           {saveError && <p className="text-xs text-red-500">{saveError}</p>}
         </div>
       </div>
+
+      {isBetaBroker && (
+        <div
+          className="mb-8 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl"
+          data-testid="beta-broker-caveat"
+        >
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-amber-800 dark:text-amber-300 mb-1">
+                {t('results:betaBrokerTitle', { broker: brokerMeta?.label })}
+              </h3>
+              <p className="text-sm text-amber-700 dark:text-amber-400">
+                {t('results:betaBrokerBody', { broker: brokerMeta?.label })}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {hasWarnings && (
         <div
