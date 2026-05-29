@@ -91,8 +91,12 @@ jobs:
         run: npm run lint
 
       - name: Test
-        # Runs the full unit suite with v8 coverage. Coverage is printed to the
-        # log for visibility; it is not a merge gate (no threshold yet).
+        # Runs the full unit suite with v8 coverage. The moat (shared/src/engine
+        # + shared/src/parsers) is coverage-gated via thresholds in
+        # shared/vitest.config.ts (Regression Firewall,
+        # 09-backlog-and-discipline.md Section 8.6 #4): a drop below the floor
+        # fails this step and blocks merge. Remaining coverage is printed for
+        # visibility only (no global threshold).
         run: npm run test:coverage
 
       - name: Build
