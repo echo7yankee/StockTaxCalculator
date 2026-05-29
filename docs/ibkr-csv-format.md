@@ -49,10 +49,12 @@ Header (typical):
 Trades,Header,DataDiscriminator,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,C. Price,Proceeds,Comm/Fee,Basis,Realized P/L,MTM P/L,Code
 ```
 
-- **DataDiscriminator**: `Order` (order-level aggregate), `Trade` (execution
-  detail), `ClosedLot`, `SubTotal`, `Total`. Only `Order` / `Trade` rows are
-  real trades; the parser skips the rest so they are not double-counted or
-  summed as if they were trades.
+- **DataDiscriminator**: `Order` (order-level rollup), `Trade` (the constituent
+  executions of an order), `ClosedLot`, `SubTotal`, `Total`. The parser counts
+  `Order` rows only: when an order fills in several executions IBKR emits both
+  the `Order` rollup and its `Trade` rows, so summing both would double-count. A
+  statement with no `Order` rollup falls back to `Trade` rows. `ClosedLot` /
+  `SubTotal` / `Total` are detail or aggregation, never counted.
 - **Asset Category**: `Stocks` covers stocks and ETFs (beta scope). Options,
   futures, forex, bonds, CFDs are skipped with a reason + a warning.
 - **Quantity**: signed. Positive = buy, negative = sell.

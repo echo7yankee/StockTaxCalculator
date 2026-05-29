@@ -65,6 +65,31 @@ describe('parseIbkrCsv', () => {
     expect(r.transactions).toHaveLength(1); // the Order row only
   });
 
+  it('counts a multi-execution order once (Order rollup plus duplicate Trade rows)', () => {
+    // IBKR emits an Order summary plus its constituent Trade executions for the
+    // same fill. We must count the fill once via the Order row, not sum both.
+    const rows = [
+      ['Trades', 'Header', 'DataDiscriminator', 'Asset Category', 'Currency', 'Symbol', 'Date/Time', 'Quantity', 'T. Price', 'Proceeds', 'Comm/Fee'],
+      ['Trades', 'Data', 'Order', 'Stocks', 'USD', 'UPST', '2025-05-01, 10:00:00', '-50', '30', '1500', '-1'],
+      ['Trades', 'Data', 'Trade', 'Stocks', 'USD', 'UPST', '2025-05-01, 10:00:00', '-30', '30', '900', '-0.6'],
+      ['Trades', 'Data', 'Trade', 'Stocks', 'USD', 'UPST', '2025-05-01, 10:00:01', '-20', '30', '600', '-0.4'],
+    ];
+    const r = parseIbkrCsv(rows);
+    const sells = r.transactions.filter((t) => t.action === 'sell');
+    expect(sells).toHaveLength(1);
+    expect(sells[0].shares).toBe(50);
+  });
+
+  it('falls back to Trade rows when the statement has no Order rollup', () => {
+    const rows = [
+      ['Trades', 'Header', 'DataDiscriminator', 'Asset Category', 'Currency', 'Symbol', 'Date/Time', 'Quantity', 'T. Price', 'Proceeds', 'Comm/Fee'],
+      ['Trades', 'Data', 'Trade', 'Stocks', 'USD', 'AAPL', '2025-05-01, 10:00:00', '5', '100', '-500', '0'],
+      ['Trades', 'Data', 'Trade', 'Stocks', 'USD', 'AAPL', '2025-05-02, 10:00:00', '3', '110', '-330', '0'],
+    ];
+    const r = parseIbkrCsv(rows);
+    expect(r.transactions.filter((t) => t.action === 'buy')).toHaveLength(2);
+  });
+
   it('skips non-stock asset categories with a warning', () => {
     const rows = generateIbkrStatement({
       trades: [

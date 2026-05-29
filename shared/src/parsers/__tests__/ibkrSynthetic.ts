@@ -91,8 +91,10 @@ export function generateIbkrStatement(spec: IbkrStatementSpec): string[][] {
     rows.push(TRADES_HEADER);
     for (const t of trades) rows.push(tradeRow(t));
     if (includeSubtotals) {
-      rows.push(['Trades', 'Data', 'SubTotal', 'Stocks', 'USD', '', '', '', '', '', '', '', '', '', '', '']);
-      rows.push(['Trades', 'Data', 'Total', '', '', '', '', '', '', '', '', '', '', '', '', '']);
+      // Real IBKR puts the SubTotal/Total marker in column 1 (not as a Data-row
+      // discriminator), so the parser skips them at the row-type gate.
+      rows.push(['Trades', 'SubTotal', '', 'Stocks', 'USD', '', '', '', '', '', '', '', '', '', '', '']);
+      rows.push(['Trades', 'Total', '', '', '', '', '', '', '', '', '', '', '', '', '', '']);
     }
   }
 
@@ -110,7 +112,7 @@ export function generateIbkrStatement(spec: IbkrStatementSpec): string[][] {
     rows.push(['Dividends', 'Header', 'Currency', 'Date', 'Description', 'Amount']);
     for (const d of withDividends) {
       const currency = d.currency ?? 'USD';
-      rows.push(['Dividends', 'Data', currency, d.date, `${d.symbol}(${d.isin}) Cash Dividend ${currency} per Share (Ordinary Dividend)`, String(d.amount)]);
+      rows.push(['Dividends', 'Data', currency, d.date, `${d.symbol} (${d.isin}) Cash Dividend ${currency} per Share (Ordinary Dividend)`, String(d.amount)]);
     }
     if (includeSubtotals) {
       rows.push(['Dividends', 'Data', 'Total', '', '', String(round2(withDividends.reduce((s, d) => s + d.amount, 0)))]);
@@ -122,7 +124,7 @@ export function generateIbkrStatement(spec: IbkrStatementSpec): string[][] {
     rows.push(['Withholding Tax', 'Header', 'Currency', 'Date', 'Description', 'Amount', 'Code']);
     for (const d of withholdings) {
       const currency = d.currency ?? 'USD';
-      rows.push(['Withholding Tax', 'Data', currency, d.date, `${d.symbol}(${d.isin}) Cash Dividend ${currency} per Share - ${currency} Tax`, String(-(d.withholding ?? 0)), '']);
+      rows.push(['Withholding Tax', 'Data', currency, d.date, `${d.symbol} (${d.isin}) Cash Dividend ${currency} per Share - ${currency} Tax`, String(-(d.withholding ?? 0)), '']);
     }
     if (includeSubtotals) {
       rows.push(['Withholding Tax', 'Data', 'Total', '', '', String(round2(-withholdings.reduce((s, d) => s + (d.withholding ?? 0), 0))), '']);

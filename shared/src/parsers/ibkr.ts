@@ -5,17 +5,19 @@ import type { ParseResult, SkippedRow } from './trading212.js';
  * Interactive Brokers (IBKR) Activity Statement CSV parser.
  *
  * STATUS: BETA. Built to IBKR's documented Activity Statement CSV format (see
- * `docs/ibkr-csv-format.md`). It has NOT yet been validated against real
- * anonymized user exports, so per the Regression Firewall (`09-backlog 8.6` #5)
- * it must ship behind the parser-warning hard-stop (#24A) + sign/magnitude
- * refusal (#24C) + a verify-before-filing caveat, and may not be promoted to
- * TRUSTED until >=3 real exports parse correctly end-to-end.
+ * `docs/ibkr-csv-format.md`), cross-checked against real sample statements and
+ * several real-file-tested open-source IBKR parsers. It has NOT yet been
+ * validated against real anonymized user exports of our own, so per the
+ * Regression Firewall (`09-backlog 8.6` #5) it must ship behind the
+ * parser-warning hard-stop (#24A) + sign/magnitude refusal (#24C) + a
+ * verify-before-filing caveat, and may not be promoted to TRUSTED until >=3 real
+ * exports parse correctly end-to-end.
  *
  * Unlike a Trading212 CSV (one flat table), an IBKR Activity Statement is
  * MULTI-SECTION: every row begins with a section name (col 0) and a row type
- * (col 1: "Header" | "Data"). Columns differ per section but are consistent
- * within a section. The header row names the columns; data rows align to it.
- * We route the sections we need for a Romanian tax calc:
+ * (col 1: "Header" | "Data" | "SubTotal" | "Total" | ...). Columns differ per
+ * section but are consistent within a section. The header row names the columns;
+ * data rows align to it. We route the sections we need for a Romanian tax calc:
  *
  *   Trades                          -> buy / sell capital-gains transactions
  *   Financial Instrument Information -> Symbol -> ISIN / name lookup (best effort)
@@ -43,8 +45,13 @@ const SUPPORTED_CURRENCIES: Record<string, Currency> = {
 /** IBKR ISIN format: 2-letter country code + 9 alphanumeric + 1 check digit. */
 const ISIN_RE = /^[A-Z]{2}[A-Z0-9]{9}\d$/;
 
-/** Dividend/withholding descriptions begin with `SYMBOL(ISIN) ...`, e.g. `AAPL(US0378331005) Cash Dividend`. */
-const DESC_SECURITY_RE = /^\s*([A-Za-z0-9.]{1,12})\s*\(([A-Z0-9]{12})\)/;
+/**
+ * Dividend/withholding descriptions begin with `SYMBOL (ISIN) ...`, e.g.
+ * `AAPL (US0378331005) Cash Dividend`. IBKR writes share-class tickers with an
+ * internal space (`BRK B (US...)`), so the symbol group allows spaces and is
+ * non-greedy to stop at the `(ISIN)`.
+ */
+const DESC_SECURITY_RE = /^\s*([A-Za-z0-9. ]{1,15}?)\s*\(([A-Z0-9]{12})\)/;
 
 function isStockCategory(category: string): boolean {
   const c = category.trim().toLowerCase();
@@ -53,7 +60,8 @@ function isStockCategory(category: string): boolean {
 
 function parseNumber(value: string | undefined): number {
   if (!value || value.trim() === '') return 0;
-  return parseFloat(value.replace(/,/g, '')) || 0;
+  const n = parseFloat(value.replace(/,/g, ''));
+  return Number.isFinite(n) ? n : 0;
 }
 
 /**
@@ -76,7 +84,7 @@ function parseSecurityFromDescription(description: string): { symbol: string; is
   const m = DESC_SECURITY_RE.exec(description);
   if (m) {
     const isin = ISIN_RE.test(m[2]) ? m[2] : '';
-    return { symbol: m[1], isin };
+    return { symbol: m[1].trim(), isin };
   }
   return { symbol: '', isin: '' };
 }
@@ -103,6 +111,9 @@ export function parseIbkrCsv(rows: string[][]): ParseResult {
   const headers: Record<string, Record<string, number>> = {};
   const symbolToIsin: Record<string, string> = {};
   const symbolToName: Record<string, string> = {};
+  // Order-level rollups vs constituent executions, resolved after the pass.
+  const orderTrades: Transaction[] = [];
+  const tradeTrades: Transaction[] = [];
   const dividends: Transaction[] = [];
   // Withholding tax aggregated by `${securityKey}|${year}`. The engine only
   // needs correct gross-dividend and withholding sums per security per year.
@@ -124,6 +135,7 @@ export function parseIbkrCsv(rows: string[][]): ParseResult {
       }
       continue;
     }
+    // Skip SubTotal / Total / Notes rows (their marker sits in col 1, not "Data").
     if (rowType !== 'Data') continue;
 
     const cols = headers[section];
@@ -134,12 +146,18 @@ export function parseIbkrCsv(rows: string[][]): ParseResult {
     };
 
     if (section === 'Trades') {
-      // Activity Statements carry a DataDiscriminator (Order / Trade / ClosedLot
-      // / SubTotal / Total). Only order-level rows are real, non-duplicated
-      // trades; everything else is detail or aggregation we must not sum.
+      // IBKR emits BOTH an order-level rollup ("Order") and its constituent
+      // execution rows ("Trade") when an order fills in several parts; summing
+      // both would double-count. Collect Order and Trade rows separately and,
+      // after the pass, keep Order rows when present (the complete, non-
+      // duplicated set), falling back to Trade rows only when a statement has no
+      // Order rollup. ClosedLot / SubTotal / Total are detail or aggregation.
+      let bucket = orderTrades;
       if (cols['DataDiscriminator'] !== undefined) {
         const disc = get('DataDiscriminator');
-        if (disc !== 'Order' && disc !== 'Trade') continue;
+        if (disc === 'Order') bucket = orderTrades;
+        else if (disc === 'Trade') bucket = tradeTrades;
+        else continue;
       }
 
       const assetCategory = get('Asset Category');
@@ -180,7 +198,7 @@ export function parseIbkrCsv(rows: string[][]): ParseResult {
       const totalAmountOriginal =
         action === 'buy' ? grossProceeds + commission : Math.max(0, grossProceeds - commission);
 
-      transactions.push({
+      bucket.push({
         id: `ibkr-${i}`,
         csvUploadId: '',
         taxYearId: '',
@@ -255,9 +273,13 @@ export function parseIbkrCsv(rows: string[][]): ParseResult {
     }
   }
 
+  // Resolve the Order-vs-Trade duplication: prefer the Order rollup; fall back
+  // to Trade rows only when the statement has no Order rows at all.
+  const tradeRows = orderTrades.length > 0 ? orderTrades : tradeTrades;
+
   // Enrich trades with ISIN + name from the instrument-information section
   // (it usually appears after Trades, so this has to be a second pass).
-  for (const t of transactions) {
+  for (const t of tradeRows) {
     if (!t.isin && symbolToIsin[t.ticker]) t.isin = symbolToIsin[t.ticker];
     if (!t.securityName && symbolToName[t.ticker]) t.securityName = symbolToName[t.ticker];
   }
@@ -279,7 +301,7 @@ export function parseIbkrCsv(rows: string[][]): ParseResult {
       warnings.push(`Withholding tax of ${total} for "${key}" (${year}) has no matching dividend and was not applied.`);
     }
   }
-  transactions.push(...dividends);
+  transactions.push(...tradeRows, ...dividends);
 
   if (skippedCategories.size > 0) {
     warnings.push(
