@@ -65,7 +65,7 @@ const mockSecurities: SecurityBreakdown[] = [
 ];
 
 // Helper to pre-fill the upload context (runs once via ref guard)
-function SetupUpload({ children, warnings = [] }: { children: React.ReactNode; warnings?: string[] }) {
+function SetupUpload({ children, warnings = [], broker }: { children: React.ReactNode; warnings?: string[]; broker?: 'trading212' | 'ibkr' }) {
   const { setUploadData } = useUpload();
   const didSet = useRef(false);
 
@@ -79,21 +79,22 @@ function SetupUpload({ children, warnings = [] }: { children: React.ReactNode; w
         taxYear: 2025,
         transactions: [],
         parseWarnings: warnings,
+        ...(broker ? { broker } : {}),
       });
     }
-  }, [setUploadData, warnings]);
+  }, [setUploadData, warnings, broker]);
 
   return <>{children}</>;
 }
 
-function renderResults(withData = true, warnings: string[] = []) {
+function renderResults(withData = true, warnings: string[] = [], broker?: 'trading212' | 'ibkr') {
   if (withData) {
     return render(
       <HelmetProvider>
         <MemoryRouter>
           <CountryProvider>
             <UploadProvider>
-              <SetupUpload warnings={warnings}>
+              <SetupUpload warnings={warnings} broker={broker}>
                 <ResultsPage />
               </SetupUpload>
             </UploadProvider>
@@ -267,5 +268,37 @@ describe('ResultsPage parser warning hard-stop', () => {
     // navigation happens via react-router; banner stays in MemoryRouter (no /contact route mounted),
     // but the CTA must be a clickable button with the expected label
     expect(cta).toHaveTextContent(/Contact me/i);
+  });
+});
+
+describe('ResultsPage beta-broker caveat', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('shows the persistent verify-before-filing caveat for a beta broker on a clean parse', () => {
+    renderResults(true, [], 'ibkr');
+    expect(screen.getByTestId('beta-broker-caveat')).toBeInTheDocument();
+    expect(screen.getByText(/Interactive Brokers support is in beta/)).toBeInTheDocument();
+    // The caveat must NOT block filing on a clean parse; the CTA stays available.
+    expect(screen.getByTestId('filing-guide-cta')).toBeInTheDocument();
+  });
+
+  it('does not show the beta caveat for a trusted broker', () => {
+    renderResults(true, [], 'trading212');
+    expect(screen.queryByTestId('beta-broker-caveat')).not.toBeInTheDocument();
+  });
+
+  it('does not show the beta caveat by default (no broker set falls back to trusted Trading212)', () => {
+    renderResults(true, []);
+    expect(screen.queryByTestId('beta-broker-caveat')).not.toBeInTheDocument();
+  });
+
+  it('shows both the beta caveat and the warning hard-stop when a beta parse has warnings', () => {
+    renderResults(true, ['Withholding tax has no matching dividend'], 'ibkr');
+    expect(screen.getByTestId('beta-broker-caveat')).toBeInTheDocument();
+    expect(screen.getByTestId('parse-warning-banner')).toBeInTheDocument();
+    // Hard-stop still hides the filing CTA when warnings exist.
+    expect(screen.queryByTestId('filing-guide-cta')).not.toBeInTheDocument();
   });
 });

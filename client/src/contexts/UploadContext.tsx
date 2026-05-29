@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import type { Transaction, TaxCalculationResult, SecurityBreakdown, ParseResult } from '@shared/index';
+import type { BrokerId } from '../lib/brokers';
 
 interface UploadState {
   parseResult: ParseResult | null;
@@ -9,6 +10,8 @@ interface UploadState {
   securities: SecurityBreakdown[];
   fileName: string;
   taxYear: number;
+  /** Which broker produced the upload. Drives the beta verify-before-filing caveat. */
+  broker: BrokerId;
 }
 
 interface UploadContextType extends UploadState {
@@ -24,6 +27,7 @@ const defaultState: UploadState = {
   securities: [],
   fileName: '',
   taxYear: new Date().getFullYear() - 1,
+  broker: 'trading212',
 };
 
 const UploadContext = createContext<UploadContextType | undefined>(undefined);
