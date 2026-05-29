@@ -1,7 +1,7 @@
 export const GHID_IBKR_FAQS: Array<{ q: string; a: string }> = [
   {
     q: 'Ce format de extras de la Interactive Brokers acceptă InvesTax?',
-    a: 'Activity Statement în format CSV, descărcat din Client Portal: Performance & Reports → Statements → Activity → alegi anul fiscal complet → format CSV. NU folosi Flex Query (acela se exportă în XML sau text, cu alt layout) și nici extrasul PDF.',
+    a: 'Activity Statement în format CSV, descărcat din Client Portal: Performance & Reports → Statements → Activity → alegi anul fiscal complet → format CSV. NU folosi Flex Query (acela are altă structură, cu denumiri de câmpuri diferite) și nici extrasul PDF.',
   },
   {
     q: 'Interactive Brokers reține impozitul pe câștiguri pentru ANAF?',
@@ -25,7 +25,7 @@ export const GHID_IBKR_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Pot folosi Flex Query în loc de Activity Statement?',
-    a: 'Momentan nu. Flex Query are alt layout (câmpuri în camelCase, export XML/text) și nu este încă suportat. Folosește Activity Statement-ul standard exportat ca CSV.',
+    a: 'Momentan nu. Flex Query este un raport configurabil, cu altă structură și denumiri de câmpuri (camelCase), pe care InvesTax nu îl citește încă. Folosește Activity Statement-ul standard exportat ca CSV.',
   },
   {
     q: 'Ce diferență este între IBKR și XTB la declarare?',

@@ -115,9 +115,9 @@ export default function GhidIbkrPage() {
           <p className="flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
             <span>
-              <strong>Flex Query nu este același lucru.</strong> Flex Query exportă în XML sau text, cu denumiri de
-              câmpuri diferite, și nu este suportat momentan. Dacă încarci un Flex Query, procesarea va eșua sau va
-              afișa un avertisment. Folosește Activity Statement-ul standard.
+              <strong>Flex Query nu este același lucru.</strong> Este un raport configurabil, cu altă structură și
+              denumiri de câmpuri (camelCase), pe care InvesTax nu îl citește momentan. Dacă încarci un Flex Query,
+              procesarea va eșua sau va afișa un avertisment. Folosește Activity Statement-ul standard.
             </span>
           </p>
         </div>
