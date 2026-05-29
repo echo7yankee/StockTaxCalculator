@@ -21,6 +21,7 @@ const PricingPage = lazy(() => import('./pages/PricingPage'));
 const GhidIndexPage = lazy(() => import('./pages/GhidIndexPage'));
 const GhidTrading212Page = lazy(() => import('./pages/GhidTrading212Page'));
 const GhidRevolutPage = lazy(() => import('./pages/GhidRevolutPage'));
+const GhidIbkrPage = lazy(() => import('./pages/GhidIbkrPage'));
 const GhidCassPage = lazy(() => import('./pages/GhidCassPage'));
 const GhidDividendePage = lazy(() => import('./pages/GhidDividendePage'));
 const GhidDeclaratieUnicaPage = lazy(() => import('./pages/GhidDeclaratieUnicaPage'));
@@ -51,6 +52,7 @@ export default function App() {
           <Route path="/ghid" element={<GhidIndexPage />} />
           <Route path="/ghid/declaratie-unica-trading212" element={<GhidTrading212Page />} />
           <Route path="/ghid/declaratie-unica-revolut" element={<GhidRevolutPage />} />
+          <Route path="/ghid/declaratie-unica-ibkr" element={<GhidIbkrPage />} />
           <Route path="/ghid/cass-investitii" element={<GhidCassPage />} />
           <Route path="/ghid/dividende-broker-strain" element={<GhidDividendePage />} />
           <Route path="/ghid/cum-completez-declaratia-unica" element={<GhidDeclaratieUnicaPage />} />
