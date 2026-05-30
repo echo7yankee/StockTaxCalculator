@@ -2,12 +2,14 @@ import { Outlet } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
 import CookieBanner from './CookieBanner';
+import GhidLanguageNotice from '../common/GhidLanguageNotice';
 
 export default function Layout() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1">
+        <GhidLanguageNotice />
         <Outlet />
       </main>
       <Footer />
