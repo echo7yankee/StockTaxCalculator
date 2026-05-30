@@ -6,6 +6,8 @@ export { getCountryConfig, getSupportedCountries, romaniaTaxConfig, buildRomania
 export { parseTrading212Csv } from './parsers/trading212.js';
 export type { ParseResult, SkippedRow } from './parsers/trading212.js';
 export { parseIbkrCsv } from './parsers/ibkr.js';
+export { mergeParseResults } from './parsers/mergeParseResults.js';
+export type { MergedParseResult } from './parsers/mergeParseResults.js';
 export { calculateTaxes } from './engine/taxCalculator.js';
 export type { TaxEngineResult } from './engine/taxCalculator.js';
 export { applyBnrRates } from './engine/bnrEnrichment.js';

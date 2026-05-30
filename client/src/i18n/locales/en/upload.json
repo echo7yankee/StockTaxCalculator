@@ -58,5 +58,9 @@
   "ibkrCsvHint": "Upload your IBKR Activity Statement export (.csv).",
   "ibkrFullHistoryNote": "Export your full account history (from account opening), not just the tax year, so cost basis is correct.",
   "ibkrBetaNoteTitle": "Interactive Brokers (beta)",
-  "ibkrBetaNoteBody": "This parser is new and built without a real IBKR account to test against. Double-check the numbers against your Activity Statement before filing."
+  "ibkrBetaNoteBody": "This parser is new and built without a real IBKR account to test against. Double-check the numbers against your Activity Statement before filing.",
+  "csvMultiFileLabel": "{{count}} CSV files",
+  "csvMultiFileHint": "Tip: you can select several CSV files at once (e.g. one per year) and we'll merge them.",
+  "csvFilesMerged": "{{count}} files merged",
+  "csvDuplicatesRemoved": "{{count}} duplicate transactions removed across overlapping files"
 }

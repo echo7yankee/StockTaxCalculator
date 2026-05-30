@@ -6,13 +6,14 @@ import Papa from 'papaparse';
 import {
   parseTrading212Csv,
   parseIbkrCsv,
+  mergeParseResults,
   calculateTaxes,
   parseTrading212AnnualStatement,
   calculateTaxesFromPdf,
   applyBnrRates,
   getTaxConfigForYear,
 } from '@shared/index';
-import type { RawCsvRow, ParseResult, PdfParseResult } from '@shared/index';
+import type { RawCsvRow, ParseResult, MergedParseResult, PdfParseResult } from '@shared/index';
 import { extractPdfPageTexts } from '../utils/pdfExtractor';
 import { useCountry } from '../contexts/CountryContext';
 import { useUpload } from '../contexts/UploadContext';
@@ -37,6 +38,8 @@ interface PreviewData {
   totalRows?: number;
   skipped?: number;
   years?: number[];
+  sourceFileCount?: number;
+  duplicatesRemoved?: number;
   // PDF-specific
   closedResult?: number;
   currency?: string;
@@ -92,8 +95,7 @@ export default function UploadPage() {
 
   // Store parsed data for calculate step
   const [csvBroker, setCsvBroker] = useState<BrokerId>('trading212');
-  const [csvRows, setCsvRows] = useState<RawCsvRow[]>([]); // Trading212 CSV (header-keyed)
-  const [ibkrParse, setIbkrParse] = useState<ParseResult | null>(null); // IBKR multi-section CSV
+  const [csvParse, setCsvParse] = useState<MergedParseResult | null>(null); // merged CSV (1+ files)
   const [pdfData, setPdfData] = useState<PdfParseResult | null>(null);
 
   const fetchBnrRate = useCallback((year: number, currency: string) => {
@@ -118,9 +120,10 @@ export default function UploadPage() {
   }, [countryConfig]);
 
   // Shared CSV preview builder: counts, the single-year missing-history guard,
-  // the preview card, and parse telemetry. Used by both the Trading212 and IBKR
-  // CSV paths, which differ only in how the file is parsed into a ParseResult.
-  const buildCsvPreview = useCallback((file: File, parsed: ParseResult) => {
+  // the preview card, and parse telemetry. Fed the MERGED result of one or more
+  // CSV files (see mergeParseResults), so the missing-history guard runs over the
+  // combined history rather than tripping on a single partial-year export.
+  const buildCsvPreview = useCallback((files: File[], parsed: MergedParseResult) => {
     const buys = parsed.transactions.filter(t => t.action === 'buy').length;
     const sells = parsed.transactions.filter(t => t.action === 'sell').length;
     const dividends = parsed.transactions.filter(t => t.action === 'dividend').length;
@@ -132,7 +135,8 @@ export default function UploadPage() {
     if (years.length > 0) setSelectedYear(years[0]);
 
     // Detect a single-year export that may be missing historical buys (cost basis
-    // would be wrong). Applies to any broker's CSV, not just Trading212.
+    // would be wrong). Applies to any broker's CSV, not just Trading212. Merging
+    // multiple files is the intended fix: the guard now sees the combined set.
     const warnings = [...parsed.warnings];
     let historyWarning = false;
     if (years.length === 1) {
@@ -147,8 +151,10 @@ export default function UploadPage() {
     }
     setCsvHistoryWarning(historyWarning);
 
+    const label = files.length === 1 ? files[0].name : t('csvMultiFileLabel', { count: files.length });
+
     setPreview({
-      fileName: file.name,
+      fileName: label,
       fileType: 'csv',
       buys,
       sells,
@@ -159,13 +165,15 @@ export default function UploadPage() {
       warnings,
       year: years[0] ?? new Date().getFullYear() - 1,
       years,
+      sourceFileCount: parsed.sourceFileCount,
+      duplicatesRemoved: parsed.duplicatesRemoved,
     });
     setProcessing(false);
     analytics.csvUploaded();
     reportParseEvent({
       fileType: 'csv',
       outcome: warnings.length > 0 || historyWarning ? 'warning' : 'success',
-      fileName: file.name,
+      fileName: label,
       warnings: historyWarning
         ? [...warnings, 'Sells exceed buys for at least one security; CSV may be missing historical buy transactions']
         : warnings,
@@ -176,9 +184,11 @@ export default function UploadPage() {
         skipped: parsed.skipped.length,
         totalRows: parsed.transactions.length,
         year: years[0],
+        fileCount: parsed.sourceFileCount,
+        duplicatesRemoved: parsed.duplicatesRemoved,
       },
     });
-  }, []);
+  }, [t]);
 
   const reportCsvNoData = useCallback((file: File) => {
     setError(t('csvNoData'));
@@ -192,37 +202,49 @@ export default function UploadPage() {
     reportParseEvent({ fileType: 'csv', outcome: 'error', fileName: file.name, errorMessage: message });
   }, [t]);
 
-  // Trading212 CSV: one flat table parsed header-keyed into RawCsvRow[].
-  const processTrading212Csv = useCallback((file: File) => {
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const rows = results.data as RawCsvRow[];
-        if (rows.length === 0) { reportCsvNoData(file); return; }
-        const parsed = parseTrading212Csv(rows);
-        setCsvRows(rows);
-        buildCsvPreview(file, parsed);
-      },
-      error: (err) => reportCsvError(file, err.message),
-    });
-  }, [buildCsvPreview, reportCsvNoData, reportCsvError]);
+  // Parse one CSV file into raw rows via Papa, choosing the header mode by broker.
+  // IBKR Activity Statements are multi-section (header:false -> string[][]);
+  // Trading212 is one flat header-keyed table (header:true -> RawCsvRow[]).
+  const readCsvRows = useCallback(
+    (file: File, broker: BrokerId): Promise<unknown[]> =>
+      new Promise((resolve, reject) => {
+        Papa.parse(file, {
+          header: broker !== 'ibkr',
+          skipEmptyLines: true,
+          complete: (results) => resolve(results.data as unknown[]),
+          error: (err) => reject(err),
+        });
+      }),
+    [],
+  );
 
-  // IBKR Activity Statement CSV: multi-section, parsed as raw string[][].
-  const processIbkrCsv = useCallback((file: File) => {
-    Papa.parse(file, {
-      header: false,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const rows = results.data as string[][];
-        if (rows.length === 0) { reportCsvNoData(file); return; }
-        const parsed = parseIbkrCsv(rows);
-        setIbkrParse(parsed);
-        buildCsvPreview(file, parsed);
-      },
-      error: (err) => reportCsvError(file, err.message),
-    });
-  }, [buildCsvPreview, reportCsvNoData, reportCsvError]);
+  // Read + parse every selected CSV file with the chosen broker's parser, then
+  // merge into one ParseResult so the engine sees the combined cost-basis history
+  // (backlog #1, multi-file CSV). Empty files contribute nothing; if every file
+  // is empty we surface the same no-data error as the single-file path.
+  const processCsvFiles = useCallback(
+    async (files: File[], broker: BrokerId) => {
+      try {
+        const rawPerFile = await Promise.all(files.map((f) => readCsvRows(f, broker)));
+        const totalRawRows = rawPerFile.reduce((sum, rows) => sum + rows.length, 0);
+        if (totalRawRows === 0) { reportCsvNoData(files[0]); return; }
+
+        const perFileResults = rawPerFile
+          .filter((rows) => rows.length > 0)
+          .map((rows) =>
+            broker === 'ibkr'
+              ? parseIbkrCsv(rows as string[][])
+              : parseTrading212Csv(rows as RawCsvRow[]),
+          );
+        const merged = mergeParseResults(perFileResults);
+        setCsvParse(merged);
+        buildCsvPreview(files, merged);
+      } catch (err) {
+        reportCsvError(files[0], err instanceof Error ? err.message : 'Unknown error');
+      }
+    },
+    [readCsvRows, buildCsvPreview, reportCsvNoData, reportCsvError],
+  );
 
   const processPdf = useCallback(async (file: File) => {
     try {
@@ -275,64 +297,60 @@ export default function UploadPage() {
     }
   }, [fetchBnrRate, t]);
 
-  const processFile = useCallback((file: File) => {
-    setError(null);
-    setPreview(null);
-    setCsvRows([]);
-    setPdfData(null);
-
+  // Extension + tab-match + size validation for one file.
+  const validateFile = useCallback((file: File): string | null => {
     const name = file.name.toLowerCase();
     const isCsv = name.endsWith('.csv');
     const isPdf = name.endsWith('.pdf');
+    if (!isCsv && !isPdf) return t('invalidFileType');
+    if (activeTab === 'pdf' && !isPdf) return t('invalidFileType');
+    if (activeTab === 'csv' && !isCsv) return t('invalidFileType');
+    if (file.size > 10 * 1024 * 1024) return t('fileTooLarge');
+    return null;
+  }, [activeTab, t]);
 
-    if (!isCsv && !isPdf) {
-      setError(t('invalidFileType'));
-      return;
-    }
+  // Entry point for both the file input and drag-drop. PDF stays single-file (one
+  // annual statement); CSV accepts multiple files and merges them.
+  const processFiles = useCallback((files: File[]) => {
+    setError(null);
+    setPreview(null);
+    setCsvParse(null);
+    setPdfData(null);
+    if (files.length === 0) return;
 
-    // Validate file matches selected tab
-    if (activeTab === 'pdf' && !isPdf) {
-      setError(t('invalidFileType'));
-      return;
-    }
-    if (activeTab === 'csv' && !isCsv) {
-      setError(t('invalidFileType'));
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      setError(t('fileTooLarge'));
-      return;
-    }
-
-    setProcessing(true);
-
-    if (isCsv) {
-      if (csvBroker === 'ibkr') processIbkrCsv(file);
-      else processTrading212Csv(file);
-    } else {
+    if (activeTab === 'pdf') {
+      const file = files[0];
+      const validationError = validateFile(file);
+      if (validationError) { setError(validationError); return; }
+      setProcessing(true);
       processPdf(file);
+    } else {
+      for (const file of files) {
+        const validationError = validateFile(file);
+        if (validationError) { setError(validationError); return; }
+      }
+      setProcessing(true);
+      processCsvFiles(files, csvBroker);
     }
-  }, [processTrading212Csv, processIbkrCsv, processPdf, activeTab, t, csvBroker]);
+  }, [activeTab, csvBroker, validateFile, processPdf, processCsvFiles]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) processFile(file);
-  }, [processFile]);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) processFiles(files);
+  }, [processFiles]);
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) processFile(file);
-  }, [processFile]);
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 0) processFiles(files);
+  }, [processFiles]);
 
   const handleTabChange = (tab: FileType) => {
     setActiveTab(tab);
     setError(null);
     setPreview(null);
-    setCsvRows([]);
-    setIbkrParse(null);
+    setCsvParse(null);
     setPdfData(null);
     setCsvHistoryWarning(false);
   };
@@ -341,8 +359,7 @@ export default function UploadPage() {
     setCsvBroker(broker);
     setError(null);
     setPreview(null);
-    setCsvRows([]);
-    setIbkrParse(null);
+    setCsvParse(null);
     setCsvHistoryWarning(false);
   };
 
@@ -456,20 +473,18 @@ export default function UploadPage() {
         broker: 'trading212',
       });
     } else if (preview?.fileType === 'csv') {
-      const parsed = csvBroker === 'ibkr' ? ibkrParse : parseTrading212Csv(csvRows);
-      if (!parsed || parsed.transactions.length === 0) return;
-      await finalizeCsv(parsed, csvBroker, preview.fileName);
+      if (!csvParse || csvParse.transactions.length === 0) return;
+      await finalizeCsv(csvParse, csvBroker, preview.fileName);
     } else {
       return;
     }
 
     navigate('/results');
-  }, [countryConfig, preview, pdfData, csvRows, csvBroker, ibkrParse, exchangeRate, setUploadData, navigate, finalizeCsv]);
+  }, [countryConfig, preview, pdfData, csvParse, csvBroker, exchangeRate, setUploadData, navigate, finalizeCsv]);
 
   const clearUpload = () => {
     setPreview(null);
-    setCsvRows([]);
-    setIbkrParse(null);
+    setCsvParse(null);
     setPdfData(null);
     setError(null);
     setCsvHistoryWarning(false);
@@ -618,6 +633,11 @@ export default function UploadPage() {
                     {csvBroker === 'ibkr' ? t('ibkrFullHistoryNote') : t('csvFullHistoryNote')}
                   </p>
                 )}
+                {activeTab === 'csv' && (
+                  <p className="mt-1 text-xs text-accent dark:text-accent-light">
+                    {t('csvMultiFileHint')}
+                  </p>
+                )}
               </>
             )}
           </div>
@@ -625,6 +645,7 @@ export default function UploadPage() {
             ref={fileInputRef}
             type="file"
             accept={activeTab === 'pdf' ? '.pdf' : '.csv'}
+            multiple={activeTab === 'csv'}
             onChange={handleFileInput}
             className="hidden"
           />
@@ -657,6 +678,11 @@ export default function UploadPage() {
                       : t('transactionsParsed', { count: preview.totalRows })
                     }
                   </p>
+                  {preview.fileType === 'csv' && (preview.sourceFileCount ?? 1) > 1 && (
+                    <p className="text-xs text-gray-500 dark:text-slate-400">
+                      {t('csvFilesMerged', { count: preview.sourceFileCount })}
+                    </p>
+                  )}
                 </div>
               </div>
               <button
@@ -712,6 +738,11 @@ export default function UploadPage() {
                 {(preview.skipped ?? 0) > 0 && (
                   <p className="text-xs text-gray-500 dark:text-slate-400 mt-3">
                     {t('rowsSkipped', { count: preview.skipped })}
+                  </p>
+                )}
+                {(preview.duplicatesRemoved ?? 0) > 0 && (
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                    {t('csvDuplicatesRemoved', { count: preview.duplicatesRemoved })}
                   </p>
                 )}
 
