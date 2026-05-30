@@ -184,8 +184,6 @@ export default function UploadPage() {
         skipped: parsed.skipped.length,
         totalRows: parsed.transactions.length,
         year: years[0],
-        fileCount: parsed.sourceFileCount,
-        duplicatesRemoved: parsed.duplicatesRemoved,
       },
     });
   }, [t]);
