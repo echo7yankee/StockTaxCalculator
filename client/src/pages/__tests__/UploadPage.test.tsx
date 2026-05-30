@@ -683,3 +683,138 @@ describe('UploadPage - IBKR CSV (beta)', () => {
     );
   });
 });
+
+describe('UploadPage - multi-file CSV merge', () => {
+  const buy2024 = {
+    action: 'buy', ticker: 'AAPL', isin: 'US0378331005', shares: 10,
+    priceCurrency: 'USD', transactionDate: '2024-02-01', totalAmountOriginal: 1500,
+  } as unknown as Transaction;
+  const sell2025 = {
+    action: 'sell', ticker: 'AAPL', isin: 'US0378331005', shares: 10,
+    priceCurrency: 'USD', transactionDate: '2025-06-01', totalAmountOriginal: 2000,
+  } as unknown as Transaction;
+
+  it('merges multiple CSV files into one preview with a files-merged note', async () => {
+    sharedExports.parseTrading212Csv
+      .mockReturnValueOnce(makeCsvParseResult({ transactions: [buy2024] }))
+      .mockReturnValueOnce(makeCsvParseResult({ transactions: [sell2025] }));
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.upload(findHiddenFileInput(container), [
+      makeCsvFile('2024.csv'),
+      makeCsvFile('2025.csv'),
+    ]);
+
+    await waitFor(() => {
+      expect(screen.getByText('2 files merged')).toBeInTheDocument();
+    });
+    // Label is the multi-file summary, not a single filename.
+    expect(screen.getByText('2 CSV files')).toBeInTheDocument();
+    expect(sharedExports.parseTrading212Csv).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports duplicates removed when the same transactions appear in overlapping files', async () => {
+    // The default makeCsvParseResult() (3 identical transactions) is returned for
+    // both files, simulating two exports whose periods overlap completely.
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.upload(findHiddenFileInput(container), [
+      makeCsvFile('jan-jun.csv'),
+      makeCsvFile('jun-dec.csv'),
+    ]);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('3 duplicate transactions removed across overlapping files'),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it('clears the missing-history block that one partial file would trip on its own', async () => {
+    // File 1 has only the historical buy; file 2 has only the same-year sell,
+    // which alone would fire the missing-history guard. Merged, buys cover sells.
+    sharedExports.parseTrading212Csv
+      .mockReturnValueOnce(
+        makeCsvParseResult({
+          transactions: [
+            { action: 'buy', ticker: 'AAPL', isin: 'US0378331005', shares: 10, priceCurrency: 'USD', transactionDate: '2025-02-01', totalAmountOriginal: 1500 } as unknown as Transaction,
+          ],
+        }),
+      )
+      .mockReturnValueOnce(
+        makeCsvParseResult({
+          transactions: [
+            { action: 'sell', ticker: 'AAPL', isin: 'US0378331005', shares: 10, priceCurrency: 'USD', transactionDate: '2025-06-01', totalAmountOriginal: 2000 } as unknown as Transaction,
+          ],
+        }),
+      );
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.upload(findHiddenFileInput(container), [
+      makeCsvFile('buys.csv'),
+      makeCsvFile('sells.csv'),
+    ]);
+
+    await waitFor(() => {
+      expect(screen.getByText('2 files merged')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Incomplete Transaction History Detected')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Calculate Taxes/ })).not.toBeDisabled();
+  });
+
+  it('merges multiple IBKR files through parseIbkrCsv', async () => {
+    sharedExports.parseIbkrCsv
+      .mockReturnValueOnce(makeCsvParseResult({ transactions: [buy2024] }))
+      .mockReturnValueOnce(makeCsvParseResult({ transactions: [sell2025] }));
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.click(screen.getByRole('button', { name: /Interactive Brokers/ }));
+    await user.upload(findHiddenFileInput(container), [
+      makeCsvFile('ibkr-2024.csv'),
+      makeCsvFile('ibkr-2025.csv'),
+    ]);
+
+    await waitFor(() => {
+      expect(screen.getByText('2 files merged')).toBeInTheDocument();
+    });
+    expect(sharedExports.parseIbkrCsv).toHaveBeenCalledTimes(2);
+    expect(sharedExports.parseTrading212Csv).not.toHaveBeenCalled();
+  });
+
+  it('calculates from the merged transaction set across files', async () => {
+    // Fresh Response per call: finalizeCsv reads daily + average in parallel and
+    // a Response body can only be read once.
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ rates: {}, count: 0, rate: 4.9 }), { status: 200 }),
+      ),
+    );
+    sharedExports.parseTrading212Csv
+      .mockReturnValueOnce(makeCsvParseResult({ transactions: [buy2024] }))
+      .mockReturnValueOnce(makeCsvParseResult({ transactions: [sell2025] }));
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.upload(findHiddenFileInput(container), [
+      makeCsvFile('a.csv'),
+      makeCsvFile('b.csv'),
+    ]);
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole('button', { name: /Calculate Taxes/ }));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
+    expect(mockSetUploadData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        broker: 'trading212',
+        parseResult: expect.objectContaining({ sourceFileCount: 2 }),
+      }),
+    );
+  });
+});

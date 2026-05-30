@@ -58,5 +58,9 @@
   "ibkrCsvHint": "Încarcă exportul Activity Statement de la IBKR (.csv).",
   "ibkrFullHistoryNote": "Exportă tot istoricul contului (de la deschiderea contului), nu doar anul fiscal, ca să fie corect costul de achiziție.",
   "ibkrBetaNoteTitle": "Interactive Brokers (beta)",
-  "ibkrBetaNoteBody": "Acest parser este nou și a fost construit fără un cont IBKR real pentru testare. Verifică cifrele cu extrasul tău Activity Statement înainte să depui declarația."
+  "ibkrBetaNoteBody": "Acest parser este nou și a fost construit fără un cont IBKR real pentru testare. Verifică cifrele cu extrasul tău Activity Statement înainte să depui declarația.",
+  "csvMultiFileLabel": "{{count}} fișiere CSV",
+  "csvMultiFileHint": "Sfat: poți selecta mai multe fișiere CSV deodată (de ex. unul pe an) și le combinăm automat.",
+  "csvFilesMerged": "{{count}} fișiere combinate",
+  "csvDuplicatesRemoved": "{{count}} tranzacții duplicate eliminate din fișierele suprapuse"
 }
