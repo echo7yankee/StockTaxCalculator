@@ -13,7 +13,7 @@ import {
   applyBnrRates,
   getTaxConfigForYear,
 } from '@shared/index';
-import type { RawCsvRow, ParseResult, MergedParseResult, PdfParseResult } from '@shared/index';
+import type { RawCsvRow, ParseResult, MergedParseResult, PdfParseResult, CurrencyBnrRates } from '@shared/index';
 import { extractPdfPageTexts } from '../utils/pdfExtractor';
 import { useCountry } from '../contexts/CountryContext';
 import { useUpload } from '../contexts/UploadContext';
@@ -368,42 +368,58 @@ export default function UploadPage() {
   const finalizeCsv = useCallback(async (parsed: ParseResult, broker: BrokerId, fileName: string) => {
     if (!countryConfig) return;
 
-    // Detect foreign currency and fetch BNR per-date rates
-    const currencyCount: Record<string, number> = {};
-    for (const tx of parsed.transactions) {
-      if (tx.priceCurrency !== countryConfig.currency) {
-        currencyCount[tx.priceCurrency] = (currencyCount[tx.priceCurrency] || 0) + 1;
-      }
-    }
-    const foreignCurrency = Object.entries(currencyCount).sort((a, b) => b[1] - a[1])[0]?.[0];
+    // Detect every foreign currency present (not just the dominant one) and
+    // fetch BNR rates per currency, so a mixed USD/GBP/EUR statement converts
+    // each transaction at its OWN currency's rate (backlog #5). IBKR and merged
+    // multi-file exports make mixed-currency statements common.
+    const foreignCurrencies = [
+      ...new Set(
+        parsed.transactions
+          .map((tx) => tx.priceCurrency)
+          .filter((currency) => currency !== countryConfig.currency),
+      ),
+    ];
 
     let enrichedTransactions = parsed.transactions;
-    if (foreignCurrency) {
+    if (foreignCurrencies.length > 0) {
       try {
         setCsvRateLoading(true);
         setCsvRateStatus(null);
         // Per ANAF: capital gains use per-date BNR, dividends use annual average.
-        const [dailyRes, avgRes] = await Promise.all([
-          fetch(`/api/exchange-rates/${selectedYear}/daily?currency=${foreignCurrency}`),
-          fetch(`/api/exchange-rates/${selectedYear}/average?currency=${foreignCurrency}`),
-        ]);
-        if (!dailyRes.ok) throw new Error('Failed to fetch BNR rates');
-        const dailyData = await dailyRes.json();
-        // Annual-avg failure must not kill the daily path; dividends degrade to per-date instead.
-        let annualAvgRate: number | null = null;
-        if (avgRes.ok) {
-          try {
-            const avgData = await avgRes.json();
-            if (typeof avgData?.rate === 'number') annualAvgRate = avgData.rate;
-          } catch { /* leave annualAvgRate as null */ }
-        }
+        // Fetch daily + average for each currency in parallel.
+        const ratesByCurrency: Record<string, CurrencyBnrRates> = {};
+        let totalDates = 0;
+        await Promise.all(
+          foreignCurrencies.map(async (currency) => {
+            const [dailyRes, avgRes] = await Promise.all([
+              fetch(`/api/exchange-rates/${selectedYear}/daily?currency=${currency}`),
+              fetch(`/api/exchange-rates/${selectedYear}/average?currency=${currency}`),
+            ]);
+            if (!dailyRes.ok) throw new Error(`Failed to fetch BNR rates for ${currency}`);
+            const dailyData = await dailyRes.json();
+            // Annual-avg failure must not kill the daily path; that currency's
+            // dividends degrade to per-date instead.
+            let annualAvg: number | null = null;
+            if (avgRes.ok) {
+              try {
+                const avgData = await avgRes.json();
+                if (typeof avgData?.rate === 'number') annualAvg = avgData.rate;
+              } catch { /* leave annualAvg as null */ }
+            }
+            ratesByCurrency[currency] = { daily: dailyData.rates, annualAvg };
+            totalDates += dailyData.count ?? 0;
+          }),
+        );
         enrichedTransactions = applyBnrRates(
           parsed.transactions,
-          dailyData.rates,
+          ratesByCurrency,
           countryConfig.currency,
-          annualAvgRate,
         );
-        setCsvRateStatus(`BNR ${selectedYear} daily rates (${dailyData.count} dates)`);
+        setCsvRateStatus(
+          foreignCurrencies.length === 1
+            ? `BNR ${selectedYear} daily rates (${totalDates} dates)`
+            : `BNR ${selectedYear} daily rates (${foreignCurrencies.length} currencies, ${totalDates} dates)`,
+        );
       } catch {
         setCsvRateStatus(t('bnrRateFallback'));
       } finally {

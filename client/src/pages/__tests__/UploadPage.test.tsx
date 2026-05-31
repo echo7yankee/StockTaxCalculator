@@ -571,6 +571,65 @@ describe('UploadPage - Calculate Taxes flow', () => {
     const calcBtn = screen.getByRole('button', { name: /Calculate Taxes/ });
     expect(calcBtn).toBeDisabled();
   });
+
+  it('fetches BNR rates for every foreign currency in a mixed-currency CSV (backlog #5)', async () => {
+    // Fresh Response per call: finalizeCsv reads daily + average per currency in
+    // parallel and a Response body can only be read once.
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ rates: { '2025-03-15': 4.9 }, count: 1, rate: 4.9 }), {
+          status: 200,
+        }),
+      ),
+    );
+    // Two buys in different currencies (no sells, so the missing-history guard stays quiet).
+    sharedExports.parseTrading212Csv.mockReturnValueOnce(
+      makeCsvParseResult({
+        transactions: [
+          {
+            action: 'buy',
+            ticker: 'AAPL',
+            isin: 'US0378331005',
+            shares: 10,
+            price: 100,
+            priceCurrency: 'USD',
+            transactionDate: '2025-03-15',
+            total: 1000,
+            totalCurrency: 'USD',
+          } as unknown as Transaction,
+          {
+            action: 'buy',
+            ticker: 'VOD',
+            isin: 'GB00BH4HKS39',
+            shares: 10,
+            price: 40,
+            priceCurrency: 'GBP',
+            transactionDate: '2025-03-15',
+            total: 400,
+            totalCurrency: 'GBP',
+          } as unknown as Transaction,
+        ],
+      }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.upload(findHiddenFileInput(container), makeCsvFile());
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole('button', { name: /Calculate Taxes/ }));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
+
+    // Both currencies are fetched (daily + average each), not just the dominant one.
+    const fetchedUrls = fetchSpy.mock.calls.map((c) => String(c[0]));
+    expect(fetchedUrls).toContain('/api/exchange-rates/2025/daily?currency=USD');
+    expect(fetchedUrls).toContain('/api/exchange-rates/2025/average?currency=USD');
+    expect(fetchedUrls).toContain('/api/exchange-rates/2025/daily?currency=GBP');
+    expect(fetchedUrls).toContain('/api/exchange-rates/2025/average?currency=GBP');
+  });
 });
 
 describe('UploadPage - drag-and-drop drop zone', () => {
