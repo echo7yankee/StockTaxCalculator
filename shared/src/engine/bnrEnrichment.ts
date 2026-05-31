@@ -15,6 +15,34 @@ export interface CurrencyBnrRates {
 }
 
 /**
+ * Builds an on-or-before lookup over a daily BNR rate map (keys `YYYY-MM-DD`).
+ * Sorts the date keys once, then binary-searches for the latest rate on or
+ * before the queried date, so weekend/holiday dates resolve to the prior
+ * business day's rate. Returns null when the map is empty or the queried date
+ * precedes every known rate. Shared by the CSV flow (`applyBnrRates`) and the
+ * PDF flow (`calculateTaxesFromPdf`) so both paths convert capital gains at the
+ * same per-trade-date rule.
+ */
+export function makeRateLookup(daily: Record<string, number>): (dateStr: string) => number | null {
+  const rateDates = Object.keys(daily).sort();
+  return (dateStr: string): number | null => {
+    let lo = 0;
+    let hi = rateDates.length - 1;
+    let best: string | null = null;
+    while (lo <= hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (rateDates[mid] <= dateStr) {
+        best = rateDates[mid];
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return best ? daily[best] : null;
+  };
+}
+
+/**
  * Enriches raw CSV transactions with BNR exchange rates per ANAF rule:
  *
  *   - Foreign dividends → annual average BNR rate (`cursul mediu anual`).
@@ -46,22 +74,7 @@ export function applyBnrRates(
   // once per currency rather than once per transaction.
   const lookupByCurrency = new Map<string, (dateStr: string) => number | null>();
   for (const [currency, rates] of Object.entries(ratesByCurrency)) {
-    const rateDates = Object.keys(rates.daily).sort();
-    lookupByCurrency.set(currency, (dateStr: string): number | null => {
-      let lo = 0;
-      let hi = rateDates.length - 1;
-      let best: string | null = null;
-      while (lo <= hi) {
-        const mid = Math.floor((lo + hi) / 2);
-        if (rateDates[mid] <= dateStr) {
-          best = rateDates[mid];
-          lo = mid + 1;
-        } else {
-          hi = mid - 1;
-        }
-      }
-      return best ? rates.daily[best] : null;
-    });
+    lookupByCurrency.set(currency, makeRateLookup(rates.daily));
   }
 
   return transactions.map((tx) => {

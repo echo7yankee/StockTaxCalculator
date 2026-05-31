@@ -421,4 +421,103 @@ describe('calculateTaxesFromPdf', () => {
       expect(signWarning).toContain('RON');
     });
   });
+
+  describe('per-trade-date BNR for capital gains (backlog #21, art. 96)', () => {
+    function makeTrade(executionTime: string, totalResult: number, isin: string, currency = 'USD'): PdfSellTrade {
+      return {
+        executionTime, instrument: isin, isin, instrumentType: 'Stock',
+        instrumentCurrency: currency, positionSize: 1, averagePrice: 100,
+        executionPrice: 100 + totalResult, fxRate: 1, transactionCurrency: currency, totalResult,
+      } as PdfSellTrade;
+    }
+    function divUsd(gross: number): PdfDividend {
+      return {
+        instrument: 'DIV', isin: 'US0000000099', instrumentCurrency: 'USD', issuingCountry: 'US',
+        eligibleHoldings: 1, payDate: '15.06.2025', grossAmountPerShare: gross, grossAmount: gross,
+        fxRate: 1, grossAmountUsd: gross, whtRate: '0%', whtUsd: 0, netAmountUsd: gross,
+      } as PdfDividend;
+    }
+    // Two USD trades on dates with deliberately different rates; USD overview so
+    // the engine takes the per-row (per-trade-date) branch.
+    const daily = { '2025-01-10': 5.0, '2025-06-16': 4.0 };
+    const twoTradesUsdOverview = (extra: Partial<PdfParseResult> = {}) =>
+      makePdfData({
+        sellTrades: [makeTrade('10.01.2025 10:00', 100, 'US0000000001'), makeTrade('16.06.2025 10:00', 200, 'US0000000002')],
+        overview: { closedResult: 300, currency: 'USD' } as PdfParseResult['overview'],
+        dividends: [], distributions: [],
+        ...extra,
+      });
+
+    it('converts each sell trade at its own execution-date BNR rate', () => {
+      const result = calculateTaxesFromPdf(twoTradesUsdOverview(), romaniaTaxConfig, 4.5, daily);
+      // per-date: 100*5.0 + 200*4.0 = 1300, NOT a single rate 300*4.5 = 1350
+      expect(result.taxResult.capitalGains.netGains).toBeCloseTo(1300, 2);
+    });
+
+    it('dividends keep the annual-average rate even when a daily map is supplied', () => {
+      const data = twoTradesUsdOverview({ dividends: [divUsd(10)] });
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 4.5, daily);
+      // dividend gross = 10 * 4.5 (annual avg), not 10 * any daily rate
+      expect(result.taxResult.dividends.grossTotal).toBeCloseTo(45, 2);
+      // capital gains still per-date
+      expect(result.taxResult.capitalGains.netGains).toBeCloseTo(1300, 2);
+    });
+
+    it('weekend/holiday trade date falls back to the last prior business-day rate', () => {
+      // Trade on Sat 11.01.2025; nearest on-or-before is 10.01.2025 @ 5.0
+      const data = makePdfData({
+        sellTrades: [makeTrade('11.01.2025 10:00', 100, 'US0000000001')],
+        overview: { closedResult: 100, currency: 'USD' } as PdfParseResult['overview'],
+        dividends: [], distributions: [],
+      });
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 4.5, daily);
+      expect(result.taxResult.capitalGains.netGains).toBeCloseTo(500, 2);
+    });
+
+    it('trade date preceding every known daily rate falls back to the annual-average rate', () => {
+      const data = makePdfData({
+        sellTrades: [makeTrade('01.01.2025 10:00', 100, 'US0000000001')],
+        overview: { closedResult: 100, currency: 'USD' } as PdfParseResult['overview'],
+        dividends: [], distributions: [],
+      });
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 4.5, daily);
+      expect(result.taxResult.capitalGains.netGains).toBeCloseTo(450, 2);
+    });
+
+    it('unparseable executionTime falls back to the annual-average rate', () => {
+      const data = makePdfData({
+        sellTrades: [makeTrade('no date here', 100, 'US0000000001')],
+        overview: { closedResult: 100, currency: 'USD' } as PdfParseResult['overview'],
+        dividends: [], distributions: [],
+      });
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 4.5, daily);
+      expect(result.taxResult.capitalGains.netGains).toBeCloseTo(450, 2);
+    });
+
+    it('omitting the daily map (or empty map) reproduces single-rate behavior', () => {
+      const without = calculateTaxesFromPdf(twoTradesUsdOverview(), romaniaTaxConfig, 4.5);
+      const emptyMap = calculateTaxesFromPdf(twoTradesUsdOverview(), romaniaTaxConfig, 4.5, {});
+      // both fall back to 300 * 4.5 = 1350
+      expect(without.taxResult.capitalGains.netGains).toBeCloseTo(1350, 2);
+      expect(emptyMap.taxResult.capitalGains.netGains).toBeCloseTo(1350, 2);
+    });
+
+    it('overview-fallback branch (mixed currency) ignores the daily map', () => {
+      const data = makePdfData({
+        sellTrades: [makeTrade('10.01.2025 10:00', 100, 'US0000000001', 'USD'), makeTrade('16.06.2025 10:00', -50, 'IE0000000001', 'EUR')],
+        overview: { closedResult: 460, currency: 'RON' } as PdfParseResult['overview'],
+        dividends: [], distributions: [],
+      });
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 2, daily);
+      // mixed currency -> overview branch -> 460 * 2 = 920, daily map not applied
+      expect(result.taxResult.capitalGains.netGains).toBeCloseTo(920, 2);
+    });
+
+    it('per-security breakdown realized gain reconciles with per-trade-date totals', () => {
+      const result = calculateTaxesFromPdf(twoTradesUsdOverview(), romaniaTaxConfig, 4.5, daily);
+      const secSum = result.securities.reduce((s, sec) => s + sec.realizedGainLoss, 0);
+      // sum of per-security realized gains equals the per-date netGains
+      expect(secSum).toBeCloseTo(1300, 2);
+    });
+  });
 });

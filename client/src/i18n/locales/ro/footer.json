@@ -3,7 +3,7 @@
   "tagline": "Creat pentru investitorii care urasc foile de calcul.",
   "disclaimer": "InvesTax este un instrument software pentru calculul taxelor pe investitii. Nu suntem consultanti fiscali autorizati. Calculele se bazeaza pe legislatia fiscala romaneasca valabila pentru anul fiscal {{taxYear}} (declaratie depusa pana la {{filingDeadline}}). Pentru cazuri complexe sau audituri ANAF, consulta un contabil autorizat. InvesTax nu isi asuma raspunderea pentru declaratii fiscale incorecte.",
   "disclaimerTaxYear": "Calculator valabil pentru anul fiscal {{taxYear}} (declaratie depusa pana la {{filingDeadline}}). Pentru anul fiscal {{nextTaxYear}} si ulteriori, cota de impozitare se modifica conform Legii 239/2025. InvesTax va fi actualizat inainte de sezonul de depunere {{nextFilingYear}}.",
-  "disclaimerMethodology": "Sumele in valuta din extrasele PDF sunt convertite in RON folosind cursul mediu anual BNR pentru anul fiscal corespunzator.",
+  "disclaimerMethodology": "In extrasele PDF, castigurile de capital sunt convertite in RON la cursul BNR din data fiecarei tranzactii, iar dividendele la cursul mediu anual BNR (Codul Fiscal art. 96 si art. 131 alin. 6).",
   "disclaimerMethodologyLink": "Cum calculam",
   "links": {
     "guides": "Ghiduri",

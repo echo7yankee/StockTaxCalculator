@@ -5,7 +5,7 @@ export const GHID_CUM_CALCULAM_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Ce curs BNR aplicați pentru câștigurile de capital din PDF?',
-    a: 'În prezent, pentru câștigurile de capital extrase din PDF-urile Trading212 aplicăm cursul mediu anual BNR pentru anul fiscal respectiv. Aceasta este o simplificare uzuală în practica retail românească și conformă cu modul în care declarația aferentă anului 2025 a fost depusă la ANAF prin SPV (filing-ul fondatorului din 10 aprilie 2026, valoare totală 28.053 lei). Pentru fluxul CSV, deja aplicăm cursul BNR la data fiecărei tranzacții (Codul Fiscal art. 96). Tranziția fluxului PDF la cursul per-tranzacție este programată pentru perioada iunie-octombrie 2026, înainte de sezonul de depunere 2027.',
+    a: 'Cursul BNR de la data fiecărei tranzacții, conform Codul Fiscal art. 96 (la fel ca pentru fluxul CSV). Prețul de vânzare al fiecărei poziții se convertește la cursul BNR din ziua execuției, iar dividendele rămân la cursul mediu anual (art. 131 alin. 6). Notă istorică: declarația fondatorului pentru anul 2025, depusă la ANAF prin SPV pe 10 aprilie 2026 (total 28.053 lei), a folosit cursul mediu anual și pentru câștigurile de capital, o simplificare uzuală acceptată la acel moment. Acea depunere rămâne valabilă așa cum a fost depusă, dar nu mai reflectă metoda curentă a InvesTax.',
   },
   {
     q: 'Ce curs BNR aplicați pentru dividende?',

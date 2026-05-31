@@ -16,7 +16,7 @@ describe('Footer: methodology link', () => {
   it('renders the methodology disclaimer body inline with the link', () => {
     renderFooter();
     expect(
-      screen.getByText(/BNR annual average exchange rate/i, { exact: false })
+      screen.getByText(/BNR rate on each transaction date/i, { exact: false })
     ).toBeInTheDocument();
   });
 

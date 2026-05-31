@@ -16,6 +16,7 @@
 import type { TaxCalculationResult, SecurityBreakdown } from '../types/tax.js';
 import type { CountryTaxConfig } from '../types/country.js';
 import type { PdfParseResult, PdfDividend } from '../parsers/trading212Pdf.js';
+import { makeRateLookup } from './bnrEnrichment.js';
 
 export interface PdfTaxEngineResult {
   taxResult: TaxCalculationResult;
@@ -23,11 +24,40 @@ export interface PdfTaxEngineResult {
   warnings: string[];
 }
 
+/**
+ * Extracts the calendar date from a Trading212 sell-trade `executionTime`
+ * (e.g. "22.01.2025 19:16" or bare "15.03.2025") as an ISO `YYYY-MM-DD` string
+ * for BNR per-date rate lookup. Returns null when no `DD.MM.YYYY` date is
+ * present, in which case the caller falls back to the annual-average rate.
+ */
+function executionDateToIso(executionTime: string): string | null {
+  const m = /(\d{2})\.(\d{2})\.(\d{4})/.exec(executionTime);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+}
+
 export function calculateTaxesFromPdf(
   pdfData: PdfParseResult,
   config: CountryTaxConfig,
-  exchangeRate: number = 1
+  exchangeRate: number = 1,
+  dailyRates?: Record<string, number>
 ): PdfTaxEngineResult {
+  // Capital gains from `transferul titlurilor de valoare` convert at the BNR
+  // rate valid on each trade's execution date (Codul Fiscal art. 96). When a
+  // per-date `dailyRates` map is supplied (keys `YYYY-MM-DD`), each sell trade
+  // uses its own date's rate, with weekend/holiday dates resolving to the last
+  // prior business day. Without the map (or when a trade's date is missing or
+  // precedes every known rate), the trade falls back to the single annual
+  // `exchangeRate`, preserving the prior annual-average behavior for callers
+  // that don't supply daily rates and for degraded fetches. Dividends always
+  // convert at `exchangeRate` (the annual average, art. 131 alin. 6).
+  const dailyLookup = dailyRates ? makeRateLookup(dailyRates) : null;
+  const sellTradeRate = (trade: { executionTime: string }): number => {
+    if (!dailyLookup) return exchangeRate;
+    const iso = executionDateToIso(trade.executionTime);
+    const rate = iso ? dailyLookup(iso) : null;
+    return rate ?? exchangeRate;
+  };
+
   // Build per-security breakdown from sell trades + dividends + distributions
   const secMap = new Map<string, SecurityBreakdown>();
 
@@ -58,14 +88,15 @@ export function calculateTaxesFromPdf(
 
   for (const trade of pdfData.sellTrades) {
     const sec = getOrCreate(trade.isin, trade.instrument, trade.instrument);
-    const proceeds = trade.positionSize * trade.executionPrice * (trade.fxRate || 1) * exchangeRate;
-    const costBasis = proceeds - (trade.totalResult * exchangeRate);
+    const rate = sellTradeRate(trade);
+    const proceeds = trade.positionSize * trade.executionPrice * (trade.fxRate || 1) * rate;
+    const costBasis = proceeds - (trade.totalResult * rate);
 
     sec.totalSoldShares += trade.positionSize;
     sec.totalProceeds += round2(proceeds);
     sec.totalCostBasis += round2(costBasis);
-    sec.realizedGainLoss += round2(trade.totalResult * exchangeRate);
-    sec.weightedAvgCostLocal = trade.averagePrice * (trade.fxRate || 1) * exchangeRate;
+    sec.realizedGainLoss += round2(trade.totalResult * rate);
+    sec.weightedAvgCostLocal = trade.averagePrice * (trade.fxRate || 1) * rate;
 
     totalProceeds += proceeds;
     totalCostBasis += costBasis;
@@ -110,9 +141,15 @@ export function calculateTaxesFromPdf(
     const allSameCurrency = pdfData.sellTrades.every(t => t.transactionCurrency === firstCurrency);
     const matchesOverviewCurrency = !!pdfData.overview.currency && firstCurrency === pdfData.overview.currency;
     if (allSameCurrency && matchesOverviewCurrency) {
-      const perRowSum = pdfData.sellTrades.reduce((s, t) => s + t.totalResult, 0);
-      closedResultLocal = perRowSum * exchangeRate;
+      // Per-trade-date conversion (art. 96): each sell trade's result converts
+      // at its own execution-date BNR rate, then sums. Falls back to the single
+      // exchangeRate per trade when no daily map is supplied (byte-identical to
+      // the prior `perRowSum * exchangeRate` behavior).
+      closedResultLocal = pdfData.sellTrades.reduce((s, t) => s + t.totalResult * sellTradeRate(t), 0);
     } else {
+      // Overview is a single pre-aggregated total with no per-trade dates, so it
+      // can only take the single annual-average rate (mixed-currency, or
+      // trade-currency != overview-currency cases).
       closedResultLocal = (pdfData.overview.closedResult ?? 0) * exchangeRate;
     }
   }

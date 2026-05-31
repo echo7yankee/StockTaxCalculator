@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { ArrowLeft, AlertTriangle, FileText, Calculator } from 'lucide-react';
+import { ArrowLeft, FileText, Calculator } from 'lucide-react';
 import {
   GHID_CUM_CALCULAM_FAQS as FAQS,
   GHID_CUM_CALCULAM_ARTICLE_SCHEMA as articleSchema,
@@ -60,8 +60,8 @@ export default function GhidCumCalculamPage() {
             alin. 6).
           </li>
           <li>
-            <strong>Curs BNR pe câștiguri de capital:</strong> CSV folosește cursul BNR la data tranzacției (art. 96).
-            PDF folosește în prezent cursul mediu anual, tranziție la per-tranzacție programată iunie-octombrie 2026.
+            <strong>Curs BNR pe câștiguri de capital:</strong> atât fluxul CSV cât și fluxul PDF folosesc cursul BNR
+            la data fiecărei tranzacții (art. 96).
           </li>
           <li>
             <strong>Credit fiscal pe dividende:</strong> max(0, 10% × brut RON minus reținere străină RON), limitat la
@@ -137,25 +137,18 @@ export default function GhidCumCalculamPage() {
           fiecărei tranzacții (Codul Fiscal art. 96). Astfel, costul de achiziție și prețul de vânzare se convertesc
           fiecare la cursul BNR din ziua respectivă, iar câștigul în RON este diferența celor două sume convertite.
         </p>
-        <div className="my-4 p-4 bg-amber-500/5 dark:bg-amber-500/10 border-l-4 border-amber-500 rounded-r-xl text-sm">
-          <p className="font-semibold mb-2 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-500" />
-            Stare actuală a fluxurilor InvesTax (transparență metodologică)
-          </p>
+        <div className="my-4 p-4 bg-slate-500/5 dark:bg-slate-500/10 border-l-4 border-slate-400 rounded-r-xl text-sm">
+          <p className="font-semibold mb-2">Ambele fluxuri aplică aceeași regulă</p>
           <ul className="list-disc list-outside pl-5 space-y-1.5">
             <li>
-              <strong>Fluxul CSV</strong> aplică cursul BNR per-tranzacție pentru câștigurile de capital, conform
-              regulii stricte (art. 96).
+              <strong>Fluxul CSV și fluxul PDF</strong> aplică cursul BNR per-tranzacție pentru câștigurile de capital,
+              conform regulii stricte (art. 96). Dividendele rămân la cursul mediu anual (art. 131 alin. 6).
             </li>
             <li>
-              <strong>Fluxul PDF</strong> aplică în prezent cursul mediu anual BNR și pentru câștigurile de capital,
-              ca simplificare. Aceasta este o practică retail uzuală: declarația fondatorului InvesTax pentru anul
-              2025 a fost depusă la ANAF prin SPV folosind această metodă (total 28.053 lei, 10 aprilie 2026).
-            </li>
-            <li>
-              <strong>Tranziția fluxului PDF la cursul per-tranzacție</strong> este programată pentru iunie-octombrie
-              2026, înainte de sezonul de depunere 2027. Diferența numerică așteptată față de cursul mediu anual este
-              de ordinul zecilor sau sutelor de lei pentru retail buy-and-hold tipic, în orice direcție.
+              <strong>Notă istorică:</strong> declarația fondatorului InvesTax pentru anul 2025 a fost depusă la ANAF
+              prin SPV folosind cursul mediu anual și pentru câștigurile de capital (total 28.053 lei, 10 aprilie 2026),
+              o simplificare uzuală acceptată la acel moment. Acea depunere rămâne valabilă așa cum a fost depusă; nu
+              mai reflectă metoda curentă a InvesTax.
             </li>
           </ul>
         </div>

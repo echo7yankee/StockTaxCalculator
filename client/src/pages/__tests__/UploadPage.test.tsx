@@ -327,18 +327,25 @@ describe('UploadPage - PDF upload happy path', () => {
     );
   });
 
-  it('auto-fetches the BNR exchange rate when the PDF account currency is non-local', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(JSON.stringify({ rate: 4.55 }), { status: 200 }),
+  it('auto-fetches BNR average + daily rates when the PDF account currency is non-local', async () => {
+    // fetchBnrRate fetches the annual average (dividends) and the daily map
+    // (per-date capital gains, backlog #21) in parallel. Fresh Response per call
+    // since a Response body can only be read once.
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ rate: 4.55, rates: { '2025-06-01': 4.6 }, count: 1 }), {
+          status: 200,
+        }),
+      ),
     );
     const user = userEvent.setup();
     const { container } = renderPage();
     await user.upload(findHiddenFileInput(container), makePdfFile());
 
     await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledWith(
-        '/api/exchange-rates/2025/average?currency=USD',
-      );
+      const urls = fetchSpy.mock.calls.map((c) => String(c[0]));
+      expect(urls).toContain('/api/exchange-rates/2025/average?currency=USD');
+      expect(urls).toContain('/api/exchange-rates/2025/daily?currency=USD');
     });
   });
 
@@ -514,6 +521,65 @@ describe('UploadPage - Calculate Taxes flow', () => {
         }),
       }),
     );
+  });
+
+  it('passes the per-date daily BNR map to the engine for a single-currency PDF (backlog #21)', async () => {
+    const dailyMap = { '2025-06-01': 4.7, '2025-07-15': 4.3 };
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ rate: 4.46, rates: dailyMap, count: 2 }), { status: 200 }),
+      ),
+    );
+    // Trades share the USD overview currency, so the engine takes the per-row
+    // (per-trade-date) branch and the daily map is supplied as the 4th arg.
+    sharedExports.parseTrading212AnnualStatement.mockReturnValueOnce(
+      makePdfParseResult({
+        sellTrades: [
+          { ticker: 'AAPL', isin: 'US0378331005', executionTime: '01.06.2025', transactionCurrency: 'USD' },
+          { ticker: 'MSFT', isin: 'US5949181045', executionTime: '15.07.2025', transactionCurrency: 'USD' },
+        ] as unknown as PdfParseResult['sellTrades'],
+      }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.upload(findHiddenFileInput(container), makePdfFile());
+
+    // Wait until the daily map has loaded into state (rate-source note flips to
+    // "per-date + average") so Calculate sees the populated map.
+    await waitFor(() => expect(screen.getByText(/per-date \+ average/)).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Calculate Taxes/ }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
+
+    const lastCall = sharedExports.calculateTaxesFromPdf.mock.calls.at(-1);
+    expect(lastCall?.[3]).toEqual(dailyMap);
+  });
+
+  it('withholds the daily map for a mixed-currency PDF (keeps the annual-average path)', async () => {
+    const dailyMap = { '2025-06-01': 4.7 };
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ rate: 4.46, rates: dailyMap, count: 1 }), { status: 200 }),
+      ),
+    );
+    // Mixed USD + EUR trades do not all match the USD overview, so the engine
+    // uses overview * annual-rate and the map is withheld (4th arg undefined).
+    sharedExports.parseTrading212AnnualStatement.mockReturnValueOnce(
+      makePdfParseResult({
+        sellTrades: [
+          { ticker: 'AAPL', isin: 'US0378331005', executionTime: '01.06.2025', transactionCurrency: 'USD' },
+          { ticker: 'ASML', isin: 'NL0010273215', executionTime: '15.07.2025', transactionCurrency: 'EUR' },
+        ] as unknown as PdfParseResult['sellTrades'],
+      }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.upload(findHiddenFileInput(container), makePdfFile());
+    await waitFor(() => expect(screen.getByText(/per-date \+ average/)).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Calculate Taxes/ }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
+
+    const lastCall = sharedExports.calculateTaxesFromPdf.mock.calls.at(-1);
+    expect(lastCall?.[3]).toBeUndefined();
   });
 
   it('merges parser + engine warnings into parseWarnings on the PDF path', async () => {
