@@ -96,6 +96,11 @@ export default function UploadPage() {
 
   const [csvRateLoading, setCsvRateLoading] = useState(false);
   const [csvRateStatus, setCsvRateStatus] = useState<string | null>(null);
+  // Status kind drives the note color: 'ok' = full BNR (green), 'partial' /
+  // 'fallback' = some/all currencies on the broker rate (yellow). Tracked
+  // explicitly because every message contains the literal "BNR" so a substring
+  // check can't tell success from a degraded conversion (backlog #25).
+  const [csvRateStatusKind, setCsvRateStatusKind] = useState<'ok' | 'partial' | 'fallback' | null>(null);
   const [csvHistoryWarning, setCsvHistoryWarning] = useState(false);
 
   // Store parsed data for calculate step
@@ -404,32 +409,49 @@ export default function UploadPage() {
 
     let enrichedTransactions = parsed.transactions;
     if (foreignCurrencies.length > 0) {
+      setCsvRateLoading(true);
+      setCsvRateStatus(null);
+      setCsvRateStatusKind(null);
+      // Fetch BNR rates per currency INDEPENDENTLY (backlog #25): one currency's
+      // failure no longer degrades the whole statement. Currencies that fetch
+      // convert at their own BNR rate; a currency that fails is left OUT of the
+      // map, so applyBnrRates leaves its transactions unconverted and the engine
+      // falls back to the broker rate (totalAmountLocal=0 -> totalAmountOriginal
+      // * exchangeRateToLocal). The status names which currencies used BNR vs the
+      // broker rate so the mixed methodology is never implied as fully exact.
+      // (Per ANAF: capital gains use per-date BNR, dividends the annual average.)
+      const ratesByCurrency: Record<string, CurrencyBnrRates> = {};
+      const okCurrencies: string[] = [];
+      const failedCurrencies: string[] = [];
+      let totalDates = 0;
       try {
-        setCsvRateLoading(true);
-        setCsvRateStatus(null);
-        // Per ANAF: capital gains use per-date BNR, dividends use annual average.
-        // Fetch daily + average for each currency in parallel.
-        const ratesByCurrency: Record<string, CurrencyBnrRates> = {};
-        let totalDates = 0;
         await Promise.all(
           foreignCurrencies.map(async (currency) => {
-            const [dailyRes, avgRes] = await Promise.all([
-              fetch(`/api/exchange-rates/${selectedYear}/daily?currency=${currency}`),
-              fetch(`/api/exchange-rates/${selectedYear}/average?currency=${currency}`),
-            ]);
-            if (!dailyRes.ok) throw new Error(`Failed to fetch BNR rates for ${currency}`);
-            const dailyData = await dailyRes.json();
-            // Annual-avg failure must not kill the daily path; that currency's
-            // dividends degrade to per-date instead.
-            let annualAvg: number | null = null;
-            if (avgRes.ok) {
-              try {
-                const avgData = await avgRes.json();
-                if (typeof avgData?.rate === 'number') annualAvg = avgData.rate;
-              } catch { /* leave annualAvg as null */ }
+            try {
+              const [dailyRes, avgRes] = await Promise.all([
+                fetch(`/api/exchange-rates/${selectedYear}/daily?currency=${currency}`),
+                fetch(`/api/exchange-rates/${selectedYear}/average?currency=${currency}`),
+              ]);
+              if (!dailyRes.ok) throw new Error(`Failed to fetch BNR rates for ${currency}`);
+              const dailyData = await dailyRes.json();
+              if (!dailyData?.rates || Object.keys(dailyData.rates).length === 0) {
+                throw new Error(`Empty BNR rates for ${currency}`);
+              }
+              // Annual-avg failure must not kill the daily path; that currency's
+              // dividends degrade to per-date instead.
+              let annualAvg: number | null = null;
+              if (avgRes.ok) {
+                try {
+                  const avgData = await avgRes.json();
+                  if (typeof avgData?.rate === 'number') annualAvg = avgData.rate;
+                } catch { /* leave annualAvg as null */ }
+              }
+              ratesByCurrency[currency] = { daily: dailyData.rates, annualAvg };
+              totalDates += dailyData.count ?? 0;
+              okCurrencies.push(currency);
+            } catch {
+              failedCurrencies.push(currency);
             }
-            ratesByCurrency[currency] = { daily: dailyData.rates, annualAvg };
-            totalDates += dailyData.count ?? 0;
           }),
         );
         enrichedTransactions = applyBnrRates(
@@ -437,13 +459,27 @@ export default function UploadPage() {
           ratesByCurrency,
           countryConfig.currency,
         );
-        setCsvRateStatus(
-          foreignCurrencies.length === 1
-            ? `BNR ${selectedYear} daily rates (${totalDates} dates)`
-            : `BNR ${selectedYear} daily rates (${foreignCurrencies.length} currencies, ${totalDates} dates)`,
-        );
+        if (okCurrencies.length === 0) {
+          // No currency fetched: full broker-rate fallback (prior behavior).
+          setCsvRateStatus(t('bnrRateFallback'));
+          setCsvRateStatusKind('fallback');
+        } else if (failedCurrencies.length > 0) {
+          // Partial: BNR for the currencies that fetched, broker rate for the rest.
+          setCsvRateStatus(
+            t('bnrRatePartial', { ok: okCurrencies.join(', '), failed: failedCurrencies.join(', ') }),
+          );
+          setCsvRateStatusKind('partial');
+        } else {
+          setCsvRateStatus(
+            okCurrencies.length === 1
+              ? `BNR ${selectedYear} daily rates (${totalDates} dates)`
+              : `BNR ${selectedYear} daily rates (${okCurrencies.length} currencies, ${totalDates} dates)`,
+          );
+          setCsvRateStatusKind('ok');
+        }
       } catch {
         setCsvRateStatus(t('bnrRateFallback'));
+        setCsvRateStatusKind('fallback');
       } finally {
         setCsvRateLoading(false);
       }
@@ -925,7 +961,7 @@ export default function UploadPage() {
             )}
             {csvRateStatus && preview?.fileType === 'csv' && (
               <p className={`text-xs mt-1 ${
-                csvRateStatus.includes('BNR') ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'
+                csvRateStatusKind === 'ok' ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'
               }`}>
                 {csvRateStatus}
               </p>
