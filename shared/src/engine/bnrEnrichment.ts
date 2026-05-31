@@ -1,6 +1,20 @@
 import type { Transaction } from '../types/transaction.js';
 
 /**
+ * BNR reference rates for a single foreign currency, as returned by the
+ * `/api/exchange-rates/{year}/daily` and `/average` endpoints.
+ */
+export interface CurrencyBnrRates {
+  /** Per-date rates (`YYYY-MM-DD` → RON per 1 unit of the currency). */
+  daily: Record<string, number>;
+  /**
+   * Annual average rate (`cursul mediu anual`), or null when the average fetch
+   * failed; dividends in that currency then degrade to per-date.
+   */
+  annualAvg: number | null;
+}
+
+/**
  * Enriches raw CSV transactions with BNR exchange rates per ANAF rule:
  *
  *   - Foreign dividends → annual average BNR rate (`cursul mediu anual`).
@@ -11,34 +25,43 @@ import type { Transaction } from '../types/transaction.js';
  * at the rate valid on the day the gain is determined. Crypto follows the
  * per-transaction-date rule alongside capital gains.
  *
- * The function uses `findRateOnOrBefore` for per-date lookups (handles
- * weekends/holidays by falling back to the last known rate).
+ * Rates are keyed by currency, so a statement mixing several foreign currencies
+ * (e.g. USD + GBP + EUR, common on IBKR and merged multi-file exports) converts
+ * each transaction at its OWN currency's BNR rate rather than a single dominant
+ * currency's rate. A transaction whose `priceCurrency` is absent from
+ * `ratesByCurrency` is returned unchanged (the caller surfaces the missing-rate
+ * case as a UI warning rather than silently mis-converting it).
  *
- * When `annualAvgRate` is null, dividends fall back to per-date — caller
- * surfaces this as a UI warning so the user knows the methodology is degraded.
+ * Per-date lookups use `findRateOnOrBefore` (handles weekends/holidays by
+ * falling back to the last known rate). When a currency's `annualAvg` is null,
+ * its dividends fall back to per-date; the caller surfaces this as a degraded
+ * mode so the user knows the methodology is degraded.
  */
 export function applyBnrRates(
   transactions: Transaction[],
-  dailyRates: Record<string, number>,
+  ratesByCurrency: Record<string, CurrencyBnrRates>,
   localCurrency: string,
-  annualAvgRate: number | null,
 ): Transaction[] {
-  const rateDates = Object.keys(dailyRates).sort();
-
-  function findRateOnOrBefore(dateStr: string): number | null {
-    let lo = 0;
-    let hi = rateDates.length - 1;
-    let best: string | null = null;
-    while (lo <= hi) {
-      const mid = Math.floor((lo + hi) / 2);
-      if (rateDates[mid] <= dateStr) {
-        best = rateDates[mid];
-        lo = mid + 1;
-      } else {
-        hi = mid - 1;
+  // Precompute an on-or-before lookup per currency so the sorted-date scan runs
+  // once per currency rather than once per transaction.
+  const lookupByCurrency = new Map<string, (dateStr: string) => number | null>();
+  for (const [currency, rates] of Object.entries(ratesByCurrency)) {
+    const rateDates = Object.keys(rates.daily).sort();
+    lookupByCurrency.set(currency, (dateStr: string): number | null => {
+      let lo = 0;
+      let hi = rateDates.length - 1;
+      let best: string | null = null;
+      while (lo <= hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        if (rateDates[mid] <= dateStr) {
+          best = rateDates[mid];
+          lo = mid + 1;
+        } else {
+          hi = mid - 1;
+        }
       }
-    }
-    return best ? dailyRates[best] : null;
+      return best ? rates.daily[best] : null;
+    });
   }
 
   return transactions.map((tx) => {
@@ -51,10 +74,15 @@ export function applyBnrRates(
       };
     }
 
-    const useAnnualAvg = tx.action === 'dividend' && annualAvgRate !== null;
+    const rates = ratesByCurrency[tx.priceCurrency];
+    if (!rates) return tx;
+
+    const useAnnualAvg = tx.action === 'dividend' && rates.annualAvg !== null;
     const bnrRate = useAnnualAvg
-      ? annualAvgRate
-      : findRateOnOrBefore(new Date(tx.transactionDate).toISOString().split('T')[0]);
+      ? rates.annualAvg
+      : lookupByCurrency.get(tx.priceCurrency)!(
+          new Date(tx.transactionDate).toISOString().split('T')[0],
+        );
 
     if (!bnrRate) return tx;
 

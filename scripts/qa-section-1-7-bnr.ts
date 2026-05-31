@@ -139,11 +139,11 @@ async function main() {
   console.log('');
 
   // METHOD A: old/buggy — per-date for ALL (annualAvgRate = null)
-  const enrichedA = applyBnrRates(txs, dailyRates, 'RON', null);
+  const enrichedA = applyBnrRates(txs, { [CURRENCY]: { daily: dailyRates, annualAvg: null } }, 'RON');
   const { taxResult: rA } = calculateTaxes(enrichedA, romaniaTaxConfig, YEAR);
 
   // METHOD B: new/correct ANAF — annual avg for dividends only
-  const enrichedB = applyBnrRates(txs, dailyRates, 'RON', annualAvg);
+  const enrichedB = applyBnrRates(txs, { [CURRENCY]: { daily: dailyRates, annualAvg } }, 'RON');
   const { taxResult: rB } = calculateTaxes(enrichedB, romaniaTaxConfig, YEAR);
 
   console.log('Per-transaction BNR rates applied:');
@@ -205,7 +205,7 @@ async function main() {
   console.log('');
 
   console.log('Adversarial: degraded mode (annual avg fetch failed → annualAvgRate = null):');
-  const degraded = applyBnrRates(txs, dailyRates, 'RON', null);
+  const degraded = applyBnrRates(txs, { [CURRENCY]: { daily: dailyRates, annualAvg: null } }, 'RON');
   const divDates = ['2025-01-15', '2025-07-15'];
   const divEnriched = degraded.filter(t => t.action === 'dividend');
   let degradedOk = true;

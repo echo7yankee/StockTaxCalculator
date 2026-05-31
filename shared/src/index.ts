@@ -11,6 +11,7 @@ export type { MergedParseResult } from './parsers/mergeParseResults.js';
 export { calculateTaxes } from './engine/taxCalculator.js';
 export type { TaxEngineResult } from './engine/taxCalculator.js';
 export { applyBnrRates } from './engine/bnrEnrichment.js';
+export type { CurrencyBnrRates } from './engine/bnrEnrichment.js';
 export { parseTrading212AnnualStatement } from './parsers/trading212Pdf.js';
 export type { PdfParseResult, PdfOverview, PdfSellTrade, PdfDividend } from './parsers/trading212Pdf.js';
 export { calculateTaxesFromPdf } from './engine/pdfTaxCalculator.js';
