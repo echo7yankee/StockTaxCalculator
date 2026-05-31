@@ -696,6 +696,72 @@ describe('UploadPage - Calculate Taxes flow', () => {
     expect(fetchedUrls).toContain('/api/exchange-rates/2025/daily?currency=GBP');
     expect(fetchedUrls).toContain('/api/exchange-rates/2025/average?currency=GBP');
   });
+
+  it('partial currency failure: converts the currency that fetched, withholds the failed one + warning (backlog #25)', async () => {
+    // USD daily/average succeed; GBP daily fails (502). The statement must NOT
+    // fully degrade: USD converts at BNR, GBP is withheld from the map (engine
+    // broker-rate fallback in calculateTaxes), and the status names GBP.
+    vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
+      const u = String(url);
+      if (u.includes('currency=GBP') && u.includes('/daily')) {
+        return Promise.resolve(new Response('upstream error', { status: 502 }));
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ rates: { '2025-03-15': 4.9 }, count: 1, rate: 4.9 }), { status: 200 }),
+      );
+    });
+    sharedExports.parseTrading212Csv.mockReturnValueOnce(
+      makeCsvParseResult({
+        transactions: [
+          { action: 'buy', ticker: 'AAPL', isin: 'US0378331005', shares: 10, price: 100, priceCurrency: 'USD', transactionDate: '2025-03-15', total: 1000, totalCurrency: 'USD' } as unknown as Transaction,
+          { action: 'buy', ticker: 'VOD', isin: 'GB00BH4HKS39', shares: 10, price: 40, priceCurrency: 'GBP', transactionDate: '2025-03-15', total: 400, totalCurrency: 'GBP' } as unknown as Transaction,
+        ],
+      }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.upload(findHiddenFileInput(container), makeCsvFile());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole('button', { name: /Calculate Taxes/ }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
+
+    // applyBnrRates received only the currency that fetched; GBP was withheld.
+    const ratesArg = sharedExports.applyBnrRates.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+    expect(Object.keys(ratesArg)).toEqual(['USD']);
+    // The partial status names the failed currency (yellow note, not a hard-stop).
+    expect(screen.getByText(/For GBP, the broker rate was used/)).toBeInTheDocument();
+  });
+
+  it('all currencies fail: full broker-rate fallback (empty BNR map) + warning', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
+      const u = String(url);
+      if (u.includes('/daily')) return Promise.resolve(new Response('err', { status: 502 }));
+      return Promise.resolve(new Response(JSON.stringify({ rate: 4.9 }), { status: 200 }));
+    });
+    sharedExports.parseTrading212Csv.mockReturnValueOnce(
+      makeCsvParseResult({
+        transactions: [
+          { action: 'buy', ticker: 'AAPL', isin: 'US0378331005', shares: 10, price: 100, priceCurrency: 'USD', transactionDate: '2025-03-15', total: 1000, totalCurrency: 'USD' } as unknown as Transaction,
+        ],
+      }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.upload(findHiddenFileInput(container), makeCsvFile());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole('button', { name: /Calculate Taxes/ }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
+
+    const ratesArg = sharedExports.applyBnrRates.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+    expect(Object.keys(ratesArg)).toEqual([]);
+    expect(screen.getByText(/Could not fetch BNR rates/)).toBeInTheDocument();
+  });
 });
 
 describe('UploadPage - drag-and-drop drop zone', () => {
