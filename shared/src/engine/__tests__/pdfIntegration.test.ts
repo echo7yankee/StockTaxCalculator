@@ -18,11 +18,35 @@ const loadFixture = (name: string): string[] =>
 
 const pageTexts: string[] = loadFixture('annual-statement-2025-pages.json');
 
-const BNR_RATE_2025 = 4.7; // approximate average USD/RON for 2025
+const BNR_RATE_2025 = 4.7; // approximate average USD/RON, used by single-rate fallback shapes below
 
+// Real BNR USD/RON rates for tax year 2025, fetched from the prod
+// /api/exchange-rates/2025/daily endpoint (248 business days, keys YYYY-MM-DD).
+// Capital gains convert per-trade-date (art. 96); dividends use the annual
+// average (art. 131 alin. 6).
+const usdDaily2025: Record<string, number> = JSON.parse(
+  readFileSync(join(fixtureDir, 'bnr-usd-2025-daily.json'), 'utf8'),
+);
+const USD_ANNUAL_AVG_2025 = 4.4645; // official BNR cursul mediu anual USD/RON 2025
+
+// Backlog #21 re-baseline (2026-05-31): the PDF engine now converts capital
+// gains at the per-trade-date BNR rate (Codul Fiscal art. 96), dividends still
+// at the annual average (art. 131 alin. 6). Golden numbers below use real 2025
+// daily USD rates + the 4.4645 annual average.
+//
+//   methodology              | total tax  | after discount
+//   -------------------------|------------|---------------
+//   per-trade-date (current) |  28,500.62 |    27,937.20
+//   annual-avg 4.4645 (prior)|  28,052.89 |    27,502.90   <- Dragos's filed D212 (28,053 lei, 10 Apr 2026)
+//   flat 4.7 (old test)      |  29,019.94 |    28,440.94
+//
+// Dragos's April 10, 2026 ANAF-accepted filing (28,053 lei) was made under the
+// annual-average method and stands exactly as filed; it is a historical fact,
+// not the engine's current output for the same statement.
 describe('PDF Integration: Annual Statement 2025', () => {
   const parsed = parseTrading212AnnualStatement(pageTexts);
-  const { taxResult, securities, warnings: engineWarnings } = calculateTaxesFromPdf(parsed, romaniaTaxConfig, BNR_RATE_2025);
+  const { taxResult, securities, warnings: engineWarnings } =
+    calculateTaxesFromPdf(parsed, romaniaTaxConfig, USD_ANNUAL_AVG_2025, usdDaily2025);
 
   describe('parsing', () => {
     it('detects year 2025', () => {
@@ -97,26 +121,27 @@ describe('PDF Integration: Annual Statement 2025', () => {
     });
   });
 
-  describe('tax calculation with rate 4.7', () => {
-    it('capital gains: net gains ~192,458 RON', () => {
-      expect(taxResult.capitalGains.netGains).toBeCloseTo(192458, 0);
+  describe('tax calculation (per-trade-date BNR for capital gains, art. 96)', () => {
+    // Golden numbers locked to the bani. See the re-baseline table above.
+    it('capital gains: net gains 187,291.87 RON (per-trade-date conversion)', () => {
+      expect(taxResult.capitalGains.netGains).toBeCloseTo(187291.87, 2);
     });
 
-    it('capital gains tax: ~19,246 RON (10%)', () => {
-      expect(taxResult.capitalGains.taxOwed).toBeCloseTo(19246, 0);
+    it('capital gains tax: 18,729.19 RON (10%)', () => {
+      expect(taxResult.capitalGains.taxOwed).toBeCloseTo(18729.19, 2);
       expect(taxResult.capitalGains.taxRate).toBe(0.1);
     });
 
-    it('gross dividends: ~662 RON', () => {
-      expect(taxResult.dividends.grossTotal).toBeCloseTo(662, 0);
+    it('gross dividends: 628.60 RON (annual-average, art. 131 alin. 6)', () => {
+      expect(taxResult.dividends.grossTotal).toBeCloseTo(628.60, 2);
     });
 
-    it('withholding tax paid: ~12 RON', () => {
-      expect(taxResult.dividends.withholdingTaxPaid).toBeCloseTo(12, 0);
+    it('withholding tax paid: 11.43 RON', () => {
+      expect(taxResult.dividends.withholdingTaxPaid).toBeCloseTo(11.43, 2);
     });
 
-    it('dividend tax owed: ~54 RON', () => {
-      expect(taxResult.dividends.taxOwed).toBeCloseTo(54, 0);
+    it('dividend tax owed: 51.43 RON', () => {
+      expect(taxResult.dividends.taxOwed).toBeCloseTo(51.43, 2);
     });
 
     it('CASS: 24x bracket (>97,200 RON), fixed 9,720 RON', () => {
@@ -125,20 +150,17 @@ describe('PDF Integration: Annual Statement 2025', () => {
       expect(taxResult.healthContribution.totalNonSalaryIncome).toBeGreaterThan(97200);
     });
 
-    it('total tax: ~29,020 RON', () => {
-      expect(taxResult.totals.totalTaxOwed).toBeCloseTo(29020, 0);
+    it('total tax: 28,500.62 RON', () => {
+      expect(taxResult.totals.totalTaxOwed).toBeCloseTo(28500.62, 2);
     });
 
-    it('early filing discount: ~579 RON (3% of income tax only, excludes CASS)', () => {
+    it('early filing discount: 562.82 RON (3% of income tax only, excludes CASS)', () => {
       const incomeTax = taxResult.capitalGains.taxOwed + taxResult.dividends.taxOwed;
-      expect(taxResult.totals.earlyFilingDiscount).toBeCloseTo(incomeTax * 0.03, 0);
+      expect(taxResult.totals.earlyFilingDiscount).toBeCloseTo(incomeTax * 0.03, 2);
     });
 
-    it('total after discount: ~28,441 RON', () => {
-      const incomeTax = taxResult.capitalGains.taxOwed + taxResult.dividends.taxOwed;
-      expect(taxResult.totals.totalAfterDiscount).toBeCloseTo(
-        taxResult.totals.totalTaxOwed - incomeTax * 0.03, 0
-      );
+    it('total after discount: 27,937.20 RON', () => {
+      expect(taxResult.totals.totalAfterDiscount).toBeCloseTo(27937.20, 2);
     });
 
     it('engine emits no sanity warnings (Dragos 2025 statement is internally consistent)', () => {
@@ -152,10 +174,11 @@ describe('PDF Integration: Annual Statement 2025', () => {
       expect(securities.length).toBe(8);
     });
 
-    it('PLTR has highest realized gain', () => {
+    it('PLTR has highest realized gain (per-trade-date: Feb sale @4.77 + Oct sale @4.33)', () => {
       const pltr = securities.find(s => s.isin === 'US69608A1088');
       expect(pltr).toBeDefined();
-      expect(pltr!.realizedGainLoss).toBeCloseTo(31198.80 * BNR_RATE_2025, 0);
+      // 13,159.95 USD @ 4.7728 (05.02.2025) + 18,038.85 USD @ 4.3258 (02.10.2025)
+      expect(pltr!.realizedGainLoss).toBeCloseTo(140842.27, 1);
     });
 
     it('Vanguard S&P 500 has dividends but no trades', () => {

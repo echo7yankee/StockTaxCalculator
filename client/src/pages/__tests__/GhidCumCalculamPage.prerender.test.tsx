@@ -68,11 +68,16 @@ describe('GhidCumCalculamPage prerender (SSR)', () => {
     expect(html).toContain('9.720');
   });
 
-  it('emits the PDF cap-gains BNR simplification disclosure', () => {
+  it('emits the PDF cap-gains per-date BNR methodology (art. 96) and the historical 28,053 note', () => {
     const html = renderSsr();
+    // Both flows now convert capital gains per-trade-date (backlog #21).
+    expect(html).toContain('cursul BNR per-tranzacție pentru câștigurile de capital');
+    expect(html).toContain('art. 96');
+    // Dividends still annual-average.
     expect(html).toContain('cursul mediu anual BNR');
+    // Founder filing kept as a historical note, not current methodology.
+    expect(html).toContain('Notă istorică');
     expect(html).toContain('28.053 lei');
-    expect(html).toContain('iunie-octombrie 2026');
   });
 
   it('emits the CMP-vs-FIFO methodology positioning (no FIFO claim)', () => {

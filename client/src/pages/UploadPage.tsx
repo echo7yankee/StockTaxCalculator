@@ -88,6 +88,11 @@ export default function UploadPage() {
   const [exchangeRate, setExchangeRate] = useState<number>(DEFAULT_EXCHANGE_RATE_EUR_RON);
   const [rateLoading, setRateLoading] = useState(false);
   const [rateSource, setRateSource] = useState<string | null>(null);
+  // Per-date BNR daily map for the PDF flow (backlog #21). Capital gains convert
+  // at each trade's execution-date rate (art. 96); the editable `exchangeRate`
+  // (annual average) still governs dividends + the overview-fallback path. Null
+  // when the account currency is local or the daily fetch degraded.
+  const [pdfDailyRates, setPdfDailyRates] = useState<Record<string, number> | null>(null);
 
   const [csvRateLoading, setCsvRateLoading] = useState(false);
   const [csvRateStatus, setCsvRateStatus] = useState<string | null>(null);
@@ -103,14 +108,31 @@ export default function UploadPage() {
 
     setRateLoading(true);
     setRateSource(null);
+    setPdfDailyRates(null);
 
-    fetch(`/api/exchange-rates/${year}/average?currency=${currency}`)
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch rate');
-        return res.json();
-      })
-      .then(data => {
-        setExchangeRate(data.rate);
+    // Per ANAF, capital gains convert at the per-trade-date BNR rate (art. 96)
+    // and dividends at the annual average (art. 131 alin. 6). Fetch both: the
+    // average pre-fills the editable rate (used for dividends + the
+    // overview-fallback path), the daily map drives per-trade-date capital-gains
+    // conversion. A daily-fetch failure degrades capital gains to the annual
+    // average (the prior behavior), so it must not block the average path.
+    Promise.all([
+      fetch(`/api/exchange-rates/${year}/average?currency=${currency}`),
+      fetch(`/api/exchange-rates/${year}/daily?currency=${currency}`),
+    ])
+      .then(async ([avgRes, dailyRes]) => {
+        if (!avgRes.ok) throw new Error('Failed to fetch rate');
+        const avgData = await avgRes.json();
+        setExchangeRate(avgData.rate);
+        if (dailyRes.ok) {
+          const dailyData = await dailyRes.json();
+          if (dailyData?.rates && Object.keys(dailyData.rates).length > 0) {
+            setPdfDailyRates(dailyData.rates);
+            setRateSource(`BNR ${year} (per-date + average)`);
+            return;
+          }
+        }
+        // Daily rates unavailable: capital gains fall back to the annual average.
         setRateSource(`BNR ${year} average`);
       })
       .catch(() => {
@@ -451,11 +473,22 @@ export default function UploadPage() {
       const needsConversion = preview.currency !== countryConfig.currency;
       const rate = needsConversion ? exchangeRate : 1;
 
+      // Per-date BNR for capital gains (backlog #21, art. 96): supply the daily
+      // map only when every sell trade shares the overview currency, i.e. when
+      // the engine takes the per-row branch. For mixed-currency / mismatched
+      // statements the engine uses overview * annual-rate anyway, so withholding
+      // the map keeps that path byte-identical to the prior single-rate behavior.
+      const allTradesMatchOverview =
+        pdfData.sellTrades.length > 0 &&
+        pdfData.sellTrades.every((t) => t.transactionCurrency === pdfData.overview.currency);
+      const dailyRates =
+        needsConversion && allTradesMatchOverview ? pdfDailyRates ?? undefined : undefined;
+
       // Dispatch tax rates by the statement's income year (backlog #13). 2025 →
       // current rates; 2026+ falls back to the latest engine-supported year until
       // its rates are signed off (TAX_YEARS[year].engineSupported gate).
       const yearConfig = getTaxConfigForYear(countryConfig, pdfData.year);
-      const { taxResult, securities, warnings: engineWarnings } = calculateTaxesFromPdf(pdfData, yearConfig, rate);
+      const { taxResult, securities, warnings: engineWarnings } = calculateTaxesFromPdf(pdfData, yearConfig, rate, dailyRates);
 
       // Engine-emitted warnings (sign + magnitude mismatch) reach the operator
       // through the same channel as parser warnings, but tagged separately so
@@ -494,7 +527,7 @@ export default function UploadPage() {
     }
 
     navigate('/results');
-  }, [countryConfig, preview, pdfData, csvParse, csvBroker, exchangeRate, setUploadData, navigate, finalizeCsv]);
+  }, [countryConfig, preview, pdfData, csvParse, csvBroker, exchangeRate, pdfDailyRates, setUploadData, navigate, finalizeCsv]);
 
   const clearUpload = () => {
     setPreview(null);
