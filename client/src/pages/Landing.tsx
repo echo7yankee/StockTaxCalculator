@@ -111,7 +111,10 @@ export default function Landing() {
             IBKR
             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-semibold uppercase tracking-wide">{t('beta')}</span>
           </span>
-          <span className="px-6 py-3 card text-gray-500 dark:text-slate-400">Revolut ({t('comingSoon')})</span>
+          <span className="px-6 py-3 card inline-flex items-center gap-2">
+            Revolut
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-semibold uppercase tracking-wide">{t('beta')}</span>
+          </span>
         </div>
       </section>
     </div>

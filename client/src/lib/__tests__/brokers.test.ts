@@ -12,17 +12,23 @@ describe('broker registry', () => {
     expect(BROKERS.ibkr.label).toBe('Interactive Brokers');
   });
 
+  it('marks Revolut as beta', () => {
+    expect(BROKERS.revolut.status).toBe('beta');
+    expect(BROKERS.revolut.label).toBe('Revolut');
+  });
+
   it('lists trusted brokers before beta in CSV_BROKERS', () => {
-    expect(CSV_BROKERS.map((b) => b.id)).toEqual(['trading212', 'ibkr']);
+    expect(CSV_BROKERS.map((b) => b.id)).toEqual(['trading212', 'ibkr', 'revolut']);
   });
 
   it('resolves known broker ids', () => {
     expect(getBrokerMeta('ibkr')?.status).toBe('beta');
+    expect(getBrokerMeta('revolut')?.status).toBe('beta');
     expect(getBrokerMeta('trading212')?.status).toBe('trusted');
   });
 
   it('returns null for unknown, empty, or missing broker ids', () => {
-    expect(getBrokerMeta('revolut')).toBeNull();
+    expect(getBrokerMeta('xtb')).toBeNull();
     expect(getBrokerMeta('')).toBeNull();
     expect(getBrokerMeta(undefined)).toBeNull();
     expect(getBrokerMeta(null)).toBeNull();
