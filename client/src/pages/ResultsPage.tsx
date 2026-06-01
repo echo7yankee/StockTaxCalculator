@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, TrendingUp, DollarSign, Heart, Percent, FileText, Save, Check, ClipboardList, LogIn, AlertTriangle, MessageCircle } from 'lucide-react';
+import { ArrowLeft, TrendingUp, DollarSign, Heart, Percent, FileText, Save, Check, ClipboardList, LogIn, AlertTriangle, MessageCircle, Coins } from 'lucide-react';
+import { calculateTaxes, getTaxConfigForYear } from '@shared/index';
 import { useUpload } from '../contexts/UploadContext';
 import { useCountry } from '../contexts/CountryContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -30,6 +31,47 @@ export default function ResultsPage() {
   // Disclaimer reflects the engine-applicable tax year, not the uploaded statement's year.
   const yearVars = taxYearInterpVars(i18n.language);
 
+  // Dividend foreign-tax credit. Some statements (notably the Revolut Account
+  // Statement) carry no withholding line, so the parser reports 0 withholding and
+  // the dividend tax is over-stated (full Romanian rate, no foreign-tax credit).
+  // When we have dividends, no parsed withholding, and still hold the
+  // transactions to recompute from, let the user supply the foreign tax actually
+  // withheld; it feeds the engine's existing aggregate credit (art. 131).
+  const [whtInput, setWhtInput] = useState('');
+  const dividendTxs = transactions.filter((tx) => tx.action === 'dividend');
+  const dividendCurrencies = [...new Set(dividendTxs.map((tx) => tx.priceCurrency))];
+  const localCurrency = countryConfig?.currency ?? 'RON';
+  // A single foreign dividend currency lets the user enter the amount in that
+  // currency; we convert at the same blended BNR rate already applied to the
+  // dividends (no withholding-rate is assumed). Mixed currencies fall back to RON.
+  const singleForeignDivCurrency =
+    dividendCurrencies.length === 1 && dividendCurrencies[0] !== localCurrency ? dividendCurrencies[0] : null;
+  const dividendLocalSum = dividendTxs.reduce((s, tx) => s + (tx.totalAmountLocal || 0), 0);
+  const dividendOriginalSum = dividendTxs.reduce((s, tx) => s + (tx.totalAmountOriginal || 0), 0);
+  const whtInputToLocalRate =
+    singleForeignDivCurrency && dividendOriginalSum > 0 ? dividendLocalSum / dividendOriginalSum : 1;
+  const whtInputCurrency = singleForeignDivCurrency ?? localCurrency;
+  const canApplyDividendCredit =
+    !!taxResult && taxResult.dividends.grossTotal > 0 &&
+    taxResult.dividends.withholdingTaxPaid === 0 && transactions.length > 0;
+
+  const whtOverrideLocal = useMemo(() => {
+    if (!canApplyDividendCredit) return undefined;
+    const parsed = parseFloat(whtInput.replace(',', '.'));
+    if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+    return parsed * whtInputToLocalRate;
+  }, [canApplyDividendCredit, whtInput, whtInputToLocalRate]);
+
+  // Re-run the engine with the withholding override so the dividend tax + totals
+  // reflect the credit. No override (or no transactions) returns the original
+  // result unchanged, so the PDF flow and every clean parse are untouched.
+  const displayResult = useMemo(() => {
+    if (!taxResult) return null;
+    if (whtOverrideLocal == null || !countryConfig) return taxResult;
+    const cfg = getTaxConfigForYear(countryConfig, taxYear);
+    return calculateTaxes(transactions, cfg, taxYear, whtOverrideLocal).taxResult;
+  }, [taxResult, whtOverrideLocal, countryConfig, taxYear, transactions]);
+
   const handleSave = useCallback(async () => {
     if (!user) {
       navigate('/login', { state: { from: { pathname: '/results' } } });
@@ -49,7 +91,7 @@ export default function ResultsPage() {
           country: countryConfig?.code ?? 'RO',
           broker,
           fileName,
-          taxResult,
+          taxResult: displayResult ?? taxResult,
           securities,
         }),
       });
@@ -62,7 +104,7 @@ export default function ResultsPage() {
     } finally {
       setSaving(false);
     }
-  }, [taxResult, taxYear, countryConfig, fileName, securities, broker, user, navigate, t]);
+  }, [displayResult, taxResult, taxYear, countryConfig, fileName, securities, broker, user, navigate, t]);
 
   if (!taxResult) {
     return (
@@ -82,6 +124,9 @@ export default function ResultsPage() {
     );
   }
 
+  // Past the guard taxResult is non-null, so displayResult is too. `result` is
+  // the withholding-adjusted result when the user supplied a credit, else the original.
+  const result = displayResult ?? taxResult;
   const sym = countryConfig?.currencySymbol ?? 'RON';
   const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -214,36 +259,70 @@ export default function ResultsPage() {
         <SummaryCard
           icon={<TrendingUp className="w-6 h-6" />}
           label={t('results:capitalGainsTax')}
-          value={`${fmt(taxResult.capitalGains.taxOwed)} ${sym}`}
-          detail={t('results:capitalGainsTaxDetail', { netGains: fmt(taxResult.capitalGains.netGains), rate: taxResult.capitalGains.taxRate * 100 })}
+          value={`${fmt(result.capitalGains.taxOwed)} ${sym}`}
+          detail={t('results:capitalGainsTaxDetail', { netGains: fmt(result.capitalGains.netGains), rate: result.capitalGains.taxRate * 100 })}
           color="green"
         />
         <SummaryCard
           icon={<DollarSign className="w-6 h-6" />}
           label={t('results:dividendTax')}
-          value={`${fmt(taxResult.dividends.taxOwed)} ${sym}`}
-          detail={t('results:dividendTaxDetail', { gross: fmt(taxResult.dividends.grossTotal), withholding: fmt(taxResult.dividends.withholdingTaxPaid) })}
+          value={`${fmt(result.dividends.taxOwed)} ${sym}`}
+          detail={t('results:dividendTaxDetail', { gross: fmt(result.dividends.grossTotal), withholding: fmt(result.dividends.withholdingTaxPaid) })}
           color="blue"
         />
         <SummaryCard
           icon={<Heart className="w-6 h-6" />}
           label={t('results:healthContribution')}
-          value={`${fmt(taxResult.healthContribution.amountOwed)} ${sym}`}
+          value={`${fmt(result.healthContribution.amountOwed)} ${sym}`}
           detail={t('results:healthContributionDetail', {
-            bracket: t(cassBracketLabelKey(taxResult.healthContribution.thresholdHit)),
-            income: fmt(taxResult.healthContribution.totalNonSalaryIncome),
+            bracket: t(cassBracketLabelKey(result.healthContribution.thresholdHit)),
+            income: fmt(result.healthContribution.totalNonSalaryIncome),
           })}
           color="purple"
         />
         <SummaryCard
           icon={<Percent className="w-6 h-6" />}
           label={t('results:totalTaxOwed')}
-          value={`${fmt(taxResult.totals.totalTaxOwed)} ${sym}`}
-          detail={t('results:totalTaxOwedDetail', { amount: fmt(taxResult.totals.totalAfterDiscount), symbol: sym })}
+          value={`${fmt(result.totals.totalTaxOwed)} ${sym}`}
+          detail={t('results:totalTaxOwedDetail', { amount: fmt(result.totals.totalAfterDiscount), symbol: sym })}
           color="accent"
           highlight
         />
       </div>
+
+      {/* Dividend foreign-tax credit (statements without a withholding line, e.g. Revolut beta) */}
+      {canApplyDividendCredit && (
+        <div className="card mb-8" data-testid="dividend-wht-credit">
+          <div className="flex items-start gap-3">
+            <Coins className="w-5 h-5 text-accent dark:text-accent-light shrink-0 mt-1" />
+            <div className="flex-1">
+              <h3 className="font-semibold mb-1">{t('results:dividendCreditTitle')}</h3>
+              <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">{t('results:dividendCreditBody')}</p>
+              <label htmlFor="wht-input" className="block text-sm font-medium mb-1">
+                {t('results:dividendCreditLabel', { currency: whtInputCurrency })}
+              </label>
+              <input
+                id="wht-input"
+                type="number"
+                step="0.01"
+                min="0"
+                inputMode="decimal"
+                value={whtInput}
+                onChange={(e) => setWhtInput(e.target.value)}
+                placeholder="0.00"
+                className="input sm:w-48"
+                data-testid="dividend-wht-input"
+              />
+              {whtOverrideLocal != null && whtInputCurrency !== localCurrency && (
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-2" data-testid="dividend-wht-converted">
+                  {t('results:dividendCreditConverted', { local: fmt(whtOverrideLocal), symbol: sym })}
+                </p>
+              )}
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-2">{t('results:dividendCreditHint')}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <p className="text-xs text-gray-500 dark:text-slate-400 mb-6 text-right">
         {t('common:taxRulesUpdated', yearVars)}
@@ -253,18 +332,18 @@ export default function ResultsPage() {
       <div className="card mb-6">
         <h2 className="text-xl font-semibold mb-4">{t('results:capitalGainsBreakdown')}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-center">
-          <Stat label={t('results:totalProceeds')} value={`${fmt(taxResult.capitalGains.totalProceeds)} ${sym}`} />
-          <Stat label={t('results:totalCostBasis')} value={`${fmt(taxResult.capitalGains.totalCostBasis)} ${sym}`} />
-          <Stat label={t('results:netGains')} value={`${fmt(taxResult.capitalGains.netGains)} ${sym}`} positive />
-          <Stat label={t('results:losses')} value={`${fmt(taxResult.capitalGains.losses)} ${sym}`} negative={taxResult.capitalGains.losses > 0} />
+          <Stat label={t('results:totalProceeds')} value={`${fmt(result.capitalGains.totalProceeds)} ${sym}`} />
+          <Stat label={t('results:totalCostBasis')} value={`${fmt(result.capitalGains.totalCostBasis)} ${sym}`} />
+          <Stat label={t('results:netGains')} value={`${fmt(result.capitalGains.netGains)} ${sym}`} positive />
+          <Stat label={t('results:losses')} value={`${fmt(result.capitalGains.losses)} ${sym}`} negative={result.capitalGains.losses > 0} />
         </div>
       </div>
 
       {/* Early filing discount — only show as an actionable CTA while the deadline is still ahead */}
-      {taxResult.totals.earlyFilingDiscount > 0 && isBeforeEarlyFilingDeadline(countryConfig?.earlyFilingDeadline) && (
+      {result.totals.earlyFilingDiscount > 0 && isBeforeEarlyFilingDeadline(countryConfig?.earlyFilingDeadline) && (
         <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
           <p className="text-green-700 dark:text-green-400 font-medium">
-            {t('results:earlyFilingSave', { amount: fmt(taxResult.totals.earlyFilingDiscount), symbol: sym })}
+            {t('results:earlyFilingSave', { amount: fmt(result.totals.earlyFilingDiscount), symbol: sym })}
           </p>
           <p className="text-sm text-green-600 dark:text-green-500 mt-1">
             {t('results:earlyFilingDetail', { earlyDeadline: countryConfig?.earlyFilingDeadline, rate: `${((countryConfig?.earlyFilingDiscountRate ?? 0) * 100)}`, finalDeadline: countryConfig?.finalFilingDeadline })}

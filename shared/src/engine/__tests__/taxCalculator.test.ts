@@ -150,6 +150,64 @@ describe('calculateTaxes', () => {
     });
   });
 
+  // The Revolut Account Statement carries no withholding line, so the parser
+  // reports 0 withholding and the dividend tax is over-stated. The results page
+  // lets the user supply the foreign tax withheld via this optional override.
+  describe('dividend withholding override (Revolut beta foreign-tax credit)', () => {
+    const dividendTxs = [
+      makeTx({ id: 'd1', action: 'dividend', totalAmountOriginal: 1000, withholdingTaxOriginal: 0 }),
+    ];
+
+    it('an omitted override is byte-identical to the parsed-withholding result', () => {
+      const txs = [makeTx({ id: 'd1', action: 'dividend', totalAmountOriginal: 1000, withholdingTaxOriginal: 30 })];
+      const withArg = calculateTaxes(txs, romaniaTaxConfig, 2025, undefined);
+      const without = calculateTaxes(txs, romaniaTaxConfig, 2025);
+      expect(withArg.taxResult).toEqual(without.taxResult);
+      // 10% of 1000 = 100, minus parsed 30 WHT = 70
+      expect(without.taxResult.dividends.taxOwed).toBe(70);
+    });
+
+    it('replaces the (zero) parsed withholding and lowers the dividend tax', () => {
+      const result = calculateTaxes(dividendTxs, romaniaTaxConfig, 2025, 40);
+      // 10% of 1000 = 100, minus the supplied 40 = 60
+      expect(result.taxResult.dividends.withholdingTaxPaid).toBe(40);
+      expect(result.taxResult.dividends.taxOwed).toBe(60);
+    });
+
+    it('caps the foreign-tax credit at the Romanian dividend tax (floored at 0)', () => {
+      // A user whose dividends were withheld abroad at >10% (e.g. US 15%) owes
+      // nothing more in Romania: 10% of 1000 = 100, minus 150 = -50 -> 0.
+      const result = calculateTaxes(dividendTxs, romaniaTaxConfig, 2025, 150);
+      expect(result.taxResult.dividends.taxOwed).toBe(0);
+      expect(result.taxResult.dividends.withholdingTaxPaid).toBe(150);
+    });
+
+    it('floors a negative override at 0 so it can never inflate the tax', () => {
+      const result = calculateTaxes(dividendTxs, romaniaTaxConfig, 2025, -50);
+      expect(result.taxResult.dividends.withholdingTaxPaid).toBe(0);
+      expect(result.taxResult.dividends.taxOwed).toBe(100);
+    });
+
+    it('moves only the dividend line + totals, never CASS or capital gains', () => {
+      const txs = [
+        makeTx({ id: 'b1', action: 'buy', shares: 100, totalAmountOriginal: 10000 }),
+        makeTx({ id: 's1', action: 'sell', shares: 100, totalAmountOriginal: 40000 }),
+        makeTx({ id: 'd1', action: 'dividend', totalAmountOriginal: 1000, withholdingTaxOriginal: 0 }),
+      ];
+      const base = calculateTaxes(txs, romaniaTaxConfig, 2025);
+      const credited = calculateTaxes(txs, romaniaTaxConfig, 2025, 100);
+      // CASS keys off GROSS income (net gains 30000 + gross dividends 1000), unchanged.
+      expect(credited.taxResult.healthContribution.amountOwed).toBe(base.taxResult.healthContribution.amountOwed);
+      expect(credited.taxResult.healthContribution.totalNonSalaryIncome).toBe(base.taxResult.healthContribution.totalNonSalaryIncome);
+      expect(credited.taxResult.capitalGains.taxOwed).toBe(base.taxResult.capitalGains.taxOwed);
+      // Dividend tax drops 100 -> 0, so the total and the income-tax-only discount drop too.
+      expect(base.taxResult.dividends.taxOwed).toBe(100);
+      expect(credited.taxResult.dividends.taxOwed).toBe(0);
+      expect(credited.taxResult.totals.totalTaxOwed).toBe(base.taxResult.totals.totalTaxOwed - 100);
+      expect(credited.taxResult.totals.earlyFilingDiscount).toBeLessThan(base.taxResult.totals.earlyFilingDiscount);
+    });
+  });
+
   describe('CASS health contribution brackets', () => {
     it('returns 0 for income below 24,300', () => {
       const txs = [

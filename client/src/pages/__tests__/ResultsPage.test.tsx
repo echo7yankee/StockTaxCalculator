@@ -19,7 +19,8 @@ vi.mock('../../contexts/AuthContext', () => ({
     logout: vi.fn(),
   }),
 }));
-import type { TaxCalculationResult, SecurityBreakdown } from '@shared/index';
+import type { TaxCalculationResult, SecurityBreakdown, Transaction } from '@shared/index';
+import type { BrokerId } from '../../lib/brokers';
 
 const mockTaxResult: TaxCalculationResult = {
   taxYearId: '2025',
@@ -300,5 +301,113 @@ describe('ResultsPage beta-broker caveat', () => {
     expect(screen.getByTestId('parse-warning-banner')).toBeInTheDocument();
     // Hard-stop still hides the filing CTA when warnings exist.
     expect(screen.queryByTestId('filing-guide-cta')).not.toBeInTheDocument();
+  });
+});
+
+describe('ResultsPage dividend foreign-tax credit (Revolut beta)', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // A USD dividend converted at a blended 5.0 BNR rate (1000 RON / 200 USD), plus a
+  // closed AAPL position, so the dividend tax and the total are distinct numbers.
+  function makeRevolutTx(o: Partial<Transaction>): Transaction {
+    return {
+      id: 'r-1', csvUploadId: '', taxYearId: '',
+      action: 'dividend', transactionDate: new Date('2025-03-01'),
+      isin: '', ticker: 'MSFT', securityName: '',
+      shares: 0, pricePerShare: 0, priceCurrency: 'USD',
+      totalAmountOriginal: 200, exchangeRateToLocal: 5, totalAmountLocal: 1000,
+      withholdingTaxOriginal: 0, withholdingTaxCurrency: 'USD', withholdingTaxLocal: 0,
+      brokerTransactionId: '', ...o,
+    };
+  }
+
+  const revolutTransactions: Transaction[] = [
+    makeRevolutTx({ id: 'b1', action: 'buy', ticker: 'AAPL', shares: 10, totalAmountOriginal: 200, totalAmountLocal: 1000 }),
+    makeRevolutTx({ id: 's1', action: 'sell', ticker: 'AAPL', shares: 10, totalAmountOriginal: 600, totalAmountLocal: 3000 }),
+    makeRevolutTx({ id: 'd1', action: 'dividend', ticker: 'MSFT', totalAmountOriginal: 200, totalAmountLocal: 1000 }),
+  ];
+
+  // Mirrors what calculateTaxes produces for revolutTransactions with no withholding:
+  // cap gains 200 (10% of 2000), dividend tax 100 (10% of 1000), CASS 0, total 300.
+  const revolutTaxResult: TaxCalculationResult = {
+    taxYearId: '2025',
+    capitalGains: { totalProceeds: 3000, totalCostBasis: 1000, netGains: 2000, losses: 0, taxRate: 0.1, taxOwed: 200 },
+    dividends: { grossTotal: 1000, withholdingTaxPaid: 0, taxOwed: 100 },
+    healthContribution: { totalNonSalaryIncome: 3000, thresholdHit: 'none', amountOwed: 0 },
+    totals: { totalTaxOwed: 300, earlyFilingDiscount: 9, totalAfterDiscount: 291 },
+    calculatedAt: new Date('2025-03-15'),
+  };
+
+  function SetupCredit({ children, taxResult, transactions, broker }: {
+    children: React.ReactNode; taxResult: TaxCalculationResult; transactions: Transaction[]; broker: BrokerId;
+  }) {
+    const { setUploadData } = useUpload();
+    const didSet = useRef(false);
+    useEffect(() => {
+      if (!didSet.current) {
+        didSet.current = true;
+        setUploadData({
+          taxResult, securities: [], fileName: 'revolut-account-statement.xlsx',
+          taxYear: 2025, transactions, parseWarnings: [], broker,
+        });
+      }
+    }, [setUploadData, taxResult, transactions, broker]);
+    return <>{children}</>;
+  }
+
+  function renderCredit(taxResult: TaxCalculationResult, transactions: Transaction[], broker: BrokerId = 'revolut') {
+    return render(
+      <HelmetProvider>
+        <MemoryRouter>
+          <CountryProvider>
+            <UploadProvider>
+              <SetupCredit taxResult={taxResult} transactions={transactions} broker={broker}>
+                <ResultsPage />
+              </SetupCredit>
+            </UploadProvider>
+          </CountryProvider>
+        </MemoryRouter>
+      </HelmetProvider>
+    );
+  }
+
+  it('shows the credit panel when dividends have no parsed withholding and transactions are present', () => {
+    renderCredit(revolutTaxResult, revolutTransactions);
+    expect(screen.getByTestId('dividend-wht-credit')).toBeInTheDocument();
+    expect(screen.getByTestId('dividend-wht-input')).toBeInTheDocument();
+  });
+
+  it('does not show the panel when withholding was already parsed (T212 / PDF flow with no transactions)', () => {
+    renderResults(); // default mock: withholdingTaxPaid 12, transactions []
+    expect(screen.queryByTestId('dividend-wht-credit')).not.toBeInTheDocument();
+  });
+
+  it('does not show the panel when there are no dividends', () => {
+    const noDividends: TaxCalculationResult = {
+      ...revolutTaxResult,
+      dividends: { grossTotal: 0, withholdingTaxPaid: 0, taxOwed: 0 },
+    };
+    renderCredit(noDividends, revolutTransactions.filter((tx) => tx.action !== 'dividend'));
+    expect(screen.queryByTestId('dividend-wht-credit')).not.toBeInTheDocument();
+  });
+
+  it('applies the user-supplied foreign tax, lowering the dividend tax and the total', async () => {
+    const user = userEvent.setup();
+    renderCredit(revolutTaxResult, revolutTransactions);
+    // Before: total tax owed is 300 (the currency symbol is "lei", so assert the
+    // number only, like the sibling tests do).
+    expect(screen.getByText(/300\.00/)).toBeInTheDocument();
+
+    // 10 USD withheld * blended 5.0 rate = 50 RON credit. Dividend tax 100 -> 50,
+    // so the total drops 300 -> 250.
+    await user.type(screen.getByTestId('dividend-wht-input'), '10');
+    await waitFor(() => {
+      expect(screen.getByText(/250\.00/)).toBeInTheDocument();
+    });
+    // The conversion note confirms the foreign amount was converted to RON.
+    expect(screen.getByTestId('dividend-wht-converted')).toBeInTheDocument();
+    expect(screen.queryByText(/300\.00/)).not.toBeInTheDocument();
   });
 });
