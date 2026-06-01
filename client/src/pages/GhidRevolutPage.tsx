@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { ArrowLeft, AlertTriangle, FileText, Calculator } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, FileText, Calculator, ShieldAlert } from 'lucide-react';
 import {
   GHID_REVOLUT_FAQS as FAQS,
   GHID_REVOLUT_ARTICLE_SCHEMA as articleSchema,
@@ -61,10 +61,86 @@ export default function GhidRevolutPage() {
             onClick={() => navigate('/pricing')}
             className="text-accent dark:text-accent-light font-medium underline hover:no-underline"
           >
-            Vrei calculul automat din PDF Revolut? Vezi planuri →
+            Vrei calculul automat din extrasul Revolut? Vezi planuri →
           </button>
         </p>
       </section>
+
+      <section className="mb-10 p-5 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 rounded-r-xl">
+        <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
+          <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+          Revolut este în beta. Verifică cifrele înainte să depui.
+        </h2>
+        <p className="text-sm text-gray-700 dark:text-slate-300 leading-relaxed">
+          Suportul pentru Revolut este construit pe formatul publicat al extrasului Account Statement, dar nu am
+          validat încă suficiente extrase reale de la utilizatori. Până confirmăm cel puțin 3 extrase reale care se
+          procesează corect end-to-end, Revolut rămâne marcat ca beta: compară întotdeauna rezultatul cu extrasul tău
+          înainte să trimiți declarația. În plus, formatul actual Revolut nu detaliază impozitul reținut la sursă pe
+          dividende, așa că InvesTax aplică 10% pe tot dividendul, fără credit pentru reținerea străină. Asta
+          supraestimează impozitul pe dividende (direcția sigură, niciodată sub-declarat), deci verifică manual partea
+          de dividende. Pentru Trading212, în schimb, parserul este validat pe extrase reale.
+        </p>
+      </section>
+
+      <Section title="Ce extras încarci în InvesTax">
+        <p>
+          Pentru calculul automat, InvesTax citește un singur fișier: <strong>Account Statement</strong> (extrasul de
+          cont cu istoricul complet de tranzacții), exportat ca Excel. <em>Nu</em> rezumatul Profit &amp; Loss și nici
+          Cost &amp; Charges Report, acelea sunt sinteze și nu conțin tranzacțiile brute. Pașii în aplicația Revolut:
+        </p>
+        <ol className="list-decimal list-outside pl-6 space-y-2 mt-3">
+          <li>
+            Deschide secțiunea <strong>Invest</strong> (Stocks) și apasă <strong>More</strong>.
+          </li>
+          <li>
+            Mergi la <strong>Documents → Stocks → Account Statement</strong>.
+          </li>
+          <li>
+            Alege tab-ul <strong>Excel</strong> (nu PDF) și setează perioada pe <strong>All time</strong>, ca să
+            prindă tot costul de achiziție, nu doar anul fiscal.
+          </li>
+          <li>
+            Apasă <strong>Get statement</strong>. Fișierul descărcat este <strong>.xlsx</strong> (dacă îl convertești
+            tu în .csv, merge și așa).
+          </li>
+        </ol>
+        <div className="my-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-sm">
+          <p className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <span>
+              <strong>Etichetele din meniu pot diferi în aplicația în limba română</strong>, dar denumirile coloanelor
+              din fișier rămân în engleză. Dacă încarci rezumatul P&amp;L în loc de Account Statement, procesarea
+              afișează un avertisment în loc să raporteze un număr greșit.
+            </span>
+          </p>
+        </div>
+      </Section>
+
+      <Section title="Ce este acoperit în beta">
+        <p>Suportul Revolut în beta procesează:</p>
+        <ul className="list-disc list-outside pl-6 space-y-1 mt-3">
+          <li>
+            <strong>Cumpărările și vânzările</strong> de acțiuni și ETF-uri (inclusiv fracționare), pe care se
+            calculează câștigul net pe metoda CMP.
+          </li>
+          <li>
+            <strong>Dividendele</strong>, dar fără reținerea la sursă: formatul actual nu o detaliază, deci impozitul
+            pe dividende este calculat integral la 10% (vezi caseta beta de mai sus).
+          </li>
+          <li>
+            <strong>Split-urile forward</strong> sunt aplicate automat; split-urile inverse (reverse split) afișează un
+            avertisment în loc să fie ghicite.
+          </li>
+          <li>
+            <strong>Valutele USD, EUR, GBP și RON.</strong> Alte valute sunt ignorate cu avertisment.
+          </li>
+        </ul>
+        <p className="mt-3">
+          Mișcările de numerar (top-up, retrageri), comisioanele de custodie și transferurile între entitățile Revolut
+          nu sunt venituri impozabile și sunt ignorate. Orice tip de rând necunoscut oprește procesarea cu un
+          avertisment, ca să nu raportăm un total parțial.
+        </p>
+      </Section>
 
       <Section title="Cine trebuie să declare?">
         <p>
@@ -85,10 +161,9 @@ export default function GhidRevolutPage() {
       <Section title="Ce documente îți trebuie">
         <ol className="list-decimal list-outside pl-6 space-y-3">
           <li>
-            <strong>Raportul fiscal anual de la Revolut.</strong> În aplicație: Stocks → meniul cu trei puncte →
-            Statements (sau Documents) → cere Annual Statement / Tax Statement pentru perioada 1 ianuarie 2025 - 31
-            decembrie 2025. Dacă opțiunea nu apare în meniul tău, deschide un chat cu suportul Revolut și cere explicit
-            "Annual Tax Statement for 2025".
+            <strong>Account Statement-ul Revolut</strong> (extrasul de cont, Excel .xlsx) pentru tot istoricul,
+            exportat ca în secțiunea de mai sus. Conține toate tranzacțiile, dividendele și mișcările de numerar. Este
+            același fișier pe care îl încarci în InvesTax pentru calculul automat.
           </li>
           <li>
             <strong>Cursurile BNR pentru zilele cu tranzacții.</strong> De pe bnr.ro (secțiunea Cursul BNR) sau dintr-o
@@ -109,11 +184,11 @@ export default function GhidRevolutPage() {
       </Section>
 
       <Section title="Pașii completi">
-        <Step number={1} title="Descarcă raportul fiscal anual din Revolut">
+        <Step number={1} title="Descarcă Account Statement-ul din Revolut">
           <p>
-            În unele versiuni ale aplicației, opțiunea Tax Statement apare automat după 1 februarie. În altele, trebuie
-            cerută din chat-ul de suport. Răspunsul vine în 1-3 zile lucrătoare cu PDF-ul atașat. Conține toate
-            tranzacțiile, dividendele, dobânzile și taxele reținute pe anul calendaristic.
+            Folosește rețeta de export de mai sus (Invest → More → Documents → Stocks → Account Statement → Excel → All
+            time). Fișierul .xlsx conține toate tranzacțiile, dividendele și mișcările de numerar pe perioada aleasă.
+            Exportă tot istoricul, nu doar anul fiscal, ca să fie corect costul de achiziție pe metoda CMP.
           </p>
         </Step>
 
@@ -290,6 +365,11 @@ export default function GhidRevolutPage() {
 
       <Section title="Greșeli frecvente">
         <Mistake>
+          <strong>Descarci rezumatul Profit &amp; Loss în loc de Account Statement.</strong> Rezumatul P&amp;L și Cost
+          &amp; Charges Report sunt sinteze, nu conțin tranzacțiile brute de care are nevoie calculul. Pentru
+          încărcarea în InvesTax exporți Account Statement-ul în Excel, pe perioada All time.
+        </Mistake>
+        <Mistake>
           <strong>Cursul intern Revolut.</strong> ANAF nu acceptă cursul de schimb folosit de Revolut la executarea
           ordinului. Folosești doar cursul BNR oficial, cu reguli diferite pe tip de venit: pentru tranzacții,
           cursul BNR din ziua fiecărei tranzacții (Codul Fiscal art. 96); pentru dividende, cursul mediu anual BNR
@@ -323,10 +403,9 @@ export default function GhidRevolutPage() {
           <div>
             <h2 className="text-xl font-bold mb-2">Sau folosește calculatorul</h2>
             <p className="text-sm text-gray-700 dark:text-slate-300 mb-4">
-              Dacă pașii ăștia sunt prea mult, InvesTax automatizează tot procesul: introduci cifrele tale (sau încarci
-              raportul când broker-ul tău este suportat în versiunea PDF), primești cifrele formatate pentru
-              Declarația Unică, în RON, cu CMP și conversiile BNR aplicate. Versiune gratuită pentru calculul manual,
-              plan plătit pentru încărcarea automată a extraselor.
+              Dacă pașii ăștia ți se par prea mult, InvesTax aplică automat metoda CMP, cursurile BNR și pragurile CASS.
+              Calculatorul manual gratuit funcționează cu cifrele tale brute; pentru încărcarea automată a Account
+              Statement-ului Revolut (beta) ai nevoie de un plan plătit.
             </p>
             <div className="flex flex-wrap gap-3">
               <button onClick={() => navigate('/calculator')} className="btn-secondary inline-flex items-center gap-2">
@@ -335,7 +414,7 @@ export default function GhidRevolutPage() {
               </button>
               <button onClick={() => navigate('/pricing')} className="btn-primary inline-flex items-center gap-2">
                 <FileText className="w-4 h-4" />
-                Upload PDF (€12 lansare)
+                Încarcă extrasul Revolut (beta)
               </button>
             </div>
           </div>
@@ -364,8 +443,10 @@ export default function GhidRevolutPage() {
 
       <footer className="mt-12 pt-8 border-t border-gray-200 dark:border-navy-700 text-sm text-gray-500 dark:text-slate-400">
         <p>
-          Acest ghid este informativ. Dacă ai venituri complexe sau dubii pe regimul fiscal aplicabil unui produs
-          Revolut specific, consultă un contabil. ANAF publică ghidul oficial al Declarației Unice anual pe anaf.ro.
+          Acest ghid este informativ și acoperă regulile pentru anul fiscal 2025. Suportul Revolut este în beta:
+          verifică cifrele față de extrasul tău înainte de depunere. Dacă ai venituri complexe sau dubii pe regimul
+          fiscal aplicabil unui produs Revolut specific, consultă un contabil. ANAF publică ghidul oficial al
+          Declarației Unice anual pe anaf.ro.
         </p>
       </footer>
     </article>

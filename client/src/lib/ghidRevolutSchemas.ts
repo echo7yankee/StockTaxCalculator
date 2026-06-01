@@ -8,8 +8,12 @@ export const GHID_REVOLUT_FAQS: Array<{ q: string; a: string }> = [
     a: 'Funcțional, sunt aceeași zonă din aplicație, dar produsul a evoluat: Revolut Securities Europe UAB este entitatea care prestează serviciul pentru clienții din UE. Pentru declarare nu contează numele intern, contează că nu există reținere la sursă în România.',
   },
   {
-    q: 'Cum scot raportul fiscal din Revolut?',
-    a: 'În aplicație: Stocks → meniul cu trei puncte → Statements (sau Documents) → Annual Statement / Tax Statement pentru anul calendaristic 2025. Format PDF sau CSV. Dacă opțiunea nu apare, contactezi suportul prin chat și ceri raportul fiscal anual.',
+    q: 'Ce extras de la Revolut citește InvesTax?',
+    a: 'Account Statement-ul (extrasul de cont cu istoricul complet de tranzacții), exportat ca Excel: în aplicație Invest → More → Documents → Stocks → Account Statement → tab Excel → perioada All time → Get statement. Fișierul descărcat este .xlsx (un .csv convertit de tine este și el acceptat). NU folosi rezumatul Profit & Loss și nici Cost & Charges Report: acelea sunt sinteze, nu conțin fluxul de tranzacții de care are nevoie calculul.',
+  },
+  {
+    q: 'De ce este Revolut marcat ca beta și ce trebuie să verific?',
+    a: 'Parserul Revolut este construit pe formatul publicat al Account Statement-ului, dar încă nu am validat suficiente extrase reale de la utilizatori. Până confirmăm cel puțin 3 extrase reale care se procesează corect, rămâne în beta: compară întotdeauna cifrele cu extrasul tău înainte să depui. În plus, formatul actual Revolut nu detaliază impozitul reținut la sursă pe dividende, așa că InvesTax aplică 10% pe tot dividendul, fără credit pentru reținerea străină. Asta supraestimează impozitul pe dividende (direcția sigură, niciodată sub-declarat), dar verifică manual partea de dividende.',
   },
   {
     q: 'Trebuie să declar dacă am pus doar 100 lei pe Revolut și nu am vândut?',
