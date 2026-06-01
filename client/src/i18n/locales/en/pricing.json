@@ -50,7 +50,7 @@
     "q6": "Is my data safe?",
     "a6": "Your uploaded statements are processed and never shared. You can export or delete all your data at any time from Settings. We never sell user data.",
     "q7": "Which brokers are supported?",
-    "a7": "Currently Trading212 (PDF and CSV). Revolut and Interactive Brokers are coming soon.",
+    "a7": "Trading 212 (PDF and CSV), plus Interactive Brokers and Revolut in beta (double-check the result before filing).",
     "q8": "Does this apply to tax year 2026?",
     "a8": "No. Starting January 1, 2026, Law 239/2025 changed the tax rate to 16% for capital gains through non-resident brokers (Trading212, Interactive Brokers, eToro, Revolut). For Romania-resident brokers (XTB Romania, Tradeville, BT Capital Partners, etc.), withholding at source applies at 3% or 6% depending on holding period. InvesTax calculates taxes on income earned in 2025, filed via Declarația Unică by May 25, 2026. We will update the calculator for tax year 2026 before the 2027 filing season."
   },
