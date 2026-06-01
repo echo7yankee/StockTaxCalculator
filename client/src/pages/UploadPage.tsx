@@ -8,13 +8,14 @@ import {
   parseIbkrCsv,
   parseRevolutStatement,
   mergeParseResults,
+  applyKnownStockSplits,
   calculateTaxes,
   parseTrading212AnnualStatement,
   calculateTaxesFromPdf,
   applyBnrRates,
   getTaxConfigForYear,
 } from '@shared/index';
-import type { RawCsvRow, ParseResult, MergedParseResult, PdfParseResult, CurrencyBnrRates } from '@shared/index';
+import type { RawCsvRow, ParseResult, MergedParseResult, PdfParseResult, CurrencyBnrRates, AppliedSplit } from '@shared/index';
 import { extractPdfPageTexts } from '../utils/pdfExtractor';
 import { useCountry } from '../contexts/CountryContext';
 import { useUpload } from '../contexts/UploadContext';
@@ -50,6 +51,7 @@ interface PreviewData {
   years?: number[];
   sourceFileCount?: number;
   duplicatesRemoved?: number;
+  appliedSplits?: AppliedSplit[];
   // PDF-specific
   closedResult?: number;
   currency?: string;
@@ -160,7 +162,7 @@ export default function UploadPage() {
   // the preview card, and parse telemetry. Fed the MERGED result of one or more
   // CSV files (see mergeParseResults), so the missing-history guard runs over the
   // combined history rather than tripping on a single partial-year export.
-  const buildCsvPreview = useCallback((files: File[], parsed: MergedParseResult) => {
+  const buildCsvPreview = useCallback((files: File[], parsed: MergedParseResult, appliedSplits: AppliedSplit[] = []) => {
     const buys = parsed.transactions.filter(t => t.action === 'buy').length;
     const sells = parsed.transactions.filter(t => t.action === 'sell').length;
     const dividends = parsed.transactions.filter(t => t.action === 'dividend').length;
@@ -204,6 +206,7 @@ export default function UploadPage() {
       years,
       sourceFileCount: parsed.sourceFileCount,
       duplicatesRemoved: parsed.duplicatesRemoved,
+      appliedSplits,
     });
     setProcessing(false);
     analytics.csvUploaded();
@@ -284,8 +287,20 @@ export default function UploadPage() {
             return parseTrading212Csv(rows as RawCsvRow[]);
           });
         const merged = mergeParseResults(perFileResults);
-        setCsvParse(merged);
-        buildCsvPreview(files, merged);
+        // Trading212 CSV carries no split events, so repair cost basis for any
+        // position held across a known forward split. Revolut and IBKR report
+        // their own splits, so they must not consume the table (double-count).
+        const { transactions, appliedSplits, warnings } =
+          broker === 'trading212'
+            ? applyKnownStockSplits(merged.transactions)
+            : { transactions: merged.transactions, appliedSplits: [] as AppliedSplit[], warnings: [] as string[] };
+        const adjusted: MergedParseResult = {
+          ...merged,
+          transactions,
+          warnings: [...merged.warnings, ...warnings],
+        };
+        setCsvParse(adjusted);
+        buildCsvPreview(files, adjusted, appliedSplits);
       } catch (err) {
         reportCsvError(files[0], err instanceof Error ? err.message : 'Unknown error');
       }
@@ -866,6 +881,11 @@ export default function UploadPage() {
                 {(preview.duplicatesRemoved ?? 0) > 0 && (
                   <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                     {t('csvDuplicatesRemoved', { count: preview.duplicatesRemoved })}
+                  </p>
+                )}
+                {(preview.appliedSplits?.length ?? 0) > 0 && (
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                    {t('csvSplitsApplied', { splits: preview.appliedSplits!.map((s) => s.label).join(', ') })}
                   </p>
                 )}
 
