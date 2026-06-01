@@ -30,6 +30,20 @@ const XML_WITH_MULTIPLIER = `<?xml version="1.0" encoding="utf-8"?>
   </Body>
 </DataSet>`;
 
+// Two months with different day counts: January has 3 rates (mean 4.00),
+// February has 1 rate (mean 5.00). BNR's official annual average is the mean of
+// the two MONTHLY averages = 4.50. A flat daily mean would be (4+4+4+5)/4 = 4.25.
+// This fixture pins the monthly-of-monthly method (Codul Fiscal art. 131 alin. 6).
+const MULTI_MONTH_XML = `<?xml version="1.0" encoding="utf-8"?>
+<DataSet>
+  <Body>
+    <Cube date="2025-01-02"><Rate currency="USD">4.0000</Rate></Cube>
+    <Cube date="2025-01-03"><Rate currency="USD">4.0000</Rate></Cube>
+    <Cube date="2025-01-06"><Rate currency="USD">4.0000</Rate></Cube>
+    <Cube date="2025-02-03"><Rate currency="USD">5.0000</Rate></Cube>
+  </Body>
+</DataSet>`;
+
 describe('parseRatesXml', () => {
   it('extracts USD rates from BNR XML', () => {
     const rates = parseRatesXml(SAMPLE_XML, 'USD');
@@ -78,8 +92,20 @@ describe('getAverageRate', () => {
     );
 
     const avg = await getAverageRate(2025, 'USD');
-    // (4.573 + 4.589 + 4.601) / 3 = 4.5877
+    // All three rates are in January, so the single monthly average IS the annual
+    // average: (4.573 + 4.589 + 4.601) / 3 = 4.5877.
     expect(avg).toBeCloseTo(4.5877, 3);
+  });
+
+  it('averages the monthly averages, not the daily rates (art. 131 alin. 6)', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(MULTI_MONTH_XML, { status: 200 })
+    );
+
+    const avg = await getAverageRate(2025, 'USD');
+    // Monthly-of-monthly: (mean(Jan)=4.00 + mean(Feb)=5.00) / 2 = 4.5000.
+    // A flat daily mean would (wrongly) give (4+4+4+5)/4 = 4.2500.
+    expect(avg).toBe(4.5);
   });
 
   it('caches results for repeated calls', async () => {
