@@ -6,6 +6,7 @@ import Papa from 'papaparse';
 import {
   parseTrading212Csv,
   parseIbkrCsv,
+  parseRevolutStatement,
   mergeParseResults,
   calculateTaxes,
   parseTrading212AnnualStatement,
@@ -24,6 +25,15 @@ import { CSV_BROKERS, type BrokerId } from '../lib/brokers';
 import PageMeta from '../components/common/PageMeta';
 
 type FileType = 'csv' | 'pdf';
+
+/** Coerce a read-excel-file cell (string | number | boolean | Date | null) to a
+ *  string, so the Revolut parser sees the same row shape it gets from a CSV parse.
+ *  Excel date cells become ISO strings the parser's `new Date()` can read. */
+function xlsxCellToString(cell: unknown): string {
+  if (cell === null || cell === undefined) return '';
+  if (cell instanceof Date) return cell.toISOString();
+  return String(cell);
+}
 
 interface PreviewData {
   fileName: string;
@@ -227,19 +237,31 @@ export default function UploadPage() {
     reportParseEvent({ fileType: 'csv', outcome: 'error', fileName: file.name, errorMessage: message });
   }, [t]);
 
-  // Parse one CSV file into raw rows via Papa, choosing the header mode by broker.
-  // IBKR Activity Statements are multi-section (header:false -> string[][]);
-  // Trading212 is one flat header-keyed table (header:true -> RawCsvRow[]).
-  const readCsvRows = useCallback(
-    (file: File, broker: BrokerId): Promise<unknown[]> =>
-      new Promise((resolve, reject) => {
+  // Read one broker export into the raw rows its parser expects.
+  //  - Trading212: one flat header-keyed table (Papa header:true -> RawCsvRow[]).
+  //  - IBKR: multi-section statement (Papa header:false -> string[][]).
+  //  - Revolut: an Excel Account Statement, read via a lazy-loaded xlsx reader into
+  //    string[][] (kept off the initial bundle); a converted .csv is also accepted
+  //    and parsed header:false like IBKR.
+  const readBrokerFile = useCallback(
+    (file: File, broker: BrokerId): Promise<unknown[]> => {
+      if (broker === 'revolut' && file.name.toLowerCase().endsWith('.xlsx')) {
+        return import('read-excel-file/browser').then(async ({ default: readXlsxFile }) => {
+          // read-excel-file returns rows of cells at runtime; its `Sheet` type is
+          // awkward to index, so coerce through unknown to a plain 2D array.
+          const rows = (await readXlsxFile(file)) as unknown as unknown[][];
+          return rows.map((row) => row.map((cell) => xlsxCellToString(cell)));
+        });
+      }
+      return new Promise((resolve, reject) => {
         Papa.parse(file, {
-          header: broker !== 'ibkr',
+          header: broker === 'trading212',
           skipEmptyLines: true,
           complete: (results) => resolve(results.data as unknown[]),
           error: (err) => reject(err),
         });
-      }),
+      });
+    },
     [],
   );
 
@@ -250,17 +272,17 @@ export default function UploadPage() {
   const processCsvFiles = useCallback(
     async (files: File[], broker: BrokerId) => {
       try {
-        const rawPerFile = await Promise.all(files.map((f) => readCsvRows(f, broker)));
+        const rawPerFile = await Promise.all(files.map((f) => readBrokerFile(f, broker)));
         const totalRawRows = rawPerFile.reduce((sum, rows) => sum + rows.length, 0);
         if (totalRawRows === 0) { reportCsvNoData(files[0]); return; }
 
         const perFileResults = rawPerFile
           .filter((rows) => rows.length > 0)
-          .map((rows) =>
-            broker === 'ibkr'
-              ? parseIbkrCsv(rows as string[][])
-              : parseTrading212Csv(rows as RawCsvRow[]),
-          );
+          .map((rows) => {
+            if (broker === 'ibkr') return parseIbkrCsv(rows as string[][]);
+            if (broker === 'revolut') return parseRevolutStatement(rows as string[][]);
+            return parseTrading212Csv(rows as RawCsvRow[]);
+          });
         const merged = mergeParseResults(perFileResults);
         setCsvParse(merged);
         buildCsvPreview(files, merged);
@@ -268,7 +290,7 @@ export default function UploadPage() {
         reportCsvError(files[0], err instanceof Error ? err.message : 'Unknown error');
       }
     },
-    [readCsvRows, buildCsvPreview, reportCsvNoData, reportCsvError],
+    [readBrokerFile, buildCsvPreview, reportCsvNoData, reportCsvError],
   );
 
   const processPdf = useCallback(async (file: File) => {
@@ -325,14 +347,20 @@ export default function UploadPage() {
   // Extension + tab-match + size validation for one file.
   const validateFile = useCallback((file: File): string | null => {
     const name = file.name.toLowerCase();
-    const isCsv = name.endsWith('.csv');
     const isPdf = name.endsWith('.pdf');
-    if (!isCsv && !isPdf) return t('invalidFileType');
-    if (activeTab === 'pdf' && !isPdf) return t('invalidFileType');
-    if (activeTab === 'csv' && !isCsv) return t('invalidFileType');
+    const isCsv = name.endsWith('.csv');
+    const isXlsx = name.endsWith('.xlsx');
+    if (activeTab === 'pdf') {
+      if (!isPdf) return t('invalidFileType');
+    } else {
+      // CSV/spreadsheet tab: Revolut exports Excel (.xlsx); a converted .csv is
+      // also accepted. Other brokers are .csv only.
+      const accepted = csvBroker === 'revolut' ? isXlsx || isCsv : isCsv;
+      if (!accepted) return t('invalidFileType');
+    }
     if (file.size > 10 * 1024 * 1024) return t('fileTooLarge');
     return null;
-  }, [activeTab, t]);
+  }, [activeTab, csvBroker, t]);
 
   // Entry point for both the file input and drag-drop. PDF stays single-file (one
   // annual statement); CSV accepts multiple files and merges them.
@@ -668,7 +696,11 @@ export default function UploadPage() {
           <div className="flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <p className="text-sm text-amber-700 dark:text-amber-400">
-              {csvBroker === 'ibkr' ? t('ibkrBetaPreWarning') : t('csvPreWarning')}
+              {csvBroker === 'ibkr'
+                ? t('ibkrBetaPreWarning')
+                : csvBroker === 'revolut'
+                  ? t('revolutBetaPreWarning')
+                  : t('csvPreWarning')}
             </p>
           </div>
         </div>
@@ -709,11 +741,19 @@ export default function UploadPage() {
                 <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
                   {activeTab === 'pdf'
                     ? t('pdfHint')
-                    : csvBroker === 'ibkr' ? t('ibkrCsvHint') : t('csvHint')}
+                    : csvBroker === 'ibkr'
+                      ? t('ibkrCsvHint')
+                      : csvBroker === 'revolut'
+                        ? t('revolutHint')
+                        : t('csvHint')}
                 </p>
                 {activeTab === 'csv' && (
                   <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
-                    {csvBroker === 'ibkr' ? t('ibkrFullHistoryNote') : t('csvFullHistoryNote')}
+                    {csvBroker === 'ibkr'
+                      ? t('ibkrFullHistoryNote')
+                      : csvBroker === 'revolut'
+                        ? t('revolutFullHistoryNote')
+                        : t('csvFullHistoryNote')}
                   </p>
                 )}
                 {activeTab === 'csv' && (
@@ -727,7 +767,7 @@ export default function UploadPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept={activeTab === 'pdf' ? '.pdf' : '.csv'}
+            accept={activeTab === 'pdf' ? '.pdf' : csvBroker === 'revolut' ? '.xlsx,.csv' : '.csv'}
             multiple={activeTab === 'csv'}
             onChange={handleFileInput}
             className="hidden"
@@ -837,6 +877,16 @@ export default function UploadPage() {
                       <div>
                         <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">{t('ibkrBetaNoteTitle')}</p>
                         <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">{t('ibkrBetaNoteBody')}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : csvBroker === 'revolut' ? (
+                  <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">{t('revolutBetaNoteTitle')}</p>
+                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">{t('revolutBetaNoteBody')}</p>
                       </div>
                     </div>
                   </div>

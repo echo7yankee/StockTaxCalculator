@@ -79,6 +79,7 @@ vi.mock('../../lib/analytics', () => ({
 const sharedExports = {
   parseTrading212Csv: vi.fn(),
   parseIbkrCsv: vi.fn(),
+  parseRevolutStatement: vi.fn(),
   calculateTaxes: vi.fn(),
   parseTrading212AnnualStatement: vi.fn(),
   calculateTaxesFromPdf: vi.fn(),
@@ -91,6 +92,7 @@ vi.mock('@shared/index', async () => {
     ...actual,
     parseTrading212Csv: (...args: unknown[]) => sharedExports.parseTrading212Csv(...args),
     parseIbkrCsv: (...args: unknown[]) => sharedExports.parseIbkrCsv(...args),
+    parseRevolutStatement: (...args: unknown[]) => sharedExports.parseRevolutStatement(...args),
     calculateTaxes: (...args: unknown[]) => sharedExports.calculateTaxes(...args),
     parseTrading212AnnualStatement: (...args: unknown[]) =>
       sharedExports.parseTrading212AnnualStatement(...args),
@@ -103,6 +105,12 @@ vi.mock('@shared/index', async () => {
 const mockPapaParse = vi.fn();
 vi.mock('papaparse', () => ({
   default: { parse: (...args: unknown[]) => mockPapaParse(...args) },
+}));
+
+// Revolut .xlsx is read via a lazy-loaded read-excel-file/browser (default export).
+const mockReadXlsxFile = vi.fn();
+vi.mock('read-excel-file/browser', () => ({
+  default: (...args: unknown[]) => mockReadXlsxFile(...args),
 }));
 
 import UploadPage from '../UploadPage';
@@ -120,6 +128,12 @@ function renderPage(initialPath = '/upload') {
 
 function makeCsvFile(name = 'transactions.csv'): File {
   return new File(['Action,Time\n'], name, { type: 'text/csv' });
+}
+
+function makeXlsxFile(name = 'revolut-account-statement.xlsx'): File {
+  return new File([new Uint8Array(64)], name, {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
 }
 
 function makePdfFile(name = 'annual-statement.pdf', size = 1024): File {
@@ -198,6 +212,7 @@ beforeEach(() => {
   };
   sharedExports.parseTrading212Csv.mockReturnValue(makeCsvParseResult());
   sharedExports.parseIbkrCsv.mockReturnValue(makeCsvParseResult());
+  sharedExports.parseRevolutStatement.mockReturnValue(makeCsvParseResult());
   sharedExports.parseTrading212AnnualStatement.mockReturnValue(makePdfParseResult());
   sharedExports.calculateTaxes.mockReturnValue({ taxResult: {}, securities: [] });
   sharedExports.calculateTaxesFromPdf.mockReturnValue({ taxResult: {}, securities: [], warnings: [] });
@@ -208,6 +223,10 @@ beforeEach(() => {
       opts.complete({ data: [{ Action: 'Market buy', Time: '2025-01-15' }] });
     },
   );
+  mockReadXlsxFile.mockResolvedValue([
+    ['Date', 'Ticker', 'Type', 'Quantity', 'Price per share', 'Total Amount', 'Currency', 'FX Rate'],
+    ['2025-01-15T10:00:00.000Z', 'AAPL', 'BUY - MARKET', '10', '$150', '$1500', 'USD', '1'],
+  ]);
 });
 
 describe('UploadPage - paywall gating', () => {
@@ -871,6 +890,76 @@ describe('UploadPage - IBKR CSV (beta)', () => {
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
     expect(mockSetUploadData).toHaveBeenCalledWith(
       expect.objectContaining({ broker: 'trading212' }),
+    );
+  });
+});
+
+describe('UploadPage - Revolut (beta)', () => {
+  it('swaps the Trading212 split warning for the Revolut beta notice when Revolut is selected', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    expect(
+      screen.getByText('CSV does not account for stock splits. For most accurate results, use the PDF tab.'),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Revolut/ }));
+    expect(screen.getByText(/Revolut support is in beta/)).toBeInTheDocument();
+    expect(
+      screen.queryByText('CSV does not account for stock splits. For most accurate results, use the PDF tab.'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('routes a Revolut .csv through parseRevolutStatement (not Trading212/IBKR) and shows the beta note', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.click(screen.getByRole('button', { name: /Revolut/ }));
+    await user.upload(findHiddenFileInput(container), makeCsvFile('revolut.csv'));
+
+    await waitFor(() => {
+      expect(screen.getByText('revolut.csv')).toBeInTheDocument();
+    });
+    expect(sharedExports.parseRevolutStatement).toHaveBeenCalled();
+    expect(sharedExports.parseTrading212Csv).not.toHaveBeenCalled();
+    expect(sharedExports.parseIbkrCsv).not.toHaveBeenCalled();
+    expect(screen.getByText('Revolut (beta)')).toBeInTheDocument();
+    expect(screen.queryByText('CSV does not account for stock splits')).not.toBeInTheDocument();
+  });
+
+  it('reads a Revolut .xlsx via read-excel-file and routes through parseRevolutStatement', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.click(screen.getByRole('button', { name: /Revolut/ }));
+    await user.upload(findHiddenFileInput(container), makeXlsxFile('revolut.xlsx'));
+
+    await waitFor(() => {
+      expect(screen.getByText('revolut.xlsx')).toBeInTheDocument();
+    });
+    expect(mockReadXlsxFile).toHaveBeenCalled();
+    expect(mockPapaParse).not.toHaveBeenCalled(); // the xlsx path bypasses Papa
+    expect(sharedExports.parseRevolutStatement).toHaveBeenCalled();
+  });
+
+  it('records broker:revolut in the upload data on calculate', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ rates: {}, count: 0, rate: 4.9 }), { status: 200 }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.click(screen.getByRole('button', { name: /Revolut/ }));
+    await user.upload(findHiddenFileInput(container), makeXlsxFile('revolut.xlsx'));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole('button', { name: /Calculate Taxes/ }));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
+    expect(mockSetUploadData).toHaveBeenCalledWith(
+      expect.objectContaining({ broker: 'revolut' }),
     );
   });
 });

@@ -22,10 +22,10 @@ export const romaniaTaxConfig: CountryTaxConfig = {
     currentUrl: 'https://www.bnr.ro/nbrfxrates.xml',
     historicalUrlTemplate: 'https://www.bnr.ro/files/xml/years/nbrfxrates{YYYY}.xml',
   },
-  // Brokers we actually have a parser for. Trading212 is trusted; IBKR ships beta
-  // (built to IBKR's published format, verify-before-filing caveat on results).
-  // Revolut/XTB are roadmap, not advertised as supported until a parser exists.
-  supportedBrokers: ['trading212', 'ibkr'],
+  // Brokers we actually have a parser for. Trading212 is trusted; IBKR and Revolut
+  // ship beta (built to each broker's published export format, verify-before-filing
+  // caveat on results). XTB is roadmap, not advertised until a parser exists.
+  supportedBrokers: ['trading212', 'ibkr', 'revolut'],
   costBasisMethod: 'weighted-average',
 };
 

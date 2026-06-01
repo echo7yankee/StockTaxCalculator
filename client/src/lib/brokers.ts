@@ -13,7 +13,7 @@
  * 3 real anonymized user exports parse correctly end-to-end.
  */
 
-export type BrokerId = 'trading212' | 'ibkr';
+export type BrokerId = 'trading212' | 'ibkr' | 'revolut';
 
 export type BrokerStatus = 'trusted' | 'beta';
 
@@ -27,10 +27,11 @@ export interface BrokerMeta {
 export const BROKERS: Record<BrokerId, BrokerMeta> = {
   trading212: { id: 'trading212', label: 'Trading 212', status: 'trusted' },
   ibkr: { id: 'ibkr', label: 'Interactive Brokers', status: 'beta' },
+  revolut: { id: 'revolut', label: 'Revolut', status: 'beta' },
 };
 
 /** Ordered list for rendering broker pickers (trusted brokers first). */
-export const CSV_BROKERS: BrokerMeta[] = [BROKERS.trading212, BROKERS.ibkr];
+export const CSV_BROKERS: BrokerMeta[] = [BROKERS.trading212, BROKERS.ibkr, BROKERS.revolut];
 
 /** Resolve broker metadata from a stored broker id, tolerating unknown values. */
 export function getBrokerMeta(broker: string | null | undefined): BrokerMeta | null {
