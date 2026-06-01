@@ -313,7 +313,7 @@ describe('UploadPage - tab switching', () => {
     expect(screen.getByText('Drop your CSV export here')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'CSV does not account for stock splits. For most accurate results, use the PDF tab.',
+        'Common stock splits (NVDA, TSLA, etc.) are adjusted automatically. For rarer splits, the PDF tab is the safest option.',
       ),
     ).toBeInTheDocument();
   });
@@ -657,6 +657,69 @@ describe('UploadPage - Calculate Taxes flow', () => {
     expect(calcBtn).toBeDisabled();
   });
 
+  it('applies a known stock split to a held-across-split Trading212 CSV (backlog #2)', async () => {
+    // Bought 1 NVDA before the 2024-06-10 10:1 split, sold 10 after. Without the
+    // split fix this looks like an oversell (the missing-history guard would fire);
+    // injecting 9 zero-cost shares reconciles it and surfaces a transparency note.
+    sharedExports.parseTrading212Csv.mockReturnValueOnce(
+      makeCsvParseResult({
+        transactions: [
+          {
+            action: 'buy', ticker: 'NVDA', isin: 'US67066G1040', shares: 1, price: 1200,
+            priceCurrency: 'USD', transactionDate: '2024-01-15', total: 1200, totalCurrency: 'USD',
+          } as unknown as Transaction,
+          {
+            action: 'sell', ticker: 'NVDA', isin: 'US67066G1040', shares: 10, price: 130,
+            priceCurrency: 'USD', transactionDate: '2024-09-20', total: 1300, totalCurrency: 'USD',
+          } as unknown as Transaction,
+        ],
+      }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.upload(findHiddenFileInput(container), makeCsvFile());
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Adjusted cost basis for known stock split(s): NVDA 10:1 (Jun 2024).'),
+      ).toBeInTheDocument();
+    });
+    // The injected shares quiet the missing-history false positive, so the user
+    // can proceed.
+    expect(screen.queryByText('Incomplete Transaction History Detected')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeEnabled();
+  });
+
+  it('does NOT apply the split table to a non-Trading212 broker (IBKR reports its own splits)', async () => {
+    // Same NVDA-across-split shape, but IBKR statements carry split events, so the
+    // table must not be consulted (or it would double-count).
+    sharedExports.parseIbkrCsv.mockReturnValueOnce(
+      makeCsvParseResult({
+        transactions: [
+          {
+            action: 'buy', ticker: 'NVDA', isin: 'US67066G1040', shares: 1, price: 1200,
+            priceCurrency: 'USD', transactionDate: '2024-01-15', total: 1200, totalCurrency: 'USD',
+          } as unknown as Transaction,
+          {
+            action: 'sell', ticker: 'NVDA', isin: 'US67066G1040', shares: 1, price: 1300,
+            priceCurrency: 'USD', transactionDate: '2024-09-20', total: 1300, totalCurrency: 'USD',
+          } as unknown as Transaction,
+        ],
+      }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.click(screen.getByRole('button', { name: /Interactive Brokers/ }));
+    await user.upload(findHiddenFileInput(container), makeCsvFile('ibkr-activity.csv'));
+
+    await waitFor(() => {
+      expect(screen.getByText('ibkr-activity.csv')).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Adjusted cost basis for known stock split/)).not.toBeInTheDocument();
+  });
+
   it('fetches BNR rates for every foreign currency in a mixed-currency CSV (backlog #5)', async () => {
     // Fresh Response per call: finalizeCsv reads daily + average per currency in
     // parallel and a Response body can only be read once.
@@ -822,13 +885,13 @@ describe('UploadPage - IBKR CSV (beta)', () => {
     await user.click(screen.getByRole('button', { name: /CSV Export/ }));
     // Default broker is Trading 212: its stock-split pre-warning is shown.
     expect(
-      screen.getByText('CSV does not account for stock splits. For most accurate results, use the PDF tab.'),
+      screen.getByText('Common stock splits (NVDA, TSLA, etc.) are adjusted automatically. For rarer splits, the PDF tab is the safest option.'),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /Interactive Brokers/ }));
     expect(screen.getByText(/Interactive Brokers support is in beta/)).toBeInTheDocument();
     expect(
-      screen.queryByText('CSV does not account for stock splits. For most accurate results, use the PDF tab.'),
+      screen.queryByText('Common stock splits (NVDA, TSLA, etc.) are adjusted automatically. For rarer splits, the PDF tab is the safest option.'),
     ).not.toBeInTheDocument();
   });
 
@@ -846,7 +909,7 @@ describe('UploadPage - IBKR CSV (beta)', () => {
     expect(sharedExports.parseTrading212Csv).not.toHaveBeenCalled();
     // IBKR preview shows its own beta note, never the Trading212 split warning.
     expect(screen.getByText('Interactive Brokers (beta)')).toBeInTheDocument();
-    expect(screen.queryByText('CSV does not account for stock splits')).not.toBeInTheDocument();
+    expect(screen.queryByText('Stock splits: common ones are handled, rare ones are not')).not.toBeInTheDocument();
     expect(mockReportParseEvent).toHaveBeenCalledWith(
       expect.objectContaining({ fileType: 'csv', outcome: 'success' }),
     );
@@ -900,13 +963,13 @@ describe('UploadPage - Revolut (beta)', () => {
     renderPage();
     await user.click(screen.getByRole('button', { name: /CSV Export/ }));
     expect(
-      screen.getByText('CSV does not account for stock splits. For most accurate results, use the PDF tab.'),
+      screen.getByText('Common stock splits (NVDA, TSLA, etc.) are adjusted automatically. For rarer splits, the PDF tab is the safest option.'),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /Revolut/ }));
     expect(screen.getByText(/Revolut support is in beta/)).toBeInTheDocument();
     expect(
-      screen.queryByText('CSV does not account for stock splits. For most accurate results, use the PDF tab.'),
+      screen.queryByText('Common stock splits (NVDA, TSLA, etc.) are adjusted automatically. For rarer splits, the PDF tab is the safest option.'),
     ).not.toBeInTheDocument();
   });
 
@@ -924,7 +987,7 @@ describe('UploadPage - Revolut (beta)', () => {
     expect(sharedExports.parseTrading212Csv).not.toHaveBeenCalled();
     expect(sharedExports.parseIbkrCsv).not.toHaveBeenCalled();
     expect(screen.getByText('Revolut (beta)')).toBeInTheDocument();
-    expect(screen.queryByText('CSV does not account for stock splits')).not.toBeInTheDocument();
+    expect(screen.queryByText('Stock splits: common ones are handled, rare ones are not')).not.toBeInTheDocument();
   });
 
   it('reads a Revolut .xlsx via read-excel-file and routes through parseRevolutStatement', async () => {
