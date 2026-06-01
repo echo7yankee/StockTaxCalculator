@@ -15,7 +15,14 @@ export interface TaxEngineResult {
 export function calculateTaxes(
   transactions: Transaction[],
   config: CountryTaxConfig,
-  year: number
+  year: number,
+  // Optional override for the foreign tax withheld on dividends, in LOCAL
+  // currency. Some statements (e.g. the Revolut Account Statement) carry no
+  // withholding line, so the parser sets `withholdingTaxOriginal` to 0 and the
+  // dividend tax is over-stated. When the user supplies the amount actually
+  // withheld abroad, the results page passes it here and it REPLACES the (zero)
+  // summed withholding. Omitting it is byte-identical to the prior behavior.
+  dividendWithholdingOverrideLocal?: number
 ): TaxEngineResult {
   // Sort ALL transactions chronologically — do NOT filter by year.
   // Historical buys are needed to build correct cost basis for positions
@@ -144,7 +151,13 @@ export function calculateTaxes(
   const capitalGainsTax = netGains * config.capitalGainsTaxRate;
 
   const dividendTaxGross = totalDividends * config.dividendTaxRate;
-  const dividendTax = Math.max(0, dividendTaxGross - totalWithholdingTax);
+  // The foreign-tax credit can never exceed the Romanian dividend tax (the
+  // Math.max floor), matching Codul Fiscal art. 131 (creditul fiscal extern).
+  const effectiveWithholdingTax =
+    dividendWithholdingOverrideLocal != null
+      ? Math.max(0, dividendWithholdingOverrideLocal)
+      : totalWithholdingTax;
+  const dividendTax = Math.max(0, dividendTaxGross - effectiveWithholdingTax);
 
   // Health contribution (CASS)
   const totalNonSalaryIncome = netGains + totalDividends;
@@ -175,7 +188,7 @@ export function calculateTaxes(
     },
     dividends: {
       grossTotal: round2(totalDividends),
-      withholdingTaxPaid: round2(totalWithholdingTax),
+      withholdingTaxPaid: round2(effectiveWithholdingTax),
       taxOwed: round2(dividendTax),
     },
     healthContribution: {

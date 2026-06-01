@@ -44,5 +44,10 @@
   "parseWarningListIntro": "Avertismente de la parser:",
   "parseWarningCta": "Contacteaz\u0103-m\u0103",
   "betaBrokerTitle": "Suportul pentru {{broker}} este \u00een beta",
-  "betaBrokerBody": "Am construit parserul pentru {{broker}} dup\u0103 formatul de export publicat de broker, f\u0103r\u0103 un cont real pentru validare. Verific\u0103 aceste cifre cu extrasul t\u0103u \u00eenainte s\u0103 depui declara\u021bia. Dac\u0103 ceva nu pare \u00een regul\u0103, contacteaz\u0103-m\u0103."
+  "betaBrokerBody": "Am construit parserul pentru {{broker}} dup\u0103 formatul de export publicat de broker, f\u0103r\u0103 un cont real pentru validare. Verific\u0103 aceste cifre cu extrasul t\u0103u \u00eenainte s\u0103 depui declara\u021bia. Dac\u0103 ceva nu pare \u00een regul\u0103, contacteaz\u0103-m\u0103.",
+  "dividendCreditTitle": "Impozit re\u021binut \u00een str\u0103in\u0103tate pe dividende",
+  "dividendCreditBody": "Acest extras nu include impozitul re\u021binut \u00een str\u0103in\u0103tate pe dividende, a\u0219a c\u0103 impozitul pe dividende de mai sus presupune c\u0103 nu s-a re\u021binut nimic. Dac\u0103 \u021bi s-a re\u021binut impozit \u00een str\u0103in\u0103tate, introdu totalul pentru a aplica creditul fiscal extern.",
+  "dividendCreditLabel": "Total impozit re\u021binut \u00een str\u0103in\u0103tate ({{currency}})",
+  "dividendCreditConverted": "{{local}} {{symbol}} aplicat ca credit, convertit la cursul mediu anual BNR.",
+  "dividendCreditHint": "\u00cel g\u0103se\u0219ti \u00een extrasul fiscal de la broker sau \u00een eviden\u021bele tale. Creditul nu poate dep\u0103\u0219i impozitul rom\u00e2n pe dividende."
 }
