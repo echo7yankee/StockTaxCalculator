@@ -17,7 +17,12 @@ exchangeRatesRouter.get('/:year/average', async (req, res) => {
     }
     const year = yearParsed.data;
 
-    const currency = currencySchema.parse(((req.query.currency as string) || 'USD').toUpperCase());
+    const currencyParsed = currencySchema.safeParse(((req.query.currency as string) || 'USD').toUpperCase());
+    if (!currencyParsed.success) {
+      res.status(400).json({ error: 'Invalid currency' });
+      return;
+    }
+    const currency = currencyParsed.data;
     const rate = await getAverageRate(year, currency.toUpperCase());
 
     res.json({ rate, currency: currency.toUpperCase(), year, type: 'average' });
@@ -36,7 +41,12 @@ exchangeRatesRouter.get('/:year/daily', async (req, res) => {
       return;
     }
     const year = yearParsed.data;
-    const currency = currencySchema.parse(((req.query.currency as string) || 'USD').toUpperCase());
+    const currencyParsed = currencySchema.safeParse(((req.query.currency as string) || 'USD').toUpperCase());
+    if (!currencyParsed.success) {
+      res.status(400).json({ error: 'Invalid currency' });
+      return;
+    }
+    const currency = currencyParsed.data;
     const rates = await getAllRatesForYear(year, currency.toUpperCase());
 
     res.json({ rates, currency: currency.toUpperCase(), year, type: 'daily', count: Object.keys(rates).length });
@@ -57,7 +67,12 @@ exchangeRatesRouter.get('/:year/:date', async (req, res) => {
     const year = yearParsed.data;
 
     const { date } = req.params;
-    const currency = currencySchema.parse(((req.query.currency as string) || 'USD').toUpperCase());
+    const currencyParsed = currencySchema.safeParse(((req.query.currency as string) || 'USD').toUpperCase());
+    if (!currencyParsed.success) {
+      res.status(400).json({ error: 'Invalid currency' });
+      return;
+    }
+    const currency = currencyParsed.data;
     const rate = await getRateForDate(year, date, currency.toUpperCase());
 
     res.json({ rate, currency: currency.toUpperCase(), year, date, type: 'daily' });
