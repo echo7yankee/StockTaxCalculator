@@ -65,19 +65,93 @@ function parseNumber(value: string | undefined): number {
 }
 
 /**
- * Parse an IBKR date. Trades use `"YYYY-MM-DD, HH:MM:SS"`; cash sections use
- * `YYYY-MM-DD`. Some exports use compact `YYYYMMDD`. We take the date portion
- * and normalise to ISO so the result is timezone-stable.
+ * Build a UTC-midnight Date from numeric parts, or null if out of range. Uses
+ * the same `new Date('YYYY-MM-DD')` construction the ISO path always used, so
+ * trade dates stay byte-identical; the round-trip check rejects rolled-over
+ * impossible dates (e.g. 2026-02-31).
  */
-function parseIbkrDate(raw: string): Date | null {
+function makeIsoDate(year: number, month: number, day: number): Date | null {
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const iso = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const d = new Date(iso);
+  if (isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== iso) return null;
+  return d;
+}
+
+/**
+ * Parse an IBKR date. The Trades section uses ISO `"YYYY-MM-DD, HH:MM:SS"`, but
+ * the cash sections (Dividends, Withholding Tax, ...) use the ACCOUNT-CONFIGURED
+ * format, which on non-US entities (e.g. IBKR Ireland) is day-first `DD-MM-YY`.
+ * A naive `new Date("15-04-26")` mis-reads that as MM-DD-YY and either rolls to a
+ * garbage date or, for day > 12, returns Invalid Date and SILENTLY DROPS real
+ * income (a dividend, a withholding credit). We parse explicitly: ISO and compact
+ * `YYYYMMDD` first, then a 2-or-4-digit-year `D-M-Y` / `M-D-Y` form whose
+ * day/month order is resolved per date when one component is > 12, else from
+ * `twoDigitYearOrder` (inferred from the whole file). The year is always taken
+ * verbatim, so the order can never change which tax year a row lands in (the only
+ * thing the engine keys dividends + withholding on).
+ */
+function parseIbkrDate(raw: string, twoDigitYearOrder: 'DMY' | 'MDY' = 'DMY'): Date | null {
   if (!raw) return null;
   const datePart = raw.split(',')[0].trim().split(' ')[0].trim();
-  let iso = datePart;
+
+  // ISO YYYY-MM-DD (Trades, and any cash section that emits ISO).
+  let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(datePart);
+  if (m) return makeIsoDate(+m[1], +m[2], +m[3]);
+
+  // Compact YYYYMMDD.
   if (/^\d{8}$/.test(datePart)) {
-    iso = `${datePart.slice(0, 4)}-${datePart.slice(4, 6)}-${datePart.slice(6, 8)}`;
+    return makeIsoDate(+datePart.slice(0, 4), +datePart.slice(4, 6), +datePart.slice(6, 8));
   }
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? null : d;
+
+  // D-M-Y or M-D-Y, `-` or `/` separators, 2- or 4-digit year.
+  m = /^(\d{1,2})[-/](\d{1,2})[-/](\d{2}|\d{4})$/.exec(datePart);
+  if (m) {
+    const a = +m[1];
+    const b = +m[2];
+    const year = m[3].length === 2 ? 2000 + +m[3] : +m[3];
+    let day: number;
+    let month: number;
+    if (a > 12 && b <= 12) {
+      day = a; // first component can only be the day
+      month = b;
+    } else if (b > 12 && a <= 12) {
+      month = a; // second component can only be the day
+      day = b;
+    } else if (twoDigitYearOrder === 'MDY') {
+      month = a;
+      day = b;
+    } else {
+      day = a;
+      month = b;
+    }
+    return makeIsoDate(year, month, day);
+  }
+
+  return null;
+}
+
+/**
+ * IBKR applies ONE account-configured date format to every cash section of a
+ * statement (the Trades section is always ISO and is ignored here). Infer
+ * day-first vs month-first from the first cash date whose components disambiguate
+ * it (one value > 12). Defaults to day-first (the IBKR Ireland / European
+ * default); since the year is always explicit, the choice never changes a row's
+ * tax year, only the displayed day/month of an all-ambiguous statement.
+ */
+function inferCashDateOrder(rows: string[][]): 'DMY' | 'MDY' {
+  for (const row of rows) {
+    if (!row || row.length < 2 || (row[1] ?? '').trim() !== 'Data') continue;
+    for (const cell of row) {
+      const m = /^(\d{1,2})[-/](\d{1,2})[-/]\d{2,4}$/.exec((cell ?? '').trim());
+      if (!m) continue;
+      const a = +m[1];
+      const b = +m[2];
+      if (a > 12 && b <= 12) return 'DMY';
+      if (b > 12 && a <= 12) return 'MDY';
+    }
+  }
+  return 'DMY';
 }
 
 function parseSecurityFromDescription(description: string): { symbol: string; isin: string } {
@@ -121,6 +195,10 @@ export function parseIbkrCsv(rows: string[][]): ParseResult {
   const skippedCategories = new Set<string>();
   const unsupportedCurrencies = new Set<string>();
   let recognisedSection = false;
+
+  // Cash sections (Dividends, Withholding Tax) use the account-configured date
+  // format; resolve day-first vs month-first once from the whole file.
+  const cashDateOrder = inferCashDateOrder(rows);
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -234,8 +312,15 @@ export function parseIbkrCsv(rows: string[][]): ParseResult {
         if (currencyRaw && !/^(sub)?total$/i.test(currencyRaw)) unsupportedCurrencies.add(currencyRaw);
         continue;
       }
-      const date = parseIbkrDate(get('Date'));
-      if (!date) continue;
+      const date = parseIbkrDate(get('Date'), cashDateOrder);
+      if (!date) {
+        // A valid-currency row with an unparseable date is real income we must
+        // not drop silently: warn so the #24A hard-stop catches it.
+        warnings.push(
+          `Could not read the date "${get('Date')}" in the ${section} section; that row was skipped. Please report this so we can support your statement's date format.`
+        );
+        continue;
+      }
       const amount = parseNumber(get('Amount'));
       if (amount === 0) continue;
       const { symbol, isin } = parseSecurityFromDescription(get('Description'));

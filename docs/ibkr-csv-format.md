@@ -86,6 +86,18 @@ symbol + ISIN from it. `Amount` is the gross dividend (signed, so reversals net
 out). `Total` / `SubTotal` rows carry a non-currency value in the `Currency`
 column and are skipped.
 
+**Cash-section `Date` format (important).** Unlike the Trades section (always
+ISO `YYYY-MM-DD`), the cash sections print the `Date` in the account-configured
+format. On IBKR Ireland and other non-US entities this is day-first `DD-MM-YY`
+(e.g. `15-04-26`); US accounts use `MM-DD-YY`; some configs use ISO. The parser
+resolves day-vs-month per row when one component is `> 12`, else from a
+file-level order inferred from the first unambiguous cash date (default
+day-first). The year is always taken verbatim, so the order can never change a
+row's tax year. A genuinely unreadable cash date raises a warning (caught by the
+#24A hard-stop) rather than being silently dropped. **Do not** hand a non-ISO
+cash date to `new Date()` (it mis-reads `15-04-26` as month 15 and drops the row
+silently): this exact bug dropped a real user's dividend before it was fixed.
+
 ### Withholding Tax
 
 ```

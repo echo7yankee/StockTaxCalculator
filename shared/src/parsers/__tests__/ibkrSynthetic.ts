@@ -30,6 +30,11 @@ export interface IbkrTradeSpec {
 export interface IbkrDividendSpec {
   symbol: string;
   isin: string;
+  /**
+   * Cash-section date, emitted verbatim. Real IBKR cash sections use the
+   * account-configured format: day-first `DD-MM-YY` on IBKR Ireland and other
+   * non-US entities, `MM-DD-YY` on US accounts, sometimes ISO `YYYY-MM-DD`.
+   */
   date: string;
   /** Gross dividend amount (positive). */
   amount: number;
