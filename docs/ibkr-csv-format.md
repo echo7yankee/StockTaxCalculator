@@ -110,10 +110,23 @@ matching dividend, which is all the engine needs for a correct foreign tax
 credit. Withholding with no matching dividend raises a warning (and is therefore
 caught by the #24A hard-stop) rather than being silently dropped.
 
+Not every Withholding Tax row is a dividend credit. IBKR also withholds tax on
+**interest income** (e.g. `Withholding @ 10% on Credit Interest`), and those rows
+carry no `SYMBOL (ISIN)`. InvesTax handles dividends and capital gains only, not
+interest income, so such rows are counted and surfaced as a single clear warning
+(`Skipped N withholding-tax row(s) on interest income...`) instead of the
+misleading per-row "could not identify the security" message. They still trip the
+#24A hard-stop, so no number reaches the user uncaught. A withholding row that has
+no identifiable security AND is not interest keeps the generic "could not identify
+the security" warning.
+
 ## Beta scope and known limitations
 
 - **Stocks / ETFs only.** Options, futures, forex, bonds, CFDs are skipped with
   a warning.
+- **Dividends + capital gains only.** Interest income (and the tax withheld on
+  it) is not yet handled; interest-withholding rows are flagged, not applied.
+  Declaring interest income is on the user (a roadmap gap, not a bug).
 - **Currencies USD / EUR / GBP / RON only.** Other currencies (CHF, CAD, JPY...)
   are skipped with a warning, pending multi-currency BNR work (backlog #5).
 - **Activity Statement only.** The Flex Query CSV (camelCase field names) is a

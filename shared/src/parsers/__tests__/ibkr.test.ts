@@ -137,6 +137,68 @@ describe('parseIbkrCsv', () => {
     expect(r.warnings.some((w) => w.includes('no matching dividend'))).toBe(true);
   });
 
+  it('flags interest-income withholding clearly instead of as an unidentified security', () => {
+    // IBKR withholds tax on cash/credit interest; those Withholding Tax rows have
+    // no SYMBOL (ISIN) in the description, so the old code mislabelled them
+    // "Could not identify the security". They are interest, which is out of scope.
+    const rows = [
+      ['Withholding Tax', 'Header', 'Currency', 'Date', 'Description', 'Amount', 'Code'],
+      ['Withholding Tax', 'Data', 'USD', '2025-06-30', 'Withholding @ 10% on Credit Interest', '-1.20', ''],
+    ];
+    const r = parseIbkrCsv(rows);
+    expect(r.warnings.some((w) => /interest income/i.test(w))).toBe(true);
+    expect(r.warnings.some((w) => w.includes('Could not identify the security'))).toBe(false);
+    // Still surfaced (not silently dropped) so the #24A hard-stop fires.
+    expect(r.warnings.length).toBeGreaterThan(0);
+  });
+
+  it('aggregates multiple interest-withholding rows into a single warning', () => {
+    // Alexandru's real statement carried 5 such rows -> 5 noisy duplicate
+    // warnings before this fix; they collapse to one.
+    const rows = [
+      ['Withholding Tax', 'Header', 'Currency', 'Date', 'Description', 'Amount', 'Code'],
+      ['Withholding Tax', 'Data', 'USD', '2025-03-31', 'Withholding @ 10% on Credit Interest', '-0.50', ''],
+      ['Withholding Tax', 'Data', 'USD', '2025-06-30', 'Withholding @ 10% on Credit Interest', '-0.75', ''],
+      ['Withholding Tax', 'Data', 'USD', '2025-09-30', 'Withholding @ 10% on Credit Interest', '-0.60', ''],
+    ];
+    const r = parseIbkrCsv(rows);
+    const interestWarnings = r.warnings.filter((w) => /interest income/i.test(w));
+    expect(interestWarnings).toHaveLength(1);
+    expect(interestWarnings[0]).toContain('3');
+  });
+
+  it('still flags a non-interest withholding row with no identifiable security generically', () => {
+    const rows = [
+      ['Withholding Tax', 'Header', 'Currency', 'Date', 'Description', 'Amount', 'Code'],
+      ['Withholding Tax', 'Data', 'USD', '2025-06-30', 'Some other adjustment', '-0.50', ''],
+    ];
+    const r = parseIbkrCsv(rows);
+    expect(r.warnings.some((w) => w.includes('Could not identify the security'))).toBe(true);
+    expect(r.warnings.some((w) => /interest income/i.test(w))).toBe(false);
+  });
+
+  it('parses real trades + dividends while flagging interspersed interest withholding', () => {
+    // The real-world (Alexandru) shape: genuine stock dividend WHT must still
+    // credit correctly while interest WHT is flagged separately, not as a
+    // dividend problem and without polluting the dividend's credit.
+    const rows = [
+      ['Trades', 'Header', 'DataDiscriminator', 'Asset Category', 'Currency', 'Symbol', 'Date/Time', 'Quantity', 'T. Price', 'Proceeds', 'Comm/Fee'],
+      ['Trades', 'Data', 'Order', 'Stocks', 'USD', 'AAPL', '2025-02-01, 10:00:00', '10', '100', '-1000', '-1'],
+      ['Trades', 'Data', 'Order', 'Stocks', 'USD', 'AAPL', '2025-09-01, 10:00:00', '-10', '150', '1500', '-1'],
+      ['Dividends', 'Header', 'Currency', 'Date', 'Description', 'Amount'],
+      ['Dividends', 'Data', 'USD', '2025-06-12', 'AAPL (US0378331005) Cash Dividend', '5'],
+      ['Withholding Tax', 'Header', 'Currency', 'Date', 'Description', 'Amount', 'Code'],
+      ['Withholding Tax', 'Data', 'USD', '2025-06-12', 'AAPL (US0378331005) Cash Dividend - US Tax', '-0.50', ''],
+      ['Withholding Tax', 'Data', 'USD', '2025-06-30', 'Withholding @ 10% on Credit Interest', '-1.20', ''],
+    ];
+    const r = parseIbkrCsv(rows);
+    const div = r.transactions.find((t) => t.action === 'dividend');
+    expect(div!.withholdingTaxOriginal).toBeCloseTo(0.5); // real dividend WHT credited
+    expect(r.transactions.filter((t) => t.action === 'buy' || t.action === 'sell')).toHaveLength(2);
+    expect(r.warnings.some((w) => /interest income/i.test(w))).toBe(true);
+    expect(r.warnings.some((w) => w.includes('Could not identify the security'))).toBe(false);
+  });
+
   it('reads ISIN from an explicit ISIN column and tolerates a minimal Trades header', () => {
     const rows = [
       ['Trades', 'Header', 'DataDiscriminator', 'Asset Category', 'Currency', 'Symbol', 'Date/Time', 'Quantity', 'T. Price', 'Proceeds', 'Comm/Fee'],

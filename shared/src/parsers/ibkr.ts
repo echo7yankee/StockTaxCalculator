@@ -194,6 +194,10 @@ export function parseIbkrCsv(rows: string[][]): ParseResult {
   const withholdingByKeyYear: Record<string, number> = {};
   const skippedCategories = new Set<string>();
   const unsupportedCurrencies = new Set<string>();
+  // Withholding rows on interest income (no security in the description) are out
+  // of scope (InvesTax handles dividends + capital gains only); count them so we
+  // can surface ONE clear warning instead of a misleading per-row message.
+  let interestWithholdingCount = 0;
   let recognisedSection = false;
 
   // Cash sections (Dividends, Withholding Tax) use the account-configured date
@@ -323,7 +327,8 @@ export function parseIbkrCsv(rows: string[][]): ParseResult {
       }
       const amount = parseNumber(get('Amount'));
       if (amount === 0) continue;
-      const { symbol, isin } = parseSecurityFromDescription(get('Description'));
+      const description = get('Description');
+      const { symbol, isin } = parseSecurityFromDescription(description);
       const key = isin || symbol;
 
       if (section === 'Dividends') {
@@ -349,7 +354,18 @@ export function parseIbkrCsv(rows: string[][]): ParseResult {
         });
       } else {
         if (!key) {
-          warnings.push(`Could not identify the security for a withholding-tax row dated ${get('Date')}; tax credit not applied.`);
+          // A withholding row with no SYMBOL (ISIN) in its description is almost
+          // always tax withheld on INTEREST income (e.g. "...on Credit Interest"),
+          // which has no dividend to credit it against. InvesTax does not handle
+          // interest income, so aggregate these into one clear warning below
+          // rather than the misleading per-row "could not identify the security"
+          // message; truly unidentifiable (non-interest) rows keep that message.
+          // Either path still surfaces a warning -> the #24A hard-stop fires.
+          if (/interest/i.test(description)) {
+            interestWithholdingCount++;
+          } else {
+            warnings.push(`Could not identify the security for a withholding-tax row dated ${get('Date')}; tax credit not applied.`);
+          }
           continue;
         }
         const mapKey = `${key}|${date.getFullYear()}`;
@@ -396,6 +412,11 @@ export function parseIbkrCsv(rows: string[][]): ParseResult {
   if (unsupportedCurrencies.size > 0) {
     warnings.push(
       `Unsupported currencies found (${[...unsupportedCurrencies].join(', ')}). InvesTax supports USD, EUR, GBP and RON; those rows were skipped.`
+    );
+  }
+  if (interestWithholdingCount > 0) {
+    warnings.push(
+      `Skipped ${interestWithholdingCount} withholding-tax row(s) on interest income (not on a dividend). InvesTax currently calculates dividends and capital gains only, not interest income.`
     );
   }
   if (!recognisedSection) {
