@@ -25,7 +25,7 @@ export const GHID_T212_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Ce diferență este între Trading212 și XTB la declarare?',
-    a: 'XTB are sucursală în România și reține impozitul la sursă (1% pe profit pentru deținere peste 365 de zile, 3% pentru sub). Pentru tranzacțiile XTB nu mai trebuie să declari profitul. Trading212 nu are reprezentanță, deci tu calculezi și declari totul.',
+    a: 'XTB are sucursală în România și reține impozitul la sursă (în 2025: 1% pe profit pentru deținere peste 365 de zile și 3% pentru sub; din 2026 cotele cresc la 3%, respectiv 6%). Pentru tranzacțiile XTB nu mai trebuie să declari profitul. Trading212 nu are reprezentanță, deci tu calculezi și declari totul.',
   },
   {
     q: 'Cum declar dividendele de la Trading212?',

@@ -403,7 +403,7 @@ export default function GhidRevolutPage() {
           <div>
             <h2 className="text-xl font-bold mb-2">Sau folosește calculatorul</h2>
             <p className="text-sm text-gray-700 dark:text-slate-300 mb-4">
-              Dacă pașii ăștia ți se par prea mult, InvesTax aplică automat metoda CMP, cursurile BNR și pragurile CASS.
+              Dacă pașii ăștia ți se par prea mult de lucru, InvesTax aplică automat metoda CMP, cursurile BNR și pragurile CASS.
               Calculatorul manual gratuit funcționează cu cifrele tale brute; pentru încărcarea automată a Account
               Statement-ului Revolut (beta) ai nevoie de un plan plătit.
             </p>

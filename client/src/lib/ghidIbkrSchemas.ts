@@ -29,7 +29,7 @@ export const GHID_IBKR_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Ce diferență este între IBKR și XTB la declarare?',
-    a: 'XTB are sucursală în România și reține impozitul la sursă (1% pe profit pentru deținere peste 365 de zile, 3% pentru sub). Pentru tranzacțiile XTB nu mai declari profitul. IBKR nu are reprezentanță în România, deci tu calculezi și declari totul, la fel ca la Trading212.',
+    a: 'XTB are sucursală în România și reține impozitul la sursă (în 2025: 1% pe profit pentru deținere peste 365 de zile și 3% pentru sub; din 2026 cotele cresc la 3%, respectiv 6%). Pentru tranzacțiile XTB nu mai declari profitul. IBKR nu are reprezentanță în România, deci tu calculezi și declari totul, la fel ca la Trading212.',
   },
 ];
 
