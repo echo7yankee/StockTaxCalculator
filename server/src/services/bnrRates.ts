@@ -107,6 +107,28 @@ export async function getAverageRate(year: number, currency: string = 'USD'): Pr
   return Math.round(annual * 10000) / 10000;
 }
 
+/**
+ * Returns the prior year's final published rate for a currency, or null when the
+ * prior year's data is unavailable (e.g. before BNR's earliest XML file, or a
+ * fetch/parse failure).
+ *
+ * Year-boundary fallback (backlog #6): BNR does not publish reference rates on
+ * Jan 1-2 (both Romanian public holidays), so a transaction in that gap has no
+ * same-year rate. ANAF requires the last rate published before the transaction
+ * date, which is the prior year's final publication (e.g. 2024-12-31 for a
+ * 2025-01-02 trade). Without this, the gap date resolved to null and the engine
+ * silently fell back to a 1:1 exchange rate (treating USD as RON).
+ */
+async function getPriorYearLastRate(year: number, currency: string): Promise<BnrRate | null> {
+  try {
+    const { rates } = await fetchBnrRatesForYear(year - 1, currency);
+    if (rates.length === 0) return null;
+    return rates.reduce((latest, r) => (r.date > latest.date ? r : latest));
+  } catch {
+    return null;
+  }
+}
+
 export async function getRateForDate(year: number, date: string, currency: string = 'USD'): Promise<number> {
   const { rates } = await fetchBnrRatesForYear(year, currency);
 
@@ -129,8 +151,15 @@ export async function getRateForDate(year: number, date: string, currency: strin
     }
   }
 
-  if (!best) throw new Error(`No rate found for ${currency} on or before ${date}`);
-  return best.rate;
+  if (best) return best.rate;
+
+  // Year boundary (backlog #6): the target precedes every same-year publication
+  // (Jan 1-2, both RO holidays). Use the prior year's final rate, which is the
+  // last rate published before the transaction date.
+  const priorLast = await getPriorYearLastRate(year, currency);
+  if (priorLast && new Date(priorLast.date).getTime() <= target) return priorLast.rate;
+
+  throw new Error(`No rate found for ${currency} on or before ${date}`);
 }
 
 export async function getAllRatesForYear(year: number, currency: string = 'USD'): Promise<Record<string, number>> {
@@ -139,6 +168,16 @@ export async function getAllRatesForYear(year: number, currency: string = 'USD')
   for (const r of rates) {
     map[r.date] = r.rate;
   }
+
+  // Year boundary (backlog #6): seed the prior year's final rate so an
+  // on-or-before lookup over this map (makeRateLookup, used by both the CSV and
+  // PDF per-date flows) resolves a Jan 1-2 date to the last rate published
+  // before it, instead of returning null and falling back to a 1:1 rate.
+  const priorLast = await getPriorYearLastRate(year, currency);
+  if (priorLast && !(priorLast.date in map)) {
+    map[priorLast.date] = priorLast.rate;
+  }
+
   return map;
 }
 
