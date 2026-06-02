@@ -13,8 +13,8 @@ interface PromoStatus {
   remaining: number;
 }
 
-const LAUNCH_PRICE = '€12';
-const REGULAR_PRICE = '€19';
+const LAUNCH_PRICE = '€19';
+const REGULAR_PRICE = '€29';
 
 const FREE_FEATURES = [
   'quickCalc',

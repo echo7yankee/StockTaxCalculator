@@ -43,7 +43,7 @@ describe('GhidDeclaratieUnicaPage - conversion CTAs', () => {
   it('renders the bottom two-button pair (free calculator + paid PDF upload)', () => {
     renderPage();
     expect(screen.getByRole('button', { name: /Calculator gratuit \(manual\)/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Upload PDF \(€12 lansare\)/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Upload PDF \(€19 lansare\)/ })).toBeInTheDocument();
   });
 
   it('bottom free-calculator button navigates to /calculator', async () => {
@@ -56,7 +56,7 @@ describe('GhidDeclaratieUnicaPage - conversion CTAs', () => {
   it('bottom upload-PDF button navigates to /pricing', async () => {
     const user = userEvent.setup();
     renderPage();
-    await user.click(screen.getByRole('button', { name: /Upload PDF \(€12 lansare\)/ }));
+    await user.click(screen.getByRole('button', { name: /Upload PDF \(€19 lansare\)/ }));
     expect(mockNavigate).toHaveBeenCalledWith('/pricing');
   });
 });

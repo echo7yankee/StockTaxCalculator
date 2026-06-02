@@ -422,7 +422,7 @@ describe('sendNewCustomerNotification', () => {
     expect(body.text).toContain('paul@example.com');
     expect(body.text).toContain('Paul Adam');
     expect(body.text).toContain('12.00 EUR');
-    expect(body.text).toContain('launch promo (€12)');
+    expect(body.text).toContain('launch promo (€19)');
     expect(body.text).toContain('cus_test_abc');
     expect(body.text).toContain('pi_test_def');
     expect(body.text).toContain('cs_live_xyz');
@@ -434,10 +434,10 @@ describe('sendNewCustomerNotification', () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
     global.fetch = fetchMock;
 
-    await sendNewCustomerNotification({ ...baseParams, isLaunchPrice: false, amountMinorUnits: 1900 });
+    await sendNewCustomerNotification({ ...baseParams, isLaunchPrice: false, amountMinorUnits: 2900 });
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
-    expect(body.text).toContain('standard (€19)');
-    expect(body.text).toContain('19.00 EUR');
+    expect(body.text).toContain('standard (€29)');
+    expect(body.text).toContain('29.00 EUR');
   });
 
   it('handles missing customer name + missing Stripe IDs without crashing', async () => {

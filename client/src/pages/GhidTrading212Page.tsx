@@ -329,7 +329,7 @@ export default function GhidTrading212Page() {
               </button>
               <button onClick={() => navigate('/pricing')} className="btn-primary inline-flex items-center gap-2">
                 <FileText className="w-4 h-4" />
-                Upload PDF (€12 lansare)
+                Upload PDF (€19 lansare)
               </button>
             </div>
           </div>

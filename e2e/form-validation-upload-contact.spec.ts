@@ -21,7 +21,7 @@ test.describe('Scenario K: Upload page tab system and validation', () => {
     await page.goto('/pricing');
     // Both free (€0) and paid tiers should be visible
     await expect(page.getByText('€0')).toBeVisible();
-    await expect(page.getByText(/€19|€12/).first()).toBeVisible();
+    await expect(page.getByText(/€29|€19/).first()).toBeVisible();
   });
 
   test('pricing page FAQ items expand on click', async ({ page }) => {

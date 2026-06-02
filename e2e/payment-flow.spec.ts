@@ -134,11 +134,11 @@ test.describe('Payment Flow — Promo Counter', () => {
 
     await page.goto('/pricing');
     if (remaining > 0) {
-      await expect(page.getByText('€12')).toBeVisible();
+      await expect(page.getByText('€19')).toBeVisible();
       // Regular price shown as strikethrough
-      await expect(page.getByText('€19')).toBeVisible();
+      await expect(page.getByText('€29')).toBeVisible();
     } else {
-      await expect(page.getByText('€19')).toBeVisible();
+      await expect(page.getByText('€29')).toBeVisible();
     }
   });
 });

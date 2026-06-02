@@ -41,7 +41,7 @@ describe('PricingPage — Section 3.9 Site 3 (promo/price skeleton)', () => {
     });
   });
 
-  it('renders skeletons (badge + price) while the promo fetch is pending — no hardcoded English string, no €19/€12 flash', () => {
+  it('renders skeletons (badge + price) while the promo fetch is pending, no hardcoded English string, no €29/€19 flash', () => {
     // Fetch never resolves so we capture the initial loading state.
     vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise(() => {}));
     renderPricing();
@@ -56,12 +56,12 @@ describe('PricingPage — Section 3.9 Site 3 (promo/price skeleton)', () => {
     // The hardcoded English string from the previous implementation must be gone.
     expect(screen.queryByText('Loading promo...')).not.toBeInTheDocument();
 
-    // The price text must NOT be visible during load — otherwise it would flash from €19 to €12.
+    // The price text must NOT be visible during load, otherwise it would flash from €29 to €19.
+    expect(screen.queryByText('€29')).not.toBeInTheDocument();
     expect(screen.queryByText('€19')).not.toBeInTheDocument();
-    expect(screen.queryByText('€12')).not.toBeInTheDocument();
   });
 
-  it('replaces both skeletons with the real launch badge and €12 price once the promo resolves with launch spots remaining', async () => {
+  it('replaces both skeletons with the real launch badge and €19 price once the promo resolves with launch spots remaining', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ count: 2, limit: 100, remaining: 98 }), { status: 200 })
     );
@@ -72,13 +72,13 @@ describe('PricingPage — Section 3.9 Site 3 (promo/price skeleton)', () => {
     });
 
     expect(screen.queryByTestId('price-skeleton')).not.toBeInTheDocument();
-    expect(screen.getByText('€12')).toBeInTheDocument();
+    expect(screen.getByText('€19')).toBeInTheDocument();
     // Real launch-spots badge text from the i18n key (with interpolated remaining/limit)
     expect(screen.getByText(/Launch special/)).toBeInTheDocument();
     expect(screen.getByText(/98\/100 launch spots left/)).toBeInTheDocument();
   });
 
-  it('replaces both skeletons with the regular €19 price when launch spots are sold out', async () => {
+  it('replaces both skeletons with the regular €29 price when launch spots are sold out', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ count: 100, limit: 100, remaining: 0 }), { status: 200 })
     );
@@ -89,7 +89,7 @@ describe('PricingPage — Section 3.9 Site 3 (promo/price skeleton)', () => {
     });
 
     expect(screen.queryByTestId('price-skeleton')).not.toBeInTheDocument();
-    expect(screen.getByText('€19')).toBeInTheDocument();
+    expect(screen.getByText('€29')).toBeInTheDocument();
   });
 });
 

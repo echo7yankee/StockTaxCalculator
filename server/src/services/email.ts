@@ -471,7 +471,7 @@ export async function sendNewCustomerNotification(
   }
 
   const amount = formatAmount(params.amountMinorUnits, params.currency);
-  const tier = params.isLaunchPrice ? 'launch promo (€12)' : 'standard (€19)';
+  const tier = params.isLaunchPrice ? 'launch promo (€19)' : 'standard (€29)';
   const subject = `[InvesTax] New paying customer: ${params.customerEmail}`;
 
   const lines = [
