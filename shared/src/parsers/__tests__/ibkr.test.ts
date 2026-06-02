@@ -196,6 +196,89 @@ describe('parseIbkrCsv', () => {
   });
 });
 
+describe('parseIbkrCsv (cash-section date formats)', () => {
+  // IBKR Ireland (and other non-US entities) write Trades in ISO but cash
+  // sections in the account-configured day-first DD-MM-YY. A real user statement
+  // surfaced this: a dividend dated "15-04-26" was silently dropped because
+  // new Date("15-04-26") reads month "15" as invalid. These pin the fix.
+
+  it('parses a day-first DD-MM-YY dividend whose day > 12 (was silently dropped) and attaches its withholding', () => {
+    const rows = generateIbkrStatement({
+      dividends: [{ symbol: 'MU', isin: 'US5951121038', date: '15-04-26', amount: 5.25, withholding: 0.53 }],
+    });
+    const r = parseIbkrCsv(rows);
+    const div = r.transactions.find((t) => t.action === 'dividend');
+    expect(div).toBeDefined();
+    expect(div!.transactionDate.toISOString().slice(0, 10)).toBe('2026-04-15');
+    expect(div!.totalAmountOriginal).toBeCloseTo(5.25);
+    // The withholding row (same DD-MM-YY date) must match on (security, year).
+    expect(div!.withholdingTaxOriginal).toBeCloseTo(0.53);
+    // A clean stocks+dividends statement must NOT false-trigger the #24A hard-stop.
+    expect(r.warnings).toHaveLength(0);
+  });
+
+  it('reads a month-first MM-DD-YY statement and applies that order to ambiguous rows (US-configured account)', () => {
+    // "04-15-26" (15 in the second slot) proves month-first, so the ambiguous
+    // "06-05-26" must read as June 5, not May 6.
+    const rows = generateIbkrStatement({
+      dividends: [
+        { symbol: 'AAPL', isin: 'US0378331005', date: '04-15-26', amount: 3, withholding: 0.45 },
+        { symbol: 'MSFT', isin: 'US5949181045', date: '06-05-26', amount: 4, withholding: 0.6 },
+      ],
+    });
+    const r = parseIbkrCsv(rows);
+    const byTicker = Object.fromEntries(
+      r.transactions.filter((t) => t.action === 'dividend').map((d) => [d.ticker, d])
+    );
+    expect(byTicker['AAPL'].transactionDate.toISOString().slice(0, 10)).toBe('2026-04-15');
+    expect(byTicker['MSFT'].transactionDate.toISOString().slice(0, 10)).toBe('2026-06-05');
+    expect(r.warnings).toHaveLength(0);
+  });
+
+  it('infers day-first order from one unambiguous row and applies it to ambiguous ones', () => {
+    // "23-01-26" (23 > 12) proves day-first, so "05-06-26" must read as 5 June.
+    const rows = generateIbkrStatement({
+      dividends: [
+        { symbol: 'AAPL', isin: 'US0378331005', date: '23-01-26', amount: 2, withholding: 0.3 },
+        { symbol: 'MSFT', isin: 'US5949181045', date: '05-06-26', amount: 2, withholding: 0.3 },
+      ],
+    });
+    const r = parseIbkrCsv(rows);
+    const byTicker = Object.fromEntries(
+      r.transactions.filter((t) => t.action === 'dividend').map((d) => [d.ticker, d])
+    );
+    expect(byTicker['AAPL'].transactionDate.toISOString().slice(0, 10)).toBe('2026-01-23');
+    expect(byTicker['MSFT'].transactionDate.toISOString().slice(0, 10)).toBe('2026-06-05');
+  });
+
+  it('warns (does not silently drop) when a cash-section date is unreadable', () => {
+    const rows = [
+      ['Dividends', 'Header', 'Currency', 'Date', 'Description', 'Amount'],
+      ['Dividends', 'Data', 'USD', 'not-a-date', 'AAPL (US0378331005) Cash Dividend', '5'],
+    ];
+    const r = parseIbkrCsv(rows);
+    expect(r.transactions.filter((t) => t.action === 'dividend')).toHaveLength(0);
+    expect(r.warnings.some((w) => w.includes('Could not read the date'))).toBe(true);
+  });
+
+  it('parses a mixed statement: ISO trades + DD-MM-YY dividends (the real IBKR Ireland shape)', () => {
+    const rows = generateIbkrStatement({
+      trades: [
+        { symbol: 'AAPL', quantity: 10, price: 100, dateTime: '2026-02-06, 11:37:54', commission: 1 },
+        { symbol: 'AAPL', quantity: -10, price: 120, dateTime: '2026-05-04, 09:54:40', commission: 1 },
+      ],
+      dividends: [{ symbol: 'AAPL', isin: 'US0378331005', date: '15-04-26', amount: 5, withholding: 0.5 }],
+      instruments: [{ symbol: 'AAPL', isin: 'US0378331005', name: 'APPLE INC' }],
+    });
+    const r = parseIbkrCsv(rows);
+    const sell = r.transactions.find((t) => t.action === 'sell');
+    const div = r.transactions.find((t) => t.action === 'dividend');
+    expect(sell!.transactionDate.toISOString().slice(0, 10)).toBe('2026-05-04'); // ISO trade unchanged
+    expect(div!.transactionDate.toISOString().slice(0, 10)).toBe('2026-04-15'); // DD-MM-YY dividend
+    expect(r.warnings).toHaveLength(0);
+  });
+});
+
 describe('parseIbkrCsv (property-based)', () => {
   const tradeArb = fc.record({
     symbol: fc.constantFrom('AAPL', 'MSFT', 'VWRL', 'TSLA', 'KO'),
