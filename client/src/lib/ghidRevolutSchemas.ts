@@ -33,7 +33,7 @@ export const GHID_REVOLUT_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Dobânzile la cardul Revolut Pockets / Savings se declară?',
-    a: 'Da, dobânzile primite în 2025 se declară la rubrica de venituri din dobânzi. Convertești în RON la cursul BNR din ziua plății.',
+    a: 'Da, dobânzile primite în 2025 se declară la rubrica de venituri din dobânzi. Fiind venit din străinătate, conversia în RON se face la cursul mediu anual BNR pentru anul venitului (Codul Fiscal art. 131 alin. 6), la fel ca la dividende, nu la cursul din ziua plății.',
   },
 ];
 

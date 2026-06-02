@@ -258,9 +258,9 @@ export default function GhidTrading212Page() {
         <ul className="list-disc list-outside pl-6 space-y-1 mt-3 text-sm">
           <li>Brut total: 12 USD. Convertit la cursul mediu anual BNR USD/RON pentru 2025 (4,4705 RON/USD): 12 × 4,4705 ≈ 53,65 RON.</li>
           <li>Reținut în SUA: 1,20 USD × 4,4705 ≈ 5,36 RON.</li>
-          <li>Impozit datorat RO: 53,65 × 10% ≈ 5,37 RON.</li>
+          <li>Impozit datorat RO: 53,65 × 10% ≈ 5,36 RON.</li>
           <li>Credit pentru reținere străină: 5,36 RON (limitat la impozitul RO).</li>
-          <li><strong>De plătit ANAF pe dividende: 0,01 RON (efectiv 0 după rotunjire).</strong></li>
+          <li><strong>De plătit ANAF pe dividende: 0 RON.</strong></li>
         </ul>
 
         <p className="mt-4">
@@ -296,9 +296,9 @@ export default function GhidTrading212Page() {
           119).
         </Mistake>
         <Mistake>
-          <strong>Confuzia Trading212 cu XTB.</strong> XTB are sucursală în România și reține impozitul la sursă (1%
-          pe profit pentru deținere peste 365 de zile, 3% pentru sub). Pentru XTB nu mai declari câștigul. Pentru
-          Trading212 da. Regimuri complet diferite.
+          <strong>Confuzia Trading212 cu XTB.</strong> XTB are sucursală în România și reține impozitul la sursă (în
+          2025: 1% pe profit pentru deținere peste 365 de zile și 3% pentru sub; din 2026 cotele cresc la 3%,
+          respectiv 6%). Pentru XTB nu mai declari câștigul. Pentru Trading212 da. Regimuri complet diferite.
         </Mistake>
         <Mistake>
           <strong>Ignorarea CASS pe brut.</strong> Mulți cred că dacă au pierdere netă pe Trading212, scapă de CASS.
@@ -317,9 +317,10 @@ export default function GhidTrading212Page() {
           <div>
             <h2 className="text-xl font-bold mb-2">Sau folosește calculatorul</h2>
             <p className="text-sm text-gray-700 dark:text-slate-300 mb-4">
-              Dacă pașii ăștia ți se par prea mult work, InvesTax face automat tot procesul: încarci PDF-ul de la
+              Dacă pașii ăștia ți se par prea mult de lucru, InvesTax face automat tot procesul: încarci PDF-ul de la
               Trading212, primești cifrele formatate pentru Declarația Unică, în RON, cu calculele CMP și conversiile
-              BNR deja aplicate. Versiune gratuită pentru sume mici, plătit pentru tranzacții multiple.
+              BNR deja aplicate. Calculatorul manual gratuit funcționează cu cifrele tale brute; pentru încărcarea
+              automată a PDF-ului Trading212 ai nevoie de un plan plătit.
             </p>
             <div className="flex flex-wrap gap-3">
               <button onClick={() => navigate('/calculator')} className="btn-secondary inline-flex items-center gap-2">

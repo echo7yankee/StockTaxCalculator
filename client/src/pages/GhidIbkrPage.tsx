@@ -99,7 +99,7 @@ export default function GhidIbkrPage() {
             de tip MTM.
           </li>
           <li>
-            Setează perioada pe <strong>anul fiscal complet</strong> (1 ianuarie - 31 decembrie 2025). IBKR limitează un
+            Setează perioada pe <strong>anul fiscal complet</strong> (de la 1 ianuarie până la 31 decembrie 2025). IBKR limitează un
             fișier la maximum un an, deci pentru fiecare an scoți un export separat.
           </li>
           <li>
@@ -223,9 +223,9 @@ export default function GhidIbkrPage() {
           1042-S pe reținerea la dividende), nu un formular pentru ANAF. Pentru D212 folosești Activity Statement-ul.
         </Mistake>
         <Mistake>
-          <strong>Confuzia IBKR cu XTB.</strong> XTB are sucursală în România și reține impozitul la sursă (1% pentru
-          deținere peste 365 de zile, 3% pentru sub). Pentru XTB nu mai declari câștigul. Pentru IBKR da. Regimuri
-          complet diferite.
+          <strong>Confuzia IBKR cu XTB.</strong> XTB are sucursală în România și reține impozitul la sursă (în 2025:
+          1% pentru deținere peste 365 de zile și 3% pentru sub; din 2026 cotele cresc la 3%, respectiv 6%). Pentru
+          XTB nu mai declari câștigul. Pentru IBKR da. Regimuri complet diferite.
         </Mistake>
         <Mistake>
           <strong>Compari direct cu Realized P/L din IBKR.</strong> IBKR folosește FIFO, InvesTax CMP. O mică diferență
@@ -239,7 +239,7 @@ export default function GhidIbkrPage() {
           <div>
             <h2 className="text-xl font-bold mb-2">Sau folosește calculatorul</h2>
             <p className="text-sm text-gray-700 dark:text-slate-300 mb-4">
-              Dacă pașii ăștia ți se par prea mult work, InvesTax aplică automat metoda CMP, cursurile BNR și pragurile
+              Dacă pașii ăștia ți se par prea mult de lucru, InvesTax aplică automat metoda CMP, cursurile BNR și pragurile
               CASS. Calculatorul manual gratuit funcționează cu cifrele tale brute; pentru încărcarea automată a
               extrasului IBKR (beta) ai nevoie de un plan plătit.
             </p>
