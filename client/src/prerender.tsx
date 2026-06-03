@@ -82,13 +82,13 @@ const PRICING_META = {
   title: 'Prețuri | InvesTax',
   description:
     'Încarci extrasul Trading212 și primești un raport fiscal complet, gata de copiat în Declarația Unică. Plată anuală unică.',
-  url: 'https://investax.app/pricing',
+  url: 'https://investax.app/pricing/',
 };
 
 const CALCULATOR_META = {
   title: 'Calculator taxe gratuit | InvesTax',
   description: `Calculează gratuit impozitul pe câștiguri de capital, dividende și CASS pentru anul fiscal ${taxYearConfig.taxYear}. Fără cont, fără card.`,
-  url: 'https://investax.app/calculator',
+  url: 'https://investax.app/calculator/',
 };
 
 const PRERENDER_PAGES: Record<string, PageConfig> = {
