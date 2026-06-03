@@ -1,20 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 
-const mockNavigate = vi.fn();
-
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate,
-  };
-});
-
 import GhidIndexPage from '../GhidIndexPage';
+import { GHID_LIST } from '../../lib/ghidIndexSchemas';
 
 function renderPage() {
   return render(
@@ -26,37 +16,24 @@ function renderPage() {
   );
 }
 
-beforeEach(() => {
-  vi.clearAllMocks();
-});
-
-describe('GhidIndexPage - conversion CTAs', () => {
-  it('renders the top intro CTA chip linking to pricing', async () => {
-    const user = userEvent.setup();
+describe('GhidIndexPage - crawlable internal links', () => {
+  it('renders the top intro CTA chip as a link to pricing', () => {
     renderPage();
-    const topCta = screen.getByRole('button', { name: /Vrei calculul automat din PDF Trading212.*Vezi planuri/ });
-    expect(topCta).toBeInTheDocument();
-    await user.click(topCta);
-    expect(mockNavigate).toHaveBeenCalledWith('/pricing');
+    const topCta = screen.getByRole('link', { name: /Vrei calculul automat din PDF Trading212.*Vezi planuri/ });
+    expect(topCta).toHaveAttribute('href', '/pricing');
   });
 
-  it('renders the bottom two-button pair (free calculator + paid PDF upload)', () => {
+  it('renders the bottom CTA pair as links (free calculator + paid PDF upload)', () => {
     renderPage();
-    expect(screen.getByRole('button', { name: /Calculator gratuit \(manual\)/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Upload PDF \(€12 lansare\)/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Calculator gratuit \(manual\)/ })).toHaveAttribute('href', '/calculator');
+    expect(screen.getByRole('link', { name: /Upload PDF \(€12 lansare\)/ })).toHaveAttribute('href', '/pricing');
   });
 
-  it('bottom free-calculator button navigates to /calculator', async () => {
-    const user = userEvent.setup();
+  it('links every guide as a crawlable anchor (not a JS-only button)', () => {
     renderPage();
-    await user.click(screen.getByRole('button', { name: /Calculator gratuit \(manual\)/ }));
-    expect(mockNavigate).toHaveBeenCalledWith('/calculator');
-  });
-
-  it('bottom upload-PDF button navigates to /pricing', async () => {
-    const user = userEvent.setup();
-    renderPage();
-    await user.click(screen.getByRole('button', { name: /Upload PDF \(€12 lansare\)/ }));
-    expect(mockNavigate).toHaveBeenCalledWith('/pricing');
+    const hrefs = screen.getAllByRole('link').map((a) => a.getAttribute('href'));
+    for (const g of GHID_LIST) {
+      expect(hrefs).toContain(g.path);
+    }
   });
 });
