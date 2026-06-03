@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { ArrowLeft, ArrowRight, Calculator, FileText } from 'lucide-react';
 import {
@@ -8,8 +8,6 @@ import {
 } from '../lib/ghidIndexSchemas';
 
 export default function GhidIndexPage() {
-  const navigate = useNavigate();
-
   return (
     <article className="max-w-3xl mx-auto px-4 py-12">
       <Helmet>
@@ -26,12 +24,12 @@ export default function GhidIndexPage() {
         <script type="application/ld+json">{JSON.stringify(collectionSchema)}</script>
       </Helmet>
 
-      <button
-        onClick={() => navigate('/')}
+      <Link
+        to="/"
         className="flex items-center gap-1 text-sm text-gray-500 dark:text-slate-400 hover:text-accent dark:hover:text-accent-light mb-6 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Acasă
-      </button>
+      </Link>
 
       <header className="mb-10">
         <p className="text-sm text-accent dark:text-accent-light font-medium mb-2">Ghiduri</p>
@@ -53,21 +51,21 @@ export default function GhidIndexPage() {
           mulți investitori la prima declarație.
         </p>
         <p className="mt-3 text-sm">
-          <button
-            onClick={() => navigate('/pricing')}
+          <Link
+            to="/pricing"
             className="text-accent dark:text-accent-light font-medium underline hover:no-underline"
           >
             Vrei calculul automat din PDF Trading212? Vezi planuri →
-          </button>
+          </Link>
         </p>
       </section>
 
       <section className="mb-12 space-y-4">
         {GHID_LIST.map((g) => (
-          <button
+          <Link
             key={g.path}
-            onClick={() => navigate(g.path)}
-            className="w-full text-left p-5 border border-gray-200 dark:border-navy-700 rounded-xl hover:border-accent dark:hover:border-accent-light hover:bg-accent/5 dark:hover:bg-accent/10 transition-colors group"
+            to={g.path}
+            className="block w-full text-left p-5 border border-gray-200 dark:border-navy-700 rounded-xl hover:border-accent dark:hover:border-accent-light hover:bg-accent/5 dark:hover:bg-accent/10 transition-colors group"
           >
             <h2 className="text-lg font-semibold mb-2 group-hover:text-accent dark:group-hover:text-accent-light transition-colors">
               {g.title}
@@ -76,7 +74,7 @@ export default function GhidIndexPage() {
             <span className="inline-flex items-center gap-1 text-sm text-accent dark:text-accent-light font-medium">
               Citește ghidul <ArrowRight className="w-4 h-4" />
             </span>
-          </button>
+          </Link>
         ))}
       </section>
 
@@ -91,14 +89,14 @@ export default function GhidIndexPage() {
               extraselor PDF.
             </p>
             <div className="flex flex-wrap gap-3">
-              <button onClick={() => navigate('/calculator')} className="btn-secondary inline-flex items-center gap-2">
+              <Link to="/calculator" className="btn-secondary inline-flex items-center gap-2">
                 <Calculator className="w-4 h-4" />
                 Calculator gratuit (manual)
-              </button>
-              <button onClick={() => navigate('/pricing')} className="btn-primary inline-flex items-center gap-2">
+              </Link>
+              <Link to="/pricing" className="btn-primary inline-flex items-center gap-2">
                 <FileText className="w-4 h-4" />
                 Upload PDF (€12 lansare)
-              </button>
+              </Link>
             </div>
           </div>
         </div>
