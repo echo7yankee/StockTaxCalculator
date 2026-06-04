@@ -85,20 +85,20 @@
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://investax.app/privacy</loc>
-    <lastmod>2026-05-07</lastmod>
+    <loc>https://investax.app/privacy/</loc>
+    <lastmod>2026-06-04</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://investax.app/terms</loc>
-    <lastmod>2026-04-26</lastmod>
+    <loc>https://investax.app/terms/</loc>
+    <lastmod>2026-06-04</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://investax.app/contact</loc>
-    <lastmod>2026-04-26</lastmod>
+    <loc>https://investax.app/contact/</loc>
+    <lastmod>2026-06-04</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>

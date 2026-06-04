@@ -13,6 +13,9 @@ export default defineConfig({
       additionalPrerenderRoutes: [
         '/pricing',
         '/calculator',
+        '/privacy',
+        '/terms',
+        '/contact',
         '/ghid',
         '/ghid/declaratie-unica-trading212',
         '/ghid/declaratie-unica-revolut',
