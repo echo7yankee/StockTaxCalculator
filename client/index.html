@@ -25,10 +25,7 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content="https://investax.app/og-image.png" />
 
-    <!-- Additional SEO (canonical is injected per-route) -->
-    <link rel="alternate" hreflang="ro" href="https://investax.app/?lng=ro" />
-    <link rel="alternate" hreflang="en" href="https://investax.app/?lng=en" />
-    <link rel="alternate" hreflang="x-default" href="https://investax.app/?lng=ro" />
+    <!-- Canonical is injected per-route (src/prerender.tsx). No hreflang on purpose: EN is a client-side ?lng= toggle, not a distinct crawlable URL, so any cross-language hreflang would target a URL that canonicalizes back here and be ignored by Google. Re-add only if genuinely separate per-language pages exist. -->
     <meta name="theme-color" content="#0B1426" />
 
     <!-- Structured data (JSON-LD) -->
