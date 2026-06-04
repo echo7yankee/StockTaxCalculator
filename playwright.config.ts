@@ -12,7 +12,21 @@ export default defineConfig({
   // still runs there as designed.
   testIgnore: process.env.SKIP_VISUAL ? ['**/visual-regression.spec.ts'] : [],
   timeout: 30_000,
-  retries: 0,
+  // E2E runs against a single shared dev server backed by one SQLite file. With
+  // Playwright's default worker-per-core parallelism, concurrent workers race on
+  // the @quixo3/prisma-session-store session table: a session read-modify-write
+  // interleaves and Prisma throws "No record was found for an update", which
+  // surfaces as an intermittent 401 on an authenticated spec (e.g. the
+  // api-endpoints export-data test) and a false-red CI run (sessions #116/#120).
+  // Serializing E2E in CI removes the contention at its source. Local dev keeps
+  // default parallelism for fast feedback (process.env.CI is unset there).
+  workers: process.env.CI ? 1 : undefined,
+  // Insurance for residual timing nondeterminism (networkidle waits, runner
+  // load). Codifies the "if a run looks like flake, retry it" policy already
+  // documented in .github/workflows/ci.yml so a transient blip no longer blocks
+  // `gh pr merge --auto`. A genuinely broken test still fails every attempt, so
+  // this absorbs transient blips, not real regressions.
+  retries: process.env.CI ? 2 : 0,
   use: {
     baseURL,
     headless: true,
