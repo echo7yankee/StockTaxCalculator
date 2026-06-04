@@ -6,6 +6,7 @@ import {
   GHID_DIVIDENDE_ARTICLE_SCHEMA as articleSchema,
   GHID_DIVIDENDE_FAQ_SCHEMA as faqSchema,
 } from '../lib/ghidDividendeSchemas';
+import GhidRelatedGuides from '../components/common/GhidRelatedGuides';
 
 export default function GhidDividendePage() {
   const navigate = useNavigate();
@@ -375,6 +376,8 @@ export default function GhidDividendePage() {
           ))}
         </div>
       </Section>
+
+      <GhidRelatedGuides currentPath="/ghid/dividende-broker-strain" />
 
       <nav className="mt-12">
         <button
