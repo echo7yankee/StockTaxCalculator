@@ -10,6 +10,9 @@ import { UploadProvider } from './contexts/UploadContext';
 import Landing from './pages/Landing';
 import PricingPage from './pages/PricingPage';
 import CalculatorPage from './pages/CalculatorPage';
+import PrivacyPage from './pages/PrivacyPage';
+import TermsPage from './pages/TermsPage';
+import ContactPage from './pages/ContactPage';
 import GhidIndexPage from './pages/GhidIndexPage';
 import GhidTrading212Page from './pages/GhidTrading212Page';
 import GhidRevolutPage from './pages/GhidRevolutPage';
@@ -91,6 +94,24 @@ const CALCULATOR_META = {
   url: 'https://investax.app/calculator/',
 };
 
+const PRIVACY_META = {
+  title: 'Politica de confidențialitate | InvesTax',
+  description: 'Cum gestionează InvesTax datele tale personale. Conform GDPR.',
+  url: 'https://investax.app/privacy/',
+};
+
+const TERMS_META = {
+  title: 'Termeni și condiții | InvesTax',
+  description: 'Termenii și condițiile de utilizare a InvesTax.',
+  url: 'https://investax.app/terms/',
+};
+
+const CONTACT_META = {
+  title: 'Contact | InvesTax',
+  description: 'Contactează echipa InvesTax. Răspundem în maxim 24 de ore în zilele lucrătoare.',
+  url: 'https://investax.app/contact/',
+};
+
 const PRERENDER_PAGES: Record<string, PageConfig> = {
   '/': {
     component: () => <Landing />,
@@ -113,6 +134,30 @@ const PRERENDER_PAGES: Record<string, PageConfig> = {
     title: CALCULATOR_META.title,
     description: CALCULATOR_META.description,
     canonicalUrl: CALCULATOR_META.url,
+    schemas: [],
+    ogType: 'website',
+  },
+  '/privacy': {
+    component: () => <PrivacyPage />,
+    title: PRIVACY_META.title,
+    description: PRIVACY_META.description,
+    canonicalUrl: PRIVACY_META.url,
+    schemas: [],
+    ogType: 'website',
+  },
+  '/terms': {
+    component: () => <TermsPage />,
+    title: TERMS_META.title,
+    description: TERMS_META.description,
+    canonicalUrl: TERMS_META.url,
+    schemas: [],
+    ogType: 'website',
+  },
+  '/contact': {
+    component: () => <ContactPage />,
+    title: CONTACT_META.title,
+    description: CONTACT_META.description,
+    canonicalUrl: CONTACT_META.url,
     schemas: [],
     ogType: 'website',
   },
