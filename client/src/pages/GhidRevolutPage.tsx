@@ -6,6 +6,7 @@ import {
   GHID_REVOLUT_ARTICLE_SCHEMA as articleSchema,
   GHID_REVOLUT_FAQ_SCHEMA as faqSchema,
 } from '../lib/ghidRevolutSchemas';
+import GhidRelatedGuides from '../components/common/GhidRelatedGuides';
 
 export default function GhidRevolutPage() {
   const navigate = useNavigate();
@@ -431,6 +432,8 @@ export default function GhidRevolutPage() {
           ))}
         </div>
       </Section>
+
+      <GhidRelatedGuides currentPath="/ghid/declaratie-unica-revolut" />
 
       <nav className="mt-12">
         <button

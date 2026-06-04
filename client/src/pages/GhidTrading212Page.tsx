@@ -6,6 +6,7 @@ import {
   GHID_T212_ARTICLE_SCHEMA as articleSchema,
   GHID_T212_FAQ_SCHEMA as faqSchema,
 } from '../lib/ghidTrading212Schemas';
+import GhidRelatedGuides from '../components/common/GhidRelatedGuides';
 
 export default function GhidTrading212Page() {
   const navigate = useNavigate();
@@ -346,6 +347,8 @@ export default function GhidTrading212Page() {
           ))}
         </div>
       </Section>
+
+      <GhidRelatedGuides currentPath="/ghid/declaratie-unica-trading212" />
 
       <nav className="mt-12">
         <button

@@ -6,6 +6,7 @@ import {
   GHID_DU_ARTICLE_SCHEMA as articleSchema,
   GHID_DU_FAQ_SCHEMA as faqSchema,
 } from '../lib/ghidDeclaratieUnicaSchemas';
+import GhidRelatedGuides from '../components/common/GhidRelatedGuides';
 
 export default function GhidDeclaratieUnicaPage() {
   const navigate = useNavigate();
@@ -387,6 +388,8 @@ export default function GhidDeclaratieUnicaPage() {
           ))}
         </div>
       </Section>
+
+      <GhidRelatedGuides currentPath="/ghid/cum-completez-declaratia-unica" />
 
       <nav className="mt-12">
         <button

@@ -6,6 +6,7 @@ import {
   GHID_IBKR_ARTICLE_SCHEMA as articleSchema,
   GHID_IBKR_FAQ_SCHEMA as faqSchema,
 } from '../lib/ghidIbkrSchemas';
+import GhidRelatedGuides from '../components/common/GhidRelatedGuides';
 
 export default function GhidIbkrPage() {
   const navigate = useNavigate();
@@ -267,6 +268,8 @@ export default function GhidIbkrPage() {
           ))}
         </div>
       </Section>
+
+      <GhidRelatedGuides currentPath="/ghid/declaratie-unica-ibkr" />
 
       <nav className="mt-12">
         <button

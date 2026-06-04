@@ -6,6 +6,7 @@ import {
   GHID_CASS_ARTICLE_SCHEMA as articleSchema,
   GHID_CASS_FAQ_SCHEMA as faqSchema,
 } from '../lib/ghidCassSchemas';
+import GhidRelatedGuides from '../components/common/GhidRelatedGuides';
 
 export default function GhidCassPage() {
   const navigate = useNavigate();
@@ -309,6 +310,8 @@ export default function GhidCassPage() {
           ))}
         </div>
       </Section>
+
+      <GhidRelatedGuides currentPath="/ghid/cass-investitii" />
 
       <nav className="mt-12">
         <button

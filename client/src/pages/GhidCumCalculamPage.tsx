@@ -6,6 +6,7 @@ import {
   GHID_CUM_CALCULAM_ARTICLE_SCHEMA as articleSchema,
   GHID_CUM_CALCULAM_FAQ_SCHEMA as faqSchema,
 } from '../lib/ghidCumCalculamSchemas';
+import GhidRelatedGuides from '../components/common/GhidRelatedGuides';
 
 export default function GhidCumCalculamPage() {
   const navigate = useNavigate();
@@ -376,6 +377,8 @@ export default function GhidCumCalculamPage() {
           ))}
         </div>
       </Section>
+
+      <GhidRelatedGuides currentPath="/ghid/cum-calculam" />
 
       <nav className="mt-12">
         <button

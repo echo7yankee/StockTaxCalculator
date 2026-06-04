@@ -57,6 +57,61 @@ export const GHID_LIST: GhidEntry[] = [
   },
 ];
 
+/**
+ * Topic-cluster interlinking for the "Ghiduri conexe" (related guides) section on each
+ * spoke page. Keyed by the guide's `path`; the value is the ordered list of related guide
+ * paths to surface. Curated by topic relevance (not auto-generated):
+ *  - broker guides (T212 / Revolut / IBKR) point to the shared concept guides
+ *    (general D212 process, methodology, dividends, CASS), not to each other;
+ *  - the dividends guide names all three brokers, so it points back to them;
+ *  - the general D212 guide is the broker-selection hub, so it points to every broker.
+ * Every referenced path must exist in GHID_LIST (guarded by a unit test).
+ */
+export const GHID_RELATED: Record<string, string[]> = {
+  '/ghid/cum-completez-declaratia-unica': [
+    '/ghid/declaratie-unica-trading212',
+    '/ghid/declaratie-unica-revolut',
+    '/ghid/declaratie-unica-ibkr',
+    '/ghid/cum-calculam',
+  ],
+  '/ghid/declaratie-unica-trading212': [
+    '/ghid/cum-completez-declaratia-unica',
+    '/ghid/cum-calculam',
+    '/ghid/dividende-broker-strain',
+    '/ghid/cass-investitii',
+  ],
+  '/ghid/declaratie-unica-revolut': [
+    '/ghid/cum-completez-declaratia-unica',
+    '/ghid/cum-calculam',
+    '/ghid/dividende-broker-strain',
+    '/ghid/cass-investitii',
+  ],
+  '/ghid/declaratie-unica-ibkr': [
+    '/ghid/cum-completez-declaratia-unica',
+    '/ghid/cum-calculam',
+    '/ghid/dividende-broker-strain',
+    '/ghid/cass-investitii',
+  ],
+  '/ghid/dividende-broker-strain': [
+    '/ghid/cum-completez-declaratia-unica',
+    '/ghid/declaratie-unica-trading212',
+    '/ghid/declaratie-unica-revolut',
+    '/ghid/declaratie-unica-ibkr',
+  ],
+  '/ghid/cass-investitii': [
+    '/ghid/cum-completez-declaratia-unica',
+    '/ghid/dividende-broker-strain',
+    '/ghid/cum-calculam',
+    '/ghid/declaratie-unica-trading212',
+  ],
+  '/ghid/cum-calculam': [
+    '/ghid/cum-completez-declaratia-unica',
+    '/ghid/declaratie-unica-trading212',
+    '/ghid/dividende-broker-strain',
+    '/ghid/cass-investitii',
+  ],
+};
+
 export const GHID_INDEX_COLLECTION_SCHEMA = {
   '@context': 'https://schema.org',
   '@type': 'CollectionPage',
