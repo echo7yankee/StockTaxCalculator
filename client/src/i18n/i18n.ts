@@ -19,6 +19,7 @@ import enD212 from './locales/en/d212.json';
 import enPrivacy from './locales/en/privacy.json';
 import enTerms from './locales/en/terms.json';
 import enContact from './locales/en/contact.json';
+import enSubscribe from './locales/en/subscribe.json';
 import enPricing from './locales/en/pricing.json';
 import enMeta from './locales/en/meta.json';
 
@@ -39,6 +40,7 @@ import roD212 from './locales/ro/d212.json';
 import roPrivacy from './locales/ro/privacy.json';
 import roTerms from './locales/ro/terms.json';
 import roContact from './locales/ro/contact.json';
+import roSubscribe from './locales/ro/subscribe.json';
 import roPricing from './locales/ro/pricing.json';
 import roMeta from './locales/ro/meta.json';
 
@@ -70,6 +72,7 @@ i18n
         privacy: enPrivacy,
         terms: enTerms,
         contact: enContact,
+        subscribe: enSubscribe,
         pricing: enPricing,
         meta: enMeta,
       },
@@ -90,6 +93,7 @@ i18n
         privacy: roPrivacy,
         terms: roTerms,
         contact: roContact,
+        subscribe: roSubscribe,
         pricing: roPricing,
         meta: roMeta,
       },

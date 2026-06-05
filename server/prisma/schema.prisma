@@ -184,3 +184,25 @@ model ParseAlertLog {
   @@index([userId, parsedAt])
   @@index([outcome])
 }
+
+// Off-season audience capture. Anonymous (no User FK): a visitor can subscribe
+// to a filing reminder or a broker-graduation waitlist without an account.
+// Double opt-in: a row is created pending (confirmedAt null, confirmToken set),
+// and only confirmed rows with unsubscribedAt null are eligible to be emailed.
+// A person can hold one row per topic (e.g. filing_reminder + broker_revolut).
+model EmailSubscriber {
+  id             String    @id @default(uuid())
+  email          String
+  topic          String
+  language       String    @default("ro")
+  source         String?
+  confirmToken   String?   @unique
+  confirmedAt    DateTime?
+  unsubToken     String    @unique
+  unsubscribedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([email, topic])
+  @@index([topic])
+}

@@ -1,0 +1,20 @@
+{
+  "filing": {
+    "heading": "Îți amintim de Declarația Unică pe 2026",
+    "description": "Sezonul 2025 s-a închis pe 25 mai. Lasă-ți emailul și te anunțăm când se deschide depunerea pentru veniturile din 2026."
+  },
+  "broker": {
+    "heading": "Te anunțăm când iese din beta",
+    "description": "Lasă-ți emailul și primești un mesaj când suportul iese din beta. Dacă vrei, ne poți trimite un extras anonimizat ca să-l validăm mai repede."
+  },
+  "emailPlaceholder": "adresa ta de email",
+  "submit": "Anunță-mă",
+  "submitting": "Se trimite...",
+  "successTitle": "Verifică-ți emailul",
+  "successDetail": "Ți-am trimis un link de confirmare. Apasă-l ca să te adăugăm pe listă. Verifică și folderul Spam.",
+  "consent": "Îți trimitem emailuri doar despre asta și te poți dezabona oricând. Vezi",
+  "consentLink": "Politica de confidențialitate",
+  "errorGeneric": "Nu am putut procesa cererea. Reîncearcă.",
+  "errorRateLimit": "Prea multe cereri. Reîncearcă peste 15 minute.",
+  "errorNetwork": "Conexiune întreruptă. Verifică internetul și reîncearcă."
+}

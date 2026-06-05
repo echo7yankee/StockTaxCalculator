@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCountry } from '../contexts/CountryContext';
 import PageMeta from '../components/common/PageMeta';
+import EmailCapture from '../components/common/EmailCapture';
 import { taxYearInterpVars } from '../utils/taxYearVars';
 import { analytics } from '../lib/analytics';
 import { cassBracketLabelKey } from '../utils/cassBracket';
@@ -135,6 +136,12 @@ export default function CalculatorPage() {
           </div>
         </div>
       )}
+
+      {/* Off-season audience capture: convert a free-calculator visitor into a
+          warm 2026-season lead instead of a bounce. */}
+      <div className="mt-8">
+        <EmailCapture topic="filing_reminder" variant="filing" source="calculator" />
+      </div>
     </div>
   );
 }

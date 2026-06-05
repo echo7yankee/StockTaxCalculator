@@ -14,6 +14,7 @@ import { taxYearsRouter } from './routes/taxYears.js';
 import { paymentRouter } from './routes/payment.js';
 import { stripeWebhookRouter } from './routes/webhook.stripe.js';
 import { contactRouter } from './routes/contact.js';
+import { subscribeRouter } from './routes/subscribe.js';
 import { parseReportsRouter } from './routes/parseReports.js';
 
 // Initialize Sentry (only active when SENTRY_DSN is set + production)
@@ -67,6 +68,9 @@ app.use('/api/payment', paymentRouter);
 
 // Contact form (public — anyone can submit a message)
 app.use('/api/contact', contactRouter);
+
+// Email capture (public): filing reminder + broker-graduation waitlist, double opt-in
+app.use('/api/subscribe', subscribeRouter);
 
 // Protected routes (require auth + paid plan)
 app.use('/api/uploads', requirePaidPlan, uploadsRouter);
