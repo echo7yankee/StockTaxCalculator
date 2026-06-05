@@ -655,3 +655,121 @@ export async function sendParseAlertNotification(
     reply_to: params.userEmail,
   });
 }
+
+// ─── Audience capture (double opt-in subscribe) ─────────────────────────────
+// Customer-facing emails for the off-season email-capture asset: a double
+// opt-in confirm email and a "you're on the list" welcome carrying an
+// unsubscribe link. RO/EN, same visual shell as the transactional emails above.
+
+// One localized noun phrase describing what the subscriber signed up to receive.
+// Written to slot into both "You asked for ___" and "you'll get ___".
+function subscribeTopicLine(topic: string, language: Language): string {
+  const ro: Record<string, string> = {
+    filing_reminder:
+      'un memento prin email când se deschide depunerea Declarației Unice pentru veniturile din 2026',
+    broker_revolut: 'o notificare când suportul pentru extrasele Revolut iese din beta',
+    broker_ibkr:
+      'o notificare când suportul pentru extrasele Interactive Brokers (IBKR) iese din beta',
+  };
+  const en: Record<string, string> = {
+    filing_reminder: 'an email reminder when filing opens for the 2026 Declarația Unică',
+    broker_revolut: 'a heads-up when Revolut statement support leaves beta',
+    broker_ibkr: 'a heads-up when Interactive Brokers (IBKR) statement support leaves beta',
+  };
+  const table = language === 'ro' ? ro : en;
+  return table[topic] ?? (language === 'ro' ? 'o notificare când avem noutăți' : 'a heads-up when we have news');
+}
+
+function renderSubscribeShellHtml(lang: Language, heading: string, bodyHtml: string): string {
+  return `<!DOCTYPE html>
+<html lang="${lang}">
+<body style="font-family:system-ui,sans-serif;background:#f5f5f5;padding:24px;color:#0b1426;">
+  <table cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;padding:32px;">
+    <tr><td>
+      <h1 style="margin:0 0 16px;font-size:20px;">${heading}</h1>
+      ${bodyHtml}
+    </td></tr>
+  </table>
+  <p style="text-align:center;margin:16px 0 0;font-size:12px;color:#6b7280;">InvesTax · investax.app</p>
+</body>
+</html>`;
+}
+
+export interface SubscribeConfirmEmailParams {
+  to: string;
+  confirmUrl: string;
+  topic: string;
+  language: Language;
+}
+
+// Double opt-in: a subscriber is only added to the list after clicking this link.
+export async function sendSubscribeConfirmEmail(
+  params: SubscribeConfirmEmailParams
+): Promise<void> {
+  const { to, confirmUrl, topic, language } = params;
+  const topicLine = subscribeTopicLine(topic, language);
+  const subject =
+    language === 'ro' ? 'Confirmă abonarea la InvesTax' : 'Confirm your InvesTax subscription';
+  const heading = language === 'ro' ? 'Mai e un pas' : 'One more step';
+  const intro =
+    language === 'ro'
+      ? `Ai cerut ${topicLine}. Apasă butonul de mai jos ca să confirmi adresa de email.`
+      : `You asked for ${topicLine}. Click the button below to confirm your email address.`;
+  const button = language === 'ro' ? 'Confirmă abonarea' : 'Confirm subscription';
+  const fallback =
+    language === 'ro' ? 'Sau copiază acest link în browser:' : 'Or copy this link into your browser:';
+  const ignore =
+    language === 'ro'
+      ? 'Dacă nu ai cerut tu asta, poți ignora emailul. Nu te adăugăm pe listă fără confirmare.'
+      : "If you didn't request this, you can ignore this email. We won't add you to the list without confirmation.";
+
+  const bodyHtml = `
+      <p style="margin:0 0 16px;line-height:1.5;">${intro}</p>
+      <p style="margin:24px 0;">
+        <a href="${confirmUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600;">${button}</a>
+      </p>
+      <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">${fallback}</p>
+      <p style="margin:0 0 24px;font-size:13px;word-break:break-all;color:#374151;"><a href="${confirmUrl}" style="color:#2563eb;">${confirmUrl}</a></p>
+      <p style="margin:0;font-size:13px;color:#6b7280;">${ignore}</p>`;
+
+  const text =
+    language === 'ro'
+      ? `Confirmă abonarea la InvesTax\n\nAi cerut ${topicLine}. Confirmă adresa de email accesând linkul:\n\n${confirmUrl}\n\nDacă nu ai cerut tu asta, ignoră emailul.\n\nInvesTax · investax.app`
+      : `Confirm your InvesTax subscription\n\nYou asked for ${topicLine}. Confirm your email by visiting:\n\n${confirmUrl}\n\nIf you didn't request this, ignore this email.\n\nInvesTax · investax.app`;
+
+  await postToResend({ from: FROM_ADDRESS, to, subject, html: renderSubscribeShellHtml(language, heading, bodyHtml), text });
+}
+
+export interface SubscribeWelcomeEmailParams {
+  to: string;
+  unsubscribeUrl: string;
+  topic: string;
+  language: Language;
+}
+
+// Sent once, right after the subscriber confirms. Carries the unsubscribe link.
+export async function sendSubscribeWelcomeEmail(
+  params: SubscribeWelcomeEmailParams
+): Promise<void> {
+  const { to, unsubscribeUrl, topic, language } = params;
+  const topicLine = subscribeTopicLine(topic, language);
+  const subject = language === 'ro' ? 'Ești pe listă' : "You're on the list";
+  const heading = language === 'ro' ? 'Gata, ești pe listă' : "You're all set";
+  const intro =
+    language === 'ro'
+      ? `Adresa ta e confirmată. Primești ${topicLine}. Până atunci nu-ți trimitem alte emailuri.`
+      : `Your email is confirmed. You'll get ${topicLine}. Until then we won't email you about anything else.`;
+  const unsub = language === 'ro' ? 'Te poți dezabona oricând:' : 'You can unsubscribe at any time:';
+
+  const bodyHtml = `
+      <p style="margin:0 0 24px;line-height:1.5;">${intro}</p>
+      <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">${unsub}</p>
+      <p style="margin:0;font-size:13px;word-break:break-all;color:#374151;"><a href="${unsubscribeUrl}" style="color:#2563eb;">${unsubscribeUrl}</a></p>`;
+
+  const text =
+    language === 'ro'
+      ? `Ești pe listă\n\nAdresa ta e confirmată. Primești ${topicLine}.\n\nTe poți dezabona oricând: ${unsubscribeUrl}\n\nInvesTax · investax.app`
+      : `You're on the list\n\nYour email is confirmed. You'll get ${topicLine}.\n\nUnsubscribe at any time: ${unsubscribeUrl}\n\nInvesTax · investax.app`;
+
+  await postToResend({ from: FROM_ADDRESS, to, subject, html: renderSubscribeShellHtml(language, heading, bodyHtml), text });
+}

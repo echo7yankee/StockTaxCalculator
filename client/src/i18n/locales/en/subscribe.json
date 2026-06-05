@@ -1,0 +1,20 @@
+{
+  "filing": {
+    "heading": "We'll remind you for the 2026 filing",
+    "description": "The 2025 season closed on May 25. Leave your email and we'll tell you when filing opens for your 2026 income."
+  },
+  "broker": {
+    "heading": "Get notified when it leaves beta",
+    "description": "Leave your email and we'll message you when support leaves beta. If you like, send us an anonymized statement to help us validate it faster."
+  },
+  "emailPlaceholder": "your email address",
+  "submit": "Notify me",
+  "submitting": "Sending...",
+  "successTitle": "Check your email",
+  "successDetail": "We sent you a confirmation link. Click it to join the list. Check your Spam folder too.",
+  "consent": "We only email you about this and you can unsubscribe anytime. See our",
+  "consentLink": "Privacy Policy",
+  "errorGeneric": "We couldn't process your request. Please try again.",
+  "errorRateLimit": "Too many requests. Try again in 15 minutes.",
+  "errorNetwork": "Connection lost. Check your internet and try again."
+}
