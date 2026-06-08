@@ -214,6 +214,30 @@ describe('GET /api/subscribe/confirm', () => {
     expect(sendWelcomeMock).not.toHaveBeenCalled();
   });
 
+  it('does not resurrect an unsubscribed row when an old confirm link is re-clicked', async () => {
+    // Stale confirm link clicked after the owner already opted out:
+    // subscribe -> confirm -> unsubscribe -> re-click the original confirm email.
+    findUniqueMock.mockResolvedValueOnce({
+      id: 'sub_7',
+      email: 'optout@example.com',
+      topic: 'filing_reminder',
+      language: 'ro',
+      confirmedAt: new Date('2026-05-01T00:00:00Z'),
+      unsubscribedAt: new Date('2026-06-01T00:00:00Z'),
+      unsubToken: 'unsub-7',
+    });
+
+    const res = await fetch(`${BASE}/api/subscribe/confirm?token=stale`);
+    expect(res.status).toBe(200);
+
+    // The confirm write must never set unsubscribedAt back to null, or the stale
+    // link would silently re-subscribe someone who has opted out (GDPR-adjacent).
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    expect(updateMock.mock.calls[0][0].data).not.toHaveProperty('unsubscribedAt');
+    // Already-confirmed row -> no second welcome email.
+    expect(sendWelcomeMock).not.toHaveBeenCalled();
+  });
+
   it('shows an invalid-link page for an unknown token', async () => {
     findUniqueMock.mockResolvedValueOnce(null);
     const res = await fetch(`${BASE}/api/subscribe/confirm?token=nope`);
