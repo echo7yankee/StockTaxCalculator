@@ -74,3 +74,14 @@ describe('GhidRevolutPage - beta posture', () => {
     expect(screen.getAllByText(/Get statement/).length).toBeGreaterThan(0);
   });
 });
+
+describe('GhidRevolutPage - broker beta waitlist', () => {
+  it('renders the broker_revolut beta-graduation email capture with the export solicitation', () => {
+    renderPage();
+    expect(screen.getByText(/Te anunțăm când Revolut iese din beta/)).toBeInTheDocument();
+    // The description doubles as the anonymized-export solicitation that graduates beta -> trusted.
+    expect(screen.getByText(/Trimite-ni-l anonimizat/)).toBeInTheDocument();
+    // Capture form chrome is present (the submit button from the subscribe namespace).
+    expect(screen.getByRole('button', { name: /notify me/i })).toBeInTheDocument();
+  });
+});

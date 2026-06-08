@@ -7,6 +7,7 @@ import {
   GHID_REVOLUT_FAQ_SCHEMA as faqSchema,
 } from '../lib/ghidRevolutSchemas';
 import GhidRelatedGuides from '../components/common/GhidRelatedGuides';
+import EmailCapture from '../components/common/EmailCapture';
 
 export default function GhidRevolutPage() {
   const navigate = useNavigate();
@@ -420,6 +421,16 @@ export default function GhidRevolutPage() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="my-12">
+        <EmailCapture
+          topic="broker_revolut"
+          variant="broker"
+          source="ghid-revolut"
+          heading="Te anunțăm când Revolut iese din beta"
+          description="Lasă-ți emailul și îți scriem când suportul Revolut e validat pe extrase reale. Ai un Account Statement? Trimite-ni-l anonimizat și grăbești validarea."
+        />
       </section>
 
       <Section title="Întrebări frecvente">

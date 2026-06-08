@@ -7,6 +7,7 @@ import {
   GHID_IBKR_FAQ_SCHEMA as faqSchema,
 } from '../lib/ghidIbkrSchemas';
 import GhidRelatedGuides from '../components/common/GhidRelatedGuides';
+import EmailCapture from '../components/common/EmailCapture';
 
 export default function GhidIbkrPage() {
   const navigate = useNavigate();
@@ -256,6 +257,16 @@ export default function GhidIbkrPage() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="my-12">
+        <EmailCapture
+          topic="broker_ibkr"
+          variant="broker"
+          source="ghid-ibkr"
+          heading="Te anunțăm când IBKR iese din beta"
+          description="Lasă-ți emailul și îți scriem când suportul IBKR e validat pe extrase reale. Ai un Activity Statement? Trimite-ni-l anonimizat și grăbești validarea."
+        />
       </section>
 
       <Section title="Întrebări frecvente">
