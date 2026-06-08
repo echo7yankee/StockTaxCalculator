@@ -78,6 +78,12 @@ describe('GhidRevolutPage prerender (SSR)', () => {
     expect(html).toContain('Ce extras de la Revolut citește InvesTax');
   });
 
+  it('server-renders the broker-waitlist email capture (visible to crawlers / no-JS)', () => {
+    const html = renderSsr();
+    expect(html).toContain('Te anunțăm când Revolut iese din beta');
+    expect(html).toContain('Trimite-ni-l anonimizat');
+  });
+
   it('confirms no browser globals leak into the SSR scope', () => {
     expect(typeof window).toBe('undefined');
     expect(typeof document).toBe('undefined');

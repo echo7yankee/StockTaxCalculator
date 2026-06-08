@@ -81,6 +81,12 @@ describe('GhidIbkrPage prerender (SSR)', () => {
     expect(html).toContain('reține impozitul pe câștiguri pentru ANAF');
   });
 
+  it('server-renders the broker-waitlist email capture (visible to crawlers / no-JS)', () => {
+    const html = renderSsr();
+    expect(html).toContain('Te anunțăm când IBKR iese din beta');
+    expect(html).toContain('Trimite-ni-l anonimizat');
+  });
+
   it('confirms no browser globals leak into the SSR scope', () => {
     expect(typeof window).toBe('undefined');
     expect(typeof document).toBe('undefined');

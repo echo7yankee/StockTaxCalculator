@@ -67,3 +67,14 @@ describe('GhidIbkrPage - beta posture', () => {
     expect(screen.getByText(/IBKR este în beta\. Verifică cifrele înainte să depui\./)).toBeInTheDocument();
   });
 });
+
+describe('GhidIbkrPage - broker beta waitlist', () => {
+  it('renders the broker_ibkr beta-graduation email capture with the export solicitation', () => {
+    renderPage();
+    expect(screen.getByText(/Te anunțăm când IBKR iese din beta/)).toBeInTheDocument();
+    // The description doubles as the anonymized-export solicitation that graduates beta -> trusted.
+    expect(screen.getByText(/Trimite-ni-l anonimizat/)).toBeInTheDocument();
+    // Capture form chrome is present (the submit button from the subscribe namespace).
+    expect(screen.getByRole('button', { name: /notify me/i })).toBeInTheDocument();
+  });
+});
