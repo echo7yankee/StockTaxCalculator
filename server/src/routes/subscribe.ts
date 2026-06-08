@@ -121,9 +121,15 @@ subscribeRouter.get('/confirm', async (req, res) => {
     const language: 'ro' | 'en' = sub.language === 'en' ? 'en' : 'ro';
     const firstConfirm = !sub.confirmedAt;
 
+    // Confirm only sets confirmedAt; it must NOT clear unsubscribedAt. A genuine
+    // first confirm already has unsubscribedAt null (the POST handler resets it),
+    // so an explicit reset here only ever resurrected a row whose owner had since
+    // unsubscribed (a stale confirm link re-clicked after opting out). Re-subscribing
+    // goes through POST /api/subscribe, which re-mints the token and clears
+    // unsubscribedAt under fresh consent.
     await prisma.emailSubscriber.update({
       where: { id: sub.id },
-      data: { confirmedAt: sub.confirmedAt ?? new Date(), unsubscribedAt: null },
+      data: { confirmedAt: sub.confirmedAt ?? new Date() },
     });
 
     if (firstConfirm) {
