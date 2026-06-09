@@ -1,15 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type { ComponentType } from 'react';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
-
-// The spoke pages call useNavigate() for their button-based nav; mock it but keep the real
-// <Link> so the "Ghiduri conexe" anchors still render as crawlable <a href>.
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
-  return { ...actual, useNavigate: () => vi.fn() };
-});
 
 import GhidTrading212Page from '../GhidTrading212Page';
 import GhidRevolutPage from '../GhidRevolutPage';

@@ -1,18 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
-
-const mockNavigate = vi.fn();
-
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate,
-  };
-});
 
 import GhidRevolutPage from '../GhidRevolutPage';
 
@@ -26,38 +15,38 @@ function renderPage() {
   );
 }
 
-beforeEach(() => {
-  vi.clearAllMocks();
-});
-
-describe('GhidRevolutPage - conversion CTAs', () => {
-  it('renders the top TL;DR CTA chip (Revolut-specific) linking to pricing', async () => {
-    const user = userEvent.setup();
+describe('GhidRevolutPage - crawlable conversion CTAs', () => {
+  it('renders the top TL;DR CTA chip (Revolut-specific) as a link to pricing', () => {
     renderPage();
-    const topCta = screen.getByRole('button', { name: /Vrei calculul automat din extrasul Revolut.*Vezi planuri/ });
-    expect(topCta).toBeInTheDocument();
-    await user.click(topCta);
-    expect(mockNavigate).toHaveBeenCalledWith('/pricing');
+    const topCta = screen.getByRole('link', { name: /Vrei calculul automat din extrasul Revolut.*Vezi planuri/ });
+    expect(topCta).toHaveAttribute('href', '/pricing');
   });
 
-  it('renders the bottom two-button pair (free calculator + paid Revolut upload)', () => {
+  it('renders the bottom CTA pair as links (free calculator + paid Revolut upload)', () => {
     renderPage();
-    expect(screen.getByRole('button', { name: /Calculator gratuit \(manual\)/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Încarcă extrasul Revolut \(beta\)/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Calculator gratuit \(manual\)/ })).toHaveAttribute('href', '/calculator');
+    expect(screen.getByRole('link', { name: /Încarcă extrasul Revolut \(beta\)/ })).toHaveAttribute('href', '/pricing');
   });
 
-  it('bottom free-calculator button navigates to /calculator', async () => {
-    const user = userEvent.setup();
+  it('Revolut-upload CTA links to /pricing (paywall, not a free engine preview)', () => {
     renderPage();
-    await user.click(screen.getByRole('button', { name: /Calculator gratuit \(manual\)/ }));
-    expect(mockNavigate).toHaveBeenCalledWith('/calculator');
+    expect(screen.getByRole('link', { name: /Încarcă extrasul Revolut \(beta\)/ })).toHaveAttribute('href', '/pricing');
   });
 
-  it('bottom Revolut-upload button navigates to /pricing (paywall, not a free engine preview)', async () => {
-    const user = userEvent.setup();
+  it('renders the in-content CASS guide reference as a crawlable anchor', () => {
     renderPage();
-    await user.click(screen.getByRole('button', { name: /Încarcă extrasul Revolut \(beta\)/ }));
-    expect(mockNavigate).toHaveBeenCalledWith('/pricing');
+    // The related-guides card title also matches; every match must carry the crawlable href.
+    const cassLinks = screen.getAllByRole('link', { name: /CASS pe investiții/ });
+    expect(cassLinks.length).toBeGreaterThan(0);
+    for (const link of cassLinks) {
+      expect(link).toHaveAttribute('href', '/ghid/cass-investitii');
+    }
+  });
+
+  it('renders the page nav as crawlable anchors (home + back to the guides hub)', () => {
+    renderPage();
+    expect(screen.getByRole('link', { name: /Acasă/ })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: /Toate ghidurile/ })).toHaveAttribute('href', '/ghid');
   });
 });
 

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { ArrowLeft, AlertTriangle, FileText, Calculator } from 'lucide-react';
 import {
@@ -9,8 +9,6 @@ import {
 import GhidRelatedGuides from '../components/common/GhidRelatedGuides';
 
 export default function GhidDeclaratieUnicaPage() {
-  const navigate = useNavigate();
-
   return (
     <article className="max-w-3xl mx-auto px-4 py-12">
       <Helmet>
@@ -31,12 +29,12 @@ export default function GhidDeclaratieUnicaPage() {
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
       </Helmet>
 
-      <button
-        onClick={() => navigate('/')}
+      <Link
+        to="/"
         className="flex items-center gap-1 text-sm text-gray-500 dark:text-slate-400 hover:text-accent dark:hover:text-accent-light mb-6 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Acasă
-      </button>
+      </Link>
 
       <header className="mb-10">
         <p className="text-sm text-accent dark:text-accent-light font-medium mb-2">Ghid</p>
@@ -58,12 +56,12 @@ export default function GhidDeclaratieUnicaPage() {
           impozitat 10%, dividende 10% cu credit pentru reținerea străină, CASS pe pragul de venituri non-salariale.
         </p>
         <p className="mt-3 text-sm">
-          <button
-            onClick={() => navigate('/pricing')}
+          <Link
+            to="/pricing"
             className="text-accent dark:text-accent-light font-medium underline hover:no-underline"
           >
             Vrei calculul automat din PDF Trading212? Vezi planuri →
-          </button>
+          </Link>
         </p>
       </section>
 
@@ -147,30 +145,30 @@ export default function GhidDeclaratieUnicaPage() {
               <strong>Capitolul „Veniturile din transferul titlurilor de valoare":</strong> câștigul net (sau
               pierderea ca sumă negativă), calculat fie pe metoda Costului Mediu Ponderat (CMP), fie pe FIFO (alege
               una și aplic-o consistent). Detalii în{' '}
-              <button
-                onClick={() => navigate('/ghid/declaratie-unica-trading212')}
+              <Link
+                to="/ghid/declaratie-unica-trading212"
                 className="text-accent dark:text-accent-light underline hover:no-underline"
               >
                 ghidul Trading212
-              </button>
+              </Link>
               {' '}sau{' '}
-              <button
-                onClick={() => navigate('/ghid/declaratie-unica-revolut')}
+              <Link
+                to="/ghid/declaratie-unica-revolut"
                 className="text-accent dark:text-accent-light underline hover:no-underline"
               >
                 ghidul Revolut
-              </button>
+              </Link>
               .
             </li>
             <li>
               <strong>Capitolul „Veniturile din dividende din străinătate":</strong> brutul în RON și reținerea
               străină ca credit. Detalii în{' '}
-              <button
-                onClick={() => navigate('/ghid/dividende-broker-strain')}
+              <Link
+                to="/ghid/dividende-broker-strain"
                 className="text-accent dark:text-accent-light underline hover:no-underline"
               >
                 ghidul dividendelor de la broker străin
-              </button>
+              </Link>
               .
             </li>
             <li>
@@ -183,12 +181,12 @@ export default function GhidDeclaratieUnicaPage() {
             <li>
               <strong>Capitolul „Stabilirea contribuției de asigurări sociale de sănătate":</strong> bifezi pragul în
               care te încadrezi pe baza sumei totale a veniturilor non-salariale. Detalii în{' '}
-              <button
-                onClick={() => navigate('/ghid/cass-investitii')}
+              <Link
+                to="/ghid/cass-investitii"
                 className="text-accent dark:text-accent-light underline hover:no-underline"
               >
                 ghidul CASS pe investiții
-              </button>
+              </Link>
               .
             </li>
           </ul>
@@ -323,14 +321,14 @@ export default function GhidDeclaratieUnicaPage() {
               extraselor.
             </p>
             <div className="flex flex-wrap gap-3">
-              <button onClick={() => navigate('/calculator')} className="btn-secondary inline-flex items-center gap-2">
+              <Link to="/calculator" className="btn-secondary inline-flex items-center gap-2">
                 <Calculator className="w-4 h-4" />
                 Calculator gratuit (manual)
-              </button>
-              <button onClick={() => navigate('/pricing')} className="btn-primary inline-flex items-center gap-2">
+              </Link>
+              <Link to="/pricing" className="btn-primary inline-flex items-center gap-2">
                 <FileText className="w-4 h-4" />
                 Upload PDF (€12 lansare)
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -340,39 +338,39 @@ export default function GhidDeclaratieUnicaPage() {
         <p>Pentru detalii în funcție de situația ta:</p>
         <ul className="list-disc list-outside pl-6 space-y-2 mt-3">
           <li>
-            <button
-              onClick={() => navigate('/ghid/declaratie-unica-trading212')}
+            <Link
+              to="/ghid/declaratie-unica-trading212"
               className="text-accent dark:text-accent-light underline hover:no-underline"
             >
               Trading212 în Declarația Unică
-            </button>
+            </Link>
             : pas cu pas, exemplu numeric, capcane.
           </li>
           <li>
-            <button
-              onClick={() => navigate('/ghid/declaratie-unica-revolut')}
+            <Link
+              to="/ghid/declaratie-unica-revolut"
               className="text-accent dark:text-accent-light underline hover:no-underline"
             >
               Revolut Stocks / Trading în Declarația Unică
-            </button>
+            </Link>
             : ce raport scoți, cum tratezi dobânzile de la Pockets.
           </li>
           <li>
-            <button
-              onClick={() => navigate('/ghid/dividende-broker-strain')}
+            <Link
+              to="/ghid/dividende-broker-strain"
               className="text-accent dark:text-accent-light underline hover:no-underline"
             >
               Dividende de la broker străin
-            </button>
+            </Link>
             : credit fiscal, ratele pe țară, exemple SUA / UK / NL.
           </li>
           <li>
-            <button
-              onClick={() => navigate('/ghid/cass-investitii')}
+            <Link
+              to="/ghid/cass-investitii"
               className="text-accent dark:text-accent-light underline hover:no-underline"
             >
               CASS pentru investitori
-            </button>
+            </Link>
             : pragurile, ce intră în calcul, exemple.
           </li>
         </ul>
@@ -392,12 +390,12 @@ export default function GhidDeclaratieUnicaPage() {
       <GhidRelatedGuides currentPath="/ghid/cum-completez-declaratia-unica" />
 
       <nav className="mt-12">
-        <button
-          onClick={() => navigate('/ghid')}
+        <Link
+          to="/ghid"
           className="flex items-center gap-1 text-sm text-accent dark:text-accent-light hover:underline transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Toate ghidurile
-        </button>
+        </Link>
       </nav>
 
       <footer className="mt-12 pt-8 border-t border-gray-200 dark:border-navy-700 text-sm text-gray-500 dark:text-slate-400">

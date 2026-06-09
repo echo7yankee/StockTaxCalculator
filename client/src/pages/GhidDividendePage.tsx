@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { ArrowLeft, AlertTriangle, FileText, Calculator } from 'lucide-react';
 import {
@@ -9,8 +9,6 @@ import {
 import GhidRelatedGuides from '../components/common/GhidRelatedGuides';
 
 export default function GhidDividendePage() {
-  const navigate = useNavigate();
-
   return (
     <article className="max-w-3xl mx-auto px-4 py-12">
       <Helmet>
@@ -31,12 +29,12 @@ export default function GhidDividendePage() {
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
       </Helmet>
 
-      <button
-        onClick={() => navigate('/')}
+      <Link
+        to="/"
         className="flex items-center gap-1 text-sm text-gray-500 dark:text-slate-400 hover:text-accent dark:hover:text-accent-light mb-6 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Acasă
-      </button>
+      </Link>
 
       <header className="mb-10">
         <p className="text-sm text-accent dark:text-accent-light font-medium mb-2">Ghid</p>
@@ -59,12 +57,12 @@ export default function GhidDividendePage() {
           (Marea Britanie), 15% (Germania, Olanda) etc.
         </p>
         <p className="mt-3 text-sm">
-          <button
-            onClick={() => navigate('/pricing')}
+          <Link
+            to="/pricing"
             className="text-accent dark:text-accent-light font-medium underline hover:no-underline"
           >
             Vrei calculul automat din PDF Trading212? Vezi planuri →
-          </button>
+          </Link>
         </p>
       </section>
 
@@ -353,14 +351,14 @@ export default function GhidDividendePage() {
               aplicate.
             </p>
             <div className="flex flex-wrap gap-3">
-              <button onClick={() => navigate('/calculator')} className="btn-secondary inline-flex items-center gap-2">
+              <Link to="/calculator" className="btn-secondary inline-flex items-center gap-2">
                 <Calculator className="w-4 h-4" />
                 Calculator gratuit (manual)
-              </button>
-              <button onClick={() => navigate('/pricing')} className="btn-primary inline-flex items-center gap-2">
+              </Link>
+              <Link to="/pricing" className="btn-primary inline-flex items-center gap-2">
                 <FileText className="w-4 h-4" />
                 Upload PDF (€12 lansare)
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -380,12 +378,12 @@ export default function GhidDividendePage() {
       <GhidRelatedGuides currentPath="/ghid/dividende-broker-strain" />
 
       <nav className="mt-12">
-        <button
-          onClick={() => navigate('/ghid')}
+        <Link
+          to="/ghid"
           className="flex items-center gap-1 text-sm text-accent dark:text-accent-light hover:underline transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Toate ghidurile
-        </button>
+        </Link>
       </nav>
 
       <footer className="mt-12 pt-8 border-t border-gray-200 dark:border-navy-700 text-sm text-gray-500 dark:text-slate-400">
