@@ -4,6 +4,8 @@ Reference for `shared/src/parsers/revolut.ts` (`parseRevolutStatement`). Status:
 (built to the published format without a real account of our own; graduates to
 TRUSTED only after >=3 real anonymized user exports parse end to end, per the
 Regression Firewall, `investax-docs/09-backlog-and-discipline.md` Section 8.6 #5).
+Sample intake procedure + anonymization tool + the per-broker tracker:
+`docs/broker-sample-intake-runbook.md` (`test-data/anonymize-broker-export.ts`).
 
 ## Which file
 
