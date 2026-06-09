@@ -13,7 +13,8 @@ the unit + property tests in `ibkr.test.ts` validate the parser against it.
 Per the Regression Firewall (`investax-docs/09-backlog-and-discipline.md`
 Section 8.6 #5), this parser is BETA until at least 3 real anonymized user
 exports parse correctly end-to-end and are committed as fixtures (via the
-`docs/customer-pdf-intake-runbook.md` intake procedure, adapted for CSV). Until
+broker sample intake procedure: `docs/broker-sample-intake-runbook.md`, tool
+`test-data/anonymize-broker-export.ts`). Until
 then, when it is wired into the upload UI it MUST ship behind:
 
 - the parser-warning hard-stop (#24A: any warning blocks the D212 export and
@@ -138,7 +139,8 @@ the security" warning.
 1. Solicit real IBKR Activity Statement CSVs from the InvesTax audience / a
    waitlist (do NOT open broker accounts to obtain them).
 2. Anonymize and commit as fixtures (strip name, account ID; keep dates,
-   currencies, position sizes, prices, ISINs).
+   currencies, position sizes, prices, ISINs). Tooling + procedure + the
+   per-broker sample tracker: `docs/broker-sample-intake-runbook.md`.
 3. Confirm each parses correctly end-to-end against the user's own ANAF figures.
 4. After >=3 independent exports parse correctly, flip the UI copy from BETA to
    trusted and relax (not remove) the verify-before-filing caveat.

@@ -29,6 +29,13 @@ Run this procedure when ANY of the following holds:
 Do NOT run this procedure for non-parser bugs (calculation logic, CASS
 brackets, BNR rate fetching, UI glitches). Those follow normal bug-fix flow.
 
+Scope note: this runbook covers Trading 212 PDF statements reported by paying
+customers. For SOLICITED beta-broker samples (IBKR Activity Statement CSV,
+Revolut Account Statement xlsx, e.g. arriving via the ghid waitlists), use
+`docs/broker-sample-intake-runbook.md` instead; it has its own anonymization
+tool (`test-data/anonymize-broker-export.ts`) and the beta-to-trusted sample
+tracker.
+
 ## Hard rules
 
 1. **No real customer PDFs in the repo, ever.** Not in `test-data/`, not in
