@@ -7,6 +7,44 @@ import {
 } from '../taxYears.js';
 
 describe('TAX_YEARS config', () => {
+  it('has 2023 entry with OG 16/2022 8% dividends, no bonificatie, dormant (engineSupported false)', () => {
+    const cfg = TAX_YEARS[2023];
+    expect(cfg).toBeDefined();
+    expect(cfg.taxYear).toBe(2023);
+    expect(cfg.filingYear).toBe(2024);
+    expect(cfg.filingDeadlineRo).toBe('27 mai 2024');
+    expect(cfg.filingDeadlineEn).toBe('May 27, 2024');
+    expect(cfg.earlyFilingDeadlineRo).toBeNull();
+    expect(cfg.earlyFilingDeadlineEn).toBeNull();
+    expect(cfg.minimumWageMonthly).toBe(3000);
+    expect(cfg.cassThresholds).toEqual({ six: 18000, twelve: 36000, twentyFour: 72000 });
+    expect(cfg.nonResidentBrokerCapGainsRate).toBe(0.10);
+    expect(cfg.residentBrokerLongHoldRate).toBe(0.01);
+    expect(cfg.residentBrokerShortHoldRate).toBe(0.03);
+    expect(cfg.romanianDividendWithholdingRate).toBe(0.08);
+    expect(cfg.earlyFilingDiscountRate).toBe(0);
+    expect(cfg.engineSupported).toBe(false);
+  });
+
+  it('has 2024 entry with 8% dividends, HG 900/2023 wage anchor, no bonificatie, dormant', () => {
+    const cfg = TAX_YEARS[2024];
+    expect(cfg).toBeDefined();
+    expect(cfg.taxYear).toBe(2024);
+    expect(cfg.filingYear).toBe(2025);
+    expect(cfg.filingDeadlineRo).toBe('26 mai 2025');
+    expect(cfg.filingDeadlineEn).toBe('May 26, 2025');
+    expect(cfg.earlyFilingDeadlineRo).toBeNull();
+    expect(cfg.earlyFilingDeadlineEn).toBeNull();
+    expect(cfg.minimumWageMonthly).toBe(3300);
+    expect(cfg.cassThresholds).toEqual({ six: 19800, twelve: 39600, twentyFour: 79200 });
+    expect(cfg.nonResidentBrokerCapGainsRate).toBe(0.10);
+    expect(cfg.residentBrokerLongHoldRate).toBe(0.01);
+    expect(cfg.residentBrokerShortHoldRate).toBe(0.03);
+    expect(cfg.romanianDividendWithholdingRate).toBe(0.08);
+    expect(cfg.earlyFilingDiscountRate).toBe(0);
+    expect(cfg.engineSupported).toBe(false);
+  });
+
   it('has 2025 entry with Legea 239/2025 pre-change rates and engineSupported true', () => {
     const cfg = TAX_YEARS[2025];
     expect(cfg).toBeDefined();
@@ -99,12 +137,15 @@ describe('getCurrentTaxYear', () => {
 });
 
 describe('getTaxYearConfig', () => {
-  it('returns config for the shipped 2025 and 2026 entries', () => {
+  it('returns config for the shipped 2023 through 2026 entries', () => {
+    expect(getTaxYearConfig(2023)).toBe(TAX_YEARS[2023]);
+    expect(getTaxYearConfig(2024)).toBe(TAX_YEARS[2024]);
     expect(getTaxYearConfig(2025)).toBe(TAX_YEARS[2025]);
     expect(getTaxYearConfig(2026)).toBe(TAX_YEARS[2026]);
   });
 
-  it('returns undefined for years not in TAX_YEARS', () => {
+  it('returns undefined for years not in TAX_YEARS (2022 and earlier are out of scope: pre-CMP)', () => {
+    expect(getTaxYearConfig(2022)).toBeUndefined();
     expect(getTaxYearConfig(2099)).toBeUndefined();
     expect(getTaxYearConfig(1999)).toBeUndefined();
   });
@@ -136,5 +177,17 @@ describe('getCurrentTaxYearConfig', () => {
     expect(getCurrentTaxYearConfig(new Date(Date.UTC(2026, 4, 26)))).not.toBe(TAX_YEARS[2026]);
     expect(getCurrentTaxYearConfig(new Date(Date.UTC(2026, 4, 26)))).toBe(TAX_YEARS[2025]);
     expect(getCurrentTaxYearConfig(new Date(Date.UTC(2026, 11, 31)))).toBe(TAX_YEARS[2025]);
+  });
+
+  it('never returns the dormant 2023/2024 entries (prior-year regularization lane, production-safety invariant)', () => {
+    // The prior-year entries encode verified research (prior-year-regularization-spec.md) but stay
+    // dormant until the spec's Step 3 demand trigger. Even for a clock inside those filing seasons
+    // (impossible in production, the calendar is past them), the fallback skips dormant entries.
+    expect(TAX_YEARS[2023].engineSupported).toBe(false);
+    expect(TAX_YEARS[2024].engineSupported).toBe(false);
+    expect(getCurrentTaxYear(new Date(Date.UTC(2024, 2, 15)))).toBe(2023);
+    expect(getCurrentTaxYearConfig(new Date(Date.UTC(2024, 2, 15)))).toBe(TAX_YEARS[2025]);
+    expect(getCurrentTaxYear(new Date(Date.UTC(2025, 2, 15)))).toBe(2024);
+    expect(getCurrentTaxYearConfig(new Date(Date.UTC(2025, 2, 15)))).toBe(TAX_YEARS[2025]);
   });
 });

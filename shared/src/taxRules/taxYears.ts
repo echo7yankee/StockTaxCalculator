@@ -3,8 +3,11 @@ export interface TaxYearConfig {
   filingYear: number;
   filingDeadlineRo: string;
   filingDeadlineEn: string;
-  earlyFilingDeadlineRo: string;
-  earlyFilingDeadlineEn: string;
+  // null = no early-filing bonificatie existed for that filing cycle, so there is no
+  // early deadline to name (true for 2023 + 2024 incomes; the PF bonificatie returned
+  // only with OUG 8/2026, for 2025 incomes). Pair null with earlyFilingDiscountRate 0.
+  earlyFilingDeadlineRo: string | null;
+  earlyFilingDeadlineEn: string | null;
   minimumWageMonthly: number;
   cassThresholds: {
     six: number;
@@ -22,6 +25,58 @@ export interface TaxYearConfig {
 }
 
 export const TAX_YEARS: Record<number, TaxYearConfig> = {
+  // 2023 + 2024 entries: DORMANT (engineSupported false). Encoded for the prior-year
+  // regularization lane (the ANAF notificare-de-conformare / declaratie rectificativa
+  // segment); verification + per-claim sources in
+  // investax-docs/prior-year-regularization-spec.md Section 3 (ANAF Brasov DU deck
+  // 14.05.2025, ANAF Cluj notes 03.2024 + 01.2025). The ONE engine math delta vs 2025
+  // is dividends at 8% (OG 16/2022; 10% applies only to dividends distributed from
+  // 2025-01-01, OUG 156/2024). earlyFilingDeadline* null + earlyFilingDiscountRate 0 =
+  // NO bonificatie existed for either cycle. Do NOT flip engineSupported true before
+  // the spec's Section 6 Step 3 gates: demand trigger (20+ waitlist signups or 2+
+  // direct asks), BNR 2023/2024 rate availability check, d212Fields QA vs OPANAF
+  // 6/2024 + 7015/2024, and the 28,053 regression staying byte-identical. Tax year
+  // 2022 and earlier are OUT OF SCOPE (pre-CMP cost-method territory, Legea 142/2022).
+  2023: {
+    taxYear: 2023,
+    filingYear: 2024,
+    filingDeadlineRo: '27 mai 2024', // 25.05.2024 fell on a Saturday; OPANAF 6/2024 cycle, ANAF Cluj note 15.03.2024 verbatim
+    filingDeadlineEn: 'May 27, 2024',
+    earlyFilingDeadlineRo: null, // no bonificatie for the 2023-income cycle
+    earlyFilingDeadlineEn: null,
+    minimumWageMonthly: 3000, // HG 1447/2022
+    cassThresholds: {
+      six: 18000,
+      twelve: 36000,
+      twentyFour: 72000,
+    },
+    nonResidentBrokerCapGainsRate: 0.10,
+    residentBrokerLongHoldRate: 0.01, // art. 96^1 regime (Legea 142/2022), RO intermediaries only
+    residentBrokerShortHoldRate: 0.03,
+    romanianDividendWithholdingRate: 0.08, // OG 16/2022: 8% from 2023-01-01 (NOT 10%)
+    earlyFilingDiscountRate: 0,
+    engineSupported: false, // GATE: prior-year-regularization-spec.md Section 6 Step 3
+  },
+  2024: {
+    taxYear: 2024,
+    filingYear: 2025,
+    filingDeadlineRo: '26 mai 2025', // 25.05.2025 fell on a Sunday; OPANAF 7015/2024 cycle, ANAF Brasov deck footnote
+    filingDeadlineEn: 'May 26, 2025',
+    earlyFilingDeadlineRo: null, // no PF bonificatie for the 2024-income cycle (the OUG 107/2024 3% was firms-only)
+    earlyFilingDeadlineEn: null,
+    minimumWageMonthly: 3300, // HG 900/2023; the Jul-2024 raise to 3.700 (HG 598/2024) does NOT anchor the plafon
+    cassThresholds: {
+      six: 19800,
+      twelve: 39600,
+      twentyFour: 79200,
+    },
+    nonResidentBrokerCapGainsRate: 0.10,
+    residentBrokerLongHoldRate: 0.01,
+    residentBrokerShortHoldRate: 0.03,
+    romanianDividendWithholdingRate: 0.08, // 8% for 2024 incomes too; 10% only from dividends distributed after 2025-01-01
+    earlyFilingDiscountRate: 0,
+    engineSupported: false, // GATE: prior-year-regularization-spec.md Section 6 Step 3
+  },
   2025: {
     taxYear: 2025,
     filingYear: 2026,
