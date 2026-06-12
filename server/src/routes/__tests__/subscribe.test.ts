@@ -157,6 +157,17 @@ describe('POST /api/subscribe', () => {
     expect((await res.json()).field).toBe('topic');
   });
 
+  it('accepts the prior_years waitlist topic (the 2023/2024 demand probe)', async () => {
+    const res = await post({ email: 'rectificativa@example.com', topic: 'prior_years' });
+
+    expect(res.status).toBe(200);
+    expect(upsertMock.mock.calls[0][0].where.email_topic).toEqual({
+      email: 'rectificativa@example.com',
+      topic: 'prior_years',
+    });
+    expect(sendConfirmMock.mock.calls[0][0].topic).toBe('prior_years');
+  });
+
   it('returns 400 when email is missing', async () => {
     const res = await post({ topic: 'filing_reminder' });
     expect(res.status).toBe(400);

@@ -55,6 +55,13 @@ export const GHID_LIST: GhidEntry[] = [
     path: '/ghid/cum-calculam',
     fullUrl: 'https://investax.app/ghid/cum-calculam/',
   },
+  {
+    title: 'Notificare ANAF pentru venituri din străinătate: ghidul investitorului',
+    description:
+      'Ai primit o notificare de conformare pentru venituri nedeclarate de la brokeri străini? Ce înseamnă, în cât timp răspunzi, cum corectezi anii 2023 și 2024: rectificativă, cote pe ani, CASS, accesorii.',
+    path: '/ghid/notificare-anaf-venituri-strainatate',
+    fullUrl: 'https://investax.app/ghid/notificare-anaf-venituri-strainatate/',
+  },
 ];
 
 /**
@@ -73,6 +80,7 @@ export const GHID_RELATED: Record<string, string[]> = {
     '/ghid/declaratie-unica-revolut',
     '/ghid/declaratie-unica-ibkr',
     '/ghid/cum-calculam',
+    '/ghid/notificare-anaf-venituri-strainatate',
   ],
   '/ghid/declaratie-unica-trading212': [
     '/ghid/cum-completez-declaratia-unica',
@@ -105,6 +113,12 @@ export const GHID_RELATED: Record<string, string[]> = {
     '/ghid/declaratie-unica-trading212',
   ],
   '/ghid/cum-calculam': [
+    '/ghid/cum-completez-declaratia-unica',
+    '/ghid/declaratie-unica-trading212',
+    '/ghid/dividende-broker-strain',
+    '/ghid/cass-investitii',
+  ],
+  '/ghid/notificare-anaf-venituri-strainatate': [
     '/ghid/cum-completez-declaratia-unica',
     '/ghid/declaratie-unica-trading212',
     '/ghid/dividende-broker-strain',

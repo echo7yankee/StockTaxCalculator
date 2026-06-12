@@ -11,6 +11,7 @@ import GhidCassPage from '../GhidCassPage';
 import GhidDividendePage from '../GhidDividendePage';
 import GhidDeclaratieUnicaPage from '../GhidDeclaratieUnicaPage';
 import GhidCumCalculamPage from '../GhidCumCalculamPage';
+import GhidNotificareAnafPage from '../GhidNotificareAnafPage';
 import { GHID_LIST, GHID_RELATED } from '../../lib/ghidIndexSchemas';
 
 const PAGES: { path: string; Page: ComponentType }[] = [
@@ -21,6 +22,7 @@ const PAGES: { path: string; Page: ComponentType }[] = [
   { path: '/ghid/dividende-broker-strain', Page: GhidDividendePage },
   { path: '/ghid/cum-completez-declaratia-unica', Page: GhidDeclaratieUnicaPage },
   { path: '/ghid/cum-calculam', Page: GhidCumCalculamPage },
+  { path: '/ghid/notificare-anaf-venituri-strainatate', Page: GhidNotificareAnafPage },
 ];
 
 function renderPage(Page: ComponentType) {

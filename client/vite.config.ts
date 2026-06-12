@@ -24,6 +24,7 @@ export default defineConfig({
         '/ghid/dividende-broker-strain',
         '/ghid/cum-completez-declaratia-unica',
         '/ghid/cum-calculam',
+        '/ghid/notificare-anaf-venituri-strainatate',
       ],
     }),
   ],
