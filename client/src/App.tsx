@@ -26,6 +26,7 @@ const GhidCassPage = lazy(() => import('./pages/GhidCassPage'));
 const GhidDividendePage = lazy(() => import('./pages/GhidDividendePage'));
 const GhidDeclaratieUnicaPage = lazy(() => import('./pages/GhidDeclaratieUnicaPage'));
 const GhidCumCalculamPage = lazy(() => import('./pages/GhidCumCalculamPage'));
+const GhidNotificareAnafPage = lazy(() => import('./pages/GhidNotificareAnafPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 export default function App() {
@@ -57,6 +58,7 @@ export default function App() {
           <Route path="/ghid/dividende-broker-strain" element={<GhidDividendePage />} />
           <Route path="/ghid/cum-completez-declaratia-unica" element={<GhidDeclaratieUnicaPage />} />
           <Route path="/ghid/cum-calculam" element={<GhidCumCalculamPage />} />
+          <Route path="/ghid/notificare-anaf-venituri-strainatate" element={<GhidNotificareAnafPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

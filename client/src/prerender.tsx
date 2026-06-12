@@ -21,6 +21,7 @@ import GhidCassPage from './pages/GhidCassPage';
 import GhidDividendePage from './pages/GhidDividendePage';
 import GhidDeclaratieUnicaPage from './pages/GhidDeclaratieUnicaPage';
 import GhidCumCalculamPage from './pages/GhidCumCalculamPage';
+import GhidNotificareAnafPage from './pages/GhidNotificareAnafPage';
 import {
   GHID_INDEX_COLLECTION_SCHEMA,
   GHID_INDEX_META,
@@ -60,6 +61,11 @@ import {
   GHID_CUM_CALCULAM_FAQ_SCHEMA,
   GHID_CUM_CALCULAM_META,
 } from './lib/ghidCumCalculamSchemas';
+import {
+  GHID_NOTIFICARE_ARTICLE_SCHEMA,
+  GHID_NOTIFICARE_FAQ_SCHEMA,
+  GHID_NOTIFICARE_META,
+} from './lib/ghidNotificareAnafSchemas';
 import './index.css';
 
 interface PageConfig {
@@ -223,6 +229,14 @@ const PRERENDER_PAGES: Record<string, PageConfig> = {
     description: GHID_CUM_CALCULAM_META.description,
     canonicalUrl: GHID_CUM_CALCULAM_META.url,
     schemas: [GHID_CUM_CALCULAM_ARTICLE_SCHEMA, GHID_CUM_CALCULAM_FAQ_SCHEMA],
+    ogType: 'article',
+  },
+  '/ghid/notificare-anaf-venituri-strainatate': {
+    component: () => <GhidNotificareAnafPage />,
+    title: GHID_NOTIFICARE_META.title,
+    description: GHID_NOTIFICARE_META.description,
+    canonicalUrl: GHID_NOTIFICARE_META.url,
+    schemas: [GHID_NOTIFICARE_ARTICLE_SCHEMA, GHID_NOTIFICARE_FAQ_SCHEMA],
     ogType: 'article',
   },
 };

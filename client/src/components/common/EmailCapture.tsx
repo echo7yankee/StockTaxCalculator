@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Mail, Check, AlertCircle } from 'lucide-react';
 
-export type SubscribeTopic = 'filing_reminder' | 'broker_revolut' | 'broker_ibkr';
+export type SubscribeTopic = 'filing_reminder' | 'broker_revolut' | 'broker_ibkr' | 'prior_years';
 type Status = 'idle' | 'submitting' | 'success' | 'error';
 
 interface EmailCaptureProps {

@@ -19,7 +19,7 @@ const subscribeLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const TOPICS = ['filing_reminder', 'broker_revolut', 'broker_ibkr'] as const;
+const TOPICS = ['filing_reminder', 'broker_revolut', 'broker_ibkr', 'prior_years'] as const;
 
 const subscribeSchema = z.object({
   email: z.string().trim().email('Invalid email address').max(254, 'Email too long'),
