@@ -20,6 +20,20 @@ import enPricing from '../i18n/locales/en/pricing.json';
 import enContact from '../i18n/locales/en/contact.json';
 import enSubscribe from '../i18n/locales/en/subscribe.json';
 
+// Analytics (client/src/lib/analytics.ts) beacons to /api/track on pageviews +
+// funnel events. happy-dom has no navigator.sendBeacon, so without this stub the
+// emitter falls back to a real fetch() that hits a refused connection and throws
+// an unhandled socket error after the test finishes. A no-op beacon keeps
+// analytics a silent no-op in component tests; the emitter's own unit test
+// overrides navigator explicitly, so this does not mask it.
+if (typeof navigator !== 'undefined') {
+  Object.defineProperty(navigator, 'sendBeacon', {
+    configurable: true,
+    writable: true,
+    value: () => true,
+  });
+}
+
 i18n.use(initReactI18next).init({
   lng: 'en',
   fallbackLng: 'en',

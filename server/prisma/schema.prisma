@@ -206,3 +206,20 @@ model EmailSubscriber {
   @@unique([email, topic])
   @@index([topic])
 }
+
+// First-party, cookieless analytics. Replaces the third-party Plausible script
+// (removed from client/index.html). One row per event: a 'pageview' or a named
+// funnel event (paywall_seen, checkout_started, ...). Deliberately stores NO
+// PII, NO IP, NO user-agent, NO cookie or visitor id; only the event name, the
+// pathname, and the referrer HOST (for channel attribution). Read via the
+// analytics-report CLI (server/src/scripts/analytics-report.ts).
+model AnalyticsEvent {
+  id        String   @id @default(uuid())
+  name      String
+  path      String?
+  referrer  String?
+  createdAt DateTime @default(now())
+
+  @@index([name, createdAt])
+  @@index([createdAt])
+}

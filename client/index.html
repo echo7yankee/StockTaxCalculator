@@ -65,12 +65,8 @@
     }
     </script>
 
-    <!-- Privacy-friendly analytics by Plausible -->
-    <script async src="https://plausible.io/js/pa-a5D4MOYkaa_RKx5ngbjbf.js"></script>
-    <script>
-      window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
-      plausible.init()
-    </script>
+    <!-- Analytics is first-party and cookieless: client/src/lib/analytics.ts beacons
+         pageviews + funnel events to /api/track. No third-party script, no cookie, no PII. -->
   </head>
   <body class="bg-white dark:bg-navy-900 text-gray-900 dark:text-slate-100 min-h-screen">
     <div id="root"></div>

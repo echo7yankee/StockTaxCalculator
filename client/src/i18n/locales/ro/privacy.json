@@ -8,7 +8,7 @@
       "items": {
         "account": "Informatii de cont: adresa de email, numele (daca este furnizat) si metoda de autentificare (email/parola sau Google OAuth).",
         "calculations": "Calcule fiscale: datele pe care le introduci sau le incarci (istoricul tranzactiilor, castiguri de capital, dividende) pentru a genera rapoarte fiscale.",
-        "usage": "Date de utilizare: paginile vizitate, functiile utilizate si modele generale de interactiune (colectate prin Plausible Analytics, care nu foloseste cookie-uri si este conform GDPR).",
+        "usage": "Date de utilizare: paginile vizitate, functiile utilizate si modele generale de interactiune (colectate prin sistemul nostru propriu de analiza, fara cookie-uri, fara terti si fara stocarea adresei IP).",
         "technical": "Date tehnice: adresa IP (doar pentru limitarea ratei si securitate, nu este stocata pe termen lung), tipul browserului si tipul dispozitivului."
       }
     },
@@ -31,13 +31,12 @@
       "providers": {
         "hetzner": "Hetzner Online GmbH: gazduire server (Germania, UE)",
         "stripe": "Stripe: procesare plati",
-        "resend": "Resend: livrare email-uri tranzactionale",
-        "plausible": "Plausible Analytics: analiza anonima a website-ului, fara cookie-uri"
+        "resend": "Resend: livrare email-uri tranzactionale"
       }
     },
     "cookies": {
       "title": "5. Cookie-uri",
-      "description": "InvesTax foloseste doar cookie-uri esentiale necesare pentru functionarea serviciului (autentificare sesiune, preferinta de limba, preferinta de tema). Nu folosim cookie-uri de urmarire, cookie-uri publicitare sau cookie-uri de la terti. Plausible Analytics nu foloseste deloc cookie-uri."
+      "description": "InvesTax foloseste doar cookie-uri esentiale necesare pentru functionarea serviciului (autentificare sesiune, preferinta de limba, preferinta de tema). Nu folosim cookie-uri de urmarire, cookie-uri publicitare sau cookie-uri de la terti. Sistemul nostru de analiza este propriu (first-party) si nu foloseste deloc cookie-uri."
     },
     "gdprRights": {
       "title": "6. Drepturile tale (GDPR)",

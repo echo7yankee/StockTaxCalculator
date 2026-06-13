@@ -16,6 +16,7 @@ import { stripeWebhookRouter } from './routes/webhook.stripe.js';
 import { contactRouter } from './routes/contact.js';
 import { subscribeRouter } from './routes/subscribe.js';
 import { parseReportsRouter } from './routes/parseReports.js';
+import { trackRouter } from './routes/track.js';
 
 // Initialize Sentry (only active when SENTRY_DSN is set + production)
 if (process.env.SENTRY_DSN && process.env.NODE_ENV === 'production') {
@@ -40,6 +41,10 @@ app.use(rateLimit({
   max: process.env.NODE_ENV === 'production' ? 200 : 1000,
   standardHeaders: true,
   legacyHeaders: false,
+  // First-party analytics fires a beacon per route change, far chattier than the
+  // rest of the API. It has its own (more generous) limiter in routes/track.ts,
+  // so exclude it here to keep pageviews from eating a real user's protective budget.
+  skip: (req) => req.path.startsWith('/api/track'),
 }));
 // Webhook route needs raw body for signature verification — must be before express.json()
 app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }), stripeWebhookRouter);
@@ -71,6 +76,9 @@ app.use('/api/contact', contactRouter);
 
 // Email capture (public): filing reminder + broker-graduation waitlist, double opt-in
 app.use('/api/subscribe', subscribeRouter);
+
+// First-party, cookieless analytics ingest (public): pageviews + funnel events
+app.use('/api/track', trackRouter);
 
 // Protected routes (require auth + paid plan)
 app.use('/api/uploads', requirePaidPlan, uploadsRouter);

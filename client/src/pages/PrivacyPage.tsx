@@ -52,7 +52,6 @@ export default function PrivacyPage() {
             <li>{t('sections.sharing.providers.hetzner')}</li>
             <li>{t('sections.sharing.providers.stripe')}</li>
             <li>{t('sections.sharing.providers.resend')}</li>
-            <li>{t('sections.sharing.providers.plausible')}</li>
           </ul>
         </section>
 
