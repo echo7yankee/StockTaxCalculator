@@ -8,7 +8,7 @@
       "items": {
         "account": "Account information: email address, name (if provided), and authentication method (email/password or Google OAuth).",
         "calculations": "Tax calculations: the data you input or upload (transaction history, capital gains, dividends) to generate tax reports.",
-        "usage": "Usage data: pages visited, features used, and general interaction patterns (collected via Plausible Analytics, which is cookieless and GDPR-compliant).",
+        "usage": "Usage data: pages visited, features used, and general interaction patterns (collected via our own first-party, cookieless analytics; no third party, no IP stored).",
         "technical": "Technical data: IP address (for rate limiting and security only, not stored long-term), browser type, and device type."
       }
     },
@@ -31,13 +31,12 @@
       "providers": {
         "hetzner": "Hetzner Online GmbH: server hosting (Germany, EU)",
         "stripe": "Stripe: payment processing",
-        "resend": "Resend: transactional email delivery",
-        "plausible": "Plausible Analytics: anonymous, cookieless website analytics"
+        "resend": "Resend: transactional email delivery"
       }
     },
     "cookies": {
       "title": "5. Cookies",
-      "description": "InvesTax uses only essential cookies required for the service to function (session authentication, language preference, theme preference). We do not use tracking cookies, advertising cookies, or any third-party cookies. Plausible Analytics is completely cookieless."
+      "description": "InvesTax uses only essential cookies required for the service to function (session authentication, language preference, theme preference). We do not use tracking cookies, advertising cookies, or any third-party cookies. Our analytics is first-party and completely cookieless."
     },
     "gdprRights": {
       "title": "6. Your Rights (GDPR)",

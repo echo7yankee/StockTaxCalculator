@@ -1,32 +1,51 @@
 /**
- * Plausible Analytics custom event tracking.
- * Events only fire when the Plausible script is loaded (production with VITE_PLAUSIBLE_DOMAIN set).
+ * First-party, cookieless analytics. Sends pageviews + conversion-funnel events
+ * to our own /api/track endpoint instead of a third-party script (replaces
+ * Plausible). No cookie, no third party, no PII: the server stores only the
+ * event name, the pathname, and the referrer host.
+ *
+ * Best-effort and non-blocking: uses navigator.sendBeacon (which survives page
+ * unload), swallows every error, and is a no-op outside the browser
+ * (SSR/prerender/tests). The public `analytics.*` API is unchanged from the
+ * Plausible version, so no call site had to change.
+ *
+ * Event names must match the server allowlist in server/src/lib/analyticsEvents.ts.
  */
 
-type PlausibleArgs = [string, { callback?: () => void; props?: Record<string, string | number | boolean> }?];
-
-declare global {
-  interface Window {
-    plausible?: (...args: PlausibleArgs) => void;
+function send(name: string) {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return;
+  try {
+    const body = JSON.stringify({
+      name,
+      path: window.location?.pathname,
+      referrer: document.referrer || undefined,
+    });
+    if (typeof navigator.sendBeacon === 'function') {
+      navigator.sendBeacon('/api/track', new Blob([body], { type: 'application/json' }));
+    } else {
+      void fetch('/api/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        keepalive: true,
+      }).catch(() => {});
+    }
+  } catch {
+    // Telemetry must never break the page.
   }
 }
 
-function trackEvent(event: string, props?: Record<string, string | number | boolean>) {
-  if (typeof window.plausible === 'function') {
-    window.plausible(event, props ? { props } : undefined);
-  }
-}
-
-// Conversion funnel events (from 05-analytics-monitoring.md Section 4.1)
+// Conversion funnel events (from 05-analytics-monitoring.md Section 4.1).
 export const analytics = {
-  signupCompleted: () => trackEvent('signup_completed'),
-  calculatorUsed: () => trackEvent('calculator_used'),
-  pricingViewed: () => trackEvent('pricing_viewed'),
-  paywallSeen: () => trackEvent('paywall_seen'),
-  checkoutStarted: () => trackEvent('checkout_started'),
-  paymentCompleted: () => trackEvent('payment_completed'),
-  pdfUploaded: () => trackEvent('pdf_uploaded'),
-  csvUploaded: () => trackEvent('csv_uploaded'),
-  calculationSaved: () => trackEvent('calculation_saved'),
-  pdfExported: () => trackEvent('pdf_exported'),
+  pageview: () => send('pageview'),
+  signupCompleted: () => send('signup_completed'),
+  calculatorUsed: () => send('calculator_used'),
+  pricingViewed: () => send('pricing_viewed'),
+  paywallSeen: () => send('paywall_seen'),
+  checkoutStarted: () => send('checkout_started'),
+  paymentCompleted: () => send('payment_completed'),
+  pdfUploaded: () => send('pdf_uploaded'),
+  csvUploaded: () => send('csv_uploaded'),
+  calculationSaved: () => send('calculation_saved'),
+  pdfExported: () => send('pdf_exported'),
 };

@@ -1,6 +1,7 @@
-import { lazy, Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Layout from './components/layout/Layout';
+import { analytics } from './lib/analytics';
 
 const Landing = lazy(() => import('./pages/Landing'));
 const CalculatorPage = lazy(() => import('./pages/CalculatorPage'));
@@ -30,6 +31,13 @@ const GhidNotificareAnafPage = lazy(() => import('./pages/GhidNotificareAnafPage
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 export default function App() {
+  // First-party pageview tracking: fire on initial load and on every SPA route
+  // change (replaces Plausible's automatic pushState pageview tracking).
+  const location = useLocation();
+  useEffect(() => {
+    analytics.pageview();
+  }, [location.pathname]);
+
   return (
     <Suspense fallback={null}>
       <Routes>
