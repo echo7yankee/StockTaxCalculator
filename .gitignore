@@ -22,6 +22,9 @@ tmp/
 .claude/skills/**
 !.claude/skills/bootstrap/
 server/prisma/dev.db
+# Stray dir a bare PrismaClient re-creates when run with a schema-relative
+# file: DATABASE_URL (CLI scripts, dev server). Local-only, never commit.
+server/prisma/prisma/
 investax-docs/
 scripts/reports/*
 !scripts/reports/.gitkeep

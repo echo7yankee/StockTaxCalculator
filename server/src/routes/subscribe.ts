@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import * as Sentry from '@sentry/node';
 import prisma from '../lib/prisma.js';
+import { SUBSCRIBE_TOPICS } from '../lib/subscribeTopics.js';
 import { sendSubscribeConfirmEmail, sendSubscribeWelcomeEmail } from '../services/email.js';
 
 const isProd = process.env.NODE_ENV === 'production';
@@ -19,11 +20,9 @@ const subscribeLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const TOPICS = ['filing_reminder', 'broker_revolut', 'broker_ibkr', 'prior_years'] as const;
-
 const subscribeSchema = z.object({
   email: z.string().trim().email('Invalid email address').max(254, 'Email too long'),
-  topic: z.enum(TOPICS),
+  topic: z.enum(SUBSCRIBE_TOPICS),
   language: z.enum(['ro', 'en']).default('ro'),
   source: z.string().trim().max(60).optional(),
   // Honeypot. Real users never fill this hidden field; bots auto-fill it.

@@ -12,6 +12,7 @@ interface ResendSendBody {
   html: string;
   text: string;
   reply_to?: string;
+  headers?: Record<string, string>;
 }
 
 async function postToResend(body: ResendSendBody): Promise<void> {
@@ -683,7 +684,7 @@ function subscribeTopicLine(topic: string, language: Language): string {
   return table[topic] ?? (language === 'ro' ? 'o notificare când avem noutăți' : 'a heads-up when we have news');
 }
 
-function renderSubscribeShellHtml(lang: Language, heading: string, bodyHtml: string): string {
+export function renderSubscribeShellHtml(lang: Language, heading: string, bodyHtml: string): string {
   return `<!DOCTYPE html>
 <html lang="${lang}">
 <body style="font-family:system-ui,sans-serif;background:#f5f5f5;padding:24px;color:#0b1426;">
@@ -760,8 +761,8 @@ export async function sendSubscribeWelcomeEmail(
   const heading = language === 'ro' ? 'Gata, ești pe listă' : "You're all set";
   const intro =
     language === 'ro'
-      ? `Adresa ta e confirmată. Primești ${topicLine}. Până atunci nu-ți trimitem alte emailuri.`
-      : `Your email is confirmed. You'll get ${topicLine}. Until then we won't email you about anything else.`;
+      ? `Adresa ta e confirmată. Primești ${topicLine}, plus, din când în când, noutăți scurte despre InvesTax.`
+      : `Your email is confirmed. You'll get ${topicLine}, plus an occasional short update about InvesTax.`;
   const unsub = language === 'ro' ? 'Te poți dezabona oricând:' : 'You can unsubscribe at any time:';
 
   const bodyHtml = `
@@ -771,8 +772,34 @@ export async function sendSubscribeWelcomeEmail(
 
   const text =
     language === 'ro'
-      ? `Ești pe listă\n\nAdresa ta e confirmată. Primești ${topicLine}.\n\nTe poți dezabona oricând: ${unsubscribeUrl}\n\nInvesTax · investax.app`
-      : `You're on the list\n\nYour email is confirmed. You'll get ${topicLine}.\n\nUnsubscribe at any time: ${unsubscribeUrl}\n\nInvesTax · investax.app`;
+      ? `Ești pe listă\n\nAdresa ta e confirmată. Primești ${topicLine}, plus, din când în când, noutăți scurte despre InvesTax.\n\nTe poți dezabona oricând: ${unsubscribeUrl}\n\nInvesTax · investax.app`
+      : `You're on the list\n\nYour email is confirmed. You'll get ${topicLine}, plus an occasional short update about InvesTax.\n\nUnsubscribe at any time: ${unsubscribeUrl}\n\nInvesTax · investax.app`;
 
   await postToResend({ from: FROM_ADDRESS, to, subject, html: renderSubscribeShellHtml(language, heading, bodyHtml), text });
+}
+
+export interface BroadcastEmailParams {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  unsubscribeUrl: string;
+}
+
+// Outbound chokepoint for list broadcasts (the backlog #9 send half, driven by
+// the operator-run scripts/broadcast.ts CLI). Every broadcast carries the
+// subscriber's one-click unsubscribe both in the body (rendered by the
+// template) and as a List-Unsubscribe header for mail-client unsubscribe UIs.
+// No reply_to: inbound on investax.app is not wired up, so replies would
+// black-hole silently; templates point readers at the /contact form instead.
+export async function sendBroadcastEmail(params: BroadcastEmailParams): Promise<void> {
+  const { to, subject, html, text, unsubscribeUrl } = params;
+  await postToResend({
+    from: FROM_ADDRESS,
+    to,
+    subject,
+    html,
+    text,
+    headers: { 'List-Unsubscribe': `<${unsubscribeUrl}>` },
+  });
 }
