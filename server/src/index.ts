@@ -4,6 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { sessionMiddleware, requirePaidPlan } from './middleware/auth.js';
+import { requireAdmin } from './middleware/requireAdmin.js';
 import { jsonErrorHandler } from './middleware/errorHandler.js';
 import passport from './config/passport.js';
 import { authRouter } from './routes/auth.js';
@@ -17,6 +18,7 @@ import { contactRouter } from './routes/contact.js';
 import { subscribeRouter } from './routes/subscribe.js';
 import { parseReportsRouter } from './routes/parseReports.js';
 import { trackRouter } from './routes/track.js';
+import { analyticsRouter } from './routes/analytics.js';
 
 // Initialize Sentry (only active when SENTRY_DSN is set + production)
 if (process.env.SENTRY_DSN && process.env.NODE_ENV === 'production') {
@@ -84,6 +86,9 @@ app.use('/api/track', trackRouter);
 app.use('/api/uploads', requirePaidPlan, uploadsRouter);
 app.use('/api/tax-years', requirePaidPlan, taxYearsRouter);
 app.use('/api/parse-reports', requirePaidPlan, parseReportsRouter);
+
+// Operator-only analytics dashboard API (auth + ADMIN_EMAILS allowlist)
+app.use('/api/analytics', requireAdmin, analyticsRouter);
 
 // Sentry error handler (must be after all routes)
 if (process.env.SENTRY_DSN && process.env.NODE_ENV === 'production') {
