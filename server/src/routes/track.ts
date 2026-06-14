@@ -77,7 +77,7 @@ trackRouter.post('/', trackLimiter, async (req, res) => {
       },
     });
   } catch (err) {
-    // Telemetry is non-critical: log and move on, do not Sentry-spam or 500.
+    // Telemetry is non-critical: log and move on, do not error-spam or 500.
     console.error('[track] write failed:', err);
   }
 

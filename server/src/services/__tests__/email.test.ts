@@ -9,6 +9,10 @@ import {
   pickLanguage,
 } from '../email.js';
 
+// email.ts records send failures via recordCaughtError -> recordError -> prisma.
+// Mock it so these unit tests stay hermetic (no real DB writes from the error path).
+vi.mock('../../lib/errorMonitor.js', () => ({ recordCaughtError: vi.fn() }));
+
 const RESET_URL = 'https://investax.app/reset-password?token=abc123';
 const CLIENT_URL = 'https://investax.app';
 
@@ -90,7 +94,7 @@ describe('sendPasswordResetEmail', () => {
     expect(body.text).toContain('Reset your InvesTax password');
   });
 
-  it('throws when Resend returns non-2xx so the caller can capture in Sentry', async () => {
+  it('throws when Resend returns non-2xx so the caller can record it', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response('rate limited', { status: 429 })
     );
@@ -221,7 +225,7 @@ describe('sendWelcomeEmail', () => {
     expect(bodyXss.html).not.toContain('<script>alert(1)</script>!');
   });
 
-  it('throws when Resend returns non-2xx so the caller can capture in Sentry', async () => {
+  it('throws when Resend returns non-2xx so the caller can record it', async () => {
     global.fetch = vi.fn().mockResolvedValue(
       new Response('boom', { status: 500 })
     );
@@ -343,7 +347,7 @@ describe('sendPaymentConfirmationEmail', () => {
     expect(body2.html).toContain('0.00 EUR');
   });
 
-  it('throws when Resend returns non-2xx so the caller can capture in Sentry', async () => {
+  it('throws when Resend returns non-2xx so the caller can record it', async () => {
     global.fetch = vi.fn().mockResolvedValue(
       new Response('boom', { status: 500 })
     );
@@ -464,7 +468,7 @@ describe('sendNewCustomerNotification', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('throws when Resend returns non-2xx so the caller can capture in Sentry', async () => {
+  it('throws when Resend returns non-2xx so the caller can record it', async () => {
     global.fetch = vi.fn().mockResolvedValue(new Response('boom', { status: 500 }));
     await expect(sendNewCustomerNotification(baseParams)).rejects.toThrow(/Resend API 500/);
   });
@@ -670,7 +674,7 @@ describe('sendParseAlertNotification', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('throws when Resend returns non-2xx so the caller can capture in Sentry', async () => {
+  it('throws when Resend returns non-2xx so the caller can record it', async () => {
     global.fetch = vi.fn().mockResolvedValue(new Response('boom', { status: 500 }));
     await expect(sendParseAlertNotification(baseParams)).rejects.toThrow(/Resend API 500/);
   });

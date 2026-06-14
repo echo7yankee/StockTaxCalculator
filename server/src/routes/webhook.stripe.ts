@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type Stripe from 'stripe';
 import type { Prisma } from '@prisma/client';
-import * as Sentry from '@sentry/node';
+import { recordCaughtError } from '../lib/errorMonitor.js';
 import prisma from '../lib/prisma.js';
 import { getStripeInstance } from '../services/stripe.js';
 import {
@@ -195,9 +195,7 @@ stripeWebhookRouter.post('/', async (req, res) => {
         clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
       }).catch((emailErr) => {
         console.error('[Email] Payment confirmation send failed:', emailErr);
-        Sentry.captureException(emailErr, {
-          tags: { endpoint: 'webhook.stripe.paymentConfirmationEmail' },
-        });
+        recordCaughtError(emailErr, 'webhook.stripe.paymentConfirmationEmail');
       });
     }
 
@@ -207,9 +205,7 @@ stripeWebhookRouter.post('/', async (req, res) => {
       const job: NewCustomerNotificationParams = adminNotificationJob;
       sendNewCustomerNotification(job).catch((emailErr) => {
         console.error('[Email] Admin new-customer notification failed:', emailErr);
-        Sentry.captureException(emailErr, {
-          tags: { endpoint: 'webhook.stripe.adminNotification' },
-        });
+        recordCaughtError(emailErr, 'webhook.stripe.adminNotification');
       });
     }
 

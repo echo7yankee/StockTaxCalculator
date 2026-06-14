@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 
-const captureMessageMock = vi.fn();
-vi.mock('../sentry', () => ({
-  Sentry: { captureMessage: captureMessageMock },
+const reportClientErrorMock = vi.fn();
+vi.mock('../errorMonitor', () => ({
+  reportClientError: reportClientErrorMock,
 }));
 
 const { reportParseEvent } = await import('../parseMonitor');
 
 beforeEach(() => {
-  captureMessageMock.mockReset();
+  reportClientErrorMock.mockReset();
 });
 
 afterEach(() => {
@@ -60,78 +60,59 @@ describe('reportParseEvent', () => {
     expect(result).toBeUndefined();
   });
 
-  it('does not call Sentry when outcome is success with no warnings', () => {
+  it('does not record an error-monitor event for a clean success', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 200 })));
     reportParseEvent({ fileType: 'pdf', outcome: 'success', warnings: [], engineWarnings: [] });
-    expect(captureMessageMock).not.toHaveBeenCalled();
+    expect(reportClientErrorMock).not.toHaveBeenCalled();
   });
 
-  it('calls Sentry with level=warning when parser warnings are present', () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 200 })));
-    reportParseEvent({
-      fileType: 'pdf',
-      outcome: 'warning',
-      fileName: 'statement.pdf',
-      warnings: ['mixed currencies'],
-    });
-
-    expect(captureMessageMock).toHaveBeenCalledTimes(1);
-    const [message, options] = captureMessageMock.mock.calls[0];
-    expect(message).toBe('Parser warnings detected');
-    expect(options.level).toBe('warning');
-    expect(options.tags.component).toBe('parser');
-    expect(options.tags.fileType).toBe('pdf');
-    expect(options.tags.outcome).toBe('warning');
-    expect(options.tags.parserWarningCount).toBe('1');
-    expect(options.tags.engineWarningCount).toBe('0');
-    expect(options.extra.warnings).toEqual(['mixed currencies']);
-    expect(options.extra.fileName).toBe('statement.pdf');
-  });
-
-  it('calls Sentry with level=warning when only engine warnings are present', () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 200 })));
-    reportParseEvent({
-      fileType: 'pdf',
-      outcome: 'success',
-      warnings: [],
-      engineWarnings: ['Sign mismatch: per-row positive, overview negative'],
-    });
-
-    expect(captureMessageMock).toHaveBeenCalledTimes(1);
-    const [, options] = captureMessageMock.mock.calls[0];
-    expect(options.tags.parserWarningCount).toBe('0');
-    expect(options.tags.engineWarningCount).toBe('1');
-    expect(options.extra.engineWarnings).toEqual([
-      'Sign mismatch: per-row positive, overview negative',
-    ]);
-  });
-
-  it('calls Sentry with level=error when outcome is error', () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 200 })));
-    reportParseEvent({
-      fileType: 'csv',
-      outcome: 'error',
-      errorMessage: 'No statement period found',
-    });
-
-    expect(captureMessageMock).toHaveBeenCalledTimes(1);
-    const [message, options] = captureMessageMock.mock.calls[0];
-    expect(message).toBe('Parser error reported');
-    expect(options.level).toBe('error');
-    expect(options.tags.outcome).toBe('error');
-    expect(options.extra.errorMessage).toBe('No statement period found');
-  });
-
-  it('still POSTs the event when the Sentry call throws (best-effort isolation)', () => {
-    captureMessageMock.mockImplementationOnce(() => {
-      throw new Error('sentry transport broke');
-    });
+  it('does not record parser/engine warnings (they reach the operator via /api/parse-reports only)', () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
-    expect(() =>
-      reportParseEvent({ fileType: 'pdf', outcome: 'warning', warnings: ['x'] }),
-    ).not.toThrow();
+    reportParseEvent({ fileType: 'pdf', outcome: 'warning', warnings: ['mixed currencies'] });
+    reportParseEvent({
+      fileType: 'pdf',
+      outcome: 'success',
+      engineWarnings: ['Sign mismatch: per-row positive, overview negative'],
+    });
+
+    // Warnings are data-quality signals, not JS errors: they must not pollute the error dashboard...
+    expect(reportClientErrorMock).not.toHaveBeenCalled();
+    // ...but they are still reported to the operator via the parse-report POST.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('records a ParseError in the first-party monitor when outcome is error', () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 200 })));
+    reportParseEvent({ fileType: 'csv', outcome: 'error', errorMessage: 'No statement period found' });
+
+    expect(reportClientErrorMock).toHaveBeenCalledTimes(1);
+    expect(reportClientErrorMock).toHaveBeenCalledWith({
+      name: 'ParseError',
+      message: 'No statement period found',
+      context: 'parser:csv',
+    });
+  });
+
+  it('falls back to a generic message when an error outcome carries no errorMessage', () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 200 })));
+    reportParseEvent({ fileType: 'pdf', outcome: 'error' });
+
+    expect(reportClientErrorMock).toHaveBeenCalledWith({
+      name: 'ParseError',
+      message: 'Parser error (pdf)',
+      context: 'parser:pdf',
+    });
+  });
+
+  it('still POSTs the event when outcome is error (capture is independent of the report)', () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    reportParseEvent({ fileType: 'pdf', outcome: 'error', errorMessage: 'boom' });
+
+    expect(reportClientErrorMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

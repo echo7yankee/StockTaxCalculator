@@ -1,5 +1,5 @@
 import Stripe from 'stripe';
-import * as Sentry from '@sentry/node';
+import { recordCaughtError } from '../lib/errorMonitor.js';
 
 // Typed wrapper so callers can distinguish "Stripe API call failed" from
 // "Stripe not configured" (which returns null) and from other unrelated errors.
@@ -85,14 +85,7 @@ export async function createStripeCheckoutSession(
   try {
     session = await stripe.checkout.sessions.create(params);
   } catch (err) {
-    Sentry.captureException(err, {
-      tags: { service: 'stripe', op: 'checkout.create' },
-      extra: {
-        userId: args.userId,
-        applyLaunchCoupon: args.applyLaunchCoupon,
-        priceId,
-      },
-    });
+    recordCaughtError(err, 'stripe.checkout.create');
     throw new StripeCheckoutError(err);
   }
   if (!session.url) return null;

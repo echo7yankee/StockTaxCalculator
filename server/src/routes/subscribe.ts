@@ -2,7 +2,7 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
-import * as Sentry from '@sentry/node';
+import { recordCaughtError } from '../lib/errorMonitor.js';
 import prisma from '../lib/prisma.js';
 import { SUBSCRIBE_TOPICS } from '../lib/subscribeTopics.js';
 import { sendSubscribeConfirmEmail, sendSubscribeWelcomeEmail } from '../services/email.js';
@@ -94,7 +94,7 @@ subscribeRouter.post('/', subscribeLimiter, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('[Subscribe] submit failed:', err);
-    Sentry.captureException(err, { tags: { endpoint: 'subscribe.submit' }, extra: { topic } });
+    recordCaughtError(err, 'subscribe.submit');
     res.status(500).json({ error: 'Failed to subscribe. Please try again later.' });
   }
 });
@@ -139,7 +139,7 @@ subscribeRouter.get('/confirm', async (req, res) => {
     res.status(200).type('html').send(landingPage(language, 'confirmed'));
   } catch (err) {
     console.error('[Subscribe] confirm failed:', err);
-    Sentry.captureException(err, { tags: { endpoint: 'subscribe.confirm' } });
+    recordCaughtError(err, 'subscribe.confirm');
     res.status(500).type('html').send(landingPage('ro', 'error'));
   }
 });
@@ -171,7 +171,7 @@ subscribeRouter.get('/unsubscribe', async (req, res) => {
     res.status(200).type('html').send(landingPage(language, 'unsubscribed'));
   } catch (err) {
     console.error('[Subscribe] unsubscribe failed:', err);
-    Sentry.captureException(err, { tags: { endpoint: 'subscribe.unsubscribe' } });
+    recordCaughtError(err, 'subscribe.unsubscribe');
     res.status(500).type('html').send(landingPage('ro', 'error'));
   }
 });

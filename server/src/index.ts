@@ -1,12 +1,11 @@
 import 'dotenv/config';
-import * as Sentry from '@sentry/node';
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { sessionMiddleware, requirePaidPlan } from './middleware/auth.js';
 import { requireAdmin } from './middleware/requireAdmin.js';
 import { jsonErrorHandler } from './middleware/errorHandler.js';
-import { recordError } from './lib/errorMonitor.js';
+import { recordError, toCapturedError, recordCaughtError } from './lib/errorMonitor.js';
 import passport from './config/passport.js';
 import { authRouter } from './routes/auth.js';
 import { calculatorRouter } from './routes/calculator.js';
@@ -22,22 +21,10 @@ import { trackRouter } from './routes/track.js';
 import { errorsRouter } from './routes/errors.js';
 import { analyticsRouter } from './routes/analytics.js';
 
-// Initialize Sentry (only active when SENTRY_DSN is set + production)
-if (process.env.SENTRY_DSN && process.env.NODE_ENV === 'production') {
-  Sentry.init({
-    dsn: process.env.SENTRY_DSN,
-    environment: process.env.NODE_ENV,
-    tracesSampleRate: 0.2,
-  });
-}
-
 // First-party crash capture. Record process-level errors into the ErrorEvent
-// table. recordError never throws on its own.
-function toCaptured(context: string, reason: unknown) {
-  const err = reason instanceof Error ? reason : new Error(String(reason));
-  return { name: err.name, message: err.message, stack: err.stack, source: 'server' as const, context };
-}
-
+// table (recordError never throws on its own); toCapturedError / recordCaughtError
+// live in lib/errorMonitor so route catch blocks share the same shape.
+//
 // uncaughtException leaves the process in an undefined state, so we preserve the
 // default exit-and-restart (log + exit 1, which pm2 restarts). The error-monitor
 // write is given a chance to land first, bounded by a short timer so a hung
@@ -52,7 +39,7 @@ process.on('uncaughtException', (err) => {
   };
   const guard = setTimeout(exit, 2000);
   guard.unref();
-  void recordError(toCaptured('uncaughtException', err)).finally(() => {
+  void recordError(toCapturedError(err, 'uncaughtException')).finally(() => {
     clearTimeout(guard);
     exit();
   });
@@ -63,7 +50,7 @@ process.on('uncaughtException', (err) => {
 // down for one stray rejection is worse than logging it and carrying on.
 process.on('unhandledRejection', (reason) => {
   console.error('[unhandledRejection]', reason);
-  void recordError(toCaptured('unhandledRejection', reason));
+  recordCaughtError(reason, 'unhandledRejection');
 });
 
 const app = express();
@@ -134,12 +121,8 @@ app.use('/api/parse-reports', requirePaidPlan, parseReportsRouter);
 // Operator-only analytics dashboard API (auth + ADMIN_EMAILS allowlist)
 app.use('/api/analytics', requireAdmin, analyticsRouter);
 
-// Sentry error handler (must be after all routes)
-if (process.env.SENTRY_DSN && process.env.NODE_ENV === 'production') {
-  Sentry.setupExpressErrorHandler(app);
-}
-
-// JSON error handler — must be last, after the Sentry handler.
+// JSON error handler, must be last, after all routes. It records 5xx faults into
+// the first-party ErrorEvent table (see middleware/errorHandler.ts).
 app.use(jsonErrorHandler);
 
 app.listen(PORT, () => {

@@ -1,4 +1,4 @@
-import * as Sentry from '@sentry/node';
+import { recordCaughtError } from '../lib/errorMonitor.js';
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
 const FROM_ADDRESS = 'InvesTax <noreply@investax.app>';
@@ -40,9 +40,7 @@ async function postToResend(body: ResendSendBody): Promise<void> {
     const err = new Error(
       `Resend API ${response.status}: ${responseBody.slice(0, 500)}`
     );
-    Sentry.captureException(err, {
-      tags: { service: 'email', status: String(response.status) },
-    });
+    recordCaughtError(err, 'email.send');
     throw err;
   }
 }

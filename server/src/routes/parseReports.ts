@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
-import * as Sentry from '@sentry/node';
+import { recordCaughtError } from '../lib/errorMonitor.js';
 import { sendParseAlertNotification } from '../services/email.js';
 import { logParseAlert, deriveParseOutcome } from '../services/parseAlertLog.js';
 
@@ -83,10 +83,7 @@ parseReportsRouter.post('/', parseReportLimiter, async (req, res) => {
     });
   } catch (err) {
     console.error('[ParseReports] logParseAlert failed:', err);
-    Sentry.captureException(err, {
-      tags: { endpoint: 'parse-reports.submit', failure: 'db-write' },
-      extra: { userEmail: user.email, fileType, outcome },
-    });
+    recordCaughtError(err, 'parse-reports.submit:db-write');
   }
 
   try {
@@ -103,10 +100,7 @@ parseReportsRouter.post('/', parseReportLimiter, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('[ParseReports] sendParseAlertNotification failed:', err);
-    Sentry.captureException(err, {
-      tags: { endpoint: 'parse-reports.submit', failure: 'email-send' },
-      extra: { userEmail: user.email, fileType, outcome },
-    });
+    recordCaughtError(err, 'parse-reports.submit:email-send');
     res.status(500).json({ error: 'Failed to record report' });
   }
 });

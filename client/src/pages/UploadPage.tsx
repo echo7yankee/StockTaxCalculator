@@ -571,7 +571,7 @@ export default function UploadPage() {
 
       // Engine-emitted warnings (sign + magnitude mismatch) reach the operator
       // through the same channel as parser warnings, but tagged separately so
-      // Sentry + DB queries can distinguish parser drift from engine drift.
+      // the parse-report log + DB queries can distinguish parser drift from engine drift.
       if (engineWarnings.length > 0) {
         reportParseEvent({
           fileType: 'pdf',

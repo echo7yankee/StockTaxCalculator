@@ -136,3 +136,20 @@ export async function recordError(input: CapturedError): Promise<void> {
     console.error('[errorMonitor] failed to record error:', err);
   }
 }
+
+// Build a CapturedError from an unknown thrown value + an already-sanitized
+// context label (e.g. 'auth.signup', 'uncaughtException'). Shared by the
+// fire-and-forget recordCaughtError below and the process crash handlers, which
+// need the recordError promise directly so they can bound the write before exit.
+export function toCapturedError(reason: unknown, context: string): CapturedError {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  return { name: err.name, message: err.message, stack: err.stack, source: 'server', context };
+}
+
+// Record a caught error fire-and-forget. Drop-in for the catch blocks that used
+// to call Sentry.captureException(err, { tags: { endpoint } }); `context` carries
+// what tags.endpoint did. recordError never throws, so the catch flow is
+// unaffected and the response never waits on the write.
+export function recordCaughtError(reason: unknown, context: string): void {
+  void recordError(toCapturedError(reason, context));
+}

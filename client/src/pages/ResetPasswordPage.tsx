@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { KeyRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Sentry } from '../lib/sentry';
+import { reportCaughtError } from '../lib/errorMonitor';
 import PasswordInput from '../components/common/PasswordInput';
 import { isCommonPassword } from '../components/common/PasswordStrengthMeter';
 import PageMeta from '../components/common/PageMeta';
@@ -82,13 +82,13 @@ export default function ResetPasswordPage() {
           body: JSON.stringify({ token, password }),
         });
       } catch (err) {
-        Sentry.captureException(err, { tags: { action: 'auth.resetPassword', type: 'network' } });
+        reportCaughtError(err, 'auth.resetPassword:network');
         throw new Error(t('common:validation.networkError'));
       }
       const data = await res.json();
       if (!res.ok) {
         if (res.status >= 500) {
-          Sentry.captureException(new Error(`Reset password server error: ${res.status}`), { tags: { action: 'auth.resetPassword', type: 'server' } });
+          reportCaughtError(new Error(`Reset password server error: ${res.status}`), 'auth.resetPassword:server');
         }
         throw new Error(data.error || t('login:resetFailed'));
       }

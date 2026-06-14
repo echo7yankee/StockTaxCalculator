@@ -2,7 +2,7 @@
  * First-party client error capture. Beacons uncaught client errors to our own
  * /api/errors endpoint, where they land in the same grouped ErrorEvent table as
  * server errors (source='client'). This is the client half of the first-party
- * error monitoring that replaces Sentry (Sentry stays wired until PR3).
+ * error monitoring that replaces Sentry.
  *
  * Best-effort and non-blocking, exactly like the analytics emitter: uses
  * navigator.sendBeacon (which survives page unload, falling back to keepalive
@@ -88,6 +88,21 @@ export function reportClientError(err: ClientError): void {
     }
   } catch {
     // Telemetry must never break the page.
+  }
+}
+
+/**
+ * Report a caught error: wrap an unknown thrown value (Error or otherwise) and
+ * beacon it via reportClientError. Drop-in for the catch blocks that used to call
+ * Sentry.captureException(err, { tags: { action } }); `context` carries what
+ * tags.action did (e.g. 'auth.login:server'). Transient network failures are
+ * dropped by reportClientError's junk filter, so only real faults are recorded.
+ */
+export function reportCaughtError(reason: unknown, context: string): void {
+  if (reason instanceof Error) {
+    reportClientError({ name: reason.name, message: reason.message, stack: reason.stack, context });
+  } else {
+    reportClientError({ name: 'Error', message: String(reason), context });
   }
 }
 
