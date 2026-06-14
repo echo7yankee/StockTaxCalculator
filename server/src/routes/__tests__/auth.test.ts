@@ -119,6 +119,55 @@ async function loginAs(email: string, password: string): Promise<string> {
   return extractCookie(res);
 }
 
+describe('isAdmin flag (derived from the ADMIN_EMAILS allowlist)', () => {
+  const ADMIN = `${PREFIX}admin@test.invalid`;
+  const REGULAR = `${PREFIX}regular@test.invalid`;
+  const originalAdminEmails = process.env.ADMIN_EMAILS;
+
+  beforeEach(() => {
+    process.env.ADMIN_EMAILS = ADMIN;
+  });
+
+  afterAll(() => {
+    if (originalAdminEmails === undefined) delete process.env.ADMIN_EMAILS;
+    else process.env.ADMIN_EMAILS = originalAdminEmails;
+  });
+
+  it('login returns isAdmin true for an allowlisted email', async () => {
+    await seedUser({ email: ADMIN, password: 'ValidPass123' });
+    const res = await post('/api/auth/login', { email: ADMIN, password: 'ValidPass123' });
+    expect(res.status).toBe(200);
+    expect((await res.json()).user.isAdmin).toBe(true);
+  });
+
+  it('login returns isAdmin false for a non-allowlisted email', async () => {
+    await seedUser({ email: REGULAR, password: 'ValidPass123' });
+    const res = await post('/api/auth/login', { email: REGULAR, password: 'ValidPass123' });
+    expect(res.status).toBe(200);
+    expect((await res.json()).user.isAdmin).toBe(false);
+  });
+
+  it('/me reflects isAdmin for the logged-in admin', async () => {
+    await seedUser({ email: ADMIN, password: 'ValidPass123' });
+    const cookie = await loginAs(ADMIN, 'ValidPass123');
+    const res = await get('/api/auth/me', cookie);
+    expect((await res.json()).user.isAdmin).toBe(true);
+  });
+
+  it('signup returns isAdmin true when the new email is allowlisted', async () => {
+    const res = await post('/api/auth/signup', { email: ADMIN, password: 'ValidPass123' });
+    expect(res.status).toBe(201);
+    expect((await res.json()).user.isAdmin).toBe(true);
+  });
+
+  it('matches the allowlist case-insensitively', async () => {
+    process.env.ADMIN_EMAILS = ADMIN.toUpperCase();
+    await seedUser({ email: ADMIN, password: 'ValidPass123' });
+    const res = await post('/api/auth/login', { email: ADMIN, password: 'ValidPass123' });
+    expect((await res.json()).user.isAdmin).toBe(true);
+  });
+});
+
 describe('POST /api/auth/signup', () => {
   it('creates a new user, auto-logs-in, and returns 201 with a sanitized user', async () => {
     const res = await post('/api/auth/signup', {
