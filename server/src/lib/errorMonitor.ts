@@ -76,18 +76,31 @@ export function topFrame(stack?: string): string {
   return '';
 }
 
-// Scrub a full stack before storing: mask emails, drop query strings, truncate.
+// Scrub a full stack before storing: mask secret-shaped tokens, truncate.
 export function scrubStack(stack?: string): string | undefined {
   if (!stack) return undefined;
   return scrubText(stack).slice(0, 4000);
 }
 
-// Mask emails and strip URL query strings (which can carry tokens/PII) while
-// leaving a trailing :line:col intact ([^\s:)] stops at the first colon).
+// Scrub a stack frame / stack body of secret-shaped tokens while DELIBERATELY
+// preserving short :line:col numbers (they are the point of a stack and feed
+// topFrame's fingerprint, so grouping stays stable). Unlike normalizeMessage we
+// do NOT blanket-mask every \d+ -> <n>; we only mask runs of 9+ digits (CNP 13 /
+// IBAN clusters / 16-digit cards) so that :1:48213-style line:col survive.
+//
+// Order matters, same as normalizeMessage: mask emails + urls + uuids + Stripe
+// keys + hex BEFORE the >=9-digit pass, otherwise the digit pass would chew the
+// digits inside them first. The leading ? strip drops a URL query string while
+// stopping at the first colon ([^\s:)]) so a trailing :line:col is kept intact.
 function scrubText(s: string): string {
   return s
+    .replace(/\?[^\s:)]*/g, '')
     .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '<email>')
-    .replace(/\?[^\s:)]*/g, '');
+    .replace(/https?:\/\/[^\s"')]+/gi, '<url>')
+    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '<uuid>')
+    .replace(/\b[sprk]k_(live|test)_[A-Za-z0-9]+\b/g, '<key>')
+    .replace(/\b[0-9a-f]{16,}\b/gi, '<hex>')
+    .replace(/\d{9,}/g, '<n>');
 }
 
 export function fingerprintOf(name: string, normalizedMessage: string, frame: string): string {
