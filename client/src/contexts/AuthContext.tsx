@@ -7,6 +7,9 @@ interface AuthUser {
   email: string;
   name: string | null;
   plan: string;
+  // Derived server-side from the ADMIN_EMAILS allowlist (see /api/auth sanitizeUser).
+  // Used only to show/hide the admin analytics link; access is gated server-side.
+  isAdmin: boolean;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

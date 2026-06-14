@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Sun, Moon, Settings, TrendingUp, LogOut, User, Menu, X } from 'lucide-react';
+import { Sun, Moon, Settings, TrendingUp, LogOut, User, Menu, X, BarChart3 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -96,6 +96,18 @@ export default function Header() {
               <Settings className="w-5 h-5" />
             </Link>
 
+            {/* Admin-only analytics link: desktop icon next to Settings (operator dashboard) */}
+            {user?.isAdmin && (
+              <Link
+                to="/admin/analytics"
+                className="hidden sm:block p-2 rounded-lg text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors"
+                aria-label={t('header:analytics')}
+                title={t('header:analytics')}
+              >
+                <BarChart3 className="w-5 h-5" />
+              </Link>
+            )}
+
             {/* Auth — desktop */}
             {!loading && !user && (
               <div className="hidden md:flex items-center gap-2 ml-2">
@@ -155,6 +167,16 @@ export default function Header() {
                       <User className="w-4 h-4" />
                       {t('header:dashboard')}
                     </Link>
+                    {user.isAdmin && (
+                      <Link
+                        to="/admin/analytics"
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-navy-700"
+                      >
+                        <BarChart3 className="w-4 h-4" />
+                        {t('header:analytics')}
+                      </Link>
+                    )}
                     <Link
                       to="/settings"
                       onClick={() => setMenuOpen(false)}

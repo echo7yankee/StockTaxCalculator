@@ -6,6 +6,7 @@ import { recordCaughtError } from '../lib/errorMonitor.js';
 import { z } from 'zod/v4';
 import passport from '../config/passport.js';
 import prisma from '../lib/prisma.js';
+import { isAdminEmail } from '../middleware/requireAdmin.js';
 import { sendPasswordResetEmail, sendWelcomeEmail, pickLanguage } from '../services/email.js';
 
 const signupSchema = z.object({
@@ -62,7 +63,10 @@ const forgotPasswordLimiter = rateLimit({
 export const authRouter = Router();
 
 function sanitizeUser(user: Express.User) {
-  return { id: user.id, email: user.email, name: user.name, plan: user.plan };
+  // isAdmin is derived from the ADMIN_EMAILS allowlist (reused from requireAdmin),
+  // never stored on the User model. The client uses it only to show/hide the admin
+  // analytics link; the real access gate stays server-side on /api/analytics.
+  return { id: user.id, email: user.email, name: user.name, plan: user.plan, isAdmin: isAdminEmail(user.email) };
 }
 
 function formatZodErrors(error: z.core.$ZodError) {

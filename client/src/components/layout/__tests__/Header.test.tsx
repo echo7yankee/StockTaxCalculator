@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 // Mocks for the two contexts the Header consumes. These need to be re-assignable
 // per test so we can simulate auth.loading=true vs auth.loading=false.
 const mockAuth = {
-  user: null as null | { id: string; email: string; name: string | null; plan: string },
+  user: null as null | { id: string; email: string; name: string | null; plan: string; isAdmin: boolean },
   loading: true,
   login: vi.fn(),
   signup: vi.fn(),
@@ -64,5 +64,34 @@ describe('Header — Section 3.9 Site 1+4 (auth skeleton)', () => {
     expect(screen.queryByTestId('header-auth-skeleton')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Log in' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Sign up' })).toBeInTheDocument();
+  });
+});
+
+describe('Header admin analytics link (ADMIN_EMAILS gating)', () => {
+  beforeEach(() => {
+    mockAuth.loading = false;
+  });
+
+  it('shows the admin Analytics link for an admin user, pointing at /admin/analytics', () => {
+    mockAuth.user = { id: '1', email: 'admin@investax.app', name: 'Admin', plan: 'free', isAdmin: true };
+    renderHeader();
+
+    const link = screen.getByRole('link', { name: 'Analytics' });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', '/admin/analytics');
+  });
+
+  it('hides the admin Analytics link for a non-admin user', () => {
+    mockAuth.user = { id: '2', email: 'paul@example.com', name: 'Paul', plan: 'paid', isAdmin: false };
+    renderHeader();
+
+    expect(screen.queryByRole('link', { name: 'Analytics' })).not.toBeInTheDocument();
+  });
+
+  it('hides the admin Analytics link when logged out', () => {
+    mockAuth.user = null;
+    renderHeader();
+
+    expect(screen.queryByRole('link', { name: 'Analytics' })).not.toBeInTheDocument();
   });
 });
