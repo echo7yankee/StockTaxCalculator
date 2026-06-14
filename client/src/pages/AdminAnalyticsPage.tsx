@@ -306,9 +306,8 @@ export default function AdminAnalyticsPage() {
 
 // Renders the grouped error "issues" (most frequent first, as returned) from the
 // admin errors endpoint, with a source badge, name: message, count, and
-// first/last-seen. Empty state is bilingual (RO primary) per the no-missing-RO
-// rule; the rest of this operator-only page is hardcoded English to match its
-// existing pattern.
+// first/last-seen. This operator-only page is hardcoded English throughout to
+// match its existing pattern.
 function ErrorsSection({ errors }: { errors: ErrorSummary | null }) {
   return (
     <section className="card">
@@ -322,7 +321,7 @@ function ErrorsSection({ errors }: { errors: ErrorSummary | null }) {
       </div>
       {!errors || errors.rows.length === 0 ? (
         <p className="text-gray-500 dark:text-slate-400 text-sm">
-          Niciun eroare inregistrata (no errors recorded).
+          No errors recorded.
         </p>
       ) : (
         <ul className="space-y-3">

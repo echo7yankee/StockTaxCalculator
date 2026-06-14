@@ -71,6 +71,13 @@ describe('topFrame', () => {
     expect(topFrame(undefined)).toBe('');
     expect(topFrame('just a message, no frames')).toBe('');
   });
+
+  it('keeps short line:col so the fingerprint-relevant frame text is stable', () => {
+    // topFrame shares scrubText with scrubStack; the secret-shape masking must
+    // not disturb a normal frame's line:col (otherwise grouping would shift).
+    const stack = 'TypeError: boom\n    at fn (/app/dist/index-abc123.js:1:48213)';
+    expect(topFrame(stack)).toBe('at fn (/app/dist/index-abc123.js:1:48213)');
+  });
 });
 
 describe('scrubStack', () => {
@@ -80,6 +87,60 @@ describe('scrubStack', () => {
     expect(scrubbed).not.toContain('?v=abc123');
     expect(scrubbed).toContain('<email>');
     expect(scrubbed).not.toContain('bob@corp.io');
+  });
+
+  // The stack's first line is "ErrorName: message" and can carry user/secret
+  // data; PR2 made client stacks (the likeliest carriers) live. These vectors
+  // were qa-confirmed surviving raw in the stored sampleStack on PR #184.
+  it('masks a Stripe secret key embedded in a stack frame', () => {
+    const scrubbed = scrubStack('Error: leaked sk_live_51HxAbCdEfGh28053zZ\n    at h (/app/x.js:1:2)')!;
+    expect(scrubbed).not.toContain('sk_live_51HxAbCdEfGh28053zZ');
+    expect(scrubbed).toContain('<key>');
+  });
+
+  it('masks publishable/restricted/test Stripe key shapes too', () => {
+    expect(scrubStack('pk_test_abc123XYZ')!).toContain('<key>');
+    expect(scrubStack('rk_live_DEADBEEF99')!).toContain('<key>');
+    expect(scrubStack('pk_live_AbCdEfGhIjK')!).toContain('<key>');
+  });
+
+  it('masks a 13-digit CNP', () => {
+    const scrubbed = scrubStack('Error: CNP 1960714123456 invalid\n    at v (/app/x.js:3:4)')!;
+    expect(scrubbed).not.toContain('1960714123456');
+    expect(scrubbed).toContain('<n>');
+  });
+
+  it('masks an IBAN digit cluster', () => {
+    const scrubbed = scrubStack('Error: payout to RO49AAAA1B31007593840000\n    at p (/app/x.js:5:6)')!;
+    expect(scrubbed).not.toContain('1B31007593840000');
+    expect(scrubbed).not.toContain('31007593840000');
+  });
+
+  it('masks a 32-char hex Bearer token', () => {
+    const token = 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6';
+    const scrubbed = scrubStack(`Error: Authorization Bearer ${token}\n    at a (/app/x.js:7:8)`)!;
+    expect(scrubbed).not.toContain(token);
+    expect(scrubbed).toContain('<hex>');
+  });
+
+  it('masks a full url (and its token) in a stack frame', () => {
+    const scrubbed = scrubStack('Error: GET https://api.x.io/v1/u?token=secret123 failed\n    at g (/app/x.js:9:1)')!;
+    expect(scrubbed).not.toContain('secret123');
+    expect(scrubbed).not.toContain('https://api.x.io');
+    expect(scrubbed).toContain('<url>');
+  });
+
+  it('masks a 16-digit card number', () => {
+    const scrubbed = scrubStack('Error: card 4111111111111111 declined\n    at c (/app/x.js:2:3)')!;
+    expect(scrubbed).not.toContain('4111111111111111');
+  });
+
+  it('DELIBERATELY preserves a short :line:col in a normal frame', () => {
+    const scrubbed = scrubStack('TypeError: boom\n    at fn (/app/dist/index-abc123.js:1:48213)')!;
+    // line:col is the point of a stack and feeds topFrame's fingerprint, so it
+    // must survive the >=9-digit pass (which only masks 9+ digit runs).
+    expect(scrubbed).toContain(':1:48213');
+    expect(scrubbed).toContain('at fn (/app/dist/index-abc123.js:1:48213)');
   });
 
   it('returns undefined for a missing stack and truncates a huge one', () => {
