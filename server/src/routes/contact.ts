@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
-import * as Sentry from '@sentry/node';
+import { recordCaughtError } from '../lib/errorMonitor.js';
 import { sendContactMessageNotification } from '../services/email.js';
 
 const isProd = process.env.NODE_ENV === 'production';
@@ -31,7 +31,7 @@ export const contactRouter = Router();
 // On success: 200 { ok: true }. The contact-form caller treats this as a friendly
 // "thanks for your message" regardless of whether the admin email was actually
 // delivered, so a missing ADMIN_NOTIFICATION_EMAIL env var doesn't surface as a
-// user error. Sentry catches real delivery failures.
+// user error. recordError captures real delivery failures.
 contactRouter.post('/', contactLimiter, async (req, res) => {
   const parseResult = contactSchema.safeParse(req.body);
   if (!parseResult.success) {
@@ -65,10 +65,7 @@ contactRouter.post('/', contactLimiter, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('[Contact] sendContactMessageNotification failed:', err);
-    Sentry.captureException(err, {
-      tags: { endpoint: 'contact.submit' },
-      extra: { fromEmail: email, topic },
-    });
+    recordCaughtError(err, 'contact.submit');
     res.status(500).json({ error: 'Failed to send message. Please try again later.' });
   }
 });

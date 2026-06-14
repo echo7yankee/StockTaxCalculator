@@ -9,7 +9,7 @@ interface HttpError extends Error {
 
 // Final error handler. Without it, Express's default handler echoes the error
 // stack into the response body whenever NODE_ENV is not 'production'. Register
-// after all routes (and after the Sentry error handler).
+// after all routes. 5xx faults are recorded into the first-party ErrorEvent table.
 export const jsonErrorHandler: ErrorRequestHandler = (err, req, res, next) => {
   if (res.headersSent) {
     next(err);

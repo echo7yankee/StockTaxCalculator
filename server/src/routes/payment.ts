@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import * as Sentry from '@sentry/node';
+import { recordCaughtError } from '../lib/errorMonitor.js';
 import prisma from '../lib/prisma.js';
 import { createStripeCheckoutSession, isStripeEnabled, StripeCheckoutError } from '../services/stripe.js';
 
@@ -23,7 +23,7 @@ paymentRouter.get('/promo-status', async (_req, res) => {
     res.json({ count: counter.count, limit: counter.limit, remaining: counter.limit - counter.count });
   } catch (err) {
     console.error('Promo status error:', err);
-    Sentry.captureException(err, { tags: { endpoint: 'payment.promoStatus' } });
+    recordCaughtError(err, 'payment.promoStatus');
     res.status(500).json({ error: 'Failed to fetch promo status' });
   }
 });
@@ -72,10 +72,7 @@ paymentRouter.get('/checkout', async (req, res) => {
     // StripeCheckoutError is already captured in services/stripe.ts; only
     // capture here for unexpected non-Stripe errors so we don't double-fire.
     if (!(err instanceof StripeCheckoutError)) {
-      Sentry.captureException(err, {
-        tags: { endpoint: 'payment.checkout' },
-        extra: { userId: user.id, applyLaunchCoupon },
-      });
+      recordCaughtError(err, 'payment.checkout');
     }
     res.status(502).json({ error: CHECKOUT_UNAVAILABLE_MESSAGE });
   }

@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { KeyRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Sentry } from '../lib/sentry';
+import { reportCaughtError } from '../lib/errorMonitor';
 import FormField from '../components/common/FormField';
 import PageMeta from '../components/common/PageMeta';
 
@@ -50,13 +50,13 @@ export default function ForgotPasswordPage() {
           body: JSON.stringify({ email: email.trim() }),
         });
       } catch (err) {
-        Sentry.captureException(err, { tags: { action: 'auth.forgotPassword', type: 'network' } });
+        reportCaughtError(err, 'auth.forgotPassword:network');
         throw new Error(t('common:validation.networkError'));
       }
       const data = await res.json();
       if (!res.ok) {
         if (res.status >= 500) {
-          Sentry.captureException(new Error(`Forgot password server error: ${res.status}`), { tags: { action: 'auth.forgotPassword', type: 'server' } });
+          reportCaughtError(new Error(`Forgot password server error: ${res.status}`), 'auth.forgotPassword:server');
         }
         throw new Error(data.error || t('login:resetRequestFailed'));
       }

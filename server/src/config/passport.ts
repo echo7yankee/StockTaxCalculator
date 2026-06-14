@@ -2,7 +2,7 @@ import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import bcrypt from 'bcryptjs';
-import * as Sentry from '@sentry/node';
+import { recordCaughtError } from '../lib/errorMonitor.js';
 import prisma from '../lib/prisma.js';
 import { sendWelcomeEmail } from '../services/email.js';
 
@@ -99,9 +99,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
             clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
           }).catch((emailErr) => {
             console.error('[Email] Welcome send failed (Google signup):', emailErr);
-            Sentry.captureException(emailErr, {
-              tags: { endpoint: 'auth.googleSignup.welcomeEmail' },
-            });
+            recordCaughtError(emailErr, 'auth.googleSignup.welcomeEmail');
           });
           return done(null, user);
         } catch (err) {

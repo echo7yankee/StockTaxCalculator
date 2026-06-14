@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useCountry } from '../contexts/CountryContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth, ApiError } from '../contexts/AuthContext';
-import { Sentry } from '../lib/sentry';
+import { reportCaughtError } from '../lib/errorMonitor';
 import { Download, Trash2, AlertTriangle, KeyRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PasswordInput from '../components/common/PasswordInput';
@@ -110,13 +110,13 @@ export default function SettingsPage() {
           body: JSON.stringify({ currentPassword, newPassword }),
         });
       } catch (err) {
-        Sentry.captureException(err, { tags: { action: 'auth.changePassword', type: 'network' } });
+        reportCaughtError(err, 'auth.changePassword:network');
         throw new Error(t('common:validation.networkError'));
       }
       const data = await res.json();
       if (!res.ok) {
         if (res.status >= 500) {
-          Sentry.captureException(new Error(`Change password server error: ${res.status}`), { tags: { action: 'auth.changePassword', type: 'server' } });
+          reportCaughtError(new Error(`Change password server error: ${res.status}`), 'auth.changePassword:server');
         }
         if (data.fields) setPasswordFieldErrors(data.fields);
         throw new ApiError(data.error || t('changePassword.error'), data.fields);

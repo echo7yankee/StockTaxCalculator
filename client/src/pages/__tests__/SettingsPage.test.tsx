@@ -51,8 +51,8 @@ vi.mock('../../contexts/ThemeContext', () => ({
   useTheme: () => ({ theme: 'dark', toggleTheme: mockToggleTheme }),
 }));
 
-vi.mock('../../lib/sentry', () => ({
-  Sentry: { captureException: vi.fn() },
+vi.mock('../../lib/errorMonitor', () => ({
+  reportCaughtError: vi.fn(),
 }));
 
 import SettingsPage from '../SettingsPage';

@@ -18,7 +18,7 @@ vi.mock('stripe', () => ({
   })),
 }));
 
-vi.mock('@sentry/node', () => ({ captureException: vi.fn() }));
+vi.mock('../../lib/errorMonitor.js', () => ({ recordCaughtError: vi.fn() }));
 
 // The webhook fires the payment-confirmation and admin-notification emails fire-and-forget.
 // Mocking them keeps the suite off Resend and lets the sends be asserted.

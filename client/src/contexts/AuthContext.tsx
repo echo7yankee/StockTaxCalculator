@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
-import { Sentry } from '../lib/sentry';
+import { reportCaughtError } from '../lib/errorMonitor';
 import { analytics } from '../lib/analytics';
 
 interface AuthUser {
@@ -55,13 +55,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ email, password }),
       });
     } catch (err) {
-      Sentry.captureException(err, { tags: { action: 'auth.login', type: 'network' } });
+      reportCaughtError(err, 'auth.login:network');
       throw new ApiError('Unable to connect to the server. Please check your connection and try again.');
     }
     const data = await res.json();
     if (!res.ok) {
       if (res.status >= 500) {
-        Sentry.captureException(new Error(`Login server error: ${res.status}`), { tags: { action: 'auth.login', type: 'server' } });
+        reportCaughtError(new Error(`Login server error: ${res.status}`), 'auth.login:server');
       }
       throw new ApiError(data.error || 'Login failed', data.fields);
     }
@@ -77,13 +77,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ email, password, name }),
       });
     } catch (err) {
-      Sentry.captureException(err, { tags: { action: 'auth.signup', type: 'network' } });
+      reportCaughtError(err, 'auth.signup:network');
       throw new ApiError('Unable to connect to the server. Please check your connection and try again.');
     }
     const data = await res.json();
     if (!res.ok) {
       if (res.status >= 500) {
-        Sentry.captureException(new Error(`Signup server error: ${res.status}`), { tags: { action: 'auth.signup', type: 'server' } });
+        reportCaughtError(new Error(`Signup server error: ${res.status}`), 'auth.signup:server');
       }
       throw new ApiError(data.error || 'Signup failed', data.fields);
     }
@@ -109,13 +109,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       res = await fetch('/api/auth/delete-account', { ...fetchOpts, method: 'POST' });
     } catch (err) {
-      Sentry.captureException(err, { tags: { action: 'auth.deleteAccount', type: 'network' } });
+      reportCaughtError(err, 'auth.deleteAccount:network');
       throw new Error('Unable to connect to the server. Please check your connection and try again.');
     }
     const data = await res.json();
     if (!res.ok) {
       if (res.status >= 500) {
-        Sentry.captureException(new Error(`Delete account server error: ${res.status}`), { tags: { action: 'auth.deleteAccount', type: 'server' } });
+        reportCaughtError(new Error(`Delete account server error: ${res.status}`), 'auth.deleteAccount:server');
       }
       throw new Error(data.error || 'Failed to delete account');
     }
@@ -127,12 +127,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       res = await fetch('/api/auth/export-data', { credentials: 'include' });
     } catch (err) {
-      Sentry.captureException(err, { tags: { action: 'auth.exportData', type: 'network' } });
+      reportCaughtError(err, 'auth.exportData:network');
       throw new Error('Unable to connect to the server. Please check your connection and try again.');
     }
     if (!res.ok) {
       if (res.status >= 500) {
-        Sentry.captureException(new Error(`Export data server error: ${res.status}`), { tags: { action: 'auth.exportData', type: 'server' } });
+        reportCaughtError(new Error(`Export data server error: ${res.status}`), 'auth.exportData:server');
       }
       throw new Error('Failed to export data');
     }

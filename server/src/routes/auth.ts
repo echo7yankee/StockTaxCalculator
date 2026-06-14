@@ -2,7 +2,7 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
-import * as Sentry from '@sentry/node';
+import { recordCaughtError } from '../lib/errorMonitor.js';
 import { z } from 'zod/v4';
 import passport from '../config/passport.js';
 import prisma from '../lib/prisma.js';
@@ -121,15 +121,13 @@ authRouter.post('/signup', signupLimiter, async (req, res, next) => {
         clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
       }).catch((emailErr) => {
         console.error('[Email] Welcome send failed:', emailErr);
-        Sentry.captureException(emailErr, {
-          tags: { endpoint: 'auth.signup.welcomeEmail' },
-        });
+        recordCaughtError(emailErr, 'auth.signup.welcomeEmail');
       });
       res.status(201).json({ user: sanitizeUser(user) });
     });
   } catch (err) {
     console.error('Signup error:', err);
-    Sentry.captureException(err, { tags: { endpoint: 'auth.signup' } });
+    recordCaughtError(err, 'auth.signup');
     res.status(500).json({ error: 'Signup failed' });
   }
 });
@@ -200,7 +198,7 @@ authRouter.post('/delete-account', async (req, res) => {
     });
   } catch (err) {
     console.error('Delete account error:', err);
-    Sentry.captureException(err, { tags: { endpoint: 'auth.deleteAccount' } });
+    recordCaughtError(err, 'auth.deleteAccount');
     res.status(500).json({ error: 'Failed to delete account' });
   }
 });
@@ -276,7 +274,7 @@ authRouter.get('/export-data', async (req, res) => {
     });
   } catch (err) {
     console.error('Export data error:', err);
-    Sentry.captureException(err, { tags: { endpoint: 'auth.exportData' } });
+    recordCaughtError(err, 'auth.exportData');
     res.status(500).json({ error: 'Failed to export data' });
   }
 });
@@ -337,15 +335,13 @@ authRouter.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
       // Email send failure must not leak through the always-success response.
       // Token is in the DB regardless; user can request again if email never arrives.
       console.error('[Email] Password reset send failed:', emailErr);
-      Sentry.captureException(emailErr, {
-        tags: { endpoint: 'auth.forgotPassword.email' },
-      });
+      recordCaughtError(emailErr, 'auth.forgotPassword.email');
     }
 
     res.json(successResponse);
   } catch (err) {
     console.error('Forgot password error:', err);
-    Sentry.captureException(err, { tags: { endpoint: 'auth.forgotPassword' } });
+    recordCaughtError(err, 'auth.forgotPassword');
     res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 });
@@ -395,7 +391,7 @@ authRouter.post('/reset-password', async (req, res) => {
     res.json({ ok: true, message: 'Password has been reset successfully. You can now log in with your new password.' });
   } catch (err) {
     console.error('Reset password error:', err);
-    Sentry.captureException(err, { tags: { endpoint: 'auth.resetPassword' } });
+    recordCaughtError(err, 'auth.resetPassword');
     res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 });
@@ -437,7 +433,7 @@ authRouter.post('/change-password', async (req, res) => {
     res.json({ ok: true, message: 'Password changed successfully' });
   } catch (err) {
     console.error('Change password error:', err);
-    Sentry.captureException(err, { tags: { endpoint: 'auth.changePassword' } });
+    recordCaughtError(err, 'auth.changePassword');
     res.status(500).json({ error: 'Failed to change password' });
   }
 });

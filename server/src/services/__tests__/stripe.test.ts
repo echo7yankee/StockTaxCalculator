@@ -17,9 +17,9 @@ vi.mock('stripe', () => {
   };
 });
 
-const sentryCaptureMock = vi.fn();
-vi.mock('@sentry/node', () => ({
-  captureException: (...args: unknown[]) => sentryCaptureMock(...args),
+const recordCaughtErrorMock = vi.fn();
+vi.mock('../../lib/errorMonitor.js', () => ({
+  recordCaughtError: (...args: unknown[]) => recordCaughtErrorMock(...args),
 }));
 
 describe('createStripeCheckoutSession — error wrapping', () => {
@@ -31,7 +31,7 @@ describe('createStripeCheckoutSession — error wrapping', () => {
     process.env.STRIPE_LAUNCH_COUPON_ID = 'coupon_test_dummy';
     process.env.CLIENT_URL = 'https://investax.app';
     mockCreate.mockReset();
-    sentryCaptureMock.mockReset();
+    recordCaughtErrorMock.mockReset();
   });
 
   afterEach(() => {
@@ -48,10 +48,10 @@ describe('createStripeCheckoutSession — error wrapping', () => {
     });
 
     expect(result).toEqual({ url: 'https://checkout.stripe.com/c/pay/cs_test_abc' });
-    expect(sentryCaptureMock).not.toHaveBeenCalled();
+    expect(recordCaughtErrorMock).not.toHaveBeenCalled();
   });
 
-  it('wraps Stripe SDK throws in StripeCheckoutError, captures to Sentry, preserves code/type', async () => {
+  it('wraps Stripe SDK throws in StripeCheckoutError, records the error, preserves code/type', async () => {
     const stripeErr = Object.assign(new Error('No such price: price_xxx'), {
       code: 'resource_missing',
       type: 'StripeInvalidRequestError',
@@ -76,14 +76,10 @@ describe('createStripeCheckoutSession — error wrapping', () => {
     expect(wrap.stripeType).toBe('StripeInvalidRequestError');
     expect(wrap.cause).toBe(stripeErr);
 
-    expect(sentryCaptureMock).toHaveBeenCalledTimes(1);
-    const captureArgs = sentryCaptureMock.mock.calls[0];
+    expect(recordCaughtErrorMock).toHaveBeenCalledTimes(1);
+    const captureArgs = recordCaughtErrorMock.mock.calls[0];
     expect(captureArgs[0]).toBe(stripeErr);
-    expect(captureArgs[1]).toEqual(
-      expect.objectContaining({
-        tags: { service: 'stripe', op: 'checkout.create' },
-      })
-    );
+    expect(captureArgs[1]).toBe('stripe.checkout.create');
   });
 
   it('returns null when STRIPE_SECRET_KEY is unset (caller treats as not-configured)', async () => {
