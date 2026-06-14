@@ -38,6 +38,17 @@ describe('parseReportArgs', () => {
     expect(() => parseReportArgs(['--days', 'x'], NOW)).toThrow(/positive number/);
   });
 
+  it('accepts a large-but-bounded --days at the limit', () => {
+    const o = parseReportArgs(['--days', '36500'], NOW);
+    expect(o.since).toEqual(new Date(NOW.getTime() - 36500 * 24 * 60 * 60 * 1000));
+    expect(o.label).toBe('last 36500 day(s)');
+  });
+
+  it('throws on an absurdly large --days (no NaN/overflow Date, returns a clean error)', () => {
+    expect(() => parseReportArgs(['--days', '36501'], NOW)).toThrow(/positive number/);
+    expect(() => parseReportArgs(['--days', '99999999999999999999'], NOW)).toThrow(/positive number/);
+  });
+
   it('throws on an unparseable --since', () => {
     expect(() => parseReportArgs(['--since', 'notadate'], NOW)).toThrow(/expects a date/);
   });

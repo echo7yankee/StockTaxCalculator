@@ -19,6 +19,7 @@ import { contactRouter } from './routes/contact.js';
 import { subscribeRouter } from './routes/subscribe.js';
 import { parseReportsRouter } from './routes/parseReports.js';
 import { trackRouter } from './routes/track.js';
+import { errorsRouter } from './routes/errors.js';
 import { analyticsRouter } from './routes/analytics.js';
 
 // Initialize Sentry (only active when SENTRY_DSN is set + production)
@@ -82,7 +83,10 @@ app.use(rateLimit({
   // First-party analytics fires a beacon per route change, far chattier than the
   // rest of the API. It has its own (more generous) limiter in routes/track.ts,
   // so exclude it here to keep pageviews from eating a real user's protective budget.
-  skip: (req) => req.path.startsWith('/api/track'),
+  // Client error beacons (routes/errors.ts) are excluded for the same reason: an
+  // error-storm must not exhaust a real user's protective API budget; that endpoint
+  // has its own dedicated limiter.
+  skip: (req) => req.path.startsWith('/api/track') || req.path.startsWith('/api/errors'),
 }));
 // Webhook route needs raw body for signature verification — must be before express.json()
 app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }), stripeWebhookRouter);
@@ -117,6 +121,10 @@ app.use('/api/subscribe', subscribeRouter);
 
 // First-party, cookieless analytics ingest (public): pageviews + funnel events
 app.use('/api/track', trackRouter);
+
+// First-party client error ingest (public): client-side captured errors land in
+// the same grouped ErrorEvent table as server errors (source='client').
+app.use('/api/errors', errorsRouter);
 
 // Protected routes (require auth + paid plan)
 app.use('/api/uploads', requirePaidPlan, uploadsRouter);

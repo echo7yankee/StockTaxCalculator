@@ -22,6 +22,24 @@ interface Summary {
   otherEvents: { name: string; count: number }[];
 }
 
+interface ErrorIssue {
+  fingerprint: string;
+  source: string;
+  name: string;
+  message: string;
+  context: string | null;
+  count: number;
+  firstSeen: string;
+  lastSeen: string;
+}
+
+interface ErrorSummary {
+  label: string;
+  issues: number;
+  occurrences: number;
+  rows: ErrorIssue[];
+}
+
 type ErrorKind = 'auth' | 'forbidden' | 'network' | null;
 
 function queryFor(w: WindowSel): string {
@@ -41,6 +59,7 @@ const WINDOWS: { key: WindowSel; label: string }[] = [
 
 export default function AdminAnalyticsPage() {
   const [data, setData] = useState<Summary | null>(null);
+  const [errors, setErrors] = useState<ErrorSummary | null>(null);
   const [errorKind, setErrorKind] = useState<ErrorKind>(null);
   const [loading, setLoading] = useState(true);
   const [windowSel, setWindowSel] = useState<WindowSel>('30');
@@ -51,17 +70,24 @@ export default function AdminAnalyticsPage() {
     async (showSpinner: boolean) => {
       if (showSpinner) setLoading(true);
       try {
-        const res = await fetch(`/api/analytics/summary${queryFor(windowSel)}`, {
-          credentials: 'include',
-        });
+        // Fetch the analytics summary + the error issues in parallel over the same
+        // window. The summary drives the auth/permission gate (both endpoints share
+        // the same requireAdmin gate, so one signal is enough); the errors response
+        // is best-effort and just feeds the Errors section.
+        const [res, errRes] = await Promise.all([
+          fetch(`/api/analytics/summary${queryFor(windowSel)}`, { credentials: 'include' }),
+          fetch(`/api/analytics/errors${queryFor(windowSel)}`, { credentials: 'include' }),
+        ]);
         if (res.status === 401) {
           setErrorKind('auth');
           setData(null);
+          setErrors(null);
           return;
         }
         if (res.status === 403) {
           setErrorKind('forbidden');
           setData(null);
+          setErrors(null);
           return;
         }
         if (!res.ok) {
@@ -69,6 +95,7 @@ export default function AdminAnalyticsPage() {
           return;
         }
         setData((await res.json()) as Summary);
+        setErrors(errRes.ok ? ((await errRes.json()) as ErrorSummary) : null);
         setErrorKind(null);
         setUpdatedAt(new Date());
       } catch {
@@ -268,10 +295,89 @@ export default function AdminAnalyticsPage() {
               ))}
             </div>
           </section>
+
+          {/* Errors (first-party error monitoring, server + client) */}
+          <ErrorsSection errors={errors} />
         </div>
       )}
     </div>
   );
+}
+
+// Renders the grouped error "issues" (most frequent first, as returned) from the
+// admin errors endpoint, with a source badge, name: message, count, and
+// first/last-seen. Empty state is bilingual (RO primary) per the no-missing-RO
+// rule; the rest of this operator-only page is hardcoded English to match its
+// existing pattern.
+function ErrorsSection({ errors }: { errors: ErrorSummary | null }) {
+  return (
+    <section className="card">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold">Errors</h2>
+        {errors && errors.rows.length > 0 && (
+          <span className="text-sm text-gray-500 dark:text-slate-400 tabular-nums">
+            {errors.issues} issues / {errors.occurrences} occurrences
+          </span>
+        )}
+      </div>
+      {!errors || errors.rows.length === 0 ? (
+        <p className="text-gray-500 dark:text-slate-400 text-sm">
+          Niciun eroare inregistrata (no errors recorded).
+        </p>
+      ) : (
+        <ul className="space-y-3">
+          {errors.rows.map((e) => (
+            <li
+              key={e.fingerprint}
+              className="border-b border-gray-100 dark:border-navy-700 last:border-0 pb-3 last:pb-0"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <SourceBadge source={e.source} />
+                  <span className="font-mono text-sm text-gray-800 dark:text-slate-200 break-words">
+                    {e.name}: {e.message}
+                  </span>
+                </div>
+                <span className="font-bold text-lg tabular-nums shrink-0">{e.count}</span>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                first {fmtTime(e.firstSeen)} / last {fmtTime(e.lastSeen)}
+                {e.context ? ` / ${e.context}` : ''}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function SourceBadge({ source }: { source: string }) {
+  const isServer = source === 'server';
+  return (
+    <span
+      className={`inline-block mr-2 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide align-middle ${
+        isServer
+          ? 'bg-purple-500/15 text-purple-600 dark:text-purple-300'
+          : 'bg-sky-500/15 text-sky-600 dark:text-sky-300'
+      }`}
+    >
+      {source}
+    </span>
+  );
+}
+
+// 'YYYY-MM-DD HH:MM' in local time, mirroring the CLI's isoMinute readout.
+function fmtTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString('en-GB', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function funnelCount(data: Summary, name: string): number {

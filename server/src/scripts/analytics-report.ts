@@ -47,6 +47,12 @@ export function parseReportArgs(argv: string[], now: Date): ReportOptions {
         if (!Number.isFinite(n) || n <= 0) {
           throw new Error(`--days expects a positive number, got "${raw ?? ''}"`);
         }
+        // Upper-bound the window so an absurd value (e.g. a 20-digit number from
+        // the public-facing errors/analytics endpoints) returns 400, not a 500
+        // from a NaN/overflowing Date. 36500 days = 100 years, far past any data.
+        if (n > 36500) {
+          throw new Error(`--days expects a positive number up to 36500, got "${raw ?? ''}"`);
+        }
         since = new Date(now.getTime() - n * 24 * 60 * 60 * 1000);
         label = `last ${n} day(s)`;
         sawWindow = true;
