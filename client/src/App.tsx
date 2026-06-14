@@ -28,6 +28,7 @@ const GhidDividendePage = lazy(() => import('./pages/GhidDividendePage'));
 const GhidDeclaratieUnicaPage = lazy(() => import('./pages/GhidDeclaratieUnicaPage'));
 const GhidCumCalculamPage = lazy(() => import('./pages/GhidCumCalculamPage'));
 const GhidNotificareAnafPage = lazy(() => import('./pages/GhidNotificareAnafPage'));
+const AdminAnalyticsPage = lazy(() => import('./pages/AdminAnalyticsPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 export default function App() {
@@ -35,6 +36,8 @@ export default function App() {
   // change (replaces Plausible's automatic pushState pageview tracking).
   const location = useLocation();
   useEffect(() => {
+    // Keep the operator's own admin views out of the first-party funnel data.
+    if (location.pathname.startsWith('/admin')) return;
     analytics.pageview();
   }, [location.pathname]);
 
@@ -67,6 +70,7 @@ export default function App() {
           <Route path="/ghid/cum-completez-declaratia-unica" element={<GhidDeclaratieUnicaPage />} />
           <Route path="/ghid/cum-calculam" element={<GhidCumCalculamPage />} />
           <Route path="/ghid/notificare-anaf-venituri-strainatate" element={<GhidNotificareAnafPage />} />
+          <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

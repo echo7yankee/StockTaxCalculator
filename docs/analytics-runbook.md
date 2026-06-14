@@ -36,6 +36,34 @@ conversion funnel (`paywall_seen -> pricing_viewed -> checkout_started ->
 payment_completed`) with step conversion percentages, and the remaining event
 counts.
 
+## Browser dashboard (/admin/analytics)
+
+The same numbers, in the browser, updated live. Visit
+`https://investax.app/admin/analytics` (linked from nowhere on purpose, and
+noindexed). It calls the admin-gated `GET /api/analytics/summary`, which reuses
+the exact same `summarize()` the CLI uses, so the page and the CLI never
+disagree. It auto-refreshes every 15 seconds (toggle the "Live" button to pause)
+and has 7-day / 30-day / all-time range buttons plus a manual Refresh.
+
+Access is an allowlist, not a role stored in the DB. The endpoint (and therefore
+the page) is gated by `requireAdmin`: you must be logged in AND your account
+email must be listed in the `ADMIN_EMAILS` env var (comma-separated,
+case-insensitive). It fails closed, so if `ADMIN_EMAILS` is unset nobody can see
+the page.
+
+To enable it on the box, set the var to your InvesTax login email and restart:
+
+```bash
+# in the server's .env on the VPS
+ADMIN_EMAILS=you@example.com
+```
+
+Then `pm2 restart investax`, log in to investax.app with that account, and open
+`/admin/analytics`. The page reflects 401 (not logged in) and 403 (logged in but
+not allowlisted) into a friendly prompt instead of erroring. The operator's own
+visits to `/admin/*` are excluded from the pageview funnel so they do not skew
+the data.
+
 ## Why this exists
 
 Replaces the paid Plausible trial (declined while clientless, session #134). The
