@@ -223,3 +223,28 @@ model AnalyticsEvent {
   @@index([name, createdAt])
   @@index([createdAt])
 }
+
+// First-party error monitoring (replaces the inert third-party Sentry wiring).
+// One row per distinct error "issue", keyed by a fingerprint (error name +
+// normalized message + top stack frame), so repeated occurrences increment a
+// counter and bump lastSeen instead of flooding the table with one row per hit.
+// Stored PII-scrubbed: the message is normalized (ids/numbers/urls masked) and
+// the sample stack is scrubbed (query strings + emails removed) + truncated.
+// v1 captures SERVER errors (the Express error handler + uncaughtException /
+// unhandledRejection process handlers); the client beacon (source='client') is
+// a follow-up. Read via the errors-report CLI (npm run errors -w server).
+model ErrorEvent {
+  id          String   @id @default(uuid())
+  fingerprint String   @unique
+  source      String   @default("server")
+  name        String
+  message     String
+  sampleStack String?
+  context     String?
+  count       Int      @default(1)
+  firstSeen   DateTime @default(now())
+  lastSeen    DateTime @default(now())
+
+  @@index([lastSeen])
+  @@index([source, lastSeen])
+}

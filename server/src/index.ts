@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import { sessionMiddleware, requirePaidPlan } from './middleware/auth.js';
 import { requireAdmin } from './middleware/requireAdmin.js';
 import { jsonErrorHandler } from './middleware/errorHandler.js';
+import { recordError } from './lib/errorMonitor.js';
 import passport from './config/passport.js';
 import { authRouter } from './routes/auth.js';
 import { calculatorRouter } from './routes/calculator.js';
@@ -28,6 +29,41 @@ if (process.env.SENTRY_DSN && process.env.NODE_ENV === 'production') {
     tracesSampleRate: 0.2,
   });
 }
+
+// First-party crash capture. Record process-level errors into the ErrorEvent
+// table. recordError never throws on its own.
+function toCaptured(context: string, reason: unknown) {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  return { name: err.name, message: err.message, stack: err.stack, source: 'server' as const, context };
+}
+
+// uncaughtException leaves the process in an undefined state, so we preserve the
+// default exit-and-restart (log + exit 1, which pm2 restarts). The error-monitor
+// write is given a chance to land first, bounded by a short timer so a hung
+// write can never keep a dead process alive.
+process.on('uncaughtException', (err) => {
+  let exited = false;
+  const exit = () => {
+    if (exited) return;
+    exited = true;
+    console.error('[uncaughtException]', err);
+    process.exit(1);
+  };
+  const guard = setTimeout(exit, 2000);
+  guard.unref();
+  void recordError(toCaptured('uncaughtException', err)).finally(() => {
+    clearTimeout(guard);
+    exit();
+  });
+});
+
+// unhandledRejection is recorded but NOT treated as fatal: registering this
+// listener already suppresses Node's default crash, and taking the whole server
+// down for one stray rejection is worse than logging it and carrying on.
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason);
+  void recordError(toCaptured('unhandledRejection', reason));
+});
 
 const app = express();
 const PORT = process.env.PORT || 3001;
