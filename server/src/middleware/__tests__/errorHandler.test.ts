@@ -1,8 +1,17 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import { Server } from 'http';
+
+// Mock the error monitor so these tests assert capture behavior without a DB.
+vi.mock('../../lib/errorMonitor.js', () => ({ recordError: vi.fn(() => Promise.resolve()) }));
+
 import { jsonErrorHandler } from '../errorHandler.js';
+import { recordError } from '../../lib/errorMonitor.js';
+
+beforeEach(() => {
+  vi.mocked(recordError).mockClear();
+});
 
 let server: Server;
 // Listen on an OS-assigned free port so this file can never collide with another
@@ -91,5 +100,27 @@ describe('jsonErrorHandler', () => {
     const res = await postRaw('/echo', JSON.stringify({ hello: 'world' }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ received: { hello: 'world' } });
+  });
+
+  it('records a 5xx server fault via recordError with method + path context', async () => {
+    const res = await postRaw('/throws', '{}');
+    expect(res.status).toBe(500);
+    expect(recordError).toHaveBeenCalledTimes(1);
+    const arg = vi.mocked(recordError).mock.calls[0][0];
+    expect(arg).toMatchObject({ source: 'server', context: 'POST /throws' });
+    expect(arg.message).toContain('synchronous handler failure');
+    expect(arg.stack).toBeTruthy();
+  });
+
+  it('does not record a 4xx client error', async () => {
+    const res = await fetch(`${BASE}/forbidden`);
+    expect(res.status).toBe(403);
+    expect(recordError).not.toHaveBeenCalled();
+  });
+
+  it('does not record a malformed-JSON 400', async () => {
+    const res = await postRaw('/echo', '{ "broken": ');
+    expect(res.status).toBe(400);
+    expect(recordError).not.toHaveBeenCalled();
   });
 });

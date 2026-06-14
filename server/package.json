@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "broadcast": "node dist/scripts/broadcast.js",
     "analytics": "node dist/scripts/analytics-report.js",
+    "errors": "node dist/scripts/errors-report.js",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",

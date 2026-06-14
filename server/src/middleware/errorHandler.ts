@@ -1,4 +1,5 @@
 import type { ErrorRequestHandler } from 'express';
+import { recordError } from '../lib/errorMonitor.js';
 
 interface HttpError extends Error {
   status?: number;
@@ -9,7 +10,7 @@ interface HttpError extends Error {
 // Final error handler. Without it, Express's default handler echoes the error
 // stack into the response body whenever NODE_ENV is not 'production'. Register
 // after all routes (and after the Sentry error handler).
-export const jsonErrorHandler: ErrorRequestHandler = (err, _req, res, next) => {
+export const jsonErrorHandler: ErrorRequestHandler = (err, req, res, next) => {
   if (res.headersSent) {
     next(err);
     return;
@@ -33,6 +34,18 @@ export const jsonErrorHandler: ErrorRequestHandler = (err, _req, res, next) => {
     return;
   }
 
+  // 5xx only: a genuine server-side fault, worth recording. The 4xx cases above
+  // are client errors (bad input), not bugs, so they are not captured. req.path
+  // excludes the query string, so the stored context carries no params. This is
+  // fire-and-forget: the response must not wait on the error-monitor write (which
+  // never throws on its own).
   console.error('[Server] Unhandled error:', err);
+  void recordError({
+    name: e.name,
+    message: e.message,
+    stack: e.stack,
+    source: 'server',
+    context: `${req.method} ${req.path}`,
+  });
   res.status(500).json({ error: 'Internal server error' });
 };
