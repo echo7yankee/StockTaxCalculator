@@ -12,10 +12,17 @@ import { RefreshCw, Loader2, BarChart3 } from 'lucide-react';
 type WindowSel = '7' | '30' | 'all';
 const REFRESH_MS = 15000;
 
+interface DailyPoint {
+  date: string;
+  events: number;
+  pageviews: number;
+}
+
 interface Summary {
   label: string;
   total: number;
   pageviews: number;
+  daily: DailyPoint[];
   topPaths: { path: string; count: number }[];
   topReferrers: { host: string; count: number }[];
   funnel: { name: string; count: number }[];
@@ -238,30 +245,39 @@ export default function AdminAnalyticsPage() {
             <Stat label="Payments" value={funnelCount(data, 'payment_completed')} />
           </div>
 
-          {/* Conversion funnel */}
+          {/* Daily activity time-series */}
+          <DailyChart daily={data.daily} />
+
+          {/* Conversion funnel (proportional bars vs the first step) */}
           <section className="card">
             <h2 className="text-xl font-semibold mb-4">Conversion funnel</h2>
             {data.funnel.every((s) => s.count === 0) ? (
               <p className="text-gray-500 dark:text-slate-400 text-sm">No funnel events yet.</p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-3">
                 {data.funnel.map((step, i) => {
                   const first = data.funnel[0]?.count ?? 0;
                   const prev = i === 0 ? first : data.funnel[i - 1].count;
+                  const widthPct = first > 0 ? (step.count / first) * 100 : 0;
                   return (
-                    <li
-                      key={step.name}
-                      className="flex items-center justify-between border-b border-gray-100 dark:border-navy-700 last:border-0 py-2"
-                    >
-                      <span className="font-mono text-sm">{step.name}</span>
-                      <span className="flex items-baseline gap-3">
-                        <span className="font-bold text-lg tabular-nums">{step.count}</span>
-                        {i > 0 && (
-                          <span className="text-xs text-gray-500 dark:text-slate-400 w-28 text-right">
-                            {pct(step.count, prev)} of prev
-                          </span>
-                        )}
-                      </span>
+                    <li key={step.name}>
+                      <div className="flex items-baseline justify-between mb-1">
+                        <span className="font-mono text-sm">{step.name}</span>
+                        <span className="flex items-baseline gap-3">
+                          <span className="font-bold text-lg tabular-nums">{step.count}</span>
+                          {i > 0 && (
+                            <span className="text-xs text-gray-500 dark:text-slate-400 w-28 text-right">
+                              {pct(step.count, prev)} of prev
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="h-2.5 rounded-full bg-gray-100 dark:bg-navy-700 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-accent dark:bg-accent-light"
+                          style={{ width: `${widthPct}%` }}
+                        />
+                      </div>
                     </li>
                   );
                 })}
@@ -401,6 +417,9 @@ function CountTable({
   empty: string;
   rows: { label: string; count: number }[];
 }) {
+  // Scale the inline bars to the busiest row (rows arrive sorted desc, so the
+  // first row is the max; guard against an all-zero table).
+  const max = rows.reduce((m, r) => Math.max(m, r.count), 0);
   return (
     <section className="card">
       <h2 className="text-xl font-semibold mb-4">{title}</h2>
@@ -411,14 +430,149 @@ function CountTable({
           {rows.map((r) => (
             <li
               key={r.label}
-              className="flex items-center justify-between border-b border-gray-100 dark:border-navy-700 last:border-0 py-2 text-sm"
+              className="relative border-b border-gray-100 dark:border-navy-700 last:border-0 py-2 text-sm"
             >
-              <span className="font-mono text-gray-700 dark:text-slate-300 truncate mr-3">{r.label}</span>
-              <span className="font-semibold tabular-nums">{r.count}</span>
+              <div
+                className="absolute inset-y-0 left-0 rounded-sm bg-accent/10 dark:bg-accent-light/10"
+                style={{ width: `${max > 0 ? (r.count / max) * 100 : 0}%` }}
+                aria-hidden="true"
+              />
+              <div className="relative flex items-center justify-between">
+                <span className="font-mono text-gray-700 dark:text-slate-300 truncate mr-3">{r.label}</span>
+                <span className="font-semibold tabular-nums">{r.count}</span>
+              </div>
             </li>
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+// Compact, dependency-free daily time-series. Grouped bars per UTC day: total
+// events alongside the pageview subset, on one shared scale (events >=
+// pageviews). Pure SVG, theme-aware via fill-current/stroke-current + text-*
+// color classes, so it tracks dark/light automatically; a <title> per bar gives
+// the exact figures on hover. The viewBox is fixed and the SVG scales to its
+// container width.
+function DailyChart({ daily }: { daily: DailyPoint[] }) {
+  if (daily.length === 0) {
+    return (
+      <section className="card">
+        <h2 className="text-xl font-semibold mb-4">Daily activity</h2>
+        <p className="text-gray-500 dark:text-slate-400 text-sm">No activity in this window yet.</p>
+      </section>
+    );
+  }
+
+  const VB_W = 720;
+  const VB_H = 200;
+  const margin = { top: 16, right: 8, bottom: 28, left: 8 };
+  const plotW = VB_W - margin.left - margin.right;
+  const plotH = VB_H - margin.top - margin.bottom;
+  const baselineY = margin.top + plotH;
+
+  const n = daily.length;
+  const slotW = plotW / n;
+  const barW = Math.min((slotW * 0.8) / 2, 16);
+  const pairW = barW * 2;
+  const maxVal = Math.max(1, ...daily.map((d) => d.events));
+  const labelStep = Math.ceil(n / 6);
+
+  return (
+    <section className="card">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h2 className="text-xl font-semibold">Daily activity</h2>
+        <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-slate-400">
+          <LegendSwatch colorClass="text-accent dark:text-accent-light" label="Events" />
+          <LegendSwatch colorClass="text-emerald-500 dark:text-emerald-400" label="Pageviews" />
+        </div>
+      </div>
+      <svg
+        viewBox={`0 0 ${VB_W} ${VB_H}`}
+        className="w-full h-auto"
+        role="img"
+        aria-label={`Daily events and pageviews, ${daily[0].date} to ${daily[n - 1].date}`}
+      >
+        {/* max gridline + label */}
+        <line
+          x1={margin.left}
+          y1={margin.top}
+          x2={VB_W - margin.right}
+          y2={margin.top}
+          className="stroke-current text-gray-200 dark:text-navy-700"
+          strokeWidth={1}
+          strokeDasharray="3 3"
+        />
+        <text
+          x={margin.left}
+          y={margin.top - 4}
+          className="fill-current text-gray-400 dark:text-slate-500"
+          fontSize={10}
+        >
+          max {maxVal}
+        </text>
+        {/* baseline */}
+        <line
+          x1={margin.left}
+          y1={baselineY}
+          x2={VB_W - margin.right}
+          y2={baselineY}
+          className="stroke-current text-gray-300 dark:text-navy-600"
+          strokeWidth={1}
+        />
+        {daily.map((d, i) => {
+          const slotX = margin.left + i * slotW;
+          const pairX = slotX + (slotW - pairW) / 2;
+          const evH = (d.events / maxVal) * plotH;
+          const pvH = (d.pageviews / maxVal) * plotH;
+          const showLabel = i % labelStep === 0 || i === n - 1;
+          return (
+            <g key={d.date}>
+              <rect
+                x={pairX}
+                y={baselineY - evH}
+                width={barW}
+                height={evH}
+                rx={1}
+                className="fill-current text-accent dark:text-accent-light"
+              >
+                <title>{`${d.date}: ${d.events} events, ${d.pageviews} pageviews`}</title>
+              </rect>
+              <rect
+                x={pairX + barW}
+                y={baselineY - pvH}
+                width={barW}
+                height={pvH}
+                rx={1}
+                className="fill-current text-emerald-500 dark:text-emerald-400"
+              >
+                <title>{`${d.date}: ${d.pageviews} pageviews`}</title>
+              </rect>
+              {showLabel && (
+                <text
+                  x={slotX + slotW / 2}
+                  y={VB_H - 10}
+                  textAnchor="middle"
+                  className="fill-current text-gray-400 dark:text-slate-500"
+                  fontSize={10}
+                >
+                  {d.date.slice(5)}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </section>
+  );
+}
+
+function LegendSwatch({ colorClass, label }: { colorClass: string; label: string }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className={`inline-block w-2.5 h-2.5 rounded-sm bg-current ${colorClass}`} aria-hidden="true" />
+      {label}
+    </span>
   );
 }

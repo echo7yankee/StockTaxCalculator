@@ -9,6 +9,11 @@ const SUMMARY = {
   label: 'last 30 days',
   total: 42,
   pageviews: 30,
+  daily: [
+    { date: '2026-06-11', events: 10, pageviews: 7 },
+    { date: '2026-06-12', events: 18, pageviews: 12 },
+    { date: '2026-06-13', events: 14, pageviews: 11 },
+  ],
   topPaths: [
     { path: '/', count: 12 },
     { path: '/pricing', count: 8 },
@@ -64,6 +69,24 @@ describe('AdminAnalyticsPage', () => {
     expect(screen.getByText('/pricing')).toBeInTheDocument();
     expect(screen.getByText('chatgpt.com')).toBeInTheDocument();
     expect(screen.getByText('calculator_used')).toBeInTheDocument();
+  });
+
+  it('renders the daily activity time-series chart with a legend', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(SUMMARY), { status: 200 })
+    );
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('42')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Daily activity')).toBeInTheDocument();
+    // Legend ("Events" is exact-unique; the headline counter reads "Total events").
+    expect(screen.getByText('Events')).toBeInTheDocument();
+    // The chart is an accessible <svg role="img"> labelled with its date range.
+    expect(
+      screen.getByRole('img', { name: /Daily events and pageviews/ })
+    ).toBeInTheDocument();
   });
 
   it('prompts to log in on 401', async () => {
