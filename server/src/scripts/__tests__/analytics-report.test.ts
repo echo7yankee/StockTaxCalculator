@@ -108,6 +108,32 @@ describe('summarize', () => {
   });
 });
 
+describe('summarize daily series', () => {
+  it('buckets events and pageviews by UTC day', () => {
+    const s = summarize(SAMPLE, 'test');
+    // every SAMPLE row is at NOW (2026-06-13): 9 events, 3 of them pageviews.
+    expect(s.daily).toEqual([{ date: '2026-06-13', events: 9, pageviews: 3 }]);
+  });
+
+  it('zero-fills the gap days between the first and last populated day', () => {
+    const rows: AnalyticsRow[] = [
+      row('pageview', { createdAt: new Date('2026-06-10T08:00:00.000Z') }),
+      row('calculator_used', { createdAt: new Date('2026-06-10T09:00:00.000Z') }),
+      row('pageview', { createdAt: new Date('2026-06-12T23:59:59.000Z') }),
+    ];
+    const s = summarize(rows, 'test');
+    expect(s.daily).toEqual([
+      { date: '2026-06-10', events: 2, pageviews: 1 },
+      { date: '2026-06-11', events: 0, pageviews: 0 },
+      { date: '2026-06-12', events: 1, pageviews: 1 },
+    ]);
+  });
+
+  it('returns an empty series for no rows', () => {
+    expect(summarize([], 'test').daily).toEqual([]);
+  });
+});
+
 describe('formatReport', () => {
   it('produces a readable report with funnel conversion percentages', () => {
     const s = summarize([row('paywall_seen'), row('paywall_seen'), row('pricing_viewed')], 'last 7 day(s)');
@@ -124,5 +150,12 @@ describe('formatReport', () => {
     expect(out).toContain('Total events: 0');
     expect(out).toContain('(none)');
     expect(out).toContain('n/a');
+  });
+
+  it('includes the daily activity section', () => {
+    const s = summarize([row('pageview', { createdAt: new Date('2026-06-10T08:00:00.000Z') })], 'test');
+    const out = formatReport(s).join('\n');
+    expect(out).toContain('Daily activity (events / pageviews):');
+    expect(out).toContain('2026-06-10');
   });
 });

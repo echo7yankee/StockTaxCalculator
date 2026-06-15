@@ -85,24 +85,79 @@ export function parseReportArgs(argv: string[], now: Date): ReportOptions {
   return { since, label };
 }
 
+export interface DailyPoint {
+  /** UTC calendar day, YYYY-MM-DD. */
+  date: string;
+  events: number;
+  pageviews: number;
+}
+
 export interface ReportSummary {
   label: string;
   total: number;
   pageviews: number;
+  daily: DailyPoint[];
   topPaths: Array<{ path: string; count: number }>;
   topReferrers: Array<{ host: string; count: number }>;
   funnel: Array<{ name: string; count: number }>;
   otherEvents: Array<{ name: string; count: number }>;
 }
 
+// Zero-filling the day gaps gives the dashboard chart evenly-spaced bars, but an
+// absurd span (a stray bad-clock row dragging first/last decades apart) would
+// build a runaway array. Past this many days we fall back to only the populated
+// days. 400 clears any real window (7/30/all over months of data) with headroom.
+const MAX_DAILY_BUCKETS = 400;
+
+// Build the ascending daily series from per-day tallies. Zero-fills every
+// calendar day between the first and last populated day so the time-series chart
+// renders an even axis; bails to the sparse populated-days list if the span is
+// implausibly wide (see MAX_DAILY_BUCKETS).
+function buildDailySeries(
+  dayEvents: Map<string, number>,
+  dayPageviews: Map<string, number>
+): DailyPoint[] {
+  const keys = [...dayEvents.keys()].sort();
+  if (keys.length === 0) return [];
+
+  const toPoint = (date: string): DailyPoint => ({
+    date,
+    events: dayEvents.get(date) ?? 0,
+    pageviews: dayPageviews.get(date) ?? 0,
+  });
+
+  const dayMs = 24 * 60 * 60 * 1000;
+  const startMs = Date.parse(`${keys[0]}T00:00:00.000Z`);
+  const endMs = Date.parse(`${keys[keys.length - 1]}T00:00:00.000Z`);
+  const span = Math.round((endMs - startMs) / dayMs) + 1;
+
+  if (!Number.isFinite(span) || span > MAX_DAILY_BUCKETS) {
+    return keys.map(toPoint);
+  }
+
+  const series: DailyPoint[] = [];
+  for (let ms = startMs; ms <= endMs; ms += dayMs) {
+    series.push(toPoint(new Date(ms).toISOString().slice(0, 10)));
+  }
+  return series;
+}
+
 export function summarize(rows: AnalyticsRow[], label: string, topN = 10): ReportSummary {
   const counts = new Map<string, number>();
   const paths = new Map<string, number>();
   const referrers = new Map<string, number>();
+  const dayEvents = new Map<string, number>();
+  const dayPageviews = new Map<string, number>();
 
   for (const r of rows) {
     counts.set(r.name, (counts.get(r.name) ?? 0) + 1);
+    // Bucket every row by its UTC calendar day for the time-series. The VPS runs
+    // on UTC (see launch plan "Server timezone"), so these buckets line up with
+    // the server day.
+    const day = r.createdAt.toISOString().slice(0, 10);
+    dayEvents.set(day, (dayEvents.get(day) ?? 0) + 1);
     if (r.name === 'pageview') {
+      dayPageviews.set(day, (dayPageviews.get(day) ?? 0) + 1);
       const p = r.path ?? '(unknown)';
       paths.set(p, (paths.get(p) ?? 0) + 1);
       if (r.referrer) referrers.set(r.referrer, (referrers.get(r.referrer) ?? 0) + 1);
@@ -121,6 +176,7 @@ export function summarize(rows: AnalyticsRow[], label: string, topN = 10): Repor
     label,
     total: rows.length,
     pageviews: counts.get('pageview') ?? 0,
+    daily: buildDailySeries(dayEvents, dayPageviews),
     topPaths: topOf(paths, topN).map(([path, count]) => ({ path, count })),
     topReferrers: topOf(referrers, topN).map(([host, count]) => ({ host, count })),
     funnel,
@@ -137,6 +193,13 @@ export function formatReport(s: ReportSummary): string[] {
   const lines: string[] = [];
   lines.push(`InvesTax analytics - ${s.label}`);
   lines.push(`Total events: ${s.total}  |  Pageviews: ${s.pageviews}`);
+
+  lines.push('');
+  lines.push('Daily activity (events / pageviews):');
+  if (s.daily.length === 0) lines.push('  (none)');
+  for (const d of s.daily) {
+    lines.push(`  ${d.date}  ${String(d.events).padStart(5)} / ${String(d.pageviews).padStart(5)}`);
+  }
 
   lines.push('');
   lines.push('Top pages (by pageview):');
