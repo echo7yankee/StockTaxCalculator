@@ -6,6 +6,7 @@ import {
   sendNewCustomerNotification,
   sendContactMessageNotification,
   sendParseAlertNotification,
+  sendAnalyticsDigestNotification,
   pickLanguage,
 } from '../email.js';
 
@@ -677,5 +678,74 @@ describe('sendParseAlertNotification', () => {
   it('throws when Resend returns non-2xx so the caller can record it', async () => {
     global.fetch = vi.fn().mockResolvedValue(new Response('boom', { status: 500 }));
     await expect(sendParseAlertNotification(baseParams)).rejects.toThrow(/Resend API 500/);
+  });
+});
+
+describe('sendAnalyticsDigestNotification', () => {
+  const originalFetch = global.fetch;
+  const originalResend = process.env.RESEND_API_KEY;
+  const originalAdmin = process.env.ADMIN_NOTIFICATION_EMAIL;
+  const originalNodeEnv = process.env.NODE_ENV;
+
+  const baseParams = {
+    subject: '[InvesTax] Analytics digest (last 7 day(s))',
+    body: 'InvesTax analytics - last 7 day(s)\nTotal events: 12',
+  };
+
+  beforeEach(() => {
+    process.env.RESEND_API_KEY = 'test_key_123';
+    process.env.ADMIN_NOTIFICATION_EMAIL = 'admin@example.com';
+    process.env.NODE_ENV = 'test';
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.RESEND_API_KEY = originalResend;
+    if (originalAdmin === undefined) delete process.env.ADMIN_NOTIFICATION_EMAIL;
+    else process.env.ADMIN_NOTIFICATION_EMAIL = originalAdmin;
+    process.env.NODE_ENV = originalNodeEnv;
+    vi.restoreAllMocks();
+  });
+
+  it('posts the digest to ADMIN_NOTIFICATION_EMAIL with the given subject + body, no reply_to', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendAnalyticsDigestNotification(baseParams);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.from).toBe('InvesTax <noreply@investax.app>');
+    expect(body.to).toBe('admin@example.com');
+    expect(body.subject).toBe('[InvesTax] Analytics digest (last 7 day(s))');
+    expect(body.text).toContain('Total events: 12');
+    expect(body.reply_to).toBeUndefined();
+  });
+
+  it('escapes HTML in the body for the <pre> rendering', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendAnalyticsDigestNotification({
+      subject: '[InvesTax] Analytics digest (all time)',
+      body: 'path: </pre><script>alert(1)</script>',
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+    expect(body.html).not.toContain('<script>alert(1)</script>');
+  });
+
+  it('silently no-ops when ADMIN_NOTIFICATION_EMAIL is unset', async () => {
+    delete process.env.ADMIN_NOTIFICATION_EMAIL;
+    const fetchMock = vi.fn();
+    global.fetch = fetchMock;
+
+    await expect(sendAnalyticsDigestNotification(baseParams)).resolves.toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('throws when Resend returns non-2xx so the caller can record it', async () => {
+    global.fetch = vi.fn().mockResolvedValue(new Response('boom', { status: 500 }));
+    await expect(sendAnalyticsDigestNotification(baseParams)).rejects.toThrow(/Resend API 500/);
   });
 });

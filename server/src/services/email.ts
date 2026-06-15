@@ -500,6 +500,37 @@ export async function sendNewCustomerNotification(
   });
 }
 
+export interface AnalyticsDigestNotificationParams {
+  subject: string;
+  /** Pre-rendered plain-text digest body (analytics + errors rollup). */
+  body: string;
+}
+
+// Operator weekly digest: the scheduled VPS cron (scripts/analytics-digest.ts
+// run with --send) emails the analytics + error rollup to
+// ADMIN_NOTIFICATION_EMAIL so the operator gets a recurring pulse without
+// logging in. Operator-only, English, plain <pre> body. The script owns the
+// formatting (reusing the report formatters); this just wraps + sends.
+export async function sendAnalyticsDigestNotification(
+  params: AnalyticsDigestNotificationParams
+): Promise<void> {
+  const adminTo = process.env.ADMIN_NOTIFICATION_EMAIL;
+  if (!adminTo) {
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn('[Email] ADMIN_NOTIFICATION_EMAIL not set; analytics digest skipped');
+    }
+    return;
+  }
+
+  await postToResend({
+    from: FROM_ADDRESS,
+    to: adminTo,
+    subject: params.subject,
+    html: `<pre style="font-family:ui-monospace,monospace;font-size:13px;line-height:1.5;white-space:pre-wrap;">${escapeHtml(params.body)}</pre>`,
+    text: params.body,
+  });
+}
+
 export interface ContactMessageNotificationParams {
   fromName: string;
   fromEmail: string;
