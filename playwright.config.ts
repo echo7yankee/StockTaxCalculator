@@ -2,6 +2,12 @@ import { defineConfig } from '@playwright/test';
 
 const baseURL = process.env.BASE_URL || 'http://localhost:5173';
 const baseOrigin = new URL(baseURL).origin;
+// Only manage the local dev servers when the audit target IS localhost. For a
+// remote target (BASE_URL=https://investax.app, used by the weekly production
+// audit and `npm run verify:prod`), the tests hit the deployed site directly,
+// so spinning up local servers would add nothing but a failure surface. See the
+// webServer field below.
+const isLocalTarget = ['localhost', '127.0.0.1'].includes(new URL(baseURL).hostname);
 
 export default defineConfig({
   testDir: './e2e',
@@ -53,16 +59,18 @@ export default defineConfig({
       use: { browserName: 'chromium' },
     },
   ],
-  webServer: [
-    {
-      command: 'npm run dev -w server',
-      port: 3001,
-      reuseExistingServer: true,
-    },
-    {
-      command: 'npm run dev -w client',
-      port: 5173,
-      reuseExistingServer: true,
-    },
-  ],
+  webServer: isLocalTarget
+    ? [
+        {
+          command: 'npm run dev -w server',
+          port: 3001,
+          reuseExistingServer: true,
+        },
+        {
+          command: 'npm run dev -w client',
+          port: 5173,
+          reuseExistingServer: true,
+        },
+      ]
+    : undefined,
 });
