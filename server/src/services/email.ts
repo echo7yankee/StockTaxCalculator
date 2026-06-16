@@ -511,15 +511,18 @@ export interface AnalyticsDigestNotificationParams {
 // ADMIN_NOTIFICATION_EMAIL so the operator gets a recurring pulse without
 // logging in. Operator-only, English, plain <pre> body. The script owns the
 // formatting (reusing the report formatters); this just wraps + sends.
+// Returns true if it sent, false if it skipped (admin email unset) so the
+// caller can tell a real send from a silent no-op (a monitoring digest must not
+// report success when nothing went out).
 export async function sendAnalyticsDigestNotification(
   params: AnalyticsDigestNotificationParams
-): Promise<void> {
+): Promise<boolean> {
   const adminTo = process.env.ADMIN_NOTIFICATION_EMAIL;
   if (!adminTo) {
     if (process.env.NODE_ENV !== 'test') {
       console.warn('[Email] ADMIN_NOTIFICATION_EMAIL not set; analytics digest skipped');
     }
-    return;
+    return false;
   }
 
   await postToResend({
@@ -529,6 +532,7 @@ export async function sendAnalyticsDigestNotification(
     html: `<pre style="font-family:ui-monospace,monospace;font-size:13px;line-height:1.5;white-space:pre-wrap;">${escapeHtml(params.body)}</pre>`,
     text: params.body,
   });
+  return true;
 }
 
 export interface ContactMessageNotificationParams {

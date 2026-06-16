@@ -76,8 +76,24 @@ const USAGE = `Usage:
 Default window: last 7 days. Default mode: dry-run (prints; pass --send to email).
 Emails ADMIN_NOTIFICATION_EMAIL when --send is given (no-op if that env var is unset).`;
 
+// Load .env deterministically relative to THIS file, not the cwd. The npm
+// workspace runner launches `-w server` scripts with cwd = server/, but pm2 and
+// the cron run from the repo root; resolving .env off the cwd made the two
+// diverge (a stale server/.env shadowed the root one and dropped
+// ADMIN_NOTIFICATION_EMAIL, so --send silently no-opped on prod). Load the
+// repo-root .env first (canonical on the box) then the server-local .env as a
+// dev fallback; dotenv never overrides an already-set key, so root wins.
+async function loadEnv(): Promise<void> {
+  const dotenv = await import('dotenv');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, resolve } = await import('node:path');
+  const here = dirname(fileURLToPath(import.meta.url)); // server/dist/scripts
+  dotenv.config({ path: resolve(here, '../../../.env') }); // repo-root .env
+  dotenv.config({ path: resolve(here, '../../.env') }); // server/.env (dev fallback)
+}
+
 async function main(): Promise<void> {
-  await import('dotenv/config');
+  await loadEnv();
 
   let parsed: DigestOptions;
   try {
@@ -120,8 +136,15 @@ async function main(): Promise<void> {
       // Lazy import keeps the email/prisma graph out of the pure-function tests
       // that import parseDigestArgs/buildDigestBody above.
       const { sendAnalyticsDigestNotification } = await import('../services/email.js');
-      await sendAnalyticsDigestNotification({ subject: digestSubject(opts.label), body });
-      console.log(`[digest] sent to ADMIN_NOTIFICATION_EMAIL (${opts.label})`);
+      const sent = await sendAnalyticsDigestNotification({ subject: digestSubject(opts.label), body });
+      if (sent) {
+        console.log(`[digest] sent to ADMIN_NOTIFICATION_EMAIL (${opts.label})`);
+      } else {
+        // --send was asked for but the email layer skipped (admin address unset).
+        // Fail loud so a misconfigured cron self-reports instead of looking healthy.
+        console.error('[digest] --send requested but ADMIN_NOTIFICATION_EMAIL is not set; nothing sent');
+        process.exitCode = 1;
+      }
     } else {
       console.log(body);
       console.log('');

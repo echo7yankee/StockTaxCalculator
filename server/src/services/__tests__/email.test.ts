@@ -707,12 +707,13 @@ describe('sendAnalyticsDigestNotification', () => {
     vi.restoreAllMocks();
   });
 
-  it('posts the digest to ADMIN_NOTIFICATION_EMAIL with the given subject + body, no reply_to', async () => {
+  it('posts the digest to ADMIN_NOTIFICATION_EMAIL and returns true', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
     global.fetch = fetchMock;
 
-    await sendAnalyticsDigestNotification(baseParams);
+    const sent = await sendAnalyticsDigestNotification(baseParams);
 
+    expect(sent).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
     expect(body.from).toBe('InvesTax <noreply@investax.app>');
@@ -735,12 +736,12 @@ describe('sendAnalyticsDigestNotification', () => {
     expect(body.html).not.toContain('<script>alert(1)</script>');
   });
 
-  it('silently no-ops when ADMIN_NOTIFICATION_EMAIL is unset', async () => {
+  it('returns false and does NOT call fetch when ADMIN_NOTIFICATION_EMAIL is unset', async () => {
     delete process.env.ADMIN_NOTIFICATION_EMAIL;
     const fetchMock = vi.fn();
     global.fetch = fetchMock;
 
-    await expect(sendAnalyticsDigestNotification(baseParams)).resolves.toBeUndefined();
+    await expect(sendAnalyticsDigestNotification(baseParams)).resolves.toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
