@@ -3,9 +3,9 @@
  * investment-income case (Romania).
  *
  * Turns a {@link TaxCalculationResult} (the engine's output for a parsed broker
- * statement) into a D212 v11 XML string in the ANAF namespace
- * `mfp:anaf:dgti:d212:declaratie:v11`, ready to be loaded into DUKIntegrator for
- * validation + e-filing.
+ * statement) plus its per-security {@link SecurityBreakdown}[] into a D212 v11 XML
+ * string in the ANAF namespace `mfp:anaf:dgti:d212:declaratie:v11`, ready to be
+ * loaded into DUKIntegrator for validation + e-filing.
  *
  * The structure here is modelled field-for-field on Dragos's real,
  * ANAF-SPV-accepted April 2026 D212 filing (the 2025 Trading212 statement). A
@@ -22,25 +22,35 @@
  *   out-of-range field are rejected up front (PR 2 fail-loud), so the generator
  *   never emits a silently-wrong declaration. Loss carry-forward representation
  *   (pierdere reportată) is deferred until tax-verified and engine-modelled.
- * - SINGLE source country (US). Foreign income is emitted as two `cap14` rows
- *   (capital gains + dividends) both under `US`, matching Dragos's accepted
- *   single-country filing where Irish ETF distributions were lumped into US.
- *   Per-country split (grouping {@link SecurityBreakdown} by ISIN-country
- *   prefix) is PR 3; it is a correctness enhancement, not required to match the
- *   accepted single-country baseline.
+ * - PER-SOURCE-COUNTRY split (PR 3). Foreign income is grouped by the security's
+ *   ISIN country prefix and emitted as one `cap14` per (country, category): so a
+ *   holder of US stocks plus Irish-domiciled UCITS ETFs gets a US capital-gains
+ *   row and separate US + IE dividend rows. This matters because foreign
+ *   withholding tax is credited PER country (Irish distributions carry 0 WHT, so
+ *   they must not borrow the US dividend credit). Dragos's accepted filing lumped
+ *   everything under US; this is a strict correctness enhancement over that.
+ * - Country names (`den_stat`) are only emitted for countries confirmed against
+ *   an accepted filing (US) or unambiguous (IE); every other country fails loud
+ *   pending DUKIntegrator nomenclator confirmation (PR 5). See {@link DEN_STAT}.
+ * - The declaration is assembled BOTTOM-UP: each `cap14` row is independently
+ *   rounded, and the realized income-tax total is the SUM of the emitted rows, so
+ *   the totals always equal the sum of the parts. The CASS bracket amount + base
+ *   come from the engine (they are bracket-derived, not a row sum).
  * - The numbers carried are the engine's PER-TRADE-DATE figures (art. 96), so
- *   the generated capital-gains row and everything derived from it (CASS base,
- *   income-tax total, bonificatie, dif_de_plata) is intentionally higher than a
- *   filing built on the all-annual-average rate. This is a methodology stance,
- *   not a bug.
+ *   the generated capital-gains row and everything derived from it (income-tax
+ *   total, bonificatie, dif_de_plata) is intentionally higher than a filing built
+ *   on the all-annual-average rate. This is a methodology stance, not a bug.
  * - Identity (CNP/IBAN/name/phone) is passed in by the caller; in-app identity
  *   collection is PR 4.
  * - No engine math happens here. This module consumes a finished
- *   {@link TaxCalculationResult} and never touches the parser, the PDF tax
- *   calculator, or any rate logic.
+ *   {@link TaxCalculationResult} + {@link SecurityBreakdown}[] and never touches
+ *   the parser, the PDF tax calculator, or any rate logic. Per-row tax is the
+ *   ANAF per-row formula `venit * rate`, which equals the engine's `taxOwed` for
+ *   real engine output (where `taxOwed == netGains * rate`) and keeps every row
+ *   self-consistent.
  */
 
-import type { TaxCalculationResult } from '../types/tax.js';
+import type { TaxCalculationResult, SecurityBreakdown } from '../types/tax.js';
 
 /**
  * Filer identity for the D212 root element (user-supplied PII).
@@ -74,12 +84,26 @@ const CATEG_CODE_DIVIDENDS = '2018';
 const CATEG_LABEL_DIVIDENDS = 'Dividende';
 
 /**
- * Single source country for this PR. Per-country split is PR 2 (see the module
- * JSDoc); until then everything is emitted under US, matching the accepted
- * single-country baseline.
+ * ISO 3166-1 alpha-2 country code -> Romanian `den_stat` name for the D212.
+ *
+ * Deliberately SMALL. `US` is GROUND TRUTH: the exact string from Dragos's
+ * ANAF-SPV-accepted April 2026 filing. `IE` ("Irlanda") is the standard
+ * unambiguous name and the only other country in the golden fixture (Irish-
+ * domiciled UCITS ETFs, the dominant non-US holding for RO retail investors).
+ *
+ * We do NOT seed this from the customs/ISO nomenclator, because those names
+ * differ from D212's: the customs table lists US as "S.U.A., inclusiv Porto Rico"
+ * rather than the filing's "Statele Unite ale Americii". So we emit only a name
+ * we can stand behind and FAIL LOUD (see {@link denStat}) on every other
+ * country. The authoritative routing field is the 2-letter `str_stat_realiz_v`
+ * code, taken verbatim from the ISIN prefix, which is always correct; `den_stat`
+ * is the human-readable label DUKIntegrator validates. Expanding this table is
+ * gated on confirming each name against ANAF's DUKIntegrator nomenclator (PR 5).
  */
-const SOURCE_COUNTRY_CODE = 'US';
-const SOURCE_COUNTRY_NAME = 'Statele Unite ale Americii';
+const DEN_STAT: Record<string, string> = {
+  US: 'Statele Unite ale Americii',
+  IE: 'Irlanda',
+};
 
 /** Tax-year reporting period (calendar year 2025, filed in 2026). */
 const PERIOD_START = '01.01.2025';
@@ -91,22 +115,85 @@ function lei(n: number): number {
 }
 
 /**
- * Asserts a consumed result field is a finite, non-negative money amount. D212
- * money fields are unsigned, so a non-finite (NaN/Infinity) or negative value
- * means the caller handed us a corrupt or hand-built result this generator cannot
- * faithfully represent. We fail loud rather than emit a plausible-looking wrong
- * number into a legal declaration ("never a silent wrong number" is the whole
- * point of the tool). The engine clamps and rounds, so these throws are
- * unreachable from real engine output; they guard the wired path (PR 4) against a
- * corrupt result.
+ * Asserts a consumed numeric field is finite (not NaN/Infinity). A non-finite
+ * value means the caller handed us a corrupt or hand-built result this generator
+ * cannot faithfully represent; we fail loud rather than emit it into a legal
+ * declaration.
  */
-function assertMoney(value: number, field: string): void {
+function assertFinite(value: number, field: string): void {
   if (!Number.isFinite(value)) {
     throw new Error(`generateD212Xml: ${field} must be a finite number, got ${value}`);
   }
+}
+
+/**
+ * Asserts a consumed result field is a finite, non-negative money amount. D212
+ * money fields are unsigned, so a non-finite or negative value means corrupt
+ * input. The engine clamps and rounds, so these throws are unreachable from real
+ * engine output; they guard the wired path (PR 4) against a corrupt result.
+ */
+function assertMoney(value: number, field: string): void {
+  assertFinite(value, field);
   if (value < 0) {
     throw new Error(`generateD212Xml: ${field} must not be negative, got ${value}`);
   }
+}
+
+/**
+ * Reconciliation guard. The per-security breakdown must account for the same
+ * income the engine taxed, or the per-country attribution is untrustworthy: e.g.
+ * when the per-row sell trades are unit-inconsistent (mixed currencies, or trade
+ * currency != overview currency) the engine sources capital gains from the
+ * statement overview total, so the sum of per-security `realizedGainLoss` is a
+ * different basis than `capitalGains.netGains`. Tolerates rounding drift (each
+ * per-security amount is rounded to the bani; 1% relative with a 2-leu floor),
+ * fails loud on a real mismatch rather than emitting a split that contradicts the
+ * declared totals. This is the "amounts are RON / reconcile" check from the
+ * spike's open-item #2, made concrete.
+ */
+function reconcile(actual: number, expected: number, what: string): void {
+  const tol = Math.max(2, Math.abs(expected) * 0.01);
+  if (Math.abs(actual - expected) > tol) {
+    throw new Error(
+      `generateD212Xml: the per-security ${what} sum (${actual.toFixed(2)}) does not ` +
+        `reconcile with the engine total (${expected.toFixed(2)}), so income cannot be ` +
+        `attributed to source countries. This statement must be filed manually.`,
+    );
+  }
+}
+
+/**
+ * Extracts the ISO 3166-1 alpha-2 source country from a security's ISIN (the
+ * first two letters). Throws if the ISIN has no usable country prefix
+ * (missing/short/non-alphabetic), since that income cannot be placed under a
+ * country in the declaration.
+ */
+function isoCountry(isin: string): string {
+  const code = (isin || '').slice(0, 2).toUpperCase();
+  if (!/^[A-Z]{2}$/.test(code)) {
+    throw new Error(
+      `generateD212Xml: cannot determine the source country from ISIN "${isin}". ` +
+        `This statement must be filed manually.`,
+    );
+  }
+  return code;
+}
+
+/**
+ * Romanian `den_stat` name for a country code; fails loud on an unmapped country
+ * (see {@link DEN_STAT}) rather than guessing a name into a legal declaration.
+ */
+function denStat(code: string, isinSample: string): string {
+  const name = DEN_STAT[code];
+  if (!name) {
+    throw new Error(
+      `generateD212Xml: country "${code}" (e.g. ISIN ${isinSample}) is not yet supported ` +
+        `for auto-generated D212. Only country names confirmed against an accepted filing ` +
+        `(US) or unambiguous (IE) are emitted; others await DUKIntegrator nomenclator ` +
+        `validation. This statement must be filed manually.`,
+    );
+  }
+  return name;
 }
 
 /**
@@ -129,29 +216,52 @@ function attrs(map: Record<string, string | number>): string {
     .join('');
 }
 
+/** Per-country accumulation of foreign income (RON), from the per-security breakdown. */
+interface CountryIncome {
+  code: string;
+  gain: number;
+  div: number;
+  wht: number;
+  /** A representative ISIN, for error messages on an unmapped country. */
+  isinSample: string;
+}
+
 /**
  * Generates a Declaratia Unica D212 v11 XML string from an engine
- * {@link TaxCalculationResult} and a filer {@link D212Identity}.
+ * {@link TaxCalculationResult}, a filer {@link D212Identity}, and the engine's
+ * per-security {@link SecurityBreakdown}[].
  *
- * The output is the foreign-source investment-income case for Romania: two
- * `cap14` rows (capital gains code 2012 + dividends code 2018, both under US for
- * this PR) plus the `oblig_realizat` CASS + income-tax + bonificatie block, all
- * inside a `d212` root in the `mfp:anaf:dgti:d212:declaratie:v11` namespace.
+ * The output is the foreign-source investment-income case for Romania: one
+ * `cap14` row per (source country, category), capital gains code 2012 and
+ * dividends code 2018, plus the `oblig_realizat` CASS + income-tax + bonificatie
+ * block, all inside a `d212` root in the `mfp:anaf:dgti:d212:declaratie:v11`
+ * namespace.
  *
- * Important: the figures carried are the engine's PER-TRADE-DATE numbers (Codul
- * Fiscal art. 96), which are intentionally higher than an all-annual-average
- * filing. SINGLE source country (US) only; per-country split is PR 3. No engine
- * math is performed here, the result is consumed as-is.
+ * Income is grouped by the security's ISIN country prefix (PR 3). The figures
+ * carried are the engine's PER-TRADE-DATE numbers (Codul Fiscal art. 96), which
+ * are intentionally higher than an all-annual-average filing. No engine math is
+ * performed here; the result + breakdown are consumed as-is and per-row tax is
+ * the ANAF per-row formula `venit * rate`.
  *
  * @param result Finished engine output for the tax year.
  * @param identity Filer PII for the declaration root (XML-escaped on emit).
+ * @param securities Per-security breakdown from the same engine run, used to
+ *   attribute income to source countries.
  * @returns A D212 v11 XML document string.
  * @throws If `result` is out of domain: a non-finite or negative money field, a
  *   `capitalGains.taxRate` outside (0, 1], or a net capital-LOSS year
- *   (`capitalGains.losses > 0`), which is not yet supported. Fails loud rather
- *   than emitting a silently-wrong declaration.
+ *   (`capitalGains.losses > 0`). Also throws if the per-security breakdown does
+ *   not reconcile with the engine totals, if any source country has a net capital
+ *   loss within an overall gain year (cross-country loss compensation is not yet
+ *   supported), if a security's ISIN has no country prefix, or if a source
+ *   country is not in the confirmed {@link DEN_STAT} table. Fails loud rather than
+ *   emitting a silently-wrong or incomplete declaration.
  */
-export function generateD212Xml(result: TaxCalculationResult, identity: D212Identity): string {
+export function generateD212Xml(
+  result: TaxCalculationResult,
+  identity: D212Identity,
+  securities: SecurityBreakdown[],
+): string {
   // Input-domain guard. This generator emits a legal tax declaration, so it must
   // never turn a corrupt or unrepresentable result into a plausible-looking wrong
   // number. Every consumed field is validated up front; anything out of domain
@@ -168,7 +278,7 @@ export function generateD212Xml(result: TaxCalculationResult, identity: D212Iden
   );
   assertMoney(result.totals.earlyFilingDiscount, 'totals.earlyFilingDiscount');
 
-  // taxRate scales the dividend RO tax and recovers cass_baza (amountOwed / rate),
+  // taxRate scales the per-row RO tax and recovers cass_baza (amountOwed / rate),
   // so a zero or out-of-range rate would yield NaN/Infinity money. Require a sane
   // fraction in (0, 1]. (RO is 0.10 for 2025, 0.16 for 2026.)
   if (
@@ -199,30 +309,150 @@ export function generateD212Xml(result: TaxCalculationResult, identity: D212Iden
 
   const taxRate = result.capitalGains.taxRate;
 
-  // Foreign income: capital gains (per-trade-date, art. 96).
-  const gainNet = lei(result.capitalGains.netGains);
-  const gainTax = lei(result.capitalGains.taxOwed);
+  // --- Per-country grouping (PR 3) ---
+  // Group income-bearing securities by ISIN source country. Per-security amounts
+  // are the engine's RON figures (capital gains per-trade-date art. 96, dividends
+  // annual-average art. 131). An individual security's realizedGainLoss may be
+  // negative, but each country's NET gain must be >= 0 (a country-level loss is
+  // the deferred pierdere-compensata case, like the global loss guard above).
+  const byCountry = new Map<string, CountryIncome>();
+  let sumGain = 0;
+  let sumDiv = 0;
+  let sumWht = 0;
+  for (const sec of securities) {
+    const id = sec.isin || sec.ticker;
+    assertFinite(sec.realizedGainLoss, `securities[${id}].realizedGainLoss`);
+    assertMoney(sec.totalDividends, `securities[${id}].totalDividends`);
+    assertMoney(sec.totalWithholdingTax, `securities[${id}].totalWithholdingTax`);
 
-  // Foreign income: dividends. RO tax is 10% (taxRate) of gross; the foreign
-  // withholding tax already paid is credited up to the RO tax due.
-  const divGross = lei(result.dividends.grossTotal);
-  const divRoTax = lei(result.dividends.grossTotal * taxRate);
-  const divWht = lei(result.dividends.withholdingTaxPaid);
-  const divCredit = Math.min(divRoTax, divWht);
-  const divDif = divRoTax - divCredit;
+    sumGain += sec.realizedGainLoss;
+    sumDiv += sec.totalDividends;
+    sumWht += sec.totalWithholdingTax;
+
+    // A security with no realized income contributes no declaration row (and its
+    // ISIN need not resolve to a country), so skip it before requiring a country.
+    if (sec.realizedGainLoss === 0 && sec.totalDividends === 0 && sec.totalWithholdingTax === 0) {
+      continue;
+    }
+    const code = isoCountry(sec.isin);
+    const agg = byCountry.get(code) ?? { code, gain: 0, div: 0, wht: 0, isinSample: sec.isin };
+    agg.gain += sec.realizedGainLoss;
+    agg.div += sec.totalDividends;
+    agg.wht += sec.totalWithholdingTax;
+    byCountry.set(code, agg);
+  }
+
+  // The breakdown must account for the income the engine taxed, or the country
+  // attribution is unreliable (see reconcile).
+  reconcile(sumGain, result.capitalGains.netGains, 'capital gains');
+  reconcile(sumDiv, result.dividends.grossTotal, 'dividend gross');
+  reconcile(sumWht, result.dividends.withholdingTaxPaid, 'dividend withholding tax');
+
+  // A country with a NET capital loss within an overall gain year needs the
+  // pierdere-compensata representation deferred in PR 2. Refuse rather than emit a
+  // negative or dropped country gain. (A small negative epsilon absorbs float
+  // dust on a true-zero country.)
+  for (const agg of byCountry.values()) {
+    if (agg.gain < -0.005) {
+      throw new Error(
+        `generateD212Xml: source country "${agg.code}" has a net capital loss ` +
+          `(${agg.gain.toFixed(2)} RON) within an overall gain year. Cross-country loss ` +
+          'compensation (pierdere compensată) is not yet supported; file manually.',
+      );
+    }
+  }
+
+  // Deterministic emit order: largest total income first, then country code, so
+  // the XML is stable across runs.
+  const countries = Array.from(byCountry.values()).sort(
+    (a, b) => b.gain + b.div - (a.gain + a.div) || a.code.localeCompare(b.code),
+  );
+
+  // Build cap14 rows per country and accumulate the realized income tax as the SUM
+  // of the emitted rows, so the declaration is internally consistent (totals ==
+  // sum of parts), the way a paper D212 is filled. Rows that round to nothing
+  // (< 1 leu) are omitted rather than emitted as empty zero rows.
+  const capRows: string[] = [];
+  let incomeTaxFromRows = 0;
+  for (const c of countries) {
+    const den = denStat(c.code, c.isinSample);
+
+    // Capital gains (code 2012): net == recalculat == gain, RO tax == dif ==
+    // rate*gain, no foreign tax/credit on capital gains.
+    const gainLei = lei(c.gain);
+    if (gainLei >= 1) {
+      const gainTax = lei(c.gain * taxRate);
+      incomeTaxFromRows += gainTax;
+      capRows.push(
+        '<cap14' +
+          attrs({
+            str_categ_venit: CATEG_CODE_CAPITAL_GAINS,
+            str_stat_realiz_v: c.code,
+            den_stat: den,
+            den_categ_venit: CATEG_LABEL_CAPITAL_GAINS,
+            dubla_impunere: '1',
+            str_data_inceput: PERIOD_START,
+            str_data_sfarsit: PERIOD_END,
+            str_venit_net_anual: gainLei,
+            str_venit_recalculat: gainLei,
+            str_impozit_datorat_Ro: gainTax,
+            str_dif_impozit_datorat: gainTax,
+            str_impozit_platit: 0,
+            str_credit_fiscal: 0,
+            str_pierdere_compensata: 0,
+          }) +
+          '/>',
+      );
+    }
+
+    // Dividends (code 2018): net_anual 0, recalculat == gross, RO tax ==
+    // rate*gross, foreign WHT credited up to the RO tax due (per country: an
+    // Irish 0-WHT distribution cannot borrow another country's credit).
+    const divLei = lei(c.div);
+    const divWhtLei = lei(c.wht);
+    if (divLei >= 1 || divWhtLei >= 1) {
+      const divRoTax = lei(c.div * taxRate);
+      const divCredit = Math.min(divRoTax, divWhtLei);
+      const divDif = divRoTax - divCredit;
+      incomeTaxFromRows += divDif;
+      capRows.push(
+        '<cap14' +
+          attrs({
+            str_categ_venit: CATEG_CODE_DIVIDENDS,
+            str_stat_realiz_v: c.code,
+            den_stat: den,
+            den_categ_venit: CATEG_LABEL_DIVIDENDS,
+            dubla_impunere: '1',
+            str_data_inceput: PERIOD_START,
+            str_data_sfarsit: PERIOD_END,
+            str_venit_net_anual: 0,
+            str_venit_recalculat: divLei,
+            str_impozit_datorat_Ro: divRoTax,
+            str_dif_impozit_datorat: divDif,
+            str_impozit_platit: divWhtLei,
+            str_credit_fiscal: divCredit,
+            str_pierdere_compensata: 0,
+          }) +
+          '/>',
+      );
+    }
+  }
 
   // CASS: amountOwed is the fixed bracket sum; cass_baza is the plafond that
   // bracket sits on, recovered as amountOwed / rate (e.g. 9720 / 0.10 = 97200).
   const cassDatorat = lei(result.healthContribution.amountOwed);
   const cassBaza = lei(result.healthContribution.amountOwed / taxRate);
-  // cass_ven_inv intentionally rounds the engine's already-summed
-  // totalNonSalaryIncome once, NOT lei(gainNet) + lei(divGross) re-summed, so it
-  // can legitimately differ from the two cap14 rows by a leu (rounding once vs
-  // twice). This matches the accepted filing.
+  // cass_ven_inv stays the engine's already-summed investment income (the figure
+  // that determined the CASS bracket), NOT the sum of the rounded cap14 venituri,
+  // so the base is always consistent with cass_datorat's bracket. It can differ
+  // from the row sum by up to a leu (round-each-row vs round-the-sum); whether
+  // DUKIntegrator requires exact equality is a PR 5 gate.
   const cassVenInv = lei(result.healthContribution.totalNonSalaryIncome);
 
-  // Income tax + totals.
-  const incomeTax = gainTax + divDif;
+  // Income tax + totals. Income tax is the sum of the emitted cap14 rows
+  // (bottom-up); bonificatie is the engine's early-filing discount (a rate policy,
+  // congruent to the leu with the row-summed income tax for real input).
+  const incomeTax = incomeTaxFromRows;
   const bonif = lei(result.totals.earlyFilingDiscount);
   const difDePlata = incomeTax + cassDatorat;
 
@@ -283,50 +513,11 @@ export function generateD212Xml(result: TaxCalculationResult, identity: D212Iden
     totalPlata_A: totalPlataA,
   });
 
-  // cap14 capital gains (code 2012): net == recalculat == gain, RO tax ==
-  // dif == 10% gain, no foreign tax/credit on capital gains.
-  const cap14CapitalGains = attrs({
-    str_categ_venit: CATEG_CODE_CAPITAL_GAINS,
-    str_stat_realiz_v: SOURCE_COUNTRY_CODE,
-    den_stat: SOURCE_COUNTRY_NAME,
-    den_categ_venit: CATEG_LABEL_CAPITAL_GAINS,
-    dubla_impunere: '1',
-    str_data_inceput: PERIOD_START,
-    str_data_sfarsit: PERIOD_END,
-    str_venit_net_anual: gainNet,
-    str_venit_recalculat: gainNet,
-    str_impozit_datorat_Ro: gainTax,
-    str_dif_impozit_datorat: gainTax,
-    str_impozit_platit: 0,
-    str_credit_fiscal: 0,
-    str_pierdere_compensata: 0,
-  });
-
-  // cap14 dividends (code 2018): net_anual 0, recalculat == gross, RO tax ==
-  // 10% gross, foreign WHT credited up to RO tax due.
-  const cap14Dividends = attrs({
-    str_categ_venit: CATEG_CODE_DIVIDENDS,
-    str_stat_realiz_v: SOURCE_COUNTRY_CODE,
-    den_stat: SOURCE_COUNTRY_NAME,
-    den_categ_venit: CATEG_LABEL_DIVIDENDS,
-    dubla_impunere: '1',
-    str_data_inceput: PERIOD_START,
-    str_data_sfarsit: PERIOD_END,
-    str_venit_net_anual: 0,
-    str_venit_recalculat: divGross,
-    str_impozit_datorat_Ro: divRoTax,
-    str_dif_impozit_datorat: divDif,
-    str_impozit_platit: divWht,
-    str_credit_fiscal: divCredit,
-    str_pierdere_compensata: 0,
-  });
-
   return (
     `<?xml version="1.0" encoding="UTF-8"?>` +
     `<d212${rootAttrs}>` +
     `<oblig_realizat${obligRealizat}/>` +
-    `<cap14${cap14CapitalGains}/>` +
-    `<cap14${cap14Dividends}/>` +
+    capRows.join('') +
     `</d212>`
   );
 }
