@@ -114,6 +114,15 @@ export function fingerprintOf(name: string, normalizedMessage: string, frame: st
 // runs inside the Express error handler and the process crash handlers, where a
 // throw would mask the very error we are trying to report. A write failure is
 // logged and swallowed.
+//
+// On the FIRST occurrence of a fingerprint (the upsert just created the row, so
+// the returned count is 1), it fires a real-time operator alert email. The alert
+// is fire-and-forget (the promise is voided): it must never delay recordError, and
+// in particular must never delay the crash-exit path, where the process handlers
+// await recordError before exit and treat the DB row, not the email, as the source
+// of truth. The alert path is also self-contained on failure and routed away from
+// recordError/recordCaughtError to avoid an alert -> fail -> record -> alert loop;
+// see maybeAlertOnNewFingerprint and email.sendErrorAlertNotification.
 export async function recordError(input: CapturedError): Promise<void> {
   try {
     const rawMessage = input.message ?? '';
@@ -127,13 +136,59 @@ export async function recordError(input: CapturedError): Promise<void> {
     const sampleStack = scrubStack(input.stack);
     const context = input.context ? input.context.slice(0, 200) : undefined;
 
-    await prisma.errorEvent.upsert({
+    const result = await prisma.errorEvent.upsert({
       where: { fingerprint },
       create: { fingerprint, source, name, message, sampleStack, context, count: 1 },
       update: { count: { increment: 1 }, lastSeen: new Date() },
     });
+
+    // count === 1 means THIS call created the row = first time we have seen this
+    // fingerprint (race-safe: concurrent hits serialize on the unique key in the
+    // DB and only the creating call gets count 1). Fire-and-forget so the alert
+    // never delays recordError or the crash-exit path; the row above is already
+    // the source of truth.
+    if (result.count === 1) {
+      void maybeAlertOnNewFingerprint({
+        name,
+        message,
+        source,
+        context,
+        fingerprint,
+        firstSeen: result.firstSeen,
+        sampleStack,
+      });
+    }
   } catch (err) {
     console.error('[errorMonitor] failed to record error:', err);
+  }
+}
+
+interface NewFingerprintAlert {
+  name: string;
+  message: string;
+  source: string;
+  context: string | undefined;
+  fingerprint: string;
+  firstSeen: Date;
+  sampleStack: string | undefined;
+}
+
+// Fire the new-fingerprint operator alert, with the loop guard. Self-contained:
+// it dynamic-imports the email module (email.ts statically imports this file, so a
+// static import here would be a cycle), and sendErrorAlertNotification swallows its
+// own failures with console.error and never routes back through recordError /
+// recordCaughtError. As a second, independent guard we never alert on the alert
+// delivery channel itself (context 'email.send'): a Resend outage records an
+// 'email.send' error, and alerting on it would close the very loop the first guard
+// already breaks. Belt and suspenders by design. Awaited only inside the voided
+// promise; any rejection from the import is caught so recordError stays clean.
+async function maybeAlertOnNewFingerprint(alert: NewFingerprintAlert): Promise<void> {
+  if (alert.context === 'email.send') return;
+  try {
+    const { sendErrorAlertNotification } = await import('../services/email.js');
+    await sendErrorAlertNotification(alert);
+  } catch (err) {
+    console.error('[errorMonitor] failed to dispatch error alert:', err);
   }
 }
 

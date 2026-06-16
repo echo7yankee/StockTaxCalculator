@@ -7,8 +7,10 @@ import {
   sendContactMessageNotification,
   sendParseAlertNotification,
   sendAnalyticsDigestNotification,
+  sendErrorAlertNotification,
   pickLanguage,
 } from '../email.js';
+import { recordCaughtError } from '../../lib/errorMonitor.js';
 
 // email.ts records send failures via recordCaughtError -> recordError -> prisma.
 // Mock it so these unit tests stay hermetic (no real DB writes from the error path).
@@ -748,5 +750,137 @@ describe('sendAnalyticsDigestNotification', () => {
   it('throws when Resend returns non-2xx so the caller can record it', async () => {
     global.fetch = vi.fn().mockResolvedValue(new Response('boom', { status: 500 }));
     await expect(sendAnalyticsDigestNotification(baseParams)).rejects.toThrow(/Resend API 500/);
+  });
+});
+
+describe('sendErrorAlertNotification', () => {
+  const originalFetch = global.fetch;
+  const originalResend = process.env.RESEND_API_KEY;
+  const originalAdmin = process.env.ADMIN_NOTIFICATION_EMAIL;
+  const originalNodeEnv = process.env.NODE_ENV;
+
+  // All fields are already normalized + scrubbed by errorMonitor before they reach
+  // this function; the alert must pass them through verbatim and never reintroduce
+  // raw PII. firstSeen is the DB-stamped create time.
+  const baseParams = {
+    name: 'TypeError',
+    message: "Cannot read properties of undefined (reading 'plan')",
+    source: 'server',
+    context: 'GET /api/uploads',
+    fingerprint: 'a1b2c3d4e5f60718',
+    firstSeen: new Date('2026-06-15T20:25:00.000Z'),
+    sampleStack: 'TypeError: boom\n    at handler (/app/dist/routes/uploads.js:42:11)',
+  };
+
+  beforeEach(() => {
+    process.env.RESEND_API_KEY = 'test_key_123';
+    process.env.ADMIN_NOTIFICATION_EMAIL = 'admin@example.com';
+    process.env.NODE_ENV = 'test';
+    vi.mocked(recordCaughtError).mockReset();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.RESEND_API_KEY = originalResend;
+    if (originalAdmin === undefined) delete process.env.ADMIN_NOTIFICATION_EMAIL;
+    else process.env.ADMIN_NOTIFICATION_EMAIL = originalAdmin;
+    process.env.NODE_ENV = originalNodeEnv;
+    vi.restoreAllMocks();
+  });
+
+  it('posts an alert to ADMIN_NOTIFICATION_EMAIL with the scrubbed grouped fields and no reply_to', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendErrorAlertNotification(baseParams);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.resend.com/emails');
+    expect(init.headers.Authorization).toBe('Bearer test_key_123');
+
+    const body = JSON.parse(init.body as string);
+    expect(body.from).toBe('InvesTax <noreply@investax.app>');
+    expect(body.to).toBe('admin@example.com');
+    expect(body.subject).toBe('[InvesTax] New error (server): TypeError');
+    expect(body.reply_to).toBeUndefined();
+
+    expect(body.text).toContain('TypeError');
+    expect(body.text).toContain("Cannot read properties of undefined (reading 'plan')");
+    expect(body.text).toContain('GET /api/uploads');
+    expect(body.text).toContain('a1b2c3d4e5f60718');
+    expect(body.text).toContain('2026-06-15T20:25:00.000Z');
+    expect(body.text).toContain('at handler (/app/dist/routes/uploads.js:42:11)');
+  });
+
+  it('carries ONLY the scrubbed fields it was given (no raw PII/secret leaks through)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    // These raw values are NOT passed in (errorMonitor would have scrubbed them);
+    // assert the alert body cannot contain them. The function only serializes its
+    // own params, so anything not in params must be absent.
+    await sendErrorAlertNotification(baseParams);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.text).not.toContain('dragos@example.com');
+    expect(body.text).not.toContain('sk_live_');
+    expect(body.text).not.toContain('4111111111111111');
+    // and the scrubbed placeholders that DO arrive pass through untouched
+    const scrubbed = { ...baseParams, message: 'payout to <email> failed', sampleStack: 'Error: leaked <key>\n    at p (/app/x.js:1:2)' };
+    fetchMock.mockClear();
+    await sendErrorAlertNotification(scrubbed);
+    const body2 = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body2.text).toContain('payout to <email> failed');
+    expect(body2.text).toContain('<key>');
+  });
+
+  it('handles a missing context and a missing sample stack', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendErrorAlertNotification({ ...baseParams, context: null, sampleStack: undefined });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.text).toContain('Context:     (none)');
+    expect(body.text).toContain('(no stack captured)');
+  });
+
+  it('escapes HTML in the scrubbed fields for the <pre> rendering', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendErrorAlertNotification({ ...baseParams, message: '</pre><script>alert(1)</script>' });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+    expect(body.html).not.toContain('<script>alert(1)</script>');
+  });
+
+  it('silently no-ops when ADMIN_NOTIFICATION_EMAIL is unset (no fetch, no throw)', async () => {
+    delete process.env.ADMIN_NOTIFICATION_EMAIL;
+    const fetchMock = vi.fn();
+    global.fetch = fetchMock;
+
+    await expect(sendErrorAlertNotification(baseParams)).resolves.toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  // The loop-break belt: UNLIKE every other notification, this one must SWALLOW a
+  // send failure and must NOT route it back through recordCaughtError. If it threw
+  // or recorded, a Resend outage would feed the recordError -> alert -> fail loop.
+  it('swallows a non-2xx Resend response (does NOT throw, does NOT call recordCaughtError)', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    global.fetch = vi.fn().mockResolvedValue(new Response('boom', { status: 500 }));
+
+    await expect(sendErrorAlertNotification(baseParams)).resolves.toBeUndefined();
+    expect(errSpy).toHaveBeenCalled();
+    expect(vi.mocked(recordCaughtError)).not.toHaveBeenCalled();
+  });
+
+  it('swallows a network/fetch throw too (does NOT throw, does NOT call recordCaughtError)', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    global.fetch = vi.fn().mockRejectedValue(new Error('network down'));
+
+    await expect(sendErrorAlertNotification(baseParams)).resolves.toBeUndefined();
+    expect(errSpy).toHaveBeenCalled();
+    expect(vi.mocked(recordCaughtError)).not.toHaveBeenCalled();
   });
 });

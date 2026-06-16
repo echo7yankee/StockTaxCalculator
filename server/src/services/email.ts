@@ -690,6 +690,112 @@ export async function sendParseAlertNotification(
   });
 }
 
+export interface ErrorAlertNotificationParams {
+  /** Error constructor name, already capped (e.g. 'TypeError'). */
+  name: string;
+  /** Normalized + PII-scrubbed message (never the raw message). */
+  message: string;
+  /** Origin of the error. */
+  source: string;
+  /** Already-sanitized context label, or null/undefined if none. */
+  context: string | null | undefined;
+  /** The grouping fingerprint. */
+  fingerprint: string;
+  /** When this fingerprint was first recorded. */
+  firstSeen: Date;
+  /** Scrubbed sample stack, or null/undefined if none. */
+  sampleStack: string | null | undefined;
+}
+
+// Direct Resend POST for the error alert. DELIBERATELY does NOT go through
+// postToResend: postToResend records a send failure via recordCaughtError ->
+// recordError, which would close a loop here (a failed alert email becomes a new
+// 'email.send' error -> new fingerprint -> another alert -> ...). This helper
+// throws on failure; the public sendErrorAlertNotification swallows it locally
+// with console.error only, so the alert channel never feeds back into recordError.
+async function sendErrorAlertViaResend(adminTo: string, subject: string, body: string): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('[Email] RESEND_API_KEY not set; error alert skipped');
+    } else if (process.env.NODE_ENV !== 'test') {
+      console.log('[Email][dev] would send error alert:', subject, '->', adminTo);
+    }
+    return;
+  }
+
+  const response = await fetch(RESEND_API_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: FROM_ADDRESS,
+      to: adminTo,
+      subject,
+      html: `<pre style="font-family:ui-monospace,monospace;font-size:13px;line-height:1.5;white-space:pre-wrap;">${escapeHtml(body)}</pre>`,
+      text: body,
+    } satisfies ResendSendBody),
+  });
+
+  if (!response.ok) {
+    const responseBody = await response.text().catch(() => '');
+    throw new Error(`Resend API ${response.status}: ${responseBody.slice(0, 500)}`);
+  }
+}
+
+// Operator alert fired the FIRST time a given error fingerprint is recorded, so a
+// brand-new crash reaches the inbox in real time instead of waiting for the weekly
+// digest. Driven fire-and-forget from errorMonitor.recordError on the create path.
+//
+// Body carries ONLY the already-grouped, already-scrubbed fields (name, normalized
+// message, source, context, fingerprint, firstSeen, scrubbed sampleStack); never
+// raw input. Self-contained on failure: catches everything locally and logs with
+// console.error, and does NOT route through postToResend / recordCaughtError, so a
+// mail outage can never trigger a recordError -> alert -> fail -> recordError loop.
+export async function sendErrorAlertNotification(
+  params: ErrorAlertNotificationParams
+): Promise<void> {
+  try {
+    const adminTo = process.env.ADMIN_NOTIFICATION_EMAIL;
+    if (!adminTo) {
+      if (process.env.NODE_ENV !== 'test') {
+        console.warn('[Email] ADMIN_NOTIFICATION_EMAIL not set; error alert skipped');
+      }
+      return;
+    }
+
+    const subject = `[InvesTax] New error (${params.source}): ${params.name}`;
+
+    const lines = [
+      `A new error fingerprint was just recorded (first occurrence of this issue).`,
+      ``,
+      `Name:        ${params.name}`,
+      `Message:     ${params.message}`,
+      `Source:      ${params.source}`,
+      `Context:     ${params.context ?? '(none)'}`,
+      `Fingerprint: ${params.fingerprint}`,
+      `First seen:  ${params.firstSeen.toISOString()}`,
+      ``,
+      `--- Sample stack (scrubbed) ---`,
+      params.sampleStack ?? '(no stack captured)',
+      `--- End stack ---`,
+      ``,
+      `Run "npm run errors -w server" on the box for the full grouped list.`,
+      ``,
+      `Sent automatically from the InvesTax production server.`,
+    ];
+
+    await sendErrorAlertViaResend(adminTo, subject, lines.join('\n'));
+  } catch (err) {
+    // Swallow locally. NEVER rethrow and NEVER route through recordError /
+    // recordCaughtError: this is the alert delivery channel itself, and a loop
+    // here would be self-amplifying.
+    console.error('[Email] failed to send error alert:', err);
+  }
+}
+
 // ─── Audience capture (double opt-in subscribe) ─────────────────────────────
 // Customer-facing emails for the off-season email-capture asset: a double
 // opt-in confirm email and a "you're on the list" welcome carrying an

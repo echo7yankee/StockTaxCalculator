@@ -8,6 +8,14 @@ vi.mock('../prisma.js', () => ({
   },
 }));
 
+// recordError dynamic-imports ../services/email.js to fire the new-fingerprint
+// alert; mock it so the wiring is observable and no real email is sent. The mock
+// must be registered before recordError runs (vi.mock is hoisted, so it is).
+const sendErrorAlertNotificationMock = vi.fn().mockResolvedValue(undefined);
+vi.mock('../../services/email.js', () => ({
+  sendErrorAlertNotification: sendErrorAlertNotificationMock,
+}));
+
 const {
   isJunkError,
   normalizeMessage,
@@ -17,9 +25,35 @@ const {
   recordError,
 } = await import('../errorMonitor.js');
 
+// The alert is dispatched fire-and-forget behind a dynamic import(), so the mock
+// is invoked a few async ticks after recordError resolves (the import() settles on
+// the module-resolution queue, not just the microtask queue). Poll until the
+// dispatch path has had a chance to run, instead of guessing a tick count.
+async function settleAlertDispatch(): Promise<void> {
+  await vi.waitFor(
+    () => {
+      if (sendErrorAlertNotificationMock.mock.calls.length === 0) {
+        throw new Error('alert dispatch has not run yet');
+      }
+    },
+    { timeout: 1000, interval: 5 }
+  );
+}
+
+// When we expect NO alert (loop guard, junk, repeat), there is nothing to wait
+// for; give the dispatch path a generous window to (not) fire, then assert.
+async function drainPendingDispatch(): Promise<void> {
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  await new Promise((r) => setTimeout(r, 20));
+}
+
 beforeEach(() => {
   upsertMock.mockReset();
-  upsertMock.mockResolvedValue({});
+  // Default: simulate a repeat occurrence (count 2) so suites that do not care
+  // about alerting never trip the first-occurrence path.
+  upsertMock.mockResolvedValue({ count: 2, firstSeen: new Date('2026-06-15T00:00:00.000Z') });
+  sendErrorAlertNotificationMock.mockReset();
+  sendErrorAlertNotificationMock.mockResolvedValue(undefined);
 });
 
 describe('isJunkError', () => {
@@ -218,5 +252,123 @@ describe('recordError', () => {
     await expect(recordError({ message: 'boom' })).resolves.toBeUndefined();
     expect(errSpy).toHaveBeenCalled();
     errSpy.mockRestore();
+  });
+});
+
+describe('recordError -> new-fingerprint alert', () => {
+  // The upsert returns count 1 only when THIS call created the row (first time we
+  // have seen the fingerprint). That, and only that, fires the operator alert.
+  function createReturn(over: Record<string, unknown> = {}) {
+    return { count: 1, firstSeen: new Date('2026-06-15T20:25:00.000Z'), ...over };
+  }
+
+  it('fires the alert exactly once on a first occurrence (count 1)', async () => {
+    upsertMock.mockResolvedValueOnce(createReturn());
+    await recordError({
+      name: 'TypeError',
+      message: 'Cannot read x of undefined',
+      stack: 'TypeError: boom\n    at handler (/app/x.js:1:2)',
+      source: 'server',
+      context: 'GET /api/uploads',
+    });
+    await settleAlertDispatch();
+
+    expect(sendErrorAlertNotificationMock).toHaveBeenCalledTimes(1);
+    const arg = sendErrorAlertNotificationMock.mock.calls[0][0];
+    expect(arg).toMatchObject({
+      name: 'TypeError',
+      message: 'Cannot read x of undefined',
+      source: 'server',
+      context: 'GET /api/uploads',
+    });
+    expect(arg.fingerprint).toMatch(/^[0-9a-f]{16}$/);
+    expect(arg.firstSeen).toEqual(new Date('2026-06-15T20:25:00.000Z'));
+    expect(arg.sampleStack).toContain('at handler');
+  });
+
+  it('does NOT fire again on a repeat occurrence of the same fingerprint (count 2)', async () => {
+    const stack = 'Error: x\n    at q (/app/db.js:5:5)';
+    upsertMock.mockResolvedValueOnce(createReturn());
+    await recordError({ name: 'Error', message: 'query 111 timed out', stack });
+    await settleAlertDispatch();
+    expect(sendErrorAlertNotificationMock).toHaveBeenCalledTimes(1);
+
+    // Second hit of the same fingerprint: upsert increments -> count 2 -> no alert.
+    upsertMock.mockResolvedValueOnce({ count: 2, firstSeen: new Date('2026-06-15T20:25:00.000Z') });
+    await recordError({ name: 'Error', message: 'query 999 timed out', stack });
+    await drainPendingDispatch();
+    expect(sendErrorAlertNotificationMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes ONLY the already-scrubbed fields to the alert (raw stack is scrubbed first)', async () => {
+    upsertMock.mockResolvedValueOnce(createReturn());
+    await recordError({
+      name: 'Error',
+      // raw message carries an email + a secret; the alert must receive the
+      // normalized + scrubbed forms, not these raw values.
+      message: 'payout for dragos@example.com using sk_live_51HxAbCdEfGh28053zZ failed',
+      stack: 'Error: leaked sk_live_51HxAbCdEfGh28053zZ\n    at p (/app/x.js:1:2)',
+      source: 'server',
+    });
+    await settleAlertDispatch();
+
+    const arg = sendErrorAlertNotificationMock.mock.calls[0][0];
+    expect(arg.message).not.toContain('dragos@example.com');
+    expect(arg.message).toContain('<email>');
+    expect(arg.message).not.toContain('sk_live_51HxAbCdEfGh28053zZ');
+    expect(arg.sampleStack).not.toContain('sk_live_51HxAbCdEfGh28053zZ');
+    expect(arg.sampleStack).toContain('<key>');
+  });
+
+  it('LOOP GUARD: never alerts when the error context is the email-send channel itself', async () => {
+    upsertMock.mockResolvedValueOnce(createReturn());
+    // A Resend send failure records an 'email.send' error. Even though this is a
+    // brand-new fingerprint (count 1), alerting on it would feed the recordError
+    // -> alert -> fail -> recordError loop. It must be suppressed.
+    await recordError({
+      name: 'Error',
+      message: 'Resend API 500: boom',
+      stack: 'Error: Resend API 500\n    at postToResend (/app/dist/services/email.js:1:2)',
+      source: 'server',
+      context: 'email.send',
+    });
+    await drainPendingDispatch();
+
+    expect(upsertMock).toHaveBeenCalledTimes(1); // the row is still recorded
+    expect(sendErrorAlertNotificationMock).not.toHaveBeenCalled(); // but no alert
+  });
+
+  it('never throws even if the alert send REJECTS (recordError stays clean)', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    upsertMock.mockResolvedValueOnce(createReturn());
+    sendErrorAlertNotificationMock.mockRejectedValueOnce(new Error('alert blew up'));
+
+    await expect(recordError({ message: 'boom' })).resolves.toBeUndefined();
+    await settleAlertDispatch();
+
+    expect(sendErrorAlertNotificationMock).toHaveBeenCalledTimes(1);
+    // recordError resolved without throwing; the rejection was caught + logged.
+    await vi.waitFor(() => expect(errSpy).toHaveBeenCalled());
+    errSpy.mockRestore();
+  });
+
+  it('never throws even if the alert send THROWS synchronously', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    upsertMock.mockResolvedValueOnce(createReturn());
+    sendErrorAlertNotificationMock.mockImplementationOnce(() => {
+      throw new Error('sync boom');
+    });
+
+    await expect(recordError({ message: 'boom' })).resolves.toBeUndefined();
+    await settleAlertDispatch();
+    await vi.waitFor(() => expect(errSpy).toHaveBeenCalled());
+    errSpy.mockRestore();
+  });
+
+  it('does NOT alert for junk noise (never reaches the upsert/alert path)', async () => {
+    await recordError({ message: 'ResizeObserver loop limit exceeded' });
+    await drainPendingDispatch();
+    expect(upsertMock).not.toHaveBeenCalled();
+    expect(sendErrorAlertNotificationMock).not.toHaveBeenCalled();
   });
 });
