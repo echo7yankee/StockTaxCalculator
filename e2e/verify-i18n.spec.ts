@@ -1,14 +1,18 @@
 import { test, expect } from '@playwright/test';
 
-// i18n completeness audit: loads every page in both locales, hooks the
+// i18n completeness audit: loads every public route in both locales, hooks the
 // browser console, and fails if either (a) i18next emits a `missingKey`
 // warning, or (b) the rendered DOM contains a raw `{{placeholder}}` token
 // (which means a translation string had unresolved interpolation).
 //
 // Part of PR-A of the launch-verification tooling
-// (09-backlog-and-discipline.md Section 8.1 item #15).
+// (09-backlog-and-discipline.md Section 8.1 item #15); route coverage widened
+// to the full public surface by the weekly comprehensive-audit work.
+//
+// PAGES mirrors verify-a11y.spec.ts; keep the two in sync when routes change.
 
 const PAGES = [
+  // Marketing / core funnel
   '/',
   '/calculator',
   '/pricing',
@@ -17,6 +21,25 @@ const PAGES = [
   '/results',
   '/filing-guide',
   '/contact',
+  // Auth (unauthenticated state)
+  '/login',
+  '/signup',
+  '/forgot-password',
+  // Account / status / legal
+  '/settings',
+  '/status',
+  '/privacy',
+  '/terms',
+  // SEO guide cluster (/ghid), the organic-traffic surface
+  '/ghid',
+  '/ghid/declaratie-unica-trading212',
+  '/ghid/declaratie-unica-revolut',
+  '/ghid/declaratie-unica-ibkr',
+  '/ghid/cass-investitii',
+  '/ghid/dividende-broker-strain',
+  '/ghid/cum-completez-declaratia-unica',
+  '/ghid/cum-calculam',
+  '/ghid/notificare-anaf-venituri-strainatate',
 ];
 
 const LOCALES = ['en', 'ro'] as const;

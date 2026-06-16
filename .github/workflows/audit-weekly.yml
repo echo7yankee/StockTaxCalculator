@@ -1,0 +1,96 @@
+name: Weekly production audit
+
+# Comprehensive weekly audit of the LIVE site (https://investax.app), on a timer
+# rather than per-PR. Per-PR CI (.github/workflows/ci.yml) already guards the
+# codebase on every push to main; this workflow catches PRODUCTION drift that no
+# PR would trigger: TLS/cert problems, content or SEO regressions, links that rot
+# over time, accessibility drift, and Lighthouse score decay between deploys.
+#
+# It runs `verify:prod` (scripts/verify.ts --prod), which is READ-ONLY against
+# production: only the prod-safe, non-mutating specs run (no signup, no payment,
+# no upload, no account deletion: see PROD_SAFE_E2E_SPECS in scripts/verify.ts),
+# so it never creates or destroys real user data. Unit tests and visual
+# regression are auto-skipped in --prod mode.
+#
+# Coverage (every public route, both ro + en locales where applicable):
+#   - Accessibility: axe-core WCAG 2.1 AA on all 24 public routes.
+#   - i18n completeness: missing-key + raw-placeholder scan on all 24 routes.
+#   - Flows: navigation, calculator, dashboard, trust pages, mobile viewport.
+#   - Links: whole-site broken-link crawl.
+#   - Lighthouse: perf / SEO / best-practices / a11y on 17 pages (incl. the
+#     /ghid SEO cluster).
+#
+# HARD gate (fails the run; GitHub emails the repo admin on a failed scheduled
+# run): the prod-safe E2E suite + the broken-link crawl. Both are deterministic
+# and currently green.
+#
+# SOFT signal (reported, does NOT fail the run): Lighthouse. Production currently
+# has known, tracked Lighthouse gaps (a cross-component heading-order issue on
+# /calculator, missing rel=canonical on the non-prerendered app pages, and mobile
+# performance on two content-heavy pages). Those are separate backlog items, so
+# hard-gating Lighthouse would make this workflow perma-red and useless as a
+# regression signal. Scores stay visible in the run log + the uploaded report.
+# Once the backlog items close, promote Lighthouse to a hard gate by deleting the
+# `continue-on-error: true` line on its step below.
+
+on:
+  schedule:
+    - cron: '0 4 * * 1' # Mondays 04:00 UTC (07:00 Europe/Bucharest)
+  workflow_dispatch: {} # allow manual runs from the Actions tab any time
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: verify:prod (live site)
+    runs-on: ubuntu-latest # GitHub's ubuntu image ships Google Chrome, which Lighthouse uses
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.11.x'
+
+      - name: Cache ~/.npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Install dependencies
+        # Same Windows-lockfile + npm#4828 workaround as ci.yml: the committed
+        # lock is Windows-generated and omits Linux-only optional binaries, so
+        # drop it on the runner (container filesystem only, never pushed back)
+        # and let npm re-resolve for Linux cleanly.
+        run: |
+          rm -f package-lock.json
+          npm install --prefer-offline --no-audit --progress=false
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Audit hard gate (prod-safe E2E + broken links)
+        # verify:prod runs against https://investax.app. playwright.config.ts
+        # skips the local dev webServer for a remote target, so no build / DB /
+        # server boot is needed here: the specs hit the deployed site directly.
+        run: npm run verify:prod -- --skip-lighthouse
+
+      - name: Lighthouse (reported, non-blocking)
+        continue-on-error: true
+        run: npm run verify:prod -- --skip-e2e --skip-links
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14

@@ -39,6 +39,10 @@ type StepResult = {
   detail?: string;
 };
 
+// Pages audited by Lighthouse (Perf / A11y / Best-practices / SEO). Includes
+// the full /ghid SEO cluster: those pages exist to rank, so an SEO or a11y
+// regression there is exactly what this audit must catch. Authenticated-only
+// and noindex pages (e.g. /admin/analytics) are intentionally excluded.
 const PAGES = [
   '/',
   '/calculator',
@@ -48,6 +52,16 @@ const PAGES = [
   '/results',
   '/filing-guide',
   '/contact',
+  // SEO guide cluster (/ghid)
+  '/ghid',
+  '/ghid/declaratie-unica-trading212',
+  '/ghid/declaratie-unica-revolut',
+  '/ghid/declaratie-unica-ibkr',
+  '/ghid/cass-investitii',
+  '/ghid/dividende-broker-strain',
+  '/ghid/cum-completez-declaratia-unica',
+  '/ghid/cum-calculam',
+  '/ghid/notificare-anaf-venituri-strainatate',
 ];
 
 const LH_THRESHOLDS = {

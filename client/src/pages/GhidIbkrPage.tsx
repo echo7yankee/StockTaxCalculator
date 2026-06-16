@@ -202,7 +202,7 @@ export default function GhidIbkrPage() {
         <p className="mt-3">
           Ambele metode sunt acceptate în practica retail; important este să aplici una consistent pe toate vânzările.
           Logica detaliată este în{' '}
-          <Link to="/ghid/cum-calculam" className="text-accent dark:text-accent-light hover:underline">
+          <Link to="/ghid/cum-calculam" className="text-accent dark:text-accent-light underline">
             ghidul de metodologie
           </Link>
           .
