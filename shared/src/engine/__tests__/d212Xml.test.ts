@@ -271,5 +271,65 @@ describe('D212 v11 XML generator', () => {
       // cass_baza = amountOwed / rate = 1500 / 0.15 = 10000.
       expect(attr(obligRealizat(xml), 'cass_baza')).toBe('10000');
     });
+
+    describe('input-domain guard (fail loud, never a silent wrong number)', () => {
+      it('throws on a net capital-loss year instead of silently dropping the loss (qa DEFECT-1)', () => {
+        // The engine clamps a net loss to netGains=0 and reports the magnitude in
+        // `losses`. The pre-guard generator emitted str_pierdere_compensata="0",
+        // silently dropping the loss into an incomplete declaration.
+        const lossYear = makeResult({
+          capitalGains: { netGains: 0, losses: 5000, taxOwed: 0 },
+        });
+        expect(() => generateD212Xml(lossYear, DUMMY_IDENTITY)).toThrow(/capital-loss year/i);
+      });
+
+      it('throws on a non-finite money field (NaN / Infinity), never emitting it', () => {
+        expect(() =>
+          generateD212Xml(makeResult({ capitalGains: { netGains: NaN } }), DUMMY_IDENTITY),
+        ).toThrow(/finite number/i);
+        expect(() =>
+          generateD212Xml(makeResult({ dividends: { grossTotal: Infinity } }), DUMMY_IDENTITY),
+        ).toThrow(/finite number/i);
+        expect(() =>
+          generateD212Xml(
+            makeResult({ healthContribution: { totalNonSalaryIncome: NaN } }),
+            DUMMY_IDENTITY,
+          ),
+        ).toThrow(/finite number/i);
+      });
+
+      it('throws on a negative money field (out of domain; the engine clamps, so this is corrupt input)', () => {
+        expect(() =>
+          generateD212Xml(makeResult({ capitalGains: { netGains: -1 } }), DUMMY_IDENTITY),
+        ).toThrow(/must not be negative/i);
+        expect(() =>
+          generateD212Xml(
+            makeResult({ dividends: { withholdingTaxPaid: -0.01 } }),
+            DUMMY_IDENTITY,
+          ),
+        ).toThrow(/must not be negative/i);
+      });
+
+      it('throws on an out-of-range taxRate (0 divides-by-zero cass_baza; >1 is nonsense)', () => {
+        expect(() =>
+          generateD212Xml(makeResult({ capitalGains: { taxRate: 0 } }), DUMMY_IDENTITY),
+        ).toThrow(/taxRate/i);
+        expect(() =>
+          generateD212Xml(makeResult({ capitalGains: { taxRate: 1.5 } }), DUMMY_IDENTITY),
+        ).toThrow(/taxRate/i);
+        expect(() =>
+          generateD212Xml(makeResult({ capitalGains: { taxRate: NaN } }), DUMMY_IDENTITY),
+        ).toThrow(/taxRate/i);
+      });
+
+      it('accepts a clean gain year with zero losses (the guard does not false-positive)', () => {
+        const gainYear = makeResult({
+          capitalGains: { netGains: 5000, losses: 0, taxOwed: 500 },
+          dividends: { grossTotal: 100, withholdingTaxPaid: 10 },
+          healthContribution: { amountOwed: 1000, totalNonSalaryIncome: 5100 },
+        });
+        expect(() => generateD212Xml(gainYear, DUMMY_IDENTITY)).not.toThrow();
+      });
+    });
   });
 });

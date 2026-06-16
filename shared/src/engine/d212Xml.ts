@@ -17,12 +17,16 @@
  * than the all-annual-average simplification ANAF accepted in April 2026. See
  * `investax-docs/d212-prefill-spike-result.md`.
  *
- * Scope notes for this generator (the D212 pre-fill program, PR 1):
+ * Scope notes for this generator (the D212 pre-fill program):
+ * - Inputs are guarded. A net capital-LOSS year and any non-finite/negative/
+ *   out-of-range field are rejected up front (PR 2 fail-loud), so the generator
+ *   never emits a silently-wrong declaration. Loss carry-forward representation
+ *   (pierdere reportată) is deferred until tax-verified and engine-modelled.
  * - SINGLE source country (US). Foreign income is emitted as two `cap14` rows
  *   (capital gains + dividends) both under `US`, matching Dragos's accepted
  *   single-country filing where Irish ETF distributions were lumped into US.
  *   Per-country split (grouping {@link SecurityBreakdown} by ISIN-country
- *   prefix) is PR 2; it is a correctness enhancement, not required to match the
+ *   prefix) is PR 3; it is a correctness enhancement, not required to match the
  *   accepted single-country baseline.
  * - The numbers carried are the engine's PER-TRADE-DATE figures (art. 96), so
  *   the generated capital-gains row and everything derived from it (CASS base,
@@ -30,7 +34,7 @@
  *   filing built on the all-annual-average rate. This is a methodology stance,
  *   not a bug.
  * - Identity (CNP/IBAN/name/phone) is passed in by the caller; in-app identity
- *   collection is PR 3.
+ *   collection is PR 4.
  * - No engine math happens here. This module consumes a finished
  *   {@link TaxCalculationResult} and never touches the parser, the PDF tax
  *   calculator, or any rate logic.
@@ -87,6 +91,25 @@ function lei(n: number): number {
 }
 
 /**
+ * Asserts a consumed result field is a finite, non-negative money amount. D212
+ * money fields are unsigned, so a non-finite (NaN/Infinity) or negative value
+ * means the caller handed us a corrupt or hand-built result this generator cannot
+ * faithfully represent. We fail loud rather than emit a plausible-looking wrong
+ * number into a legal declaration ("never a silent wrong number" is the whole
+ * point of the tool). The engine clamps and rounds, so these throws are
+ * unreachable from real engine output; they guard the wired path (PR 4) against a
+ * corrupt result.
+ */
+function assertMoney(value: number, field: string): void {
+  if (!Number.isFinite(value)) {
+    throw new Error(`generateD212Xml: ${field} must be a finite number, got ${value}`);
+  }
+  if (value < 0) {
+    throw new Error(`generateD212Xml: ${field} must not be negative, got ${value}`);
+  }
+}
+
+/**
  * XML-escapes a string value for use inside a double-quoted attribute. `&` is
  * replaced first so the ampersands introduced by the other replacements are not
  * double-escaped.
@@ -117,14 +140,63 @@ function attrs(map: Record<string, string | number>): string {
  *
  * Important: the figures carried are the engine's PER-TRADE-DATE numbers (Codul
  * Fiscal art. 96), which are intentionally higher than an all-annual-average
- * filing. SINGLE source country (US) only; per-country split is PR 2. No engine
+ * filing. SINGLE source country (US) only; per-country split is PR 3. No engine
  * math is performed here, the result is consumed as-is.
  *
  * @param result Finished engine output for the tax year.
  * @param identity Filer PII for the declaration root (XML-escaped on emit).
  * @returns A D212 v11 XML document string.
+ * @throws If `result` is out of domain: a non-finite or negative money field, a
+ *   `capitalGains.taxRate` outside (0, 1], or a net capital-LOSS year
+ *   (`capitalGains.losses > 0`), which is not yet supported. Fails loud rather
+ *   than emitting a silently-wrong declaration.
  */
 export function generateD212Xml(result: TaxCalculationResult, identity: D212Identity): string {
+  // Input-domain guard. This generator emits a legal tax declaration, so it must
+  // never turn a corrupt or unrepresentable result into a plausible-looking wrong
+  // number. Every consumed field is validated up front; anything out of domain
+  // fails loud (see assertMoney).
+  assertMoney(result.capitalGains.netGains, 'capitalGains.netGains');
+  assertMoney(result.capitalGains.taxOwed, 'capitalGains.taxOwed');
+  assertMoney(result.capitalGains.losses, 'capitalGains.losses');
+  assertMoney(result.dividends.grossTotal, 'dividends.grossTotal');
+  assertMoney(result.dividends.withholdingTaxPaid, 'dividends.withholdingTaxPaid');
+  assertMoney(result.healthContribution.amountOwed, 'healthContribution.amountOwed');
+  assertMoney(
+    result.healthContribution.totalNonSalaryIncome,
+    'healthContribution.totalNonSalaryIncome',
+  );
+  assertMoney(result.totals.earlyFilingDiscount, 'totals.earlyFilingDiscount');
+
+  // taxRate scales the dividend RO tax and recovers cass_baza (amountOwed / rate),
+  // so a zero or out-of-range rate would yield NaN/Infinity money. Require a sane
+  // fraction in (0, 1]. (RO is 0.10 for 2025, 0.16 for 2026.)
+  if (
+    !Number.isFinite(result.capitalGains.taxRate) ||
+    result.capitalGains.taxRate <= 0 ||
+    result.capitalGains.taxRate > 1
+  ) {
+    throw new Error(
+      `generateD212Xml: capitalGains.taxRate must be a fraction in (0, 1], got ${result.capitalGains.taxRate}`,
+    );
+  }
+
+  // Loss year. The engine clamps a net capital loss to netGains=0 and reports the
+  // magnitude in `losses`. A correct D212 for a loss year needs the
+  // pierdere-reportată (carry-forward) representation, which the engine does not
+  // yet model and the session #144 spike never verified against an accepted
+  // filing. Refuse rather than silently drop the loss into an incomplete
+  // declaration (this is qa's DEFECT-1). Mapping `losses` to a `str_pierdere_*`
+  // field is deferred until the correct v11 field is tax-verified AND the engine
+  // tracks carry-forward.
+  if (result.capitalGains.losses > 0) {
+    throw new Error(
+      'generateD212Xml: cannot generate a D212 for a capital-loss year ' +
+        `(capitalGains.losses=${result.capitalGains.losses}). Loss carry-forward ` +
+        '(pierdere reportată) is not yet supported; this declaration must be filed manually.',
+    );
+  }
+
   const taxRate = result.capitalGains.taxRate;
 
   // Foreign income: capital gains (per-trade-date, art. 96).
@@ -143,6 +215,10 @@ export function generateD212Xml(result: TaxCalculationResult, identity: D212Iden
   // bracket sits on, recovered as amountOwed / rate (e.g. 9720 / 0.10 = 97200).
   const cassDatorat = lei(result.healthContribution.amountOwed);
   const cassBaza = lei(result.healthContribution.amountOwed / taxRate);
+  // cass_ven_inv intentionally rounds the engine's already-summed
+  // totalNonSalaryIncome once, NOT lei(gainNet) + lei(divGross) re-summed, so it
+  // can legitimately differ from the two cap14 rows by a leu (rounding once vs
+  // twice). This matches the accepted filing.
   const cassVenInv = lei(result.healthContribution.totalNonSalaryIncome);
 
   // Income tax + totals.
@@ -150,7 +226,7 @@ export function generateD212Xml(result: TaxCalculationResult, identity: D212Iden
   const bonif = lei(result.totals.earlyFilingDiscount);
   const difDePlata = incomeTax + cassDatorat;
 
-  // TODO(PR4): confirm totalPlata_A semantics (was 33 in the real filing,
+  // TODO(PR5): confirm totalPlata_A semantics (was 33 in the real filing,
   // meaning TBD) via DUKIntegrator validation. Set to dif_de_plata for now.
   const totalPlataA = difDePlata;
 
