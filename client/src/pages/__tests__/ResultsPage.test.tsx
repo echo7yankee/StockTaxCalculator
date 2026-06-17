@@ -271,9 +271,14 @@ describe('ResultsPage parser warning hard-stop', () => {
     expect(cta).toHaveTextContent(/Contact me/i);
   });
 
-  it('shows the D212 download section on a clean 2025 parse', () => {
+  it('shows the D212 download section high up (above the per-security table) on a clean 2025 parse', () => {
     renderResults(true, []);
-    expect(screen.getByTestId('d212-download')).toBeInTheDocument();
+    const d212 = screen.getByTestId('d212-download');
+    expect(d212).toBeInTheDocument();
+    // Placed next to the filing-guide CTA near the top, not buried at the bottom:
+    // the per-security breakdown must follow it in document order.
+    const perSecurity = screen.getByText('Per-Security Breakdown');
+    expect(d212.compareDocumentPosition(perSecurity) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('hides the D212 download section when warnings exist (same hard-stop as the filing CTA)', () => {
