@@ -255,6 +255,13 @@ export default function ResultsPage() {
         </div>
       )}
 
+      {/* D212 declaration generator: the primary "ready to file" action, kept high
+          up next to the filing-guide CTA. Only on a clean parse (the warning
+          hard-stop hides it). Generates the ANAF v11 XML in the browser. */}
+      {!hasWarnings && (
+        <D212Download result={result} securities={securities} taxYear={taxYear} />
+      )}
+
       {/* Summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <SummaryCard
@@ -404,14 +411,6 @@ export default function ResultsPage() {
           </table>
         </div>
       </div>
-
-      {/* D212 declaration generator: only on a clean parse (the warning hard-stop
-          above hides it otherwise). Generates the ANAF v11 XML in the browser. */}
-      {!hasWarnings && (
-        <div className="mt-6">
-          <D212Download result={result} securities={securities} taxYear={taxYear} />
-        </div>
-      )}
     </div>
   );
 }
