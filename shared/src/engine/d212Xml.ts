@@ -105,6 +105,16 @@ const DEN_STAT: Record<string, string> = {
   IE: 'Irlanda',
 };
 
+/**
+ * The single income tax year this generator models. The v11 structure, the
+ * reporting period below, and the `an_r`/category constants are all pinned to the
+ * 2025 income year (filed in 2026) that the session #144 spike validated against
+ * Dragos's accepted filing. Callers MUST gate the download on this year; a
+ * statement from any other year has to be filed manually until the generator is
+ * extended (and re-validated) for it.
+ */
+export const D212_SUPPORTED_TAX_YEAR = 2025;
+
 /** Tax-year reporting period (calendar year 2025, filed in 2026). */
 const PERIOD_START = '01.01.2025';
 const PERIOD_END = '31.12.2025';

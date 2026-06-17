@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { analytics } from '../lib/analytics';
 import { getBrokerMeta } from '../lib/brokers';
 import PageMeta from '../components/common/PageMeta';
+import D212Download from '../components/D212Download';
 import { taxYearInterpVars } from '../utils/taxYearVars';
 import { isBeforeEarlyFilingDeadline } from '../utils/earlyFiling';
 import { cassBracketLabelKey } from '../utils/cassBracket';
@@ -403,6 +404,14 @@ export default function ResultsPage() {
           </table>
         </div>
       </div>
+
+      {/* D212 declaration generator: only on a clean parse (the warning hard-stop
+          above hides it otherwise). Generates the ANAF v11 XML in the browser. */}
+      {!hasWarnings && (
+        <div className="mt-6">
+          <D212Download result={result} securities={securities} taxYear={taxYear} />
+        </div>
+      )}
     </div>
   );
 }
