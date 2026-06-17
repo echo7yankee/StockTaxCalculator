@@ -18,6 +18,7 @@ export const ANALYTICS_EVENTS = [
   'csv_uploaded',
   'calculation_saved',
   'pdf_exported',
+  'd212_downloaded',
 ] as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENTS)[number];

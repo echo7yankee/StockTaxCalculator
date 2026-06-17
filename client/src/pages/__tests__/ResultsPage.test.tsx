@@ -270,6 +270,16 @@ describe('ResultsPage parser warning hard-stop', () => {
     // but the CTA must be a clickable button with the expected label
     expect(cta).toHaveTextContent(/Contact me/i);
   });
+
+  it('shows the D212 download section on a clean 2025 parse', () => {
+    renderResults(true, []);
+    expect(screen.getByTestId('d212-download')).toBeInTheDocument();
+  });
+
+  it('hides the D212 download section when warnings exist (same hard-stop as the filing CTA)', () => {
+    renderResults(true, ['Per-row vs overview mismatch']);
+    expect(screen.queryByTestId('d212-download')).not.toBeInTheDocument();
+  });
 });
 
 describe('ResultsPage beta-broker caveat', () => {

@@ -23,3 +23,5 @@ export { calculateTaxesFromPdf } from './engine/pdfTaxCalculator.js';
 export type { PdfTaxEngineResult } from './engine/pdfTaxCalculator.js';
 export { calculateQuickTax } from './engine/quickCalculator.js';
 export type { QuickTaxInput, QuickTaxResult } from './engine/quickCalculator.js';
+export { generateD212Xml, D212_SUPPORTED_TAX_YEAR } from './engine/d212Xml.js';
+export type { D212Identity } from './engine/d212Xml.js';

@@ -48,4 +48,5 @@ export const analytics = {
   csvUploaded: () => send('csv_uploaded'),
   calculationSaved: () => send('calculation_saved'),
   pdfExported: () => send('pdf_exported'),
+  d212Downloaded: () => send('d212_downloaded'),
 };

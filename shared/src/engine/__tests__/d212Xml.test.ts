@@ -27,8 +27,14 @@ import { join } from 'path';
 import { parseTrading212AnnualStatement } from '../../parsers/trading212Pdf.js';
 import { calculateTaxesFromPdf } from '../pdfTaxCalculator.js';
 import { romaniaTaxConfig } from '../../taxRules/romania.js';
-import { generateD212Xml, type D212Identity } from '../d212Xml.js';
+import { generateD212Xml, D212_SUPPORTED_TAX_YEAR, type D212Identity } from '../d212Xml.js';
 import type { TaxCalculationResult, SecurityBreakdown } from '../../types/tax.js';
+
+describe('D212_SUPPORTED_TAX_YEAR', () => {
+  it('pins the generator to the 2025 income year the v11 structure was validated against', () => {
+    expect(D212_SUPPORTED_TAX_YEAR).toBe(2025);
+  });
+});
 
 const fixtureDir = join(__dirname, '../../../../test-data/fixtures');
 const loadFixture = (name: string): string[] =>

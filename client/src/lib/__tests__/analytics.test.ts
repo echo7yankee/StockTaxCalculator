@@ -33,6 +33,7 @@ describe('analytics (first-party emitter)', () => {
       [analytics.signupCompleted, 'signup_completed'],
       [analytics.paymentCompleted, 'payment_completed'],
       [analytics.pdfExported, 'pdf_exported'],
+      [analytics.d212Downloaded, 'd212_downloaded'],
     ];
     for (const [fn, expected] of cases) {
       beacon.mockClear();
