@@ -56,22 +56,38 @@ describe('d212Sections - shape', () => {
     }
   });
 
-  it('the capital-gains section has 4 fields tagged section I.1', () => {
+  it('the capital-gains section has 4 fields tagged with foreign-income category 2012', () => {
     const cg = d212Sections.find((s) => s.id === 'capital-gains')!;
     expect(cg.fields).toHaveLength(4);
-    expect(cg.fields.every((f) => f.section === 'I.1')).toBe(true);
+    expect(cg.fields.every((f) => f.section === 'Străinătate cod 2012')).toBe(true);
   });
 
-  it('the dividends section has 3 fields tagged section I.3', () => {
+  it('the dividends section has 3 fields tagged with foreign-income category 2018', () => {
     const div = d212Sections.find((s) => s.id === 'dividends')!;
     expect(div.fields).toHaveLength(3);
-    expect(div.fields.every((f) => f.section === 'I.3')).toBe(true);
+    expect(div.fields.every((f) => f.section === 'Străinătate cod 2018')).toBe(true);
   });
 
-  it('the CASS section has 2 fields tagged section II', () => {
+  it('the CASS section has 2 fields tagged as auto-calculated (not a manual Capitolul II entry)', () => {
     const cass = d212Sections.find((s) => s.id === 'cass')!;
     expect(cass.fields).toHaveLength(2);
-    expect(cass.fields.every((f) => f.section === 'II')).toBe(true);
+    expect(cass.fields.every((f) => f.section === 'Calculat automat')).toBe(true);
+  });
+
+  // Regression guard for the 2026 form revamp: the old references (foreign income
+  // under "Secțiunea 1/3"; CASS under "Capitolul II") are wrong for the revamped
+  // Declarația Unică. Cap. II is now the OPTIONAL/voluntary CASS opt-in, so a
+  // mandatory-CASS filer sent there would be misdirected. Verified vs OPANAF
+  // 2736/2025 + the founder's 2026-04-10 filing.
+  it('no section reference points at the stale Capitolul II or numbered I.1/I.3 labels', () => {
+    const all = getAllD212Fields();
+    for (const f of all) {
+      expect(f.section).not.toBe('II');
+      expect(f.section).not.toBe('I.1');
+      expect(f.section).not.toBe('I.3');
+      expect(f.sectionTitle).not.toBe('Capitolul II');
+      expect(f.sectionTitle).not.toContain('Secțiunea');
+    }
   });
 
   it('every field has a unique id', () => {
