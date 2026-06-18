@@ -17,35 +17,45 @@ export interface D212Section {
   fields: D212Field[];
 }
 
+// Section/sectionTitle map to where each value goes in ANAF's revamped 2026
+// Declarația Unică (formular 212) web form (anaf.ro/declaratii/duf), NOT a static
+// "Capitolul I, Secțiunea N" numbering. Foreign-broker income is added as a
+// "venit din străinătate" entry picked by ANAF category code (2012 = transfer
+// titluri / capital gains, 2018 = dividende). CASS on realized investment income
+// is computed automatically by the form (in the realized-income chapter, Capitolul I)
+// once the income is declared; the user verifies it, they do not type it in
+// Capitolul II (which in the 2026 form is the OPTIONAL/voluntary CASS opt-in).
+// Verified against ANAF/OPANAF 2736/2025 + the founder's 2026-04-10 filing.
+
 const capGainsFields: D212Field[] = [
   {
     id: 'cg-proceeds',
-    section: 'I.1',
-    sectionTitle: 'Capitolul I, Secțiunea 1',
+    section: 'Străinătate cod 2012',
+    sectionTitle: 'Venituri din străinătate, categoria 2012 (câștiguri din transferul titlurilor de valoare)',
     roLabel: 'Venit',
     enLabel: 'Total Proceeds',
     getValue: (r) => r.capitalGains.totalProceeds,
   },
   {
     id: 'cg-cost',
-    section: 'I.1',
-    sectionTitle: 'Capitolul I, Secțiunea 1',
+    section: 'Străinătate cod 2012',
+    sectionTitle: 'Venituri din străinătate, categoria 2012 (câștiguri din transferul titlurilor de valoare)',
     roLabel: 'Cheltuieli',
     enLabel: 'Total Cost Basis',
     getValue: (r) => r.capitalGains.totalCostBasis,
   },
   {
     id: 'cg-net',
-    section: 'I.1',
-    sectionTitle: 'Capitolul I, Secțiunea 1',
+    section: 'Străinătate cod 2012',
+    sectionTitle: 'Venituri din străinătate, categoria 2012 (câștiguri din transferul titlurilor de valoare)',
     roLabel: 'Venit net',
     enLabel: 'Net Capital Gain',
     getValue: (r) => r.capitalGains.netGains,
   },
   {
     id: 'cg-tax',
-    section: 'I.1',
-    sectionTitle: 'Capitolul I, Secțiunea 1',
+    section: 'Străinătate cod 2012',
+    sectionTitle: 'Venituri din străinătate, categoria 2012 (câștiguri din transferul titlurilor de valoare)',
     roLabel: 'Impozit',
     enLabel: 'Capital Gains Tax',
     getValue: (r) => r.capitalGains.taxOwed,
@@ -55,24 +65,24 @@ const capGainsFields: D212Field[] = [
 const dividendFields: D212Field[] = [
   {
     id: 'div-gross',
-    section: 'I.3',
-    sectionTitle: 'Capitolul I, Secțiunea 3',
+    section: 'Străinătate cod 2018',
+    sectionTitle: 'Venituri din străinătate, categoria 2018 (dividende)',
     roLabel: 'Venit brut',
     enLabel: 'Gross Dividends',
     getValue: (r) => r.dividends.grossTotal,
   },
   {
     id: 'div-foreign-tax',
-    section: 'I.3',
-    sectionTitle: 'Capitolul I, Secțiunea 3',
+    section: 'Străinătate cod 2018',
+    sectionTitle: 'Venituri din străinătate, categoria 2018 (dividende)',
     roLabel: 'Impozit plătit în străinătate',
     enLabel: 'Foreign Withholding Tax Paid',
     getValue: (r) => r.dividends.withholdingTaxPaid,
   },
   {
     id: 'div-tax',
-    section: 'I.3',
-    sectionTitle: 'Capitolul I, Secțiunea 3',
+    section: 'Străinătate cod 2018',
+    sectionTitle: 'Venituri din străinătate, categoria 2018 (dividende)',
     roLabel: 'Impozit datorat în România',
     enLabel: 'Tax Owed in Romania',
     getValue: (r) => r.dividends.taxOwed,
@@ -82,16 +92,16 @@ const dividendFields: D212Field[] = [
 const cassFields: D212Field[] = [
   {
     id: 'cass-income',
-    section: 'II',
-    sectionTitle: 'Capitolul II',
+    section: 'Calculat automat',
+    sectionTitle: 'Capitolul I, contribuția de sănătate (calculată automat de formular)',
     roLabel: 'Total venituri non-salariale',
     enLabel: 'Total Non-Salary Income',
     getValue: (r) => r.healthContribution.totalNonSalaryIncome,
   },
   {
     id: 'cass-owed',
-    section: 'II',
-    sectionTitle: 'Capitolul II',
+    section: 'Calculat automat',
+    sectionTitle: 'Capitolul I, contribuția de sănătate (calculată automat de formular)',
     roLabel: 'CASS datorat',
     enLabel: 'Health Contribution Owed',
     getValue: (r) => r.healthContribution.amountOwed,
