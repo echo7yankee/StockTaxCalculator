@@ -28,6 +28,7 @@ const GhidDividendePage = lazy(() => import('./pages/GhidDividendePage'));
 const GhidDeclaratieUnicaPage = lazy(() => import('./pages/GhidDeclaratieUnicaPage'));
 const GhidCumCalculamPage = lazy(() => import('./pages/GhidCumCalculamPage'));
 const GhidNotificareAnafPage = lazy(() => import('./pages/GhidNotificareAnafPage'));
+const GhidXtbPage = lazy(() => import('./pages/GhidXtbPage'));
 const AdminAnalyticsPage = lazy(() => import('./pages/AdminAnalyticsPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
@@ -70,6 +71,7 @@ export default function App() {
           <Route path="/ghid/cum-completez-declaratia-unica" element={<GhidDeclaratieUnicaPage />} />
           <Route path="/ghid/cum-calculam" element={<GhidCumCalculamPage />} />
           <Route path="/ghid/notificare-anaf-venituri-strainatate" element={<GhidNotificareAnafPage />} />
+          <Route path="/ghid/impozit-xtb" element={<GhidXtbPage />} />
           <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>

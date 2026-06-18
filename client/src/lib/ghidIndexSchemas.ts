@@ -62,6 +62,13 @@ export const GHID_LIST: GhidEntry[] = [
     path: '/ghid/notificare-anaf-venituri-strainatate',
     fullUrl: 'https://investax.app/ghid/notificare-anaf-venituri-strainatate/',
   },
+  {
+    title: 'Impozit pe investiții la XTB: ce declari și ce nu',
+    description:
+      'XTB are sucursală în România și reține impozitul pe câștiguri la sursă, deci pentru ele nu depui Declarația Unică. Ce îți rămâne de declarat (dividende, CASS) și cum diferă de Trading212, Revolut și IBKR.',
+    path: '/ghid/impozit-xtb',
+    fullUrl: 'https://investax.app/ghid/impozit-xtb/',
+  },
 ];
 
 /**
@@ -87,6 +94,7 @@ export const GHID_RELATED: Record<string, string[]> = {
     '/ghid/cum-calculam',
     '/ghid/dividende-broker-strain',
     '/ghid/cass-investitii',
+    '/ghid/impozit-xtb',
   ],
   '/ghid/declaratie-unica-revolut': [
     '/ghid/cum-completez-declaratia-unica',
@@ -99,6 +107,7 @@ export const GHID_RELATED: Record<string, string[]> = {
     '/ghid/cum-calculam',
     '/ghid/dividende-broker-strain',
     '/ghid/cass-investitii',
+    '/ghid/impozit-xtb',
   ],
   '/ghid/dividende-broker-strain': [
     '/ghid/cum-completez-declaratia-unica',
@@ -123,6 +132,12 @@ export const GHID_RELATED: Record<string, string[]> = {
     '/ghid/declaratie-unica-trading212',
     '/ghid/dividende-broker-strain',
     '/ghid/cass-investitii',
+  ],
+  '/ghid/impozit-xtb': [
+    '/ghid/declaratie-unica-trading212',
+    '/ghid/dividende-broker-strain',
+    '/ghid/cass-investitii',
+    '/ghid/cum-completez-declaratia-unica',
   ],
 };
 
