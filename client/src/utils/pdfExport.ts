@@ -104,10 +104,15 @@ export function generateTaxSummaryPdf(
 
   autoTable(doc, {
     startY: y,
+    // Same line-up and values as the D212 Field Reference dividend section
+    // (rd.8/rd.9/rd.10/rd.11), so the two dividend representations agree. taxOwed
+    // is the NET difference to pay (after the credit), not the gross RO tax.
     body: [
       ['Gross Dividends', `${fmt(taxResult.dividends.grossTotal)} ${sym}`],
+      ['Income Tax Owed in Romania', `${fmt(taxResult.dividends.taxBeforeCredit)} ${sym}`],
       ['Foreign Withholding Tax', `${fmt(taxResult.dividends.withholdingTaxPaid)} ${sym}`],
-      ['Tax Owed in Romania', `${fmt(taxResult.dividends.taxOwed)} ${sym}`],
+      ['Foreign Tax Credit', `${fmt(taxResult.dividends.foreignTaxCredit)} ${sym}`],
+      ['Difference to Pay in Romania', `${fmt(taxResult.dividends.taxOwed)} ${sym}`],
     ],
     theme: 'plain',
     styles: { fontSize: 9 },

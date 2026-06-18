@@ -226,8 +226,11 @@ describe('D212 v11 XML generator', () => {
       },
       dividends: {
         grossTotal: 0,
+        taxBeforeCredit: 0,
         withholdingTaxPaid: 0,
+        foreignTaxCredit: 0,
         taxOwed: 0,
+        taxRate: 0.1,
         ...overrides.dividends,
       },
       healthContribution: {
@@ -281,6 +284,24 @@ describe('D212 v11 XML generator', () => {
       expect(attr(div, 'str_impozit_platit')).toBe('250');
       expect(attr(div, 'str_credit_fiscal')).toBe('100'); // min(100, 250)
       expect(attr(div, 'str_dif_impozit_datorat')).toBe('0'); // 100 - 100
+    });
+
+    it('taxes dividends at dividends.taxRate, not capitalGains.taxRate (no second source)', () => {
+      // 2023/24 dividends are 8% while capital gains are a different rate. The
+      // dividend row must scale by its own rate; if it borrowed capitalGains.taxRate
+      // the RO tax would be wrong (the killed second-source recompute, Bug #16).
+      const result = makeResult({
+        capitalGains: { netGains: 1000, taxOwed: 160, taxRate: 0.16 },
+        dividends: { grossTotal: 1000, withholdingTaxPaid: 0, taxRate: 0.08 },
+      });
+      const xml = generateD212Xml(result, DUMMY_IDENTITY, usSecuritiesFor(result));
+
+      const cg = cap14By(xml, '2012', 'US');
+      expect(attr(cg, 'str_impozit_datorat_Ro')).toBe('160'); // 1000 * 0.16
+
+      const div = cap14By(xml, '2018', 'US');
+      expect(attr(div, 'str_impozit_datorat_Ro')).toBe('80'); // 1000 * 0.08, NOT 0.16
+      expect(attr(div, 'str_dif_impozit_datorat')).toBe('80'); // no WHT, full tax due
     });
 
     it('omits the dividend cap14 row entirely when there are no dividends', () => {
@@ -389,18 +410,19 @@ describe('D212 v11 XML generator', () => {
       expect(/&(?!amp;|lt;|gt;|quot;)/.test(xml)).toBe(false);
     });
 
-    it('uses result.capitalGains.taxRate for the per-row RO tax, not a hardcoded 0.10', () => {
+    it('reads the tax rates from the result, not a hardcoded 0.10', () => {
       // A 15% rate result must produce 15% dividend RO tax, proving the rate is
-      // read from the result rather than a magic number.
+      // read from the result rather than a magic number. The dividend rate is its
+      // own field; cass_baza is recovered via capitalGains.taxRate.
       const result = makeResult({
         capitalGains: { taxRate: 0.15 },
-        dividends: { grossTotal: 1000, withholdingTaxPaid: 0 },
+        dividends: { grossTotal: 1000, withholdingTaxPaid: 0, taxRate: 0.15 },
         healthContribution: { amountOwed: 1500 },
       });
       const xml = generateD212Xml(result, DUMMY_IDENTITY, usSecuritiesFor(result));
       const div = cap14By(xml, '2018', 'US');
       expect(attr(div, 'str_impozit_datorat_Ro')).toBe('150'); // 1000 * 0.15
-      // cass_baza = amountOwed / rate = 1500 / 0.15 = 10000.
+      // cass_baza = amountOwed / capitalGains.taxRate = 1500 / 0.15 = 10000.
       expect(attr(obligRealizat(xml), 'cass_baza')).toBe('10000');
     });
 
@@ -454,6 +476,18 @@ describe('D212 v11 XML generator', () => {
         expect(() =>
           generateD212Xml(makeResult({ capitalGains: { taxRate: NaN } }), DUMMY_IDENTITY, []),
         ).toThrow(/taxRate/i);
+      });
+
+      it('throws on an out-of-range dividends.taxRate (consumed for the dividend rows)', () => {
+        expect(() =>
+          generateD212Xml(makeResult({ dividends: { taxRate: 0 } }), DUMMY_IDENTITY, []),
+        ).toThrow(/dividends\.taxRate/i);
+        expect(() =>
+          generateD212Xml(makeResult({ dividends: { taxRate: 1.5 } }), DUMMY_IDENTITY, []),
+        ).toThrow(/dividends\.taxRate/i);
+        expect(() =>
+          generateD212Xml(makeResult({ dividends: { taxRate: NaN } }), DUMMY_IDENTITY, []),
+        ).toThrow(/dividends\.taxRate/i);
       });
 
       it('accepts a clean gain year with zero losses (the guard does not false-positive)', () => {

@@ -129,13 +129,19 @@ describe('calculateTaxes', () => {
         }),
       ];
       const result = calculateTaxes(txs, romaniaTaxConfig, 2025);
-      expect(result.taxResult.dividends.grossTotal).toBe(1000);
-      expect(result.taxResult.dividends.withholdingTaxPaid).toBe(50);
+      const d = result.taxResult.dividends;
+      expect(d.grossTotal).toBe(1000);
+      expect(d.taxBeforeCredit).toBe(100); // rd.8: 10% of 1000
+      expect(d.withholdingTaxPaid).toBe(50); // rd.9
+      expect(d.foreignTaxCredit).toBe(50); // rd.10: credit granted
       // 10% of 1000 = 100, minus 50 WHT = 50
-      expect(result.taxResult.dividends.taxOwed).toBe(50);
+      expect(d.taxOwed).toBe(50); // rd.11
+      expect(d.taxRate).toBe(0.10);
+      // rd.8 - rd.10 = rd.11, by construction.
+      expect(d.taxBeforeCredit - d.foreignTaxCredit).toBe(d.taxOwed);
     });
 
-    it('dividend tax is floored at 0', () => {
+    it('dividend tax is floored at 0, credit capped at the RO tax due', () => {
       const txs = [
         makeTx({
           id: 'd1',
@@ -145,8 +151,13 @@ describe('calculateTaxes', () => {
         }),
       ];
       const result = calculateTaxes(txs, romaniaTaxConfig, 2025);
-      // 10% of 100 = 10, minus 20 WHT = -10, floored to 0
-      expect(result.taxResult.dividends.taxOwed).toBe(0);
+      const d = result.taxResult.dividends;
+      // 10% of 100 = 10 (rd.8), minus 20 WHT = -10, floored to 0 (rd.11). The
+      // credit (rd.10) cannot exceed the RO tax due, so it is capped at 10.
+      expect(d.taxBeforeCredit).toBe(10);
+      expect(d.foreignTaxCredit).toBe(10);
+      expect(d.taxOwed).toBe(0);
+      expect(d.taxBeforeCredit - d.foreignTaxCredit).toBe(d.taxOwed);
     });
   });
 

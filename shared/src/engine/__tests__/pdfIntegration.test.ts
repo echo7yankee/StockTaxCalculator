@@ -149,6 +149,17 @@ describe('PDF Integration: Annual Statement 2025', () => {
       expect(taxResult.dividends.taxOwed).toBeCloseTo(51.50, 2);
     });
 
+    it('dividend ANAF line-up: gross RO tax ~62.95 (rd.8), credit ~11.45 (rd.10), reconciles', () => {
+      const d = taxResult.dividends;
+      // rd.8 = gross dividends * 10%; the foreign WHT (11.44) is below it, so the
+      // credit equals the WHT and rd.11 = rd.8 - credit.
+      expect(d.taxBeforeCredit).toBeCloseTo(62.95, 1);
+      expect(d.foreignTaxCredit).toBeCloseTo(11.45, 1);
+      expect(d.taxRate).toBe(0.10);
+      // rd.8 - rd.10 = rd.11 exactly (the form must add up).
+      expect(d.taxBeforeCredit - d.foreignTaxCredit).toBeCloseTo(d.taxOwed, 2);
+    });
+
     it('CASS: 24x bracket (>97,200 RON), fixed 9,720 RON', () => {
       expect(taxResult.healthContribution.thresholdHit).toBe('24x');
       expect(taxResult.healthContribution.amountOwed).toBe(9720);

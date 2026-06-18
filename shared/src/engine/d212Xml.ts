@@ -259,7 +259,7 @@ interface CountryIncome {
  *   attribute income to source countries.
  * @returns A D212 v11 XML document string.
  * @throws If `result` is out of domain: a non-finite or negative money field, a
- *   `capitalGains.taxRate` outside (0, 1], or a net capital-LOSS year
+ *   `capitalGains.taxRate` or `dividends.taxRate` outside (0, 1], or a net capital-LOSS year
  *   (`capitalGains.losses > 0`). Also throws if the per-security breakdown does
  *   not reconcile with the engine totals, if any source country has a net capital
  *   loss within an overall gain year (cross-country loss compensation is not yet
@@ -300,6 +300,17 @@ export function generateD212Xml(
       `generateD212Xml: capitalGains.taxRate must be a fraction in (0, 1], got ${result.capitalGains.taxRate}`,
     );
   }
+  // The dividend rate is its own field (8% in 2023/24 vs 10% capital gains), so
+  // the dividend rows scale by it, not by capitalGains.taxRate. Same domain guard.
+  if (
+    !Number.isFinite(result.dividends.taxRate) ||
+    result.dividends.taxRate <= 0 ||
+    result.dividends.taxRate > 1
+  ) {
+    throw new Error(
+      `generateD212Xml: dividends.taxRate must be a fraction in (0, 1], got ${result.dividends.taxRate}`,
+    );
+  }
 
   // Loss year. The engine clamps a net capital loss to netGains=0 and reports the
   // magnitude in `losses`. A correct D212 for a loss year needs the
@@ -318,6 +329,7 @@ export function generateD212Xml(
   }
 
   const taxRate = result.capitalGains.taxRate;
+  const divTaxRate = result.dividends.taxRate;
 
   // --- Per-country grouping (PR 3) ---
   // Group income-bearing securities by ISIN source country. Per-security amounts
@@ -421,7 +433,7 @@ export function generateD212Xml(
     const divLei = lei(c.div);
     const divWhtLei = lei(c.wht);
     if (divLei >= 1 || divWhtLei >= 1) {
-      const divRoTax = lei(c.div * taxRate);
+      const divRoTax = lei(c.div * divTaxRate);
       const divCredit = Math.min(divRoTax, divWhtLei);
       const divDif = divRoTax - divCredit;
       incomeTaxFromRows += divDif;
