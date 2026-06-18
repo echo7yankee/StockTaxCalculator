@@ -62,6 +62,11 @@ const capGainsFields: D212Field[] = [
   },
 ];
 
+// Dividend lines in ANAF form-row order (Secțiunea 2, categoria 2018): venit brut,
+// rd.8 gross RO tax, rd.9 foreign tax paid, rd.10 credit fiscal, rd.11 difference to
+// pay. rd.8 - rd.10 = rd.11. The engine surfaces taxBeforeCredit (rd.8) and
+// foreignTaxCredit (rd.10) so the rate is applied where it is in scope (dividends are
+// 8% in 2023/24, 10% in 2025), not re-derived here.
 const dividendFields: D212Field[] = [
   {
     id: 'div-gross',
@@ -72,6 +77,14 @@ const dividendFields: D212Field[] = [
     getValue: (r) => r.dividends.grossTotal,
   },
   {
+    id: 'div-tax-gross',
+    section: 'Străinătate cod 2018',
+    sectionTitle: 'Venituri din străinătate, categoria 2018 (dividende)',
+    roLabel: 'Impozit pe venit datorat în România',
+    enLabel: 'Income Tax Owed in Romania',
+    getValue: (r) => r.dividends.taxBeforeCredit,
+  },
+  {
     id: 'div-foreign-tax',
     section: 'Străinătate cod 2018',
     sectionTitle: 'Venituri din străinătate, categoria 2018 (dividende)',
@@ -80,13 +93,19 @@ const dividendFields: D212Field[] = [
     getValue: (r) => r.dividends.withholdingTaxPaid,
   },
   {
+    id: 'div-credit',
+    section: 'Străinătate cod 2018',
+    sectionTitle: 'Venituri din străinătate, categoria 2018 (dividende)',
+    roLabel: 'Credit fiscal',
+    enLabel: 'Foreign Tax Credit',
+    getValue: (r) => r.dividends.foreignTaxCredit,
+  },
+  {
     id: 'div-tax',
     section: 'Străinătate cod 2018',
     sectionTitle: 'Venituri din străinătate, categoria 2018 (dividende)',
-    // The engine's dividends.taxOwed is the NET tax after the foreign-tax credit
-    // (gross 10% minus the credit), i.e. ANAF's "Diferența de impozit de plată"
-    // (rd.11), NOT the gross "Impozit datorat în România" (rd.8). The gross-tax
-    // and credit-fiscal lines (rd.8 / rd.10) are added separately in Bug #16.
+    // dividends.taxOwed is the NET tax after the foreign-tax credit, i.e. ANAF's
+    // "Diferența de impozit de plată" (rd.11) = rd.8 (gross) - rd.10 (credit).
     roLabel: 'Diferența de impozit de plată',
     enLabel: 'Difference to Pay',
     getValue: (r) => r.dividends.taxOwed,

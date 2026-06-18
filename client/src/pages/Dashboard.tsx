@@ -83,6 +83,16 @@ export default function Dashboard() {
       const calc = data.calculation;
       if (!calc) throw new Error('No calculation data');
 
+      // Persisted scalars don't store the gross dividend RO tax / credit, so
+      // reconstruct the full ANAF line-up (rd.8 = gross * dividend rate, rd.10 =
+      // rd.8 - rd.11) for the Filing Guide. 2025 dividend rate = 0.10, mirroring the
+      // hardcoded capitalGains rate. The live upload flow carries exact engine
+      // values; this reconstructs a saved calc to within a leu.
+      const divGrossTotal = calc.totalDividendsGross ?? 0;
+      const divNetTax = calc.dividendTaxOwed ?? 0;
+      const divGrossTax = Math.round(divGrossTotal * 0.10 * 100) / 100;
+      const divCredit = Math.max(0, Math.round((divGrossTax - divNetTax) * 100) / 100);
+
       const taxResult: TaxCalculationResult = {
         taxYearId: data.id,
         capitalGains: {
@@ -94,9 +104,12 @@ export default function Dashboard() {
           taxOwed: calc.capitalGainsTax ?? 0,
         },
         dividends: {
-          grossTotal: calc.totalDividendsGross ?? 0,
+          grossTotal: divGrossTotal,
+          taxBeforeCredit: divGrossTax,
           withholdingTaxPaid: calc.totalWithholdingTax ?? 0,
-          taxOwed: calc.dividendTaxOwed ?? 0,
+          foreignTaxCredit: divCredit,
+          taxOwed: divNetTax,
+          taxRate: 0.10,
         },
         healthContribution: {
           totalNonSalaryIncome: calc.totalNonSalaryIncome ?? 0,

@@ -20,8 +20,11 @@ function makeResult(overrides: Partial<TaxCalculationResult> = {}): TaxCalculati
     },
     dividends: {
       grossTotal: 1500,
+      taxBeforeCredit: 150,
       withholdingTaxPaid: 225,
+      foreignTaxCredit: 100,
       taxOwed: -75,
+      taxRate: 0.10,
     },
     healthContribution: {
       totalNonSalaryIncome: 21_500,
@@ -62,10 +65,15 @@ describe('d212Sections - shape', () => {
     expect(cg.fields.every((f) => f.section === 'Străinătate cod 2012')).toBe(true);
   });
 
-  it('the dividends section has 3 fields tagged with foreign-income category 2018', () => {
+  it('the dividends section has 5 fields tagged with foreign-income category 2018', () => {
     const div = d212Sections.find((s) => s.id === 'dividends')!;
-    expect(div.fields).toHaveLength(3);
+    expect(div.fields).toHaveLength(5);
     expect(div.fields.every((f) => f.section === 'Străinătate cod 2018')).toBe(true);
+    // ANAF form-row order: venit brut, rd.8 gross tax, rd.9 foreign tax, rd.10
+    // credit, rd.11 difference.
+    expect(div.fields.map((f) => f.id)).toEqual([
+      'div-gross', 'div-tax-gross', 'div-foreign-tax', 'div-credit', 'div-tax',
+    ]);
   });
 
   it('the CASS section has 2 fields tagged as auto-calculated (not a manual Capitolul II entry)', () => {
@@ -116,19 +124,31 @@ describe('d212Sections - shape', () => {
     // the dividend NET line must never be labeled as the gross "datorat în România"
     expect(roLabels).not.toContain('Impozit datorat în România');
   });
+
+  // Regression guard for Bug #16: the dividend section carries the two intermediate
+  // ANAF lines rd.8 (gross RO tax) + rd.10 (credit fiscal), reading the engine's
+  // taxBeforeCredit / foreignTaxCredit (rate applied where it is in scope, not
+  // re-derived here). Verified vs the 2026 D212 form (Secțiunea 2, categoria 2018).
+  it('exposes the gross-tax (rd.8) and credit-fiscal (rd.10) dividend lines (Bug #16)', () => {
+    const byId = new Map(getAllD212Fields().map((f) => [f.id, f]));
+    expect(byId.get('div-tax-gross')!.roLabel).toBe('Impozit pe venit datorat în România');
+    expect(byId.get('div-tax-gross')!.enLabel).toBe('Income Tax Owed in Romania');
+    expect(byId.get('div-credit')!.roLabel).toBe('Credit fiscal');
+    expect(byId.get('div-credit')!.enLabel).toBe('Foreign Tax Credit');
+  });
 });
 
 describe('getAllD212Fields', () => {
   it('flattens fields across all sections', () => {
     const all = getAllD212Fields();
-    expect(all).toHaveLength(4 + 3 + 2);
+    expect(all).toHaveLength(4 + 5 + 2);
   });
 
   it('preserves the section order (capital gains, dividends, CASS)', () => {
     const all = getAllD212Fields();
     expect(all[0].id).toBe('cg-proceeds');
     expect(all[4].id).toBe('div-gross');
-    expect(all[7].id).toBe('cass-income');
+    expect(all[9].id).toBe('cass-income');
   });
 });
 
@@ -156,8 +176,16 @@ describe('D212Field.getValue - extracts the correct number from a TaxCalculation
     expect(byId.get('div-gross')!.getValue(result)).toBe(1500);
   });
 
+  it('div-tax-gross reads dividends.taxBeforeCredit (rd.8 gross RO tax)', () => {
+    expect(byId.get('div-tax-gross')!.getValue(result)).toBe(150);
+  });
+
   it('div-foreign-tax reads dividends.withholdingTaxPaid', () => {
     expect(byId.get('div-foreign-tax')!.getValue(result)).toBe(225);
+  });
+
+  it('div-credit reads dividends.foreignTaxCredit (rd.10 credit fiscal)', () => {
+    expect(byId.get('div-credit')!.getValue(result)).toBe(100);
   });
 
   it('div-tax reads dividends.taxOwed (may be negative when WHT credit overflows)', () => {

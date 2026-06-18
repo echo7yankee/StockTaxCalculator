@@ -159,6 +159,11 @@ export function calculateTaxesFromPdf(
 
   const dividendTaxGross = totalDividends * config.dividendTaxRate;
   const dividendTax = Math.max(0, dividendTaxGross - totalWithholdingTax);
+  // Surface the full ANAF dividend line-up (rd.8/rd.10/rd.11). Round each so the
+  // displayed credit reconciles exactly: rd.10 = rd.8 - rd.11.
+  const dividendTaxGrossRounded = round2(dividendTaxGross);
+  const dividendTaxRounded = round2(dividendTax);
+  const dividendForeignCredit = round2(dividendTaxGrossRounded - dividendTaxRounded);
 
   // CASS health contribution
   const totalNonSalaryIncome = netGains + totalDividends;
@@ -189,8 +194,11 @@ export function calculateTaxesFromPdf(
     },
     dividends: {
       grossTotal: round2(totalDividends),
+      taxBeforeCredit: dividendTaxGrossRounded,
       withholdingTaxPaid: round2(totalWithholdingTax),
-      taxOwed: round2(dividendTax),
+      foreignTaxCredit: dividendForeignCredit,
+      taxOwed: dividendTaxRounded,
+      taxRate: config.dividendTaxRate,
     },
     healthContribution: {
       totalNonSalaryIncome: round2(totalNonSalaryIncome),

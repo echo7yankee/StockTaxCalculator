@@ -37,7 +37,7 @@ describe('UploadContext', () => {
     const mockTaxResult = {
       taxYearId: '2025',
       capitalGains: { totalProceeds: 100, totalCostBasis: 50, netGains: 50, losses: 0, taxRate: 0.1, taxOwed: 5 },
-      dividends: { grossTotal: 10, withholdingTaxPaid: 1, taxOwed: 0 },
+      dividends: { grossTotal: 10, taxBeforeCredit: 1, withholdingTaxPaid: 1, foreignTaxCredit: 1, taxOwed: 0, taxRate: 0.1 },
       healthContribution: { totalNonSalaryIncome: 60, thresholdHit: 'none', amountOwed: 0 },
       totals: { totalTaxOwed: 5, earlyFilingDiscount: 0.15, totalAfterDiscount: 4.85 },
       calculatedAt: new Date(),

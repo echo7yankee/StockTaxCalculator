@@ -34,8 +34,11 @@ const mockTaxResult: TaxCalculationResult = {
   },
   dividends: {
     grossTotal: 660,
+    taxBeforeCredit: 66,
     withholdingTaxPaid: 12,
+    foreignTaxCredit: 12,
     taxOwed: 54,
+    taxRate: 0.1,
   },
   healthContribution: {
     totalNonSalaryIncome: 192660,
@@ -349,7 +352,7 @@ describe('ResultsPage dividend foreign-tax credit (Revolut beta)', () => {
   const revolutTaxResult: TaxCalculationResult = {
     taxYearId: '2025',
     capitalGains: { totalProceeds: 3000, totalCostBasis: 1000, netGains: 2000, losses: 0, taxRate: 0.1, taxOwed: 200 },
-    dividends: { grossTotal: 1000, withholdingTaxPaid: 0, taxOwed: 100 },
+    dividends: { grossTotal: 1000, taxBeforeCredit: 100, withholdingTaxPaid: 0, foreignTaxCredit: 0, taxOwed: 100, taxRate: 0.1 },
     healthContribution: { totalNonSalaryIncome: 3000, thresholdHit: 'none', amountOwed: 0 },
     totals: { totalTaxOwed: 300, earlyFilingDiscount: 9, totalAfterDiscount: 291 },
     calculatedAt: new Date('2025-03-15'),
@@ -402,7 +405,7 @@ describe('ResultsPage dividend foreign-tax credit (Revolut beta)', () => {
   it('does not show the panel when there are no dividends', () => {
     const noDividends: TaxCalculationResult = {
       ...revolutTaxResult,
-      dividends: { grossTotal: 0, withholdingTaxPaid: 0, taxOwed: 0 },
+      dividends: { grossTotal: 0, taxBeforeCredit: 0, withholdingTaxPaid: 0, foreignTaxCredit: 0, taxOwed: 0, taxRate: 0.1 },
     };
     renderCredit(noDividends, revolutTransactions.filter((tx) => tx.action !== 'dividend'));
     expect(screen.queryByTestId('dividend-wht-credit')).not.toBeInTheDocument();

@@ -10,7 +10,7 @@ import { analytics } from '../../lib/analytics';
 const goodResult: TaxCalculationResult = {
   taxYearId: '2025',
   capitalGains: { totalProceeds: 5000, totalCostBasis: 4000, netGains: 1000, losses: 0, taxRate: 0.1, taxOwed: 100 },
-  dividends: { grossTotal: 200, withholdingTaxPaid: 20, taxOwed: 0 },
+  dividends: { grossTotal: 200, taxBeforeCredit: 20, withholdingTaxPaid: 20, foreignTaxCredit: 20, taxOwed: 0, taxRate: 0.1 },
   healthContribution: { totalNonSalaryIncome: 1200, thresholdHit: 'none', amountOwed: 0 },
   totals: { totalTaxOwed: 100, earlyFilingDiscount: 0, totalAfterDiscount: 100 },
   calculatedAt: new Date('2025-03-01'),
