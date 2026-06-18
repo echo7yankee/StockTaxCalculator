@@ -94,6 +94,28 @@ describe('d212Sections - shape', () => {
     const ids = d212Sections.flatMap((s) => s.fields.map((f) => f.id));
     expect(new Set(ids).size).toBe(ids.length);
   });
+
+  // Regression guard for Bug #15 (ANAF-exact field labels). The founder's
+  // 2026-04-10 filing showed ANAF keys foreign capital gains on "Câștig net
+  // anual" (rd.3), not the paraphrased "Venit net". The dividend tax line is
+  // the "Diferența de impozit de plată" (rd.11), NOT the gross "Impozit datorat
+  // în România": the engine's dividends.taxOwed is that net diferență.
+  // Verified vs SESSION-NOTES-2026-04-10-real-filing.md + the 2026 ANAF form.
+  // (The gross-tax rd.8 + credit-fiscal rd.10 dividend lines are Bug #16.)
+  it('uses ANAF-exact field labels, not the old paraphrased / mislabeled forms (Bug #15)', () => {
+    const byId = new Map(getAllD212Fields().map((f) => [f.id, f]));
+    expect(byId.get('cg-net')!.roLabel).toBe('Câștig net anual');
+    expect(byId.get('cg-tax')!.roLabel).toBe('Impozit pe venit datorat în România');
+    expect(byId.get('div-foreign-tax')!.roLabel).toBe('Impozit pe venit plătit în străinătate');
+    expect(byId.get('div-tax')!.roLabel).toBe('Diferența de impozit de plată');
+
+    const roLabels = getAllD212Fields().map((f) => f.roLabel);
+    // the pre-revamp paraphrases must be gone
+    expect(roLabels).not.toContain('Venit net');
+    expect(roLabels).not.toContain('Impozit');
+    // the dividend NET line must never be labeled as the gross "datorat în România"
+    expect(roLabels).not.toContain('Impozit datorat în România');
+  });
 });
 
 describe('getAllD212Fields', () => {
@@ -162,17 +184,17 @@ describe('formatD212Summary', () => {
 
   it('formats each field as "roLabel: value RON" with 2 decimals', () => {
     const out = formatD212Summary(makeResult());
-    expect(out).toContain('Venit: 100,000.00 RON');
-    expect(out).toContain('Cheltuieli: 80,000.00 RON');
-    expect(out).toContain('Venit net: 20,000.00 RON');
-    expect(out).toContain('Impozit: 2,000.00 RON');
+    expect(out).toContain('Venit brut: 100,000.00 RON');
+    expect(out).toContain('Cheltuieli deductibile: 80,000.00 RON');
+    expect(out).toContain('Câștig net anual: 20,000.00 RON');
+    expect(out).toContain('Impozit pe venit datorat în România: 2,000.00 RON');
     expect(out).toContain('Venit brut: 1,500.00 RON');
-    expect(out).toContain('Impozit plătit în străinătate: 225.00 RON');
+    expect(out).toContain('Impozit pe venit plătit în străinătate: 225.00 RON');
   });
 
   it('includes the english label in parentheses under each field', () => {
     const out = formatD212Summary(makeResult());
-    expect(out).toContain('(Total Proceeds)');
+    expect(out).toContain('(Gross Sale Proceeds)');
     expect(out).toContain('(Gross Dividends)');
     expect(out).toContain('(Health Contribution Owed)');
   });
