@@ -22,6 +22,7 @@ import GhidDividendePage from './pages/GhidDividendePage';
 import GhidDeclaratieUnicaPage from './pages/GhidDeclaratieUnicaPage';
 import GhidCumCalculamPage from './pages/GhidCumCalculamPage';
 import GhidNotificareAnafPage from './pages/GhidNotificareAnafPage';
+import GhidXtbPage from './pages/GhidXtbPage';
 import {
   GHID_INDEX_COLLECTION_SCHEMA,
   GHID_INDEX_META,
@@ -66,6 +67,11 @@ import {
   GHID_NOTIFICARE_FAQ_SCHEMA,
   GHID_NOTIFICARE_META,
 } from './lib/ghidNotificareAnafSchemas';
+import {
+  GHID_XTB_ARTICLE_SCHEMA,
+  GHID_XTB_FAQ_SCHEMA,
+  GHID_XTB_META,
+} from './lib/ghidXtbSchemas';
 import './index.css';
 
 interface PageConfig {
@@ -237,6 +243,14 @@ const PRERENDER_PAGES: Record<string, PageConfig> = {
     description: GHID_NOTIFICARE_META.description,
     canonicalUrl: GHID_NOTIFICARE_META.url,
     schemas: [GHID_NOTIFICARE_ARTICLE_SCHEMA, GHID_NOTIFICARE_FAQ_SCHEMA],
+    ogType: 'article',
+  },
+  '/ghid/impozit-xtb': {
+    component: () => <GhidXtbPage />,
+    title: GHID_XTB_META.title,
+    description: GHID_XTB_META.description,
+    canonicalUrl: GHID_XTB_META.url,
+    schemas: [GHID_XTB_ARTICLE_SCHEMA, GHID_XTB_FAQ_SCHEMA],
     ogType: 'article',
   },
 };

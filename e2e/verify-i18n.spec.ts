@@ -40,6 +40,7 @@ const PAGES = [
   '/ghid/cum-completez-declaratia-unica',
   '/ghid/cum-calculam',
   '/ghid/notificare-anaf-venituri-strainatate',
+  '/ghid/impozit-xtb',
 ];
 
 const LOCALES = ['en', 'ro'] as const;

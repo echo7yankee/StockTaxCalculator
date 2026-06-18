@@ -12,6 +12,7 @@ import GhidDividendePage from '../GhidDividendePage';
 import GhidDeclaratieUnicaPage from '../GhidDeclaratieUnicaPage';
 import GhidCumCalculamPage from '../GhidCumCalculamPage';
 import GhidNotificareAnafPage from '../GhidNotificareAnafPage';
+import GhidXtbPage from '../GhidXtbPage';
 import { GHID_LIST, GHID_RELATED } from '../../lib/ghidIndexSchemas';
 
 const PAGES: { path: string; Page: ComponentType }[] = [
@@ -23,6 +24,7 @@ const PAGES: { path: string; Page: ComponentType }[] = [
   { path: '/ghid/cum-completez-declaratia-unica', Page: GhidDeclaratieUnicaPage },
   { path: '/ghid/cum-calculam', Page: GhidCumCalculamPage },
   { path: '/ghid/notificare-anaf-venituri-strainatate', Page: GhidNotificareAnafPage },
+  { path: '/ghid/impozit-xtb', Page: GhidXtbPage },
 ];
 
 function renderPage(Page: ComponentType) {
