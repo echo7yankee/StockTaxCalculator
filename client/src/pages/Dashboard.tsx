@@ -172,7 +172,7 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
-      <PageMeta titleKey="dashboardTitle" descriptionKey="dashboardDesc" />
+      <PageMeta titleKey="dashboardTitle" descriptionKey="dashboardDesc" robots="noindex, follow" />
       <h1 className="text-3xl font-bold mb-2">{t('dashboard:title')}</h1>
       <p className="text-gray-600 dark:text-slate-400 mb-8">
         {t('dashboard:subtitle')}

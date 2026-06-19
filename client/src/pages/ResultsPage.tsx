@@ -133,7 +133,7 @@ export default function ResultsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
-      <PageMeta titleKey="resultsTitle" descriptionKey="resultsDesc" />
+      <PageMeta titleKey="resultsTitle" descriptionKey="resultsDesc" robots="noindex, follow" />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>

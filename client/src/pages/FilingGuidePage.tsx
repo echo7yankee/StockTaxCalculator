@@ -68,7 +68,7 @@ export default function FilingGuidePage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
-      <PageMeta titleKey="filingGuideTitle" descriptionKey="filingGuideDesc" />
+      <PageMeta titleKey="filingGuideTitle" descriptionKey="filingGuideDesc" robots="noindex, follow" />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
