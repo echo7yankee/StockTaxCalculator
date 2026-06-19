@@ -30,3 +30,25 @@ describe('PageMeta descriptionVars', () => {
     expect(meta).not.toContain('{{');
   });
 });
+
+describe('PageMeta robots directive', () => {
+  function renderRobotsMeta(robots?: string): string {
+    const context: { helmet?: HelmetServerState } = {};
+    renderToString(
+      <HelmetProvider context={context}>
+        <PageMeta titleKey="landingTitle" descriptionKey="landingDesc" robots={robots} />
+      </HelmetProvider>,
+    );
+    return context.helmet?.meta.toString() ?? '';
+  }
+
+  it('emits a robots meta when the prop is set (SPA-only app pages)', () => {
+    const meta = renderRobotsMeta('noindex, follow');
+    expect(meta).toContain('name="robots"');
+    expect(meta).toContain('content="noindex, follow"');
+  });
+
+  it('omits the robots meta on indexable pages (prop not set)', () => {
+    expect(renderRobotsMeta()).not.toContain('name="robots"');
+  });
+});

@@ -623,7 +623,7 @@ export default function UploadPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
-      <PageMeta titleKey="uploadTitle" descriptionKey="uploadDesc" />
+      <PageMeta titleKey="uploadTitle" descriptionKey="uploadDesc" robots="noindex, follow" />
       {/* Post-payment welcome toast */}
       {showWelcome && (
         <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-3">
