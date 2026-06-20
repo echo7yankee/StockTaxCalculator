@@ -19,6 +19,13 @@ interface EmailCaptureProps {
   // through i18n. When omitted, copy comes from the `subscribe` namespace.
   heading?: string;
   description?: string;
+  // Heading level for the card title. Defaults to h3, which is correct on the
+  // ghid pages where the card nests under an <h2> section. Pass 2 on pages
+  // where the card is a top-level section directly under the page <h1> (e.g.
+  // /calculator in its default state), so the heading order never skips a level
+  // (axe `heading-order`). Tailwind preflight normalizes h2/h3 sizing, so this
+  // is purely semantic, with no visual change.
+  headingLevel?: 2 | 3;
 }
 
 // Reusable double opt-in email capture. Posts to /api/subscribe; the user then
@@ -30,7 +37,9 @@ export default function EmailCapture({
   variant = 'filing',
   heading,
   description,
+  headingLevel = 3,
 }: EmailCaptureProps) {
+  const HeadingTag = `h${headingLevel}` as const;
   const { t, i18n } = useTranslation('subscribe');
   const language: 'ro' | 'en' = i18n.language === 'en' ? 'en' : 'ro';
 
@@ -98,7 +107,7 @@ export default function EmailCapture({
           <Mail className="w-5 h-5 text-accent dark:text-accent-light" />
         </div>
         <div>
-          <h3 className="font-semibold">{heading ?? t(`${variant}.heading`)}</h3>
+          <HeadingTag className="font-semibold">{heading ?? t(`${variant}.heading`)}</HeadingTag>
           <p className="text-sm text-gray-600 dark:text-slate-400 mt-0.5">
             {description ?? t(`${variant}.description`)}
           </p>

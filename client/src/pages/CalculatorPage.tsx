@@ -140,7 +140,7 @@ export default function CalculatorPage() {
       {/* Off-season audience capture: convert a free-calculator visitor into a
           warm 2026-season lead instead of a bounce. */}
       <div className="mt-8">
-        <EmailCapture topic="filing_reminder" variant="filing" source="calculator" />
+        <EmailCapture topic="filing_reminder" variant="filing" source="calculator" headingLevel={2} />
       </div>
     </div>
   );
