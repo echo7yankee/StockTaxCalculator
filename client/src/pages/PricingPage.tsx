@@ -217,11 +217,20 @@ export default function PricingPage() {
       </div>
 
       {/* Trust badge */}
-      <div className="text-center mb-16">
+      <div className="text-center mb-6">
         <div className="inline-flex items-center gap-2 px-6 py-3 bg-accent/10 text-accent-hover dark:text-accent-light rounded-full text-sm font-medium">
           <Shield className="w-4 h-4" />
           {t('trustBadge')}
         </div>
+      </div>
+
+      {/* Free file-check entry point (backlog #24B): let an unsure buyer confirm
+          we can read their statement before paying. */}
+      <div className="text-center mb-16 text-sm text-gray-600 dark:text-slate-400">
+        {t('previewLinkText')}{' '}
+        <Link to="/verifica-extras" className="text-accent dark:text-accent-light font-medium underline hover:no-underline">
+          {t('previewLinkCta')}
+        </Link>
       </div>
 
       {/* FAQ */}

@@ -9,6 +9,8 @@
   "dashboardDesc": "View your saved tax calculations and reports.",
   "uploadTitle": "Upload Statement | InvesTax",
   "uploadDesc": "Upload your Trading212 PDF or CSV statement for automatic tax calculation.",
+  "previewTitle": "Check Your Statement for Free | InvesTax",
+  "previewDesc": "See for free whether we can read your broker statement before you pay. The file check is free; the numbers are on the paid plan.",
   "resultsTitle": "Tax Results | InvesTax",
   "resultsDesc": "Your complete Romanian investment tax breakdown: capital gains, dividends, CASS, and D212 filing amounts.",
   "filingGuideTitle": "Filing Guide | InvesTax",
