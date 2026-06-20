@@ -4,13 +4,16 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import EmailCapture, { type SubscribeTopic } from '../EmailCapture';
 
-function renderCapture(props?: Partial<{ topic: SubscribeTopic; variant: 'filing' | 'broker'; source: string }>) {
+function renderCapture(
+  props?: Partial<{ topic: SubscribeTopic; variant: 'filing' | 'broker'; source: string; headingLevel: 2 | 3 }>
+) {
   return render(
     <MemoryRouter>
       <EmailCapture
         topic={props?.topic ?? 'filing_reminder'}
         variant={props?.variant ?? 'filing'}
         source={props?.source}
+        headingLevel={props?.headingLevel}
       />
     </MemoryRouter>
   );
@@ -47,6 +50,23 @@ describe('EmailCapture - gating + variants', () => {
     renderCapture();
     await user.type(emailInput(), 'maria.example.com');
     expect(notifyButton()).toBeDisabled();
+  });
+
+  // Heading level is configurable so the card never causes an axe `heading-order`
+  // skip. On the ghid pages it nests under an <h2> (default h3); on /calculator
+  // in its default state it sits directly under the page <h1>, so it must be h2.
+  it('renders the card title as an h3 by default', () => {
+    renderCapture();
+    const heading = screen.getByRole('heading', { level: 3 });
+    expect(heading).toHaveTextContent(/remind you/i);
+    expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument();
+  });
+
+  it('renders the card title as an h2 when headingLevel is 2', () => {
+    renderCapture({ headingLevel: 2 });
+    const heading = screen.getByRole('heading', { level: 2 });
+    expect(heading).toHaveTextContent(/remind you/i);
+    expect(screen.queryByRole('heading', { level: 3 })).not.toBeInTheDocument();
   });
 });
 
