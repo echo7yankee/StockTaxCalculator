@@ -1,61 +1,22 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Upload, FileText, AlertTriangle, CheckCircle, X, PartyPopper } from 'lucide-react';
-import Papa from 'papaparse';
 import {
-  parseTrading212Csv,
-  parseIbkrCsv,
-  parseRevolutStatement,
-  mergeParseResults,
-  applyKnownStockSplits,
   calculateTaxes,
-  parseTrading212AnnualStatement,
   calculateTaxesFromPdf,
   applyBnrRates,
   getTaxConfigForYear,
 } from '@shared/index';
-import type { RawCsvRow, ParseResult, MergedParseResult, PdfParseResult, CurrencyBnrRates, AppliedSplit } from '@shared/index';
-import { extractPdfPageTexts } from '../utils/pdfExtractor';
+import type { ParseResult, CurrencyBnrRates } from '@shared/index';
 import { useCountry } from '../contexts/CountryContext';
 import { useUpload } from '../contexts/UploadContext';
 import { useAuth } from '../contexts/AuthContext';
 import { analytics } from '../lib/analytics';
 import { reportParseEvent } from '../lib/parseMonitor';
 import { CSV_BROKERS, type BrokerId } from '../lib/brokers';
+import { useStatementPreview } from '../hooks/useStatementPreview';
 import PageMeta from '../components/common/PageMeta';
-
-type FileType = 'csv' | 'pdf';
-
-/** Coerce a read-excel-file cell (string | number | boolean | Date | null) to a
- *  string, so the Revolut parser sees the same row shape it gets from a CSV parse.
- *  Excel date cells become ISO strings the parser's `new Date()` can read. */
-function xlsxCellToString(cell: unknown): string {
-  if (cell === null || cell === undefined) return '';
-  if (cell instanceof Date) return cell.toISOString();
-  return String(cell);
-}
-
-interface PreviewData {
-  fileName: string;
-  fileType: FileType;
-  sells: number;
-  dividends: number;
-  distributions: number;
-  warnings: string[];
-  year: number;
-  // CSV-specific
-  buys?: number;
-  totalRows?: number;
-  skipped?: number;
-  years?: number[];
-  sourceFileCount?: number;
-  duplicatesRemoved?: number;
-  appliedSplits?: AppliedSplit[];
-  // PDF-specific
-  closedResult?: number;
-  currency?: string;
-}
 
 export default function UploadPage() {
   const { t } = useTranslation('upload');
@@ -64,37 +25,6 @@ export default function UploadPage() {
   const { countryConfig } = useCountry();
   const { setUploadData } = useUpload();
   const { user, loading: authLoading } = useAuth();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const [showWelcome, setShowWelcome] = useState(() => searchParams.get('welcome') === '1');
-
-  // Paywall: redirect free/unauthenticated users to pricing
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user || user.plan !== 'paid') {
-      analytics.paywallSeen();
-      navigate('/pricing', { replace: true });
-    }
-  }, [user, authLoading, navigate]);
-
-  // Post-payment welcome toast: strip the ?welcome=1 query, auto-dismiss after 6s.
-  useEffect(() => {
-    if (!showWelcome) return;
-    if (searchParams.get('welcome') === '1') {
-      analytics.paymentCompleted();
-      searchParams.delete('welcome');
-      setSearchParams(searchParams, { replace: true });
-    }
-    const timer = setTimeout(() => setShowWelcome(false), 6000);
-    return () => clearTimeout(timer);
-  }, [showWelcome, searchParams, setSearchParams]);
-
-  const [activeTab, setActiveTab] = useState<FileType>('pdf');
-  const [dragOver, setDragOver] = useState(false);
-  const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<PreviewData | null>(null);
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear() - 1);
 
   const DEFAULT_EXCHANGE_RATE_EUR_RON = 4.97;
   const [exchangeRate, setExchangeRate] = useState<number>(DEFAULT_EXCHANGE_RATE_EUR_RON);
@@ -113,12 +43,6 @@ export default function UploadPage() {
   // explicitly because every message contains the literal "BNR" so a substring
   // check can't tell success from a degraded conversion (backlog #25).
   const [csvRateStatusKind, setCsvRateStatusKind] = useState<'ok' | 'partial' | 'fallback' | null>(null);
-  const [csvHistoryWarning, setCsvHistoryWarning] = useState(false);
-
-  // Store parsed data for calculate step
-  const [csvBroker, setCsvBroker] = useState<BrokerId>('trading212');
-  const [csvParse, setCsvParse] = useState<MergedParseResult | null>(null); // merged CSV (1+ files)
-  const [pdfData, setPdfData] = useState<PdfParseResult | null>(null);
 
   const fetchBnrRate = useCallback((year: number, currency: string) => {
     if (!countryConfig || currency === countryConfig.currency) return;
@@ -158,278 +82,67 @@ export default function UploadPage() {
       .finally(() => setRateLoading(false));
   }, [countryConfig]);
 
-  // Shared CSV preview builder: counts, the single-year missing-history guard,
-  // the preview card, and parse telemetry. Fed the MERGED result of one or more
-  // CSV files (see mergeParseResults), so the missing-history guard runs over the
-  // combined history rather than tripping on a single partial-year export.
-  const buildCsvPreview = useCallback((files: File[], parsed: MergedParseResult, appliedSplits: AppliedSplit[] = []) => {
-    const buys = parsed.transactions.filter(t => t.action === 'buy').length;
-    const sells = parsed.transactions.filter(t => t.action === 'sell').length;
-    const dividends = parsed.transactions.filter(t => t.action === 'dividend').length;
-
-    const years = [...new Set(
-      parsed.transactions.map(t => new Date(t.transactionDate).getFullYear())
-    )].sort((a, b) => b - a);
-
-    if (years.length > 0) setSelectedYear(years[0]);
-
-    // Detect a single-year export that may be missing historical buys (cost basis
-    // would be wrong). Applies to any broker's CSV, not just Trading212. Merging
-    // multiple files is the intended fix: the guard now sees the combined set.
-    const warnings = [...parsed.warnings];
-    let historyWarning = false;
-    if (years.length === 1) {
-      const sellShares: Record<string, number> = {};
-      const buyShares: Record<string, number> = {};
-      for (const tx of parsed.transactions) {
-        const key = tx.isin || tx.ticker;
-        if (tx.action === 'sell') sellShares[key] = (sellShares[key] || 0) + tx.shares;
-        if (tx.action === 'buy') buyShares[key] = (buyShares[key] || 0) + tx.shares;
-      }
-      historyWarning = Object.keys(sellShares).some(k => sellShares[k] > (buyShares[k] || 0) + 0.01);
-    }
-    setCsvHistoryWarning(historyWarning);
-
-    const label = files.length === 1 ? files[0].name : t('csvMultiFileLabel', { count: files.length });
-
-    setPreview({
-      fileName: label,
-      fileType: 'csv',
-      buys,
-      sells,
-      dividends,
-      distributions: 0,
-      totalRows: parsed.transactions.length,
-      skipped: parsed.skipped.length,
-      warnings,
-      year: years[0] ?? new Date().getFullYear() - 1,
-      years,
-      sourceFileCount: parsed.sourceFileCount,
-      duplicatesRemoved: parsed.duplicatesRemoved,
-      appliedSplits,
-    });
-    setProcessing(false);
-    analytics.csvUploaded();
-    reportParseEvent({
-      fileType: 'csv',
-      outcome: warnings.length > 0 || historyWarning ? 'warning' : 'success',
-      fileName: label,
-      warnings: historyWarning
-        ? [...warnings, 'Sells exceed buys for at least one security; CSV may be missing historical buy transactions']
-        : warnings,
-      summary: {
-        buys,
-        sells,
-        dividends,
-        skipped: parsed.skipped.length,
-        totalRows: parsed.transactions.length,
-        year: years[0],
-      },
-    });
-  }, [t]);
-
-  const reportCsvNoData = useCallback((file: File) => {
-    setError(t('csvNoData'));
-    setProcessing(false);
-    reportParseEvent({ fileType: 'csv', outcome: 'error', fileName: file.name, errorMessage: 'CSV contains no data rows' });
-  }, [t]);
-
-  const reportCsvError = useCallback((file: File, message: string) => {
-    setError(t('failedParseCsv', { message }));
-    setProcessing(false);
-    reportParseEvent({ fileType: 'csv', outcome: 'error', fileName: file.name, errorMessage: message });
-  }, [t]);
-
-  // Read one broker export into the raw rows its parser expects.
-  //  - Trading212: one flat header-keyed table (Papa header:true -> RawCsvRow[]).
-  //  - IBKR: multi-section statement (Papa header:false -> string[][]).
-  //  - Revolut: an Excel Account Statement, read via a lazy-loaded xlsx reader into
-  //    string[][] (kept off the initial bundle); a converted .csv is also accepted
-  //    and parsed header:false like IBKR.
-  const readBrokerFile = useCallback(
-    (file: File, broker: BrokerId): Promise<unknown[]> => {
-      if (broker === 'revolut' && file.name.toLowerCase().endsWith('.xlsx')) {
-        return import('read-excel-file/browser').then(async ({ default: readXlsxFile }) => {
-          // read-excel-file returns rows of cells at runtime; its `Sheet` type is
-          // awkward to index, so coerce through unknown to a plain 2D array.
-          const rows = (await readXlsxFile(file)) as unknown as unknown[][];
-          return rows.map((row) => row.map((cell) => xlsxCellToString(cell)));
-        });
-      }
-      return new Promise((resolve, reject) => {
-        Papa.parse(file, {
-          header: broker === 'trading212',
-          skipEmptyLines: true,
-          complete: (results) => resolve(results.data as unknown[]),
-          error: (err) => reject(err),
-        });
-      });
+  // Shared parse-to-preview state/handlers (single source of truth, also used by
+  // the free pre-paywall checker). The engine call and the results
+  // write-and-navigate below stay local to the paid upload flow. The PDF rate
+  // fetch is wired in via onPdfParsed so it runs as part of the parse (not from a
+  // render effect), preserving the original behavior.
+  const {
+    fileInputRef,
+    activeTab,
+    csvBroker,
+    dragOver,
+    processing,
+    error,
+    preview,
+    selectedYear,
+    csvParse,
+    pdfData,
+    csvHistoryWarning,
+    setSelectedYear,
+    setDragOver,
+    handleTabChange,
+    handleCsvBrokerChange,
+    handleDrop,
+    handleFileInput,
+    clearPreview,
+  } = useStatementPreview({
+    onPdfParsed: (pdf) => {
+      if (pdf.overview.currency) fetchBnrRate(pdf.year, pdf.overview.currency);
     },
-    [],
-  );
+  });
 
-  // Read + parse every selected CSV file with the chosen broker's parser, then
-  // merge into one ParseResult so the engine sees the combined cost-basis history
-  // (backlog #1, multi-file CSV). Empty files contribute nothing; if every file
-  // is empty we surface the same no-data error as the single-file path.
-  const processCsvFiles = useCallback(
-    async (files: File[], broker: BrokerId) => {
-      try {
-        const rawPerFile = await Promise.all(files.map((f) => readBrokerFile(f, broker)));
-        const totalRawRows = rawPerFile.reduce((sum, rows) => sum + rows.length, 0);
-        if (totalRawRows === 0) { reportCsvNoData(files[0]); return; }
+  const [showWelcome, setShowWelcome] = useState(() => searchParams.get('welcome') === '1');
 
-        const perFileResults = rawPerFile
-          .filter((rows) => rows.length > 0)
-          .map((rows) => {
-            if (broker === 'ibkr') return parseIbkrCsv(rows as string[][]);
-            if (broker === 'revolut') return parseRevolutStatement(rows as string[][]);
-            return parseTrading212Csv(rows as RawCsvRow[]);
-          });
-        const merged = mergeParseResults(perFileResults);
-        // Trading212 CSV carries no split events, so repair cost basis for any
-        // position held across a known forward split. Revolut and IBKR report
-        // their own splits, so they must not consume the table (double-count).
-        const { transactions, appliedSplits, warnings } =
-          broker === 'trading212'
-            ? applyKnownStockSplits(merged.transactions)
-            : { transactions: merged.transactions, appliedSplits: [] as AppliedSplit[], warnings: [] as string[] };
-        const adjusted: MergedParseResult = {
-          ...merged,
-          transactions,
-          warnings: [...merged.warnings, ...warnings],
-        };
-        setCsvParse(adjusted);
-        buildCsvPreview(files, adjusted, appliedSplits);
-      } catch (err) {
-        reportCsvError(files[0], err instanceof Error ? err.message : 'Unknown error');
-      }
-    },
-    [readBrokerFile, buildCsvPreview, reportCsvNoData, reportCsvError],
-  );
-
-  const processPdf = useCallback(async (file: File) => {
-    try {
-      const pageTexts = await extractPdfPageTexts(file);
-      const parsed = parseTrading212AnnualStatement(pageTexts);
-      setPdfData(parsed);
-      setSelectedYear(parsed.year);
-
-      setPreview({
-        fileName: file.name,
-        fileType: 'pdf',
-        sells: parsed.sellTrades.length,
-        dividends: parsed.dividends.length,
-        distributions: parsed.distributions.length,
-        warnings: parsed.warnings,
-        year: parsed.year,
-        closedResult: parsed.overview.closedResult,
-        currency: parsed.overview.currency,
-      });
-      setProcessing(false);
-      analytics.pdfUploaded();
-      reportParseEvent({
-        fileType: 'pdf',
-        outcome: parsed.warnings.length > 0 ? 'warning' : 'success',
-        fileName: file.name,
-        warnings: parsed.warnings,
-        summary: {
-          sells: parsed.sellTrades.length,
-          dividends: parsed.dividends.length,
-          distributions: parsed.distributions.length,
-          pages: pageTexts.length,
-          year: parsed.year,
-        },
-      });
-
-      // Auto-fetch BNR exchange rate
-      if (parsed.overview.currency) {
-        fetchBnrRate(parsed.year, parsed.overview.currency);
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      setError(t('failedParsePdf', { message }));
-      setProcessing(false);
-      reportParseEvent({
-        fileType: 'pdf',
-        outcome: 'error',
-        fileName: file.name,
-        errorMessage: message,
-      });
+  // Paywall: redirect free/unauthenticated users to pricing
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user || user.plan !== 'paid') {
+      analytics.paywallSeen();
+      navigate('/pricing', { replace: true });
     }
-  }, [fetchBnrRate, t]);
+  }, [user, authLoading, navigate]);
 
-  // Extension + tab-match + size validation for one file.
-  const validateFile = useCallback((file: File): string | null => {
-    const name = file.name.toLowerCase();
-    const isPdf = name.endsWith('.pdf');
-    const isCsv = name.endsWith('.csv');
-    const isXlsx = name.endsWith('.xlsx');
-    if (activeTab === 'pdf') {
-      if (!isPdf) return t('invalidFileType');
-    } else {
-      // CSV/spreadsheet tab: Revolut exports Excel (.xlsx); a converted .csv is
-      // also accepted. Other brokers are .csv only.
-      const accepted = csvBroker === 'revolut' ? isXlsx || isCsv : isCsv;
-      if (!accepted) return t('invalidFileType');
+  // Post-payment welcome toast: strip the ?welcome=1 query, auto-dismiss after 6s.
+  useEffect(() => {
+    if (!showWelcome) return;
+    if (searchParams.get('welcome') === '1') {
+      analytics.paymentCompleted();
+      searchParams.delete('welcome');
+      setSearchParams(searchParams, { replace: true });
     }
-    if (file.size > 10 * 1024 * 1024) return t('fileTooLarge');
-    return null;
-  }, [activeTab, csvBroker, t]);
+    const timer = setTimeout(() => setShowWelcome(false), 6000);
+    return () => clearTimeout(timer);
+  }, [showWelcome, searchParams, setSearchParams]);
 
-  // Entry point for both the file input and drag-drop. PDF stays single-file (one
-  // annual statement); CSV accepts multiple files and merges them.
-  const processFiles = useCallback((files: File[]) => {
-    setError(null);
-    setPreview(null);
-    setCsvParse(null);
-    setPdfData(null);
-    if (files.length === 0) return;
-
-    if (activeTab === 'pdf') {
-      const file = files[0];
-      const validationError = validateFile(file);
-      if (validationError) { setError(validationError); return; }
-      setProcessing(true);
-      processPdf(file);
-    } else {
-      for (const file of files) {
-        const validationError = validateFile(file);
-        if (validationError) { setError(validationError); return; }
-      }
-      setProcessing(true);
-      processCsvFiles(files, csvBroker);
-    }
-  }, [activeTab, csvBroker, validateFile, processPdf, processCsvFiles]);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const files = Array.from(e.dataTransfer.files);
-    if (files.length > 0) processFiles(files);
-  }, [processFiles]);
-
-  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length > 0) processFiles(files);
-  }, [processFiles]);
-
-  const handleTabChange = (tab: FileType) => {
-    setActiveTab(tab);
-    setError(null);
-    setPreview(null);
-    setCsvParse(null);
-    setPdfData(null);
-    setCsvHistoryWarning(false);
-  };
-
-  const handleCsvBrokerChange = (broker: BrokerId) => {
-    setCsvBroker(broker);
-    setError(null);
-    setPreview(null);
-    setCsvParse(null);
-    setCsvHistoryWarning(false);
-  };
+  // Upload-funnel analytics: fire pdf/csv-uploaded once per successful parse.
+  // The parse itself lives in the shared hook (which is engine-agnostic), so the
+  // upload-specific funnel event fires here, when a fresh preview lands.
+  useEffect(() => {
+    if (!preview) return;
+    if (preview.fileType === 'pdf') analytics.pdfUploaded();
+    else analytics.csvUploaded();
+  }, [preview]);
 
   // Enrich CSV transactions with BNR rates and run the engine, then stash the
   // result for the results page. Shared by the Trading212 and IBKR CSV paths,
@@ -548,7 +261,7 @@ export default function UploadPage() {
     if (!countryConfig) return;
 
     if (preview?.fileType === 'pdf' && pdfData) {
-      // Convert from account currency to local currency (e.g. USD → RON)
+      // Convert from account currency to local currency (e.g. USD to RON)
       const needsConversion = preview.currency !== countryConfig.currency;
       const rate = needsConversion ? exchangeRate : 1;
 
@@ -559,11 +272,11 @@ export default function UploadPage() {
       // the map keeps that path byte-identical to the prior single-rate behavior.
       const allTradesMatchOverview =
         pdfData.sellTrades.length > 0 &&
-        pdfData.sellTrades.every((t) => t.transactionCurrency === pdfData.overview.currency);
+        pdfData.sellTrades.every((tr) => tr.transactionCurrency === pdfData.overview.currency);
       const dailyRates =
         needsConversion && allTradesMatchOverview ? pdfDailyRates ?? undefined : undefined;
 
-      // Dispatch tax rates by the statement's income year (backlog #13). 2025 →
+      // Dispatch tax rates by the statement's income year (backlog #13). 2025 ->
       // current rates; 2026+ falls back to the latest engine-supported year until
       // its rates are signed off (TAX_YEARS[year].engineSupported gate).
       const yearConfig = getTaxConfigForYear(countryConfig, pdfData.year);
@@ -609,14 +322,12 @@ export default function UploadPage() {
   }, [countryConfig, preview, pdfData, csvParse, csvBroker, exchangeRate, pdfDailyRates, setUploadData, navigate, finalizeCsv]);
 
   const clearUpload = () => {
-    setPreview(null);
-    setCsvParse(null);
-    setPdfData(null);
-    setError(null);
-    setCsvHistoryWarning(false);
+    clearPreview();
+    setCsvRateStatus(null);
+    setCsvRateStatusKind(null);
   };
 
-  // Don't render while checking auth — prevents flash
+  // Don't render while checking auth: prevents flash
   if (authLoading || !user || user.plan !== 'paid') {
     return null;
   }

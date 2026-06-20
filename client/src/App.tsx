@@ -7,6 +7,7 @@ const Landing = lazy(() => import('./pages/Landing'));
 const CalculatorPage = lazy(() => import('./pages/CalculatorPage'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const UploadPage = lazy(() => import('./pages/UploadPage'));
+const PreviewPage = lazy(() => import('./pages/PreviewPage'));
 const ResultsPage = lazy(() => import('./pages/ResultsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const StatusPage = lazy(() => import('./pages/StatusPage'));
@@ -50,6 +51,9 @@ export default function App() {
           <Route path="/calculator" element={<CalculatorPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/upload" element={<UploadPage />} />
+          {/* Free pre-paywall parse checker (backlog #24B). PUBLIC: no paywall,
+              no auth guard, works for anonymous users. Engine-free by design. */}
+          <Route path="/verifica-extras" element={<PreviewPage />} />
           <Route path="/results" element={<ResultsPage />} />
           <Route path="/filing-guide" element={<FilingGuidePage />} />
           <Route path="/login" element={<LoginPage />} />

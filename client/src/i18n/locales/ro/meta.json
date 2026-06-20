@@ -9,6 +9,8 @@
   "dashboardDesc": "Vizualizează calculele și rapoartele tale fiscale salvate.",
   "uploadTitle": "Încarcă extras | InvesTax",
   "uploadDesc": "Încarcă extrasul Trading212 în format PDF sau CSV pentru calculul automat al taxelor.",
+  "previewTitle": "Verifică extrasul gratuit | InvesTax",
+  "previewDesc": "Vezi gratuit dacă îți putem citi extrasul de la broker înainte să plătești. Verificarea fișierului este gratuită, cifrele sunt în versiunea cu plată.",
   "resultsTitle": "Rezultate taxe | InvesTax",
   "resultsDesc": "Detaliile complete ale taxelor pe investiții: câștiguri de capital, dividende, CASS și sumele pentru declarația D212.",
   "filingGuideTitle": "Ghid depunere | InvesTax",
