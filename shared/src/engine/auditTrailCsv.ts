@@ -9,18 +9,21 @@
  * same statement always produces the same number, and now the user can see and
  * defend every step.
  *
- * Two detail granularities, picked from the data the flow actually has:
+ * Detail granularity, picked from the data the flow actually has:
  *
  * - CSV flow: the enriched {@link Transaction}[] carries a per-trade BNR rate
  *   (`exchangeRateToLocal`) + the trade date, so we emit ONE ROW PER TRADE
- *   (the strongest audit: "this trade, this date, this rate, this RON amount").
- * - PDF flow: `calculateTaxesFromPdf` does not retain per-trade rows (it
- *   aggregates into the per-security breakdown), so when no transactions are
- *   present we emit ONE ROW PER SECURITY from {@link SecurityBreakdown}[]. The
- *   per-trade-rate detail for the PDF flow is a future enhancement that would
- *   require the PDF calculator to surface its per-trade rows; out of scope here.
+ *   ("this trade, this date, this rate, this RON amount").
+ * - PDF flow: `calculateTaxesFromPdf` surfaces a {@link PdfAuditRow}[] (one per
+ *   sell trade + per dividend, each with the rate the engine applied), so the
+ *   recommended path gets the SAME one-row-per-trade breakdown via the same
+ *   columns. When the PDF net gain was taken from the statement overview total
+ *   (mixed currencies; `pdfNetFromOverview`), a note is added so the breakdown is
+ *   honest that the rows reconcile to total proceeds but not, by sum, to the net.
+ * - Fallback: if neither per-trade source is present (e.g. a PDF parsed to only
+ *   an overview total), we emit ONE ROW PER SECURITY from {@link SecurityBreakdown}[].
  *
- * Both granularities are followed by the same summary block (capital gains,
+ * Every granularity is followed by the same summary block (capital gains,
  * dividends, CASS, totals) read straight off the {@link TaxCalculationResult}, so
  * the file reconciles to the on-screen numbers and to the D212 lines to the leu.
  *
@@ -36,7 +39,7 @@
  * Windows reads the diacritics correctly.
  */
 
-import type { TaxCalculationResult, SecurityBreakdown } from '../types/tax.js';
+import type { TaxCalculationResult, SecurityBreakdown, PdfAuditRow } from '../types/tax.js';
 import type { Transaction, TransactionAction } from '../types/transaction.js';
 
 /**
@@ -54,6 +57,12 @@ export interface AuditTrailCsvLabels {
   metaMethodology: string;
   /** One-line note: per-date capital gains + annual-average dividends, amounts in RON. */
   methodologyNote: string;
+  /**
+   * Note shown only when the PDF net gain was taken from the statement's overview
+   * total at the annual-average rate (mixed transaction currencies), so the
+   * per-trade rows below do not, by sum, equal the declared net gain.
+   */
+  netSourceOverviewNote: string;
 
   /** Section titles. */
   tradeSectionTitle: string;
@@ -115,10 +124,14 @@ export interface AuditTrailCsvLabels {
 export interface AuditTrailCsvInput {
   /** The displayed engine result (after any dividend-credit override). */
   result: TaxCalculationResult;
-  /** Per-security breakdown (used for the PDF flow detail rows). */
+  /** Per-security breakdown (the detail fallback when no per-trade rows exist). */
   securities: SecurityBreakdown[];
   /** Enriched per-trade transactions (CSV flow); empty for the PDF flow. */
   transactions: Transaction[];
+  /** Per-trade audit rows from the PDF engine (PDF flow); empty/omitted for the CSV flow. */
+  pdfTrades?: PdfAuditRow[];
+  /** True when the PDF net gain was taken from the statement overview total (adds an honesty note). */
+  pdfNetFromOverview?: boolean;
   /** The income year the result is for. */
   taxYear: number;
   /** The uploaded statement's file name (shown in the meta block). */
@@ -192,6 +205,28 @@ function actionLabel(action: TransactionAction, labels: AuditTrailCsvLabels): st
 }
 
 /**
+ * Normalizes an enriched CSV {@link Transaction} into the {@link PdfAuditRow}
+ * shape so the per-trade table renders identically for the CSV and PDF flows.
+ */
+function txToAuditRow(tx: Transaction): PdfAuditRow {
+  return {
+    date: isoDate(tx.transactionDate),
+    action: tx.action,
+    ticker: tx.ticker,
+    isin: tx.isin,
+    securityName: tx.securityName,
+    shares: tx.shares,
+    pricePerShare: tx.pricePerShare,
+    currency: tx.priceCurrency,
+    amountOriginal: tx.totalAmountOriginal,
+    exchangeRateToLocal: tx.exchangeRateToLocal,
+    amountLocal: tx.totalAmountLocal,
+    withholdingTaxOriginal: tx.withholdingTaxOriginal,
+    withholdingTaxLocal: tx.withholdingTaxLocal,
+  };
+}
+
+/**
  * Generates the audit-trail CSV string for a finished tax calculation.
  *
  * The file is: a title + meta block, then a detail table (one row per trade when
@@ -207,7 +242,7 @@ export function generateAuditTrailCsv(
   input: AuditTrailCsvInput,
   labels: AuditTrailCsvLabels,
 ): string {
-  const { result, securities, transactions, taxYear, fileName, brokerLabel } = input;
+  const { result, securities, transactions, pdfTrades, pdfNetFromOverview, taxYear, fileName, brokerLabel } = input;
   const lines: string[] = [];
 
   // --- Title + meta block (label/value pairs) ---
@@ -216,18 +251,29 @@ export function generateAuditTrailCsv(
   lines.push(row([labels.metaTaxYear, taxYear]));
   lines.push(row([labels.metaBroker, brokerLabel]));
   lines.push(row([labels.metaMethodology, labels.methodologyNote]));
+  // Honesty note: when the PDF net gain came from the statement's overview total
+  // (mixed currencies), the per-trade rows reconcile to total proceeds but not,
+  // by sum, to the declared net gain. Say so rather than imply they reconcile.
+  if (pdfNetFromOverview) {
+    lines.push(row([labels.netSourceOverviewNote]));
+  }
   lines.push('');
 
   // --- Detail table ---
-  // CSV flow: one row per tax-relevant trade, each with its own BNR rate + date.
-  // Cash movements (deposit/withdrawal) do not feed the calculation, so they are
-  // excluded to keep the audit focused on what produced the numbers.
-  const detailTxs = transactions
-    .filter((tx) => !NON_TAX_ACTIONS.has(tx.action))
+  // One row per tax-relevant trade. The CSV flow supplies enriched transactions;
+  // the PDF flow supplies engine-built audit rows. Both normalize to the same
+  // shape so the columns are identical across flows. Cash movements
+  // (deposit/withdrawal) never feed the calculation, so they are excluded.
+  // `.slice()` guards the caller's `pdfTrades` array from the in-place sort.
+  const tradeRows: PdfAuditRow[] = (
+    transactions.length > 0
+      ? transactions.filter((tx) => !NON_TAX_ACTIONS.has(tx.action)).map(txToAuditRow)
+      : (pdfTrades ?? [])
+  )
     .slice()
-    .sort((a, b) => isoDate(a.transactionDate).localeCompare(isoDate(b.transactionDate)));
+    .sort((a, b) => isoDate(a.date).localeCompare(isoDate(b.date)));
 
-  if (detailTxs.length > 0) {
+  if (tradeRows.length > 0) {
     lines.push(row([labels.tradeSectionTitle]));
     lines.push(
       row([
@@ -246,27 +292,28 @@ export function generateAuditTrailCsv(
         labels.colWhtRon,
       ]),
     );
-    for (const tx of detailTxs) {
+    for (const tr of tradeRows) {
       lines.push(
         row([
-          isoDate(tx.transactionDate),
-          actionLabel(tx.action, labels),
-          tx.ticker,
-          tx.isin,
-          tx.securityName,
-          qty(tx.shares),
-          qty(tx.pricePerShare),
-          tx.priceCurrency,
-          money(tx.totalAmountOriginal),
-          rate(tx.exchangeRateToLocal),
-          money(tx.totalAmountLocal),
-          money(tx.withholdingTaxOriginal),
-          money(tx.withholdingTaxLocal),
+          isoDate(tr.date),
+          actionLabel(tr.action, labels),
+          tr.ticker,
+          tr.isin,
+          tr.securityName,
+          qty(tr.shares),
+          qty(tr.pricePerShare),
+          tr.currency,
+          money(tr.amountOriginal),
+          rate(tr.exchangeRateToLocal),
+          money(tr.amountLocal),
+          money(tr.withholdingTaxOriginal),
+          money(tr.withholdingTaxLocal),
         ]),
       );
     }
   } else {
-    // PDF flow: no per-trade list, so emit the per-security breakdown (RON).
+    // Fallback: no per-trade rows at all (e.g. a PDF parsed to only an overview
+    // total), so emit the per-security breakdown (RON).
     lines.push(row([labels.perSecuritySectionTitle]));
     lines.push(
       row([

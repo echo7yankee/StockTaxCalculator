@@ -1,3 +1,5 @@
+import type { TransactionAction } from './transaction.js';
+
 export interface TaxYear {
   id: string;
   userId: string;
@@ -55,6 +57,48 @@ export interface SecurityBreakdown {
   realizedGainLoss: number;
   totalDividends: number;
   totalWithholdingTax: number;
+}
+
+/**
+ * One row in the PDF flow's per-trade audit trail. The Trading212 Annual
+ * Statement PDF reports closed positions (each with a pre-computed result) and
+ * dividend payments rather than raw buy/sell transactions, so
+ * `calculateTaxesFromPdf` emits one of these per sell trade and per
+ * dividend/distribution, each carrying the exact BNR rate the engine applied and
+ * the resulting RON amount. The audit serializer renders these with the SAME
+ * columns as the CSV flow's per-trade rows, so the recommended (PDF) path gets
+ * the same "which trade, which rate, which RON amount" breakdown the CSV path
+ * already has, instead of only a per-security summary.
+ *
+ * Shaped to mirror the per-trade columns: for a sell, `amountOriginal` is the
+ * sale proceeds in `currency` and `amountLocal` is those proceeds in RON; for a
+ * dividend, `amountOriginal`/`amountLocal` are the gross dividend and the
+ * `withholdingTax*` fields carry the foreign tax withheld at source.
+ */
+export interface PdfAuditRow {
+  /** Execution date (sell) or pay date (dividend), ISO `YYYY-MM-DD` when parseable, else the raw statement value. */
+  date: string;
+  /** Only 'sell' or 'dividend' are emitted from the PDF flow. */
+  action: TransactionAction;
+  ticker: string;
+  isin: string;
+  securityName: string;
+  /** Shares sold (sell); 0 for dividends. */
+  shares: number;
+  /** Execution price per share in the instrument currency (sell); 0 for dividends. */
+  pricePerShare: number;
+  /** The currency `amountOriginal` is denominated in. */
+  currency: string;
+  /** Sale proceeds (sell) or gross dividend (dividend), in `currency`. */
+  amountOriginal: number;
+  /** The BNR rate the engine applied to convert `amountOriginal` to RON. */
+  exchangeRateToLocal: number;
+  /** `amountOriginal` converted to RON at `exchangeRateToLocal`. */
+  amountLocal: number;
+  /** Foreign tax withheld at source, in `currency` (dividends; 0 for sells). */
+  withholdingTaxOriginal: number;
+  /** Withholding tax converted to RON. */
+  withholdingTaxLocal: number;
 }
 
 export interface ManualCalculatorInput {

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { generateAuditTrailCsv, type AuditTrailCsvLabels } from '../auditTrailCsv.js';
 import { calculateTaxes } from '../taxCalculator.js';
 import { getTaxConfigForYear, romaniaTaxConfig } from '../../taxRules/index.js';
-import type { TaxCalculationResult, SecurityBreakdown } from '../../types/tax.js';
+import type { TaxCalculationResult, SecurityBreakdown, PdfAuditRow } from '../../types/tax.js';
 import type { Transaction, TransactionAction } from '../../types/transaction.js';
 
 /**
@@ -18,6 +18,7 @@ function makeLabels(): AuditTrailCsvLabels {
     metaBroker: 'Broker',
     metaMethodology: 'Methodology',
     methodologyNote: 'per-date gains, annual-avg dividends; amounts in RON',
+    netSourceOverviewNote: 'NET_FROM_OVERVIEW_NOTE',
     tradeSectionTitle: 'TRADES',
     perSecuritySectionTitle: 'SECURITIES',
     summaryTitle: 'SUMMARY',
@@ -138,6 +139,25 @@ function makeSec(over: Partial<SecurityBreakdown> = {}): SecurityBreakdown {
     realizedGainLoss: 750,
     totalDividends: 100,
     totalWithholdingTax: 10,
+    ...over,
+  };
+}
+
+function makePdfRow(over: Partial<PdfAuditRow> = {}): PdfAuditRow {
+  return {
+    date: '2025-03-15',
+    action: 'sell',
+    ticker: 'AAPL',
+    isin: 'US0378331005',
+    securityName: 'Apple Inc',
+    shares: 10,
+    pricePerShare: 150,
+    currency: 'USD',
+    amountOriginal: 1500,
+    exchangeRateToLocal: 4.5,
+    amountLocal: 6750,
+    withholdingTaxOriginal: 0,
+    withholdingTaxLocal: 0,
     ...over,
   };
 }
@@ -310,7 +330,87 @@ describe('generateAuditTrailCsv', () => {
     });
   });
 
-  describe('per-security detail (PDF flow, no transactions)', () => {
+  describe('per-trade detail (PDF flow, audit rows)', () => {
+    it('renders PDF audit rows as one row per trade, not per security', () => {
+      const csv = generateAuditTrailCsv(
+        {
+          result: makeResult(),
+          securities: [makeSec()],
+          transactions: [],
+          pdfTrades: [
+            makePdfRow({ action: 'sell', date: '2025-03-15', exchangeRateToLocal: 4.4705, amountLocal: 6705.75 }),
+            makePdfRow({ action: 'dividend', ticker: 'MSFT', isin: 'US5949181045', securityName: 'Microsoft', date: '2025-02-01', shares: 0, pricePerShare: 0, currency: 'USD', amountOriginal: 20, exchangeRateToLocal: 4.47, amountLocal: 89.4, withholdingTaxOriginal: 2, withholdingTaxLocal: 8.94 }),
+          ],
+          taxYear: 2025,
+          fileName: 'statement.pdf',
+          brokerLabel: 'Trading 212',
+        },
+        labels,
+      );
+      const r = rows(csv);
+      // The recommended (PDF) path now gets the per-trade table, not per-security.
+      expect(r).toContain('TRADES');
+      expect(r).not.toContain('SECURITIES');
+      expect(r).toContain('Date,Type,Ticker,ISIN,Name,Shares,Price,Currency,AmountOrig,BnrRate,AmountRon,WhtOrig,WhtRon');
+      // Sorted ascending: the Feb dividend precedes the Mar sell.
+      const divIdx = r.findIndex((l) => l.startsWith('2025-02-01'));
+      const sellIdx = r.findIndex((l) => l.startsWith('2025-03-15'));
+      expect(divIdx).toBeGreaterThan(-1);
+      expect(sellIdx).toBeGreaterThan(divIdx);
+      // Sell row carries its own per-date BNR rate + RON amount.
+      expect(r[sellIdx]).toContain(',ACT_SELL,');
+      expect(r[sellIdx]).toContain(',4.4705,6705.75,');
+      // Dividend row carries the withholding tax in both currencies.
+      expect(r[divIdx]).toContain(',ACT_DIV,');
+      expect(r[divIdx]).toContain(',2.00,8.94');
+    });
+
+    it('adds the net-from-overview note only when pdfNetFromOverview is set', () => {
+      const withNote = generateAuditTrailCsv(
+        { result: makeResult(), securities: [], transactions: [], pdfTrades: [makePdfRow()], pdfNetFromOverview: true, taxYear: 2025, fileName: 'f', brokerLabel: 'b' },
+        labels,
+      );
+      expect(withNote).toContain('NET_FROM_OVERVIEW_NOTE');
+
+      const withoutNote = generateAuditTrailCsv(
+        { result: makeResult(), securities: [], transactions: [], pdfTrades: [makePdfRow()], taxYear: 2025, fileName: 'f', brokerLabel: 'b' },
+        labels,
+      );
+      expect(withoutNote).not.toContain('NET_FROM_OVERVIEW_NOTE');
+    });
+
+    it('prefers CSV transactions over pdfTrades when both are present', () => {
+      const csv = generateAuditTrailCsv(
+        {
+          result: makeResult(),
+          securities: [],
+          transactions: [makeTx({ securityName: 'CSV-ROW' })],
+          pdfTrades: [makePdfRow({ securityName: 'PDF-ROW' })],
+          taxYear: 2025,
+          fileName: 'f',
+          brokerLabel: 'b',
+        },
+        labels,
+      );
+      expect(csv).toContain('CSV-ROW');
+      expect(csv).not.toContain('PDF-ROW');
+    });
+
+    it('does not mutate the caller pdfTrades array when sorting', () => {
+      const pdfTrades = [
+        makePdfRow({ date: '2025-03-15', securityName: 'LATER' }),
+        makePdfRow({ date: '2025-01-02', securityName: 'EARLIER' }),
+      ];
+      generateAuditTrailCsv(
+        { result: makeResult(), securities: [], transactions: [], pdfTrades, taxYear: 2025, fileName: 'f', brokerLabel: 'b' },
+        labels,
+      );
+      // Original order preserved (the serializer sorts a copy).
+      expect(pdfTrades.map((p) => p.securityName)).toEqual(['LATER', 'EARLIER']);
+    });
+  });
+
+  describe('per-security detail (fallback: no per-trade rows)', () => {
     it('emits one row per security with RON figures', () => {
       const csv = generateAuditTrailCsv(
         {

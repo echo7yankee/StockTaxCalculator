@@ -14,6 +14,7 @@ export function buildAuditTrailCsvLabels(t: (key: string) => string): AuditTrail
     metaBroker: t('results:auditCsvBroker'),
     metaMethodology: t('results:auditCsvMethodology'),
     methodologyNote: t('results:auditCsvMethodologyNote'),
+    netSourceOverviewNote: t('results:auditCsvNetSourceOverview'),
     tradeSectionTitle: t('results:auditCsvTradesSection'),
     perSecuritySectionTitle: t('results:auditCsvSecuritiesSection'),
     summaryTitle: t('results:auditCsvSummarySection'),

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import type { Transaction, TaxCalculationResult, SecurityBreakdown, ParseResult } from '@shared/index';
+import type { Transaction, TaxCalculationResult, SecurityBreakdown, PdfAuditRow, ParseResult } from '@shared/index';
 import type { BrokerId } from '../lib/brokers';
 
 interface UploadState {
@@ -8,6 +8,10 @@ interface UploadState {
   transactions: Transaction[];
   taxResult: TaxCalculationResult | null;
   securities: SecurityBreakdown[];
+  /** Per-trade audit rows from the PDF engine; empty for the CSV flow (its `transactions` drive the audit). */
+  auditRows: PdfAuditRow[];
+  /** True when the PDF net gain was taken from the statement overview total (adds an honesty note to the audit CSV). */
+  pdfNetFromOverview: boolean;
   fileName: string;
   taxYear: number;
   /** Which broker produced the upload. Drives the beta verify-before-filing caveat. */
@@ -25,6 +29,8 @@ const defaultState: UploadState = {
   transactions: [],
   taxResult: null,
   securities: [],
+  auditRows: [],
+  pdfNetFromOverview: false,
   fileName: '',
   taxYear: new Date().getFullYear() - 1,
   broker: 'trading212',

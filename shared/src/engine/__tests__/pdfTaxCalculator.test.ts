@@ -520,4 +520,99 @@ describe('calculateTaxesFromPdf', () => {
       expect(secSum).toBeCloseTo(1300, 2);
     });
   });
+
+  describe('per-trade audit rows (moat: PDF auditability surface)', () => {
+    function makeTrade(executionTime: string, totalResult: number, isin: string, currency = 'USD'): PdfSellTrade {
+      return {
+        executionTime, instrument: isin, isin, instrumentType: 'Stock',
+        instrumentCurrency: currency, positionSize: 1, averagePrice: 100,
+        executionPrice: 100 + totalResult, fxRate: 1, transactionCurrency: currency, totalResult,
+      } as PdfSellTrade;
+    }
+    const daily = { '2025-01-10': 5.0, '2025-06-16': 4.0 };
+
+    it('emits one audit row per sell trade and per dividend', () => {
+      // Default fixture: 1 sell + 1 dividend.
+      const result = calculateTaxesFromPdf(makePdfData(), romaniaTaxConfig, 1);
+      expect(result.auditRows).toHaveLength(2);
+      const sell = result.auditRows.find((r) => r.action === 'sell')!;
+      const div = result.auditRows.find((r) => r.action === 'dividend')!;
+      expect(sell.isin).toBe('US0378331005');
+      expect(sell.amountLocal).toBeCloseTo(1550, 2); // 10 * 155 * 1
+      expect(sell.withholdingTaxLocal).toBe(0);
+      expect(div.amountOriginal).toBeCloseTo(2.5, 2);
+      expect(div.withholdingTaxOriginal).toBeCloseTo(0.38, 2);
+    });
+
+    it('also emits an audit row per distribution', () => {
+      const div: PdfDividend = {
+        instrument: 'ETF', isin: 'IE00B3RBWM25', instrumentCurrency: 'USD', issuingCountry: 'IE',
+        eligibleHoldings: 20, payDate: '01.09.2025', grossAmountPerShare: 0.1, grossAmount: 2,
+        fxRate: 1, grossAmountUsd: 2, whtRate: '0%', whtUsd: 0, netAmountUsd: 2,
+      } as PdfDividend;
+      const result = calculateTaxesFromPdf(makePdfData({ dividends: [], distributions: [div] }), romaniaTaxConfig, 1);
+      expect(result.auditRows.some((r) => r.action === 'dividend' && r.isin === 'IE00B3RBWM25')).toBe(true);
+    });
+
+    it('each sell row carries the per-trade-date BNR rate the engine applied', () => {
+      const data = makePdfData({
+        sellTrades: [makeTrade('10.01.2025 10:00', 100, 'US0000000001'), makeTrade('16.06.2025 10:00', 200, 'US0000000002')],
+        overview: { closedResult: 300, currency: 'USD' } as PdfParseResult['overview'],
+        dividends: [], distributions: [],
+      });
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 4.5, daily);
+      const r1 = result.auditRows.find((r) => r.isin === 'US0000000001')!;
+      const r2 = result.auditRows.find((r) => r.isin === 'US0000000002')!;
+      expect(r1.date).toBe('2025-01-10');
+      expect(r1.exchangeRateToLocal).toBe(5.0);
+      expect(r1.amountLocal).toBeCloseTo(200 * 5.0, 2); // proceeds = 1*(100+100)*1 = 200, * 5.0
+      expect(r2.exchangeRateToLocal).toBe(4.0);
+      expect(r2.amountLocal).toBeCloseTo(300 * 4.0, 2); // proceeds = 1*(100+200)*1 = 300, * 4.0
+    });
+
+    it('sell proceeds rows reconcile to total proceeds', () => {
+      const data = makePdfData({
+        sellTrades: [makeTrade('10.01.2025 10:00', 100, 'US0000000001'), makeTrade('16.06.2025 10:00', 200, 'US0000000002')],
+        overview: { closedResult: 300, currency: 'USD' } as PdfParseResult['overview'],
+        dividends: [], distributions: [],
+      });
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 4.5, daily);
+      const proceedsSum = result.auditRows.filter((r) => r.action === 'sell').reduce((s, r) => s + r.amountLocal, 0);
+      expect(proceedsSum).toBeCloseTo(result.taxResult.capitalGains.totalProceeds, 2);
+    });
+
+    it('netFromOverview is false on the per-trade-date branch, true on the mixed-currency branch', () => {
+      const perTrade = calculateTaxesFromPdf(makePdfData({
+        sellTrades: [makeTrade('10.01.2025 10:00', 100, 'US0000000001')],
+        overview: { closedResult: 100, currency: 'USD' } as PdfParseResult['overview'],
+        dividends: [], distributions: [],
+      }), romaniaTaxConfig, 4.5, daily);
+      expect(perTrade.netFromOverview).toBe(false);
+
+      const mixed = calculateTaxesFromPdf(makePdfData({
+        sellTrades: [makeTrade('10.01.2025 10:00', 100, 'US0000000001', 'USD'), makeTrade('16.06.2025 10:00', -50, 'IE0000000001', 'EUR')],
+        overview: { closedResult: 460, currency: 'RON' } as PdfParseResult['overview'],
+        dividends: [], distributions: [],
+      }), romaniaTaxConfig, 2, daily);
+      expect(mixed.netFromOverview).toBe(true);
+    });
+
+    it('dividend rows use the annual-average rate even with a daily map', () => {
+      const div: PdfDividend = {
+        instrument: 'DIV', isin: 'US0000000099', instrumentCurrency: 'USD', issuingCountry: 'US',
+        eligibleHoldings: 1, payDate: '15.06.2025', grossAmountPerShare: 10, grossAmount: 10,
+        fxRate: 1, grossAmountUsd: 10, whtRate: '10%', whtUsd: 1, netAmountUsd: 9,
+      } as PdfDividend;
+      const data = makePdfData({
+        sellTrades: [makeTrade('10.01.2025 10:00', 100, 'US0000000001')],
+        overview: { closedResult: 100, currency: 'USD' } as PdfParseResult['overview'],
+        dividends: [div], distributions: [],
+      });
+      const result = calculateTaxesFromPdf(data, romaniaTaxConfig, 4.5, daily);
+      const divRow = result.auditRows.find((r) => r.action === 'dividend')!;
+      expect(divRow.exchangeRateToLocal).toBe(4.5); // annual avg, not a daily rate
+      expect(divRow.amountLocal).toBeCloseTo(45, 2); // 10 * 4.5
+      expect(divRow.withholdingTaxLocal).toBeCloseTo(4.5, 2); // 1 * 4.5
+    });
+  });
 });

@@ -13,7 +13,7 @@
  * - Build per-security breakdown
  */
 
-import type { TaxCalculationResult, SecurityBreakdown } from '../types/tax.js';
+import type { TaxCalculationResult, SecurityBreakdown, PdfAuditRow } from '../types/tax.js';
 import type { CountryTaxConfig } from '../types/country.js';
 import type { PdfParseResult, PdfDividend } from '../parsers/trading212Pdf.js';
 import { makeRateLookup } from './bnrEnrichment.js';
@@ -22,16 +22,34 @@ export interface PdfTaxEngineResult {
   taxResult: TaxCalculationResult;
   securities: SecurityBreakdown[];
   warnings: string[];
+  /**
+   * One audit row per sell trade and per dividend/distribution, each with the
+   * BNR rate the engine actually applied + the resulting RON amount. Built in
+   * the same loops that feed the aggregation, so the rows ARE the computation
+   * (not a re-derivation), which is the point of an audit trail. Powers the
+   * per-trade audit-CSV download on the recommended (PDF) path.
+   */
+  auditRows: PdfAuditRow[];
+  /**
+   * True when the net capital gain was taken from the statement's overview total
+   * at the annual-average rate (mixed transaction currencies, or trade currency
+   * != overview currency) rather than summed per-trade at each date's rate. When
+   * true the per-trade `auditRows` still reconcile to total proceeds, but their
+   * results do NOT sum to the declared net gain; the audit CSV surfaces a note
+   * so the breakdown is honest about how the net was derived.
+   */
+  netFromOverview: boolean;
 }
 
 /**
- * Extracts the calendar date from a Trading212 sell-trade `executionTime`
- * (e.g. "22.01.2025 19:16" or bare "15.03.2025") as an ISO `YYYY-MM-DD` string
- * for BNR per-date rate lookup. Returns null when no `DD.MM.YYYY` date is
- * present, in which case the caller falls back to the annual-average rate.
+ * Extracts the calendar date from a Trading212 `DD.MM.YYYY` field (a sell trade's
+ * `executionTime` like "22.01.2025 19:16" or "15.03.2025", or a dividend's
+ * `payDate`) as an ISO `YYYY-MM-DD` string for BNR per-date rate lookup and the
+ * audit trail. Returns null when no `DD.MM.YYYY` date is present, in which case
+ * the caller falls back to the annual-average rate.
  */
-function executionDateToIso(executionTime: string): string | null {
-  const m = /(\d{2})\.(\d{2})\.(\d{4})/.exec(executionTime);
+function t212DateToIso(dateField: string): string | null {
+  const m = /(\d{2})\.(\d{2})\.(\d{4})/.exec(dateField);
   return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
 }
 
@@ -53,13 +71,18 @@ export function calculateTaxesFromPdf(
   const dailyLookup = dailyRates ? makeRateLookup(dailyRates) : null;
   const sellTradeRate = (trade: { executionTime: string }): number => {
     if (!dailyLookup) return exchangeRate;
-    const iso = executionDateToIso(trade.executionTime);
+    const iso = t212DateToIso(trade.executionTime);
     const rate = iso ? dailyLookup(iso) : null;
     return rate ?? exchangeRate;
   };
 
   // Build per-security breakdown from sell trades + dividends + distributions
   const secMap = new Map<string, SecurityBreakdown>();
+
+  // Per-trade audit rows, collected in the SAME loops that feed the aggregation
+  // so each row carries the exact rate + RON amount the engine used (no separate
+  // re-derivation that could drift from the computed numbers).
+  const auditRows: PdfAuditRow[] = [];
 
   function getOrCreate(isin: string, ticker: string, name: string): SecurityBreakdown {
     const key = isin || ticker;
@@ -89,7 +112,8 @@ export function calculateTaxesFromPdf(
   for (const trade of pdfData.sellTrades) {
     const sec = getOrCreate(trade.isin, trade.instrument, trade.instrument);
     const rate = sellTradeRate(trade);
-    const proceeds = trade.positionSize * trade.executionPrice * (trade.fxRate || 1) * rate;
+    const proceedsOriginal = trade.positionSize * trade.executionPrice * (trade.fxRate || 1);
+    const proceeds = proceedsOriginal * rate;
     const costBasis = proceeds - (trade.totalResult * rate);
 
     sec.totalSoldShares += trade.positionSize;
@@ -100,6 +124,22 @@ export function calculateTaxesFromPdf(
 
     totalProceeds += proceeds;
     totalCostBasis += costBasis;
+
+    auditRows.push({
+      date: t212DateToIso(trade.executionTime) ?? trade.executionTime,
+      action: 'sell',
+      ticker: trade.instrument,
+      isin: trade.isin,
+      securityName: trade.instrument,
+      shares: trade.positionSize,
+      pricePerShare: trade.executionPrice,
+      currency: trade.transactionCurrency,
+      amountOriginal: round2(proceedsOriginal),
+      exchangeRateToLocal: rate,
+      amountLocal: round2(proceeds),
+      withholdingTaxOriginal: 0,
+      withholdingTaxLocal: 0,
+    });
   }
 
   // Process dividends
@@ -116,6 +156,22 @@ export function calculateTaxesFromPdf(
 
     totalDividends += gross;
     totalWithholdingTax += wht;
+
+    auditRows.push({
+      date: t212DateToIso(div.payDate) ?? div.payDate,
+      action: 'dividend',
+      ticker: div.instrument,
+      isin: div.isin,
+      securityName: div.instrument,
+      shares: 0,
+      pricePerShare: 0,
+      currency: div.instrumentCurrency,
+      amountOriginal: round2(div.grossAmountUsd),
+      exchangeRateToLocal: exchangeRate,
+      amountLocal: round2(gross),
+      withholdingTaxOriginal: round2(div.whtUsd),
+      withholdingTaxLocal: round2(wht),
+    });
   };
 
   for (const div of pdfData.dividends) processDividend(div);
@@ -134,6 +190,9 @@ export function calculateTaxesFromPdf(
   // transaction currencies (Paul Adam: USD + EUR + RON rows) or trade currency
   // not matching overview currency (e.g. RO user holding only USD instruments).
   let closedResultLocal: number;
+  // Tracks whether the declared net gain came from the overview total (annual
+  // rate) instead of the per-trade-date sum, so the audit trail can say so.
+  let netFromOverview = false;
   if (pdfData.sellTrades.length === 0) {
     closedResultLocal = 0;
   } else {
@@ -151,6 +210,7 @@ export function calculateTaxesFromPdf(
       // can only take the single annual-average rate (mixed-currency, or
       // trade-currency != overview-currency cases).
       closedResultLocal = (pdfData.overview.closedResult ?? 0) * exchangeRate;
+      netFromOverview = true;
     }
   }
   const netGains = Math.max(0, closedResultLocal);
@@ -261,7 +321,7 @@ export function calculateTaxesFromPdf(
     }
   }
 
-  return { taxResult, securities, warnings };
+  return { taxResult, securities, warnings, auditRows, netFromOverview };
 }
 
 function round2(n: number): number {

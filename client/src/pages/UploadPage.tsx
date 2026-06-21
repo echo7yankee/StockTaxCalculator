@@ -251,6 +251,10 @@ export default function UploadPage() {
       transactions: enrichedTransactions,
       taxResult,
       securities,
+      // CSV flow: the per-trade audit is built from `transactions`; clear any PDF
+      // audit rows left from a prior upload in the same session.
+      auditRows: [],
+      pdfNetFromOverview: false,
       fileName,
       taxYear: selectedYear,
       broker,
@@ -280,7 +284,7 @@ export default function UploadPage() {
       // current rates; 2026+ falls back to the latest engine-supported year until
       // its rates are signed off (TAX_YEARS[year].engineSupported gate).
       const yearConfig = getTaxConfigForYear(countryConfig, pdfData.year);
-      const { taxResult, securities, warnings: engineWarnings } = calculateTaxesFromPdf(pdfData, yearConfig, rate, dailyRates);
+      const { taxResult, securities, warnings: engineWarnings, auditRows, netFromOverview } = calculateTaxesFromPdf(pdfData, yearConfig, rate, dailyRates);
 
       // Engine-emitted warnings (sign + magnitude mismatch) reach the operator
       // through the same channel as parser warnings, but tagged separately so
@@ -307,6 +311,8 @@ export default function UploadPage() {
         transactions: [],
         taxResult,
         securities,
+        auditRows,
+        pdfNetFromOverview: netFromOverview,
         fileName: preview.fileName,
         taxYear: pdfData.year,
         broker: 'trading212',

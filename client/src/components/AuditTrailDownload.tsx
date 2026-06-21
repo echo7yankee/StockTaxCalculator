@@ -6,6 +6,7 @@ import {
   type TaxCalculationResult,
   type SecurityBreakdown,
   type Transaction,
+  type PdfAuditRow,
 } from '@shared/index';
 import { analytics } from '../lib/analytics';
 import { buildAuditTrailCsvLabels } from '../utils/auditCsvLabels';
@@ -14,6 +15,10 @@ interface Props {
   result: TaxCalculationResult;
   securities: SecurityBreakdown[];
   transactions: Transaction[];
+  /** Per-trade audit rows for the PDF flow (the CSV flow drives the audit from `transactions`). */
+  pdfTrades?: PdfAuditRow[];
+  /** True when the PDF net gain came from the statement overview total (adds an honesty note). */
+  pdfNetFromOverview?: boolean;
   taxYear: number;
   fileName: string;
   brokerLabel: string;
@@ -40,8 +45,9 @@ function downloadCsv(csv: string, fileName: string): void {
  * "Download audit trail (.csv)" action.
  *
  * Surfaces the engine's determinism as a downloadable, ANAF-defensible breakdown:
- * one row per trade (CSV flow, each with its own BNR rate + date) or per security
- * (PDF flow), plus a summary that reconciles to the on-screen numbers. The CSV is
+ * one row per trade (both flows: the CSV flow from its transactions, the PDF flow
+ * from the engine's per-trade audit rows, each with its own BNR rate + date),
+ * plus a summary that reconciles to the on-screen numbers. The CSV is
  * built ENTIRELY in the browser from the already-computed result; nothing is sent
  * to the server. Like {@link D212Download}, this carries engine output, so the
  * caller renders it only on the paid ResultsPage and only on a clean parse (the
@@ -51,6 +57,8 @@ export default function AuditTrailDownload({
   result,
   securities,
   transactions,
+  pdfTrades,
+  pdfNetFromOverview,
   taxYear,
   fileName,
   brokerLabel,
@@ -60,7 +68,7 @@ export default function AuditTrailDownload({
 
   const handleDownload = () => {
     const csv = generateAuditTrailCsv(
-      { result, securities, transactions, taxYear, fileName, brokerLabel },
+      { result, securities, transactions, pdfTrades, pdfNetFromOverview, taxYear, fileName, brokerLabel },
       buildAuditTrailCsvLabels(t),
     );
     downloadCsv(csv, `InvesTax-audit-${taxYear}.csv`);
