@@ -45,6 +45,14 @@ export default defineConfig({
   },
   test: {
     globals: true,
+    // Cap the worker pool. Vitest sizes its fork pool to the CPU thread count
+    // by default; on a high-core dev machine that spawns 20+ Node processes,
+    // each re-loading the full module graph (React + happy-dom + pdfjs-dist +
+    // jspdf here, the heaviest of the three workspaces), which saturates RAM.
+    // CI runners are 4 vCPU so this is a no-op there. See
+    // shared/vitest.config.ts for the full rationale.
+    pool: 'forks',
+    poolOptions: { forks: { maxForks: 4, minForks: 1 } },
     environment: 'happy-dom',
     setupFiles: ['./src/test/setup.ts'],
     css: true,
