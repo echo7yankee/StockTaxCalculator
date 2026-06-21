@@ -516,6 +516,36 @@ describe('generateAuditTrailCsv', () => {
       expect(csv).toContain("'@SUM(1)");
     });
 
+    it('neutralizes a formula-triggering date in column A (PDF raw-date fallback)', () => {
+      // A trade date that fails the parser regex falls through isoDate() verbatim
+      // and lands in column A, the most-read cell.
+      const csv = generateAuditTrailCsv(
+        { result: makeResult(), securities: [], transactions: [], pdfTrades: [makePdfRow({ date: '=cmd|calc' })], taxYear: 2025, fileName: 'f', brokerLabel: 'b' },
+        labels,
+      );
+      const tradeRow = rows(csv).find((l) => l.includes('ACT_SELL'))!;
+      expect(tradeRow.startsWith("'=cmd|calc,")).toBe(true);
+    });
+
+    it('neutralizes a formula-triggering malformed date in column A (CSV flow)', () => {
+      const csv = generateAuditTrailCsv(
+        { result: makeResult(), securities: [], transactions: [makeTx({ transactionDate: '@SUM(1)' as unknown as Date })], taxYear: 2025, fileName: 'f', brokerLabel: 'b' },
+        labels,
+      );
+      const tradeRow = rows(csv).find((l) => l.includes('ACT_SELL'))!;
+      expect(tradeRow.startsWith("'@SUM(1),")).toBe(true);
+    });
+
+    it('does NOT prefix a valid ISO date (column A happy path, no regression)', () => {
+      const csv = generateAuditTrailCsv(
+        { result: makeResult(), securities: [], transactions: [makeTx({ transactionDate: new Date('2025-03-15T00:00:00Z') })], taxYear: 2025, fileName: 'f', brokerLabel: 'b' },
+        labels,
+      );
+      const tradeRow = rows(csv).find((l) => l.includes('ACT_SELL'))!;
+      expect(tradeRow.startsWith('2025-03-15,')).toBe(true);
+      expect(tradeRow).not.toContain("'2025");
+    });
+
     it('composes with RFC-4180 quoting (leading trigger + embedded comma)', () => {
       const csv = generateAuditTrailCsv(
         { result: makeResult(), securities: [], transactions: [makeTx({ securityName: '=HYPERLINK("http://x"),Y' })], taxYear: 2025, fileName: 'f', brokerLabel: 'b' },

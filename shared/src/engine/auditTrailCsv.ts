@@ -168,10 +168,13 @@ function csvField(value: string): string {
  * marker (hidden in the cell) without changing the visible value.
  *
  * Applied ONLY to strings that originate OUTSIDE this module: the parsed
- * statement's ticker / ISIN / name / currency and the user's file + broker labels.
- * Numbers are formatted by this module and must NOT pass through here -- a
- * legitimate negative amount like `-750.50` starts with `-` but is data, not a
- * formula, and prefixing it would corrupt the column for spreadsheet math.
+ * statement's ticker / ISIN / name / currency, the trade date when it is an
+ * unparseable raw passthrough (see {@link isoDate} -- a real `YYYY-MM-DD` leads
+ * with a digit, so only the raw fallback is ever prefixed), and the user's file +
+ * broker labels. Numbers are formatted by this module and must NOT pass through
+ * here -- a legitimate negative amount like `-750.50` starts with `-` but is
+ * data, not a formula, and prefixing it would corrupt the column for spreadsheet
+ * math.
  */
 function freeText(value: string): string {
   return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
@@ -317,7 +320,10 @@ export function generateAuditTrailCsv(
     for (const tr of tradeRows) {
       lines.push(
         row([
-          isoDate(tr.date),
+          // The date is column A and derives from raw parsed-statement text; when
+          // it fails the parser's date regex it falls through isoDate() verbatim,
+          // so it needs the same formula guard as the other untrusted cells.
+          freeText(isoDate(tr.date)),
           actionLabel(tr.action, labels),
           freeText(tr.ticker),
           freeText(tr.isin),
