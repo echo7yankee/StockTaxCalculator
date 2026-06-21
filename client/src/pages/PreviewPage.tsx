@@ -96,6 +96,10 @@ export default function PreviewPage() {
   const yearSupported = yearConfig?.engineSupported === true;
   const historyBlocked = csvHistoryWarning && preview?.fileType === 'csv';
   const hasWarnings = (preview?.warnings.length ?? 0) > 0;
+  // The uploaded PDF is not a Trading212 statement (e.g. an Interactive Brokers
+  // PDF). Show a dedicated localized redirect to the CSV export instead of the
+  // raw English "no sell trades / defaulted year" parser warning.
+  const pdfBrokerMismatch = preview?.fileType === 'pdf' && preview.brokerMismatch;
   const verdict: Verdict = preview
     ? resolveVerdict({ historyBlocked: !!historyBlocked, hasWarnings, yearSupported })
     : 'green';
@@ -393,8 +397,24 @@ export default function PreviewPage() {
             )}
           </div>
 
-          {/* Parser warnings */}
-          {hasWarnings && (
+          {/* Broker mismatch: the PDF is not a Trading212 statement (e.g. IBKR).
+              Lead with a clear localized redirect to the CSV export instead of
+              the raw English parser warning. */}
+          {pdfBrokerMismatch && (
+            <div className="p-5 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-400 dark:border-amber-600 rounded-xl" data-testid="pdf-broker-mismatch">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-6 h-6 text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-amber-800 dark:text-amber-300 font-bold text-base mb-2">{t('pdfBrokerMismatchTitle')}</p>
+                  <p className="text-sm text-amber-700 dark:text-amber-400">{t('pdfBrokerMismatchBody')}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Parser warnings (suppressed on a broker mismatch: the callout above
+              already carries the only warning in a clearer, localized form). */}
+          {hasWarnings && !pdfBrokerMismatch && (
             <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl">
               <div className="flex items-center gap-2 mb-2">
                 <AlertTriangle className="w-4 h-4 text-yellow-600" />
@@ -414,13 +434,23 @@ export default function PreviewPage() {
                 <div>
                   <p className="text-red-700 dark:text-red-400 font-bold text-base mb-2">{t('csvHistoryBlockTitle')}</p>
                   <p className="text-sm text-red-600 dark:text-red-400 mb-3">{t('csvMissingHistoryWarning')}</p>
-                  <p className="text-sm text-red-600 dark:text-red-400 font-medium">{t('csvHistoryBlockAction')}</p>
+                  <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+                    {previewBroker === 'ibkr'
+                      ? t('csvHistoryBlockActionIbkr')
+                      : previewBroker === 'revolut'
+                        ? t('csvHistoryBlockActionRevolut')
+                        : t('csvHistoryBlockAction')}
+                  </p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Support verdict (the bit UploadPage lacks): broker status + year support */}
+          {/* Support verdict (the bit UploadPage lacks): broker status + year
+              support. Hidden on a broker mismatch, where a "Trading 212: trusted"
+              line would be misleading for a non-T212 PDF (the callout above is the
+              verdict for that case). */}
+          {!pdfBrokerMismatch && (
           <div
             className={`card border ${
               verdict === 'green'
@@ -488,6 +518,7 @@ export default function PreviewPage() {
               </span>
             </div>
           </div>
+          )}
 
           {/* CTA: unlock (clean + supported) OR lead capture (warnings / unsupported) */}
           {canUnlock ? (

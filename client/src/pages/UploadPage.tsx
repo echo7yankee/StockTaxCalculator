@@ -658,7 +658,13 @@ export default function UploadPage() {
                 <div>
                   <p className="text-red-700 dark:text-red-400 font-bold text-base mb-2">{t('csvHistoryBlockTitle')}</p>
                   <p className="text-sm text-red-600 dark:text-red-400 mb-3">{t('csvMissingHistoryWarning')}</p>
-                  <p className="text-sm text-red-600 dark:text-red-400 font-medium">{t('csvHistoryBlockAction')}</p>
+                  <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+                    {csvBroker === 'ibkr'
+                      ? t('csvHistoryBlockActionIbkr')
+                      : csvBroker === 'revolut'
+                        ? t('csvHistoryBlockActionRevolut')
+                        : t('csvHistoryBlockAction')}
+                  </p>
                 </div>
               </div>
             </div>

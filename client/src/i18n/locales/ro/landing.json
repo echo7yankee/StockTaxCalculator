@@ -25,5 +25,7 @@
   "founderBio": "Sunt Dragos Ifrim, dezvoltator român cu peste 7 ani de experiență. Anul trecut am depus singur la ANAF pe calea dureroasă: scotocind prin extrasele Trading212, verificând cursurile BNR rând cu rând, recalculând pragurile CASS. A fost dureros și predispus la erori. Am construit InvesTax ca să nu mai trec prin asta din nou, și ca să scutesc fiecare investitor român care depune declarația fiscală.",
   "supportedBrokers": "Brokeri suportați",
   "comingSoon": "în curând",
-  "beta": "beta"
+  "beta": "beta",
+  "brokerCheckText": "Nu ești sigur că extrasul tău funcționează?",
+  "brokerCheckCta": "Verifică-l gratuit înainte să plătești"
 }

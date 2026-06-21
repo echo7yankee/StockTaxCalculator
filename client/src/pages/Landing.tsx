@@ -116,6 +116,12 @@ export default function Landing() {
             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-semibold uppercase tracking-wide">{t('beta')}</span>
           </span>
         </div>
+        <p className="mt-8 text-sm text-gray-600 dark:text-slate-400">
+          {t('brokerCheckText')}{' '}
+          <Link to="/verifica-extras" className="text-accent dark:text-accent-light font-medium underline hover:no-underline">
+            {t('brokerCheckCta')}
+          </Link>
+        </p>
       </section>
     </div>
   );

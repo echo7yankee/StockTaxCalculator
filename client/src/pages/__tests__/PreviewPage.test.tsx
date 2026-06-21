@@ -300,6 +300,45 @@ describe('PreviewPage - support verdict', () => {
   });
 });
 
+describe('PreviewPage - PDF broker mismatch (non-Trading212 PDF)', () => {
+  it('shows the localized redirect, hides the verdict card, offers no unlock, suppresses the raw warning', async () => {
+    // A non-T212 PDF (e.g. an IBKR Activity Statement PDF) parses to zero rows
+    // with brokerMismatch true. The page must lead with a clear localized
+    // "use the CSV export" redirect instead of the raw English parser warning,
+    // and must NOT show a misleading "Trading 212: full support" verdict line.
+    sharedExports.parseTrading212AnnualStatement.mockReturnValueOnce(
+      makePdfParseResult({
+        brokerMismatch: true,
+        sellTrades: [],
+        dividends: [],
+        distributions: [],
+        warnings: [
+          'This does not look like a Trading 212 statement (no recognizable sections found). If it is an Interactive Brokers statement, upload its CSV Activity Statement instead.',
+        ],
+      }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.upload(findHiddenFileInput(container), makePdfFile('ibkr.pdf'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('pdf-broker-mismatch')).toBeInTheDocument();
+    });
+    // Localized redirect copy (EN locale in tests), pointing at the CSV export.
+    expect(screen.getByText('This does not look like a Trading 212 statement')).toBeInTheDocument();
+    expect(screen.getByText(/export the CSV \(Activity Statement\)/i)).toBeInTheDocument();
+    // The misleading broker/year verdict card is hidden for a mismatch.
+    expect(screen.queryByTestId('support-verdict')).not.toBeInTheDocument();
+    // No pay button; the lead-capture / contact path is offered instead.
+    expect(screen.queryByTestId('preview-unlock-cta')).not.toBeInTheDocument();
+    expect(screen.getByTestId('preview-contact-cta')).toBeInTheDocument();
+    // The raw English parser warning is NOT rendered as a separate warnings list.
+    expect(screen.queryByText('Warnings')).not.toBeInTheDocument();
+    // Moat: the engine is never invoked.
+    expect(sharedExports.calculateTaxesFromPdf).not.toHaveBeenCalled();
+  });
+});
+
 describe('PreviewPage - analytics', () => {
   it('fires preview_started when a parse begins', async () => {
     const user = userEvent.setup();

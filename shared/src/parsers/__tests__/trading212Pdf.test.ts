@@ -404,4 +404,61 @@ describe('parseTrading212AnnualStatement', () => {
       expect(result.warnings.some(w => w.includes('No Invest account section'))).toBe(false);
     });
   });
+
+  // ─── Broker mismatch: a non-Trading212 PDF (Mihai 2026-06-20) ───
+  // The 3rd paying customer uploaded a 42-page Interactive Brokers PDF and saw a
+  // confusing "0 sells / defaulted 2025". A PDF carrying NONE of the recognizable
+  // Trading212 markers and zero parsed rows is flagged so the UI can redirect the
+  // user to the CSV export instead of showing a bare zero.
+  describe('broker mismatch detection (non-Trading212 PDF)', () => {
+    // No Annual-Statement header, no T212 section keywords, no Invest/CFD/Crypto
+    // anchor, mimicking an IBKR Activity Statement PDF.
+    const ibkrLikePage = [
+      'Interactive Brokers LLC',
+      'Activity Statement',
+      'Account U1234567',
+      'Realized & Unrealized Performance Summary',
+      'Symbol\tQuantity\tProceeds\tCost Basis\tRealized P/L',
+      'AAPL\t10\t1500.00\t1300.00\t200.00',
+    ].join('\n');
+
+    it('flags brokerMismatch with a single clear redirect warning', () => {
+      const result = parseTrading212AnnualStatement([ibkrLikePage]);
+      expect(result.brokerMismatch).toBe(true);
+      expect(result.sellTrades).toHaveLength(0);
+      expect(result.dividends).toHaveLength(0);
+      expect(result.distributions).toHaveLength(0);
+      expect(result.warnings.some(w => w.includes('does not look like a Trading 212 statement'))).toBe(true);
+    });
+
+    it('replaces the generic year/section warnings, keeping exactly one (the #24A hard-stop still fires)', () => {
+      const result = parseTrading212AnnualStatement([ibkrLikePage]);
+      expect(result.warnings).toHaveLength(1);
+      expect(result.warnings.some(w => w.includes('Could not detect year'))).toBe(false);
+      expect(result.warnings.some(w => w.includes('No sell trades section'))).toBe(false);
+    });
+
+    it('does NOT flag a real Trading212 statement with sell trades', () => {
+      const result = parseTrading212AnnualStatement([overviewPage({ 'Closed result': '$250.00' }), '', sellTradesPage()]);
+      expect(result.brokerMismatch).toBe(false);
+    });
+
+    it('does NOT flag a sparse Trading212 statement carrying only the Annual Statement header', () => {
+      const result = parseTrading212AnnualStatement([overviewPage()]);
+      expect(result.brokerMismatch).toBe(false);
+      // It still gets the ordinary missing-sells warning, not the redirect.
+      expect(result.warnings.some(w => w.includes('No sell trades section'))).toBe(true);
+      expect(result.warnings.some(w => w.includes('does not look like'))).toBe(false);
+    });
+
+    it('does NOT flag a Romanian Trading212 statement carrying the Invest anchor', () => {
+      const roSparse = [
+        'Declarație anuală - 2025',
+        'Trading 212 Invest',
+        'Rezultat închis\tRON 0.00',
+      ].join('\n');
+      const result = parseTrading212AnnualStatement([roSparse]);
+      expect(result.brokerMismatch).toBe(false);
+    });
+  });
 });
