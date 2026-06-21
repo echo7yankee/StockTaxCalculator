@@ -3,6 +3,15 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     globals: true,
+    // Cap the worker pool. Vitest sizes its fork pool to the CPU thread count
+    // by default; on a high-core dev machine (e.g. a 24-thread box) that spawns
+    // 20+ Node processes for a ~15-file suite, each re-loading the full module
+    // graph (engine + fast-check here), which saturates RAM. GitHub CI runners
+    // are 4 vCPU so maxForks:4 is a no-op there and a big win locally. Raise it
+    // only if the suite grows substantially. See playwright.config.ts for the
+    // E2E (browser) equivalent.
+    pool: 'forks',
+    poolOptions: { forks: { maxForks: 4, minForks: 1 } },
     // Pick up the shared workspace's own tests AND the test-data scripts'
     // tests. test-data lives outside any workspace (no package.json of its
     // own) but its scripts are part of the test infrastructure, so we run

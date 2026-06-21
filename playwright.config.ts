@@ -24,9 +24,12 @@ export default defineConfig({
   // interleaves and Prisma throws "No record was found for an update", which
   // surfaces as an intermittent 401 on an authenticated spec (e.g. the
   // api-endpoints export-data test) and a false-red CI run (sessions #116/#120).
-  // Serializing E2E in CI removes the contention at its source. Local dev keeps
-  // default parallelism for fast feedback (process.env.CI is unset there).
-  workers: process.env.CI ? 1 : undefined,
+  // Serializing E2E in CI removes the contention at its source. Locally we cap
+  // to 2 workers rather than Playwright's default (~half the CPU threads): each
+  // worker launches its own Chromium on top of the Vite + API dev servers, so
+  // on a high-core dev machine the default fans out to ~12 browsers and is a
+  // multi-GB RAM hit. 2 keeps local feedback parallel without the storm.
+  workers: process.env.CI ? 1 : 2,
   // Insurance for residual timing nondeterminism (networkidle waits, runner
   // load). Codifies the "if a run looks like flake, retry it" policy already
   // documented in .github/workflows/ci.yml so a transient blip no longer blocks
