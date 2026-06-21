@@ -155,6 +155,28 @@ function csvField(value: string): string {
   return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
+/**
+ * Spreadsheet formula-injection guard for ONE untrusted free-text cell.
+ *
+ * A CSV cell whose first character is `=`, `+`, `-`, `@`, a tab, or a carriage
+ * return is treated as a FORMULA by Excel / LibreOffice / Google Sheets when the
+ * file is opened, so a crafted statement field (a security name) or a malicious
+ * upload filename could run a calculation (or, via legacy DDE, something worse) on
+ * the reader's machine. RFC-4180 quoting does not help: the apps evaluate the cell
+ * VALUE after CSV parsing, quoted or not. The standard mitigation (OWASP) is to
+ * prefix the value with a single quote, which those apps render as a literal-text
+ * marker (hidden in the cell) without changing the visible value.
+ *
+ * Applied ONLY to strings that originate OUTSIDE this module: the parsed
+ * statement's ticker / ISIN / name / currency and the user's file + broker labels.
+ * Numbers are formatted by this module and must NOT pass through here -- a
+ * legitimate negative amount like `-750.50` starts with `-` but is data, not a
+ * formula, and prefixing it would corrupt the column for spreadsheet math.
+ */
+function freeText(value: string): string {
+  return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+}
+
 /** Joins already-escaped or numeric cells into one CSV row. */
 function row(cells: Array<string | number>): string {
   return cells.map((c) => csvField(String(c))).join(',');
@@ -247,9 +269,9 @@ export function generateAuditTrailCsv(
 
   // --- Title + meta block (label/value pairs) ---
   lines.push(row([labels.heading]));
-  lines.push(row([labels.metaFile, fileName]));
+  lines.push(row([labels.metaFile, freeText(fileName)]));
   lines.push(row([labels.metaTaxYear, taxYear]));
-  lines.push(row([labels.metaBroker, brokerLabel]));
+  lines.push(row([labels.metaBroker, freeText(brokerLabel)]));
   lines.push(row([labels.metaMethodology, labels.methodologyNote]));
   // Honesty note: when the PDF net gain came from the statement's overview total
   // (mixed currencies), the per-trade rows reconcile to total proceeds but not,
@@ -297,12 +319,12 @@ export function generateAuditTrailCsv(
         row([
           isoDate(tr.date),
           actionLabel(tr.action, labels),
-          tr.ticker,
-          tr.isin,
-          tr.securityName,
+          freeText(tr.ticker),
+          freeText(tr.isin),
+          freeText(tr.securityName),
           qty(tr.shares),
           qty(tr.pricePerShare),
-          tr.currency,
+          freeText(tr.currency),
           money(tr.amountOriginal),
           rate(tr.exchangeRateToLocal),
           money(tr.amountLocal),
@@ -332,9 +354,9 @@ export function generateAuditTrailCsv(
     for (const sec of securities) {
       lines.push(
         row([
-          sec.ticker,
-          sec.isin,
-          sec.securityName,
+          freeText(sec.ticker),
+          freeText(sec.isin),
+          freeText(sec.securityName),
           qty(sec.totalSoldShares),
           money(sec.weightedAvgCostLocal),
           money(sec.totalProceeds),

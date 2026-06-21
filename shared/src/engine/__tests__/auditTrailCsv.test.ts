@@ -473,6 +473,77 @@ describe('generateAuditTrailCsv', () => {
     });
   });
 
+  describe('formula-injection guard (CSV injection hardening)', () => {
+    it('prefixes an apostrophe on statement fields beginning with a formula trigger', () => {
+      // Every leading char Excel / LibreOffice / Sheets would evaluate as a formula.
+      // Driven through the PDF path because PdfAuditRow.currency is a free `string`
+      // (Transaction.priceCurrency is the constrained Currency union); the per-trade
+      // rows render through the same shared freeText() call sites for both flows.
+      for (const trigger of ['=', '+', '-', '@', '\t', '\r']) {
+        const csv = generateAuditTrailCsv(
+          {
+            result: makeResult(),
+            securities: [],
+            transactions: [],
+            pdfTrades: [makePdfRow({ securityName: `${trigger}cmd`, ticker: `${trigger}T`, currency: `${trigger}X` })],
+            taxYear: 2025,
+            fileName: 'f',
+            brokerLabel: 'b',
+          },
+          labels,
+        );
+        // The dangerous value survives in the file but is neutralized as text.
+        expect(csv).toContain(`'${trigger}cmd`);
+        expect(csv).toContain(`'${trigger}T`);
+        expect(csv).toContain(`'${trigger}X`);
+      }
+    });
+
+    it('neutralizes a malicious upload filename in the meta block', () => {
+      const csv = generateAuditTrailCsv(
+        { result: makeResult(), securities: [], transactions: [], taxYear: 2025, fileName: "=cmd|'/c calc'!A1.csv", brokerLabel: 'b' },
+        labels,
+      );
+      expect(csv).toContain("File,'=cmd");
+    });
+
+    it('guards the per-security fallback fields too', () => {
+      const csv = generateAuditTrailCsv(
+        { result: makeResult(), securities: [makeSec({ ticker: '=EVIL', securityName: '@SUM(1)' })], transactions: [], taxYear: 2025, fileName: 'f', brokerLabel: 'b' },
+        labels,
+      );
+      expect(csv).toContain("'=EVIL");
+      expect(csv).toContain("'@SUM(1)");
+    });
+
+    it('composes with RFC-4180 quoting (leading trigger + embedded comma)', () => {
+      const csv = generateAuditTrailCsv(
+        { result: makeResult(), securities: [], transactions: [makeTx({ securityName: '=HYPERLINK("http://x"),Y' })], taxYear: 2025, fileName: 'f', brokerLabel: 'b' },
+        labels,
+      );
+      // Apostrophe applied first, then the whole field quoted because of the comma.
+      expect(csv).toContain('"\'=HYPERLINK(""http://x""),Y"');
+    });
+
+    it('does NOT prefix legitimate negative money columns (spreadsheet math intact)', () => {
+      const csv = generateAuditTrailCsv(
+        { result: makeResult(), securities: [makeSec({ ticker: 'AAPL', realizedGainLoss: -750.5 })], transactions: [], taxYear: 2025, fileName: 'f', brokerLabel: 'b' },
+        labels,
+      );
+      const secRow = rows(csv).find((l) => l.startsWith('AAPL,'))!;
+      expect(secRow).toContain(',-750.50,'); // stays a usable number
+      expect(secRow).not.toContain("'-750.50"); // never turned into text
+    });
+
+    it('leaves ordinary statement data untouched (no stray apostrophes)', () => {
+      const csv = generateAuditTrailCsv(
+        { result: makeResult(), securities: [], transactions: [makeTx()], taxYear: 2025, fileName: 'statement.csv', brokerLabel: 'Trading 212' },
+        labels,
+      );
+      expect(csv).not.toContain("'"); // clean data is never prefixed
+    });
+  });
+
   it('reconciles to the live engine output (audit CSV echoes the computed total)', () => {
     // End-to-end: run the real CSV engine, feed its output to the serializer, and
     // assert the summary total equals the engine total to the bani. The engine is
