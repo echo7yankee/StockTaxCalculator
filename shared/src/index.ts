@@ -25,3 +25,5 @@ export { calculateQuickTax } from './engine/quickCalculator.js';
 export type { QuickTaxInput, QuickTaxResult } from './engine/quickCalculator.js';
 export { generateD212Xml, D212_SUPPORTED_TAX_YEAR } from './engine/d212Xml.js';
 export type { D212Identity } from './engine/d212Xml.js';
+export { generateAuditTrailCsv } from './engine/auditTrailCsv.js';
+export type { AuditTrailCsvInput, AuditTrailCsvLabels } from './engine/auditTrailCsv.js';
