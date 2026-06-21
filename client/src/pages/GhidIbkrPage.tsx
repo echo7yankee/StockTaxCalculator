@@ -79,6 +79,13 @@ export default function GhidIbkrPage() {
           înainte să trimiți declarația. Dacă vezi vreun avertisment la procesare, nu depune până nu lămurim împreună
           situația. Pentru Trading212, în schimb, parserul este validat pe extrase reale.
         </p>
+        <p className="text-sm text-gray-700 dark:text-slate-300 leading-relaxed mt-3">
+          Vrei să fii sigur că îți putem citi extrasul IBKR înainte să plătești?{' '}
+          <Link to="/verifica-extras" className="text-accent dark:text-accent-light font-medium underline hover:no-underline">
+            Verifică-l gratuit
+          </Link>
+          .
+        </p>
       </section>
 
       <Section title="Ce extras scoți din IBKR și în ce format">

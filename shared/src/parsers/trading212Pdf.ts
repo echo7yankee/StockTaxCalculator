@@ -107,6 +107,19 @@ export interface PdfParseResult {
   distributions: PdfDividend[];
   year: number;
   warnings: string[];
+  /**
+   * True when the PDF has none of the recognizable Trading212 markers (no
+   * detectable year header, no sell-trades / dividend / distribution section,
+   * no Invest/CFD/Crypto account anchor) and zero parsed rows, i.e. it is almost
+   * certainly NOT a Trading212 statement. The 3rd paying customer uploaded a
+   * 42-page Interactive Brokers PDF and saw a confusing "0 sells / defaulted
+   * year"; this lets the UI redirect them to the CSV export instead. The parser
+   * always sets this, so the optional marker is just for older PdfParseResult
+   * literals in tests. When true a single clear redirect warning is emitted (so
+   * the #24A paid-path hard-stop still fires) in place of the generic
+   * year/section warnings.
+   */
+  brokerMismatch?: boolean;
 }
 
 function parseNum(s: string): number {
@@ -420,19 +433,47 @@ export function parseTrading212AnnualStatement(pageTexts: string[]): PdfParseRes
   const warnings: string[] = [];
 
   const { year, fallback: yearFallback } = detectYear(fullText);
-  if (yearFallback) {
-    warnings.push(`Could not detect year from PDF. Defaulting to ${year}.`);
-  }
   const overview = parseOverview(pageTexts[0] ?? fullText);
   const sellTrades = parseSellTrades(pageTexts);
   const dividends = parseDividendRows(pageTexts, KEYWORDS.dividendOverview);
   const distributions = parseDividendRows(pageTexts, KEYWORDS.distributionOverview);
 
-  if (sellTrades.length === 0) {
-    if (matchesAny(fullText, KEYWORDS.sellTrades)) {
-      warnings.push('Sell trades section found but no rows could be parsed. The PDF format may differ from expected.');
-    } else {
-      warnings.push('No sell trades section found in the PDF.');
+  // Broker-mismatch detection: a PDF carrying NONE of the recognizable
+  // Trading212 section markers (no sell-trades / dividend / distribution
+  // section, no Invest/CFD/Crypto account anchor) and zero parsed rows is almost
+  // certainly not a Trading212 statement (e.g. an Interactive Brokers PDF). A
+  // genuine T212 annual statement always carries at least one of these anchors,
+  // so this is safe against an empty-but-real Invest statement. When it fires we
+  // emit ONE clear redirect warning instead of the generic "Could not detect
+  // year" + "No sell trades section" pair, which together read as a confusing
+  // "0 sells / defaulted 2025" (the 3rd customer's experience). The single
+  // warning keeps the #24A paid-path hard-stop firing.
+  const brokerMismatch =
+    !matchesAny(fullText, KEYWORDS.annualStatement) &&
+    !matchesAny(fullText, KEYWORDS.sellTrades) &&
+    !matchesAny(fullText, KEYWORDS.dividendOverview) &&
+    !matchesAny(fullText, KEYWORDS.distributionOverview) &&
+    !matchesAny(fullText, KEYWORDS.investAccount) &&
+    !matchesAny(fullText, KEYWORDS.cfdAccount) &&
+    !matchesAny(fullText, KEYWORDS.cryptoAccount) &&
+    sellTrades.length === 0 &&
+    dividends.length === 0 &&
+    distributions.length === 0;
+
+  if (brokerMismatch) {
+    warnings.push(
+      'This does not look like a Trading 212 statement (no recognizable sections found). If it is an Interactive Brokers statement, upload its CSV Activity Statement instead.'
+    );
+  } else {
+    if (yearFallback) {
+      warnings.push(`Could not detect year from PDF. Defaulting to ${year}.`);
+    }
+    if (sellTrades.length === 0) {
+      if (matchesAny(fullText, KEYWORDS.sellTrades)) {
+        warnings.push('Sell trades section found but no rows could be parsed. The PDF format may differ from expected.');
+      } else {
+        warnings.push('No sell trades section found in the PDF.');
+      }
     }
   }
 
@@ -479,5 +520,5 @@ export function parseTrading212AnnualStatement(pageTexts: string[]): PdfParseRes
     }
   }
 
-  return { overview, sellTrades, dividends, distributions, year, warnings };
+  return { overview, sellTrades, dividends, distributions, year, warnings, brokerMismatch };
 }

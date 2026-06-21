@@ -31,26 +31,45 @@ import type { BrokerId } from '../lib/brokers';
 
 export type FileType = 'csv' | 'pdf';
 
-export interface PreviewData {
+/** Fields common to both statement kinds. */
+interface PreviewBase {
   fileName: string;
-  fileType: FileType;
+  warnings: string[];
+  year: number;
   sells: number;
   dividends: number;
   distributions: number;
-  warnings: string[];
-  year: number;
-  // CSV-specific
-  buys?: number;
-  totalRows?: number;
-  skipped?: number;
-  years?: number[];
+}
+
+/** A parsed CSV statement (Trading212 / IBKR / Revolut). */
+export interface CsvPreviewData extends PreviewBase {
+  fileType: 'csv';
+  buys: number;
+  totalRows: number;
+  skipped: number;
+  years: number[];
   sourceFileCount?: number;
   duplicatesRemoved?: number;
   appliedSplits?: AppliedSplit[];
-  // PDF-specific
-  closedResult?: number;
-  currency?: string;
 }
+
+/** A parsed Trading212 annual statement PDF. */
+export interface PdfPreviewData extends PreviewBase {
+  fileType: 'pdf';
+  closedResult: number;
+  currency: string;
+  /** True when the uploaded PDF is NOT a Trading212 statement (e.g. an IBKR
+   *  Activity Statement PDF). The free checker redirects to the CSV export. */
+  brokerMismatch: boolean;
+}
+
+/**
+ * Discriminated on `fileType`, so PDF-only fields (closedResult, currency,
+ * brokerMismatch) and CSV-only fields (buys, totalRows, ...) are type-safe per
+ * kind rather than all-optional. A consumer must narrow on `fileType` before
+ * touching a kind-specific field.
+ */
+export type PreviewData = CsvPreviewData | PdfPreviewData;
 
 /** Coerce a read-excel-file cell (string | number | boolean | Date | null) to a
  *  string, so the Revolut parser sees the same row shape it gets from a CSV parse.
@@ -281,6 +300,7 @@ export function useStatementPreview(options: UseStatementPreviewOptions = {}): U
         year: parsed.year,
         closedResult: parsed.overview.closedResult,
         currency: parsed.overview.currency,
+        brokerMismatch: parsed.brokerMismatch ?? false,
       });
       setProcessing(false);
       reportParseEvent({

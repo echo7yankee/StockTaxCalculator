@@ -80,6 +80,13 @@ export default function GhidRevolutPage() {
           supraestimează impozitul pe dividende (direcția sigură, niciodată sub-declarat), deci verifică manual partea
           de dividende. Pentru Trading212, în schimb, parserul este validat pe extrase reale.
         </p>
+        <p className="text-sm text-gray-700 dark:text-slate-300 leading-relaxed mt-3">
+          Vrei să fii sigur că îți putem citi extrasul Revolut înainte să plătești?{' '}
+          <Link to="/verifica-extras" className="text-accent dark:text-accent-light font-medium underline hover:no-underline">
+            Verifică-l gratuit
+          </Link>
+          .
+        </p>
       </section>
 
       <Section title="Ce extras încarci în InvesTax">
