@@ -10,6 +10,7 @@ import { analytics } from '../lib/analytics';
 import { getBrokerMeta } from '../lib/brokers';
 import PageMeta from '../components/common/PageMeta';
 import D212Download from '../components/D212Download';
+import AuditTrailDownload from '../components/AuditTrailDownload';
 import { taxYearInterpVars } from '../utils/taxYearVars';
 import { isBeforeEarlyFilingDeadline } from '../utils/earlyFiling';
 import { cassBracketLabelKey } from '../utils/cassBracket';
@@ -260,6 +261,19 @@ export default function ResultsPage() {
           hard-stop hides it). Generates the ANAF v11 XML in the browser. */}
       {!hasWarnings && (
         <D212Download result={result} securities={securities} taxYear={taxYear} />
+      )}
+
+      {/* Audit-trail CSV: the determinism/auditability moat surface (per-trade BNR
+          breakdown + summary). Engine output, so paid + clean-parse only, like D212. */}
+      {!hasWarnings && (
+        <AuditTrailDownload
+          result={result}
+          securities={securities}
+          transactions={transactions}
+          taxYear={taxYear}
+          fileName={fileName}
+          brokerLabel={brokerMeta?.label ?? broker}
+        />
       )}
 
       {/* Summary cards */}

@@ -19,6 +19,7 @@ export const ANALYTICS_EVENTS = [
   'calculation_saved',
   'pdf_exported',
   'd212_downloaded',
+  'audit_trail_downloaded',
   'preview_started',
   'preview_clean',
   'preview_blocked',

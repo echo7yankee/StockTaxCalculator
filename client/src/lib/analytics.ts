@@ -49,6 +49,7 @@ export const analytics = {
   calculationSaved: () => send('calculation_saved'),
   pdfExported: () => send('pdf_exported'),
   d212Downloaded: () => send('d212_downloaded'),
+  auditTrailDownloaded: () => send('audit_trail_downloaded'),
   // Pre-paywall parse checker (backlog #24B): started a check, the file is clean
   // and supported (the unlock-CTA is shown), or it is blocked by a warning /
   // unsupported broker-year (the lead-capture path is shown instead).
