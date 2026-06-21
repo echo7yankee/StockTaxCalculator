@@ -90,6 +90,7 @@ const PROD_SAFE_E2E_SPECS = [
   'e2e/dashboard.spec.ts',
   'e2e/verify-a11y.spec.ts',
   'e2e/verify-i18n.spec.ts',
+  'e2e/verify-compression.spec.ts',
 ];
 
 function parseArgs(argv: string[]): {
