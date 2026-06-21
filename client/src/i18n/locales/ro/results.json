@@ -81,6 +81,7 @@
   "auditCsvBroker": "Broker",
   "auditCsvMethodology": "Metodologie",
   "auditCsvMethodologyNote": "C\u00e2\u0219tigurile de capital folosesc cursul BNR de la data fiec\u0103rei tranzac\u021bii (art. 96); dividendele folosesc cursul mediu anual BNR (art. 131). Toate sumele \u00een RON.",
+  "auditCsvNetSourceOverview": "Not\u0103: deoarece acest extras combin\u0103 mai multe monede de tranzac\u021bionare, c\u00e2\u0219tigul net de capital este preluat din totalul general al extrasului (cursul mediu anual BNR). R\u00e2ndurile pe tranzac\u021bii de mai jos corespund totalului \u00eencas\u0103rilor, dar suma rezultatelor lor nu este egal\u0103 cu acel c\u00e2\u0219tig net.",
   "auditCsvTradesSection": "Tranzac\u021bii (pe opera\u021biune)",
   "auditCsvSecuritiesSection": "Detaliere per instrument",
   "auditCsvSummarySection": "Sumar",

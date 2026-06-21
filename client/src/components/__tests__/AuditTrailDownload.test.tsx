@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { TaxCalculationResult, SecurityBreakdown, Transaction } from '@shared/index';
+import type { TaxCalculationResult, SecurityBreakdown, Transaction, PdfAuditRow } from '@shared/index';
 import AuditTrailDownload from '../AuditTrailDownload';
 import { analytics } from '../../lib/analytics';
 
@@ -30,6 +30,14 @@ const transactions: Transaction[] = [
     securityName: 'Apple Inc', shares: 10, pricePerShare: 150, priceCurrency: 'USD',
     totalAmountOriginal: 1500, exchangeRateToLocal: 4.6, totalAmountLocal: 6900,
     withholdingTaxOriginal: 0, withholdingTaxCurrency: 'USD', withholdingTaxLocal: 0, brokerTransactionId: 'b1',
+  },
+];
+
+const pdfTrades: PdfAuditRow[] = [
+  {
+    date: '2025-03-15', action: 'sell', ticker: 'AAPL', isin: 'US0378331005', securityName: 'Apple Inc',
+    shares: 10, pricePerShare: 155, currency: 'USD', amountOriginal: 1550, exchangeRateToLocal: 4.4705,
+    amountLocal: 6929.28, withholdingTaxOriginal: 0, withholdingTaxLocal: 0,
   },
 ];
 
@@ -88,7 +96,29 @@ describe('AuditTrailDownload', () => {
     expect(text).toContain('Total after discount,95.00');
   });
 
-  it('uses the per-security section for the PDF flow (no transactions)', async () => {
+  it('renders per-trade rows for the PDF flow when audit rows are supplied', async () => {
+    render(
+      <AuditTrailDownload result={result} securities={securities} transactions={[]} pdfTrades={pdfTrades} taxYear={2025} fileName="statement.pdf" brokerLabel="Trading 212" />,
+    );
+    await clickDownload();
+    const text = await lastBlob().text();
+    expect(text).toContain('Transactions (per trade)');
+    expect(text).not.toContain('Per-security breakdown');
+    expect(text).toContain('2025-03-15');
+    expect(text).toContain(',4.4705,6929.28,');
+  });
+
+  it('adds the mixed-currency net-source note when pdfNetFromOverview is set', async () => {
+    render(
+      <AuditTrailDownload result={result} securities={securities} transactions={[]} pdfTrades={pdfTrades} pdfNetFromOverview taxYear={2025} fileName="statement.pdf" brokerLabel="Trading 212" />,
+    );
+    await clickDownload();
+    const text = await lastBlob().text();
+    // The localized honesty note is present (EN in the test i18n default).
+    expect(text).toContain('mixes transaction currencies');
+  });
+
+  it('falls back to the per-security section when neither transactions nor audit rows are supplied', async () => {
     render(
       <AuditTrailDownload result={result} securities={securities} transactions={[]} taxYear={2025} fileName="statement.pdf" brokerLabel="Trading 212" />,
     );

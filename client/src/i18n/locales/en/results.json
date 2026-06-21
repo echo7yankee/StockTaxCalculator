@@ -81,6 +81,7 @@
   "auditCsvBroker": "Broker",
   "auditCsvMethodology": "Methodology",
   "auditCsvMethodologyNote": "Capital gains use the BNR rate from each trade date (art. 96); dividends use the BNR annual average (art. 131). All amounts in RON.",
+  "auditCsvNetSourceOverview": "Note: because this statement mixes transaction currencies, the net capital gain is taken from the statement's overall total (BNR annual average). The per-trade rows below reconcile to total proceeds, but their results do not sum to that net gain.",
   "auditCsvTradesSection": "Transactions (per trade)",
   "auditCsvSecuritiesSection": "Per-security breakdown",
   "auditCsvSummarySection": "Summary",

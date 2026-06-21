@@ -18,7 +18,7 @@ import { cassBracketLabelKey } from '../utils/cassBracket';
 export default function ResultsPage() {
   const { t, i18n } = useTranslation(['results', 'common']);
   const navigate = useNavigate();
-  const { taxResult, securities, fileName, taxYear, transactions, parseWarnings, broker } = useUpload();
+  const { taxResult, securities, fileName, taxYear, transactions, auditRows, pdfNetFromOverview, parseWarnings, broker } = useUpload();
   const hasWarnings = parseWarnings.length > 0;
   // Beta brokers (parser built to the broker's published format without a real
   // account to validate against) must always carry a verify-before-filing caveat,
@@ -270,6 +270,8 @@ export default function ResultsPage() {
           result={result}
           securities={securities}
           transactions={transactions}
+          pdfTrades={auditRows}
+          pdfNetFromOverview={pdfNetFromOverview}
           taxYear={taxYear}
           fileName={fileName}
           brokerLabel={brokerMeta?.label ?? broker}
