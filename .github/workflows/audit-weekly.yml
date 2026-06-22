@@ -17,21 +17,25 @@ name: Weekly production audit
 #   - i18n completeness: missing-key + raw-placeholder scan on all 24 routes.
 #   - Flows: navigation, calculator, dashboard, trust pages, mobile viewport.
 #   - Links: whole-site broken-link crawl.
-#   - Lighthouse: perf / SEO / best-practices / a11y on 17 pages (incl. the
-#     /ghid SEO cluster).
+#   - Lighthouse: perf / SEO / best-practices / a11y across the public route
+#     list (incl. the full /ghid SEO cluster). SEO is exempt on the noindex SPA
+#     app shells (see NOINDEX_PATHS in scripts/verify.ts).
 #
 # HARD gate (fails the run; GitHub emails the repo admin on a failed scheduled
 # run): the prod-safe E2E suite + the broken-link crawl. Both are deterministic
 # and currently green.
 #
-# SOFT signal (reported, does NOT fail the run): Lighthouse. Production currently
-# has known, tracked Lighthouse gaps (a cross-component heading-order issue on
-# /calculator, missing rel=canonical on the non-prerendered app pages, and mobile
-# performance on two content-heavy pages). Those are separate backlog items, so
-# hard-gating Lighthouse would make this workflow perma-red and useless as a
-# regression signal. Scores stay visible in the run log + the uploaded report.
-# Once the backlog items close, promote Lighthouse to a hard gate by deleting the
-# `continue-on-error: true` line on its step below.
+# SOFT signal (reported, does NOT fail the run): Lighthouse. The three gaps this
+# note used to track are now closed: /calculator heading-order (PR #202), the
+# app-page canonical question (PR #201 made those SPA shells noindex-by-design,
+# and verify.ts now exempts them from SEO scoring), and content-page mobile perf
+# (the site-wide nginx gzip fix, 2026-06-21). What stays soft is PERFORMANCE on
+# the homepage and the client-rendered SPA app pages (e.g. /upload, /results), a
+# bundle/hydration concern tracked separately. Hard-gating Lighthouse now would
+# make the workflow perma-red on that one open gap, so it stays reported-only;
+# scores stay visible in the run log + the uploaded report. Once the perf gap
+# closes, promote Lighthouse to a hard gate by deleting the `continue-on-error:
+# true` line on its step below.
 
 on:
   schedule:
