@@ -95,3 +95,18 @@ describe('Header admin analytics link (ADMIN_EMAILS gating)', () => {
     expect(screen.queryByRole('link', { name: 'Analytics' })).not.toBeInTheDocument();
   });
 });
+
+describe('Header guides nav link (SEO internal linking into /ghid)', () => {
+  beforeEach(() => {
+    mockAuth.loading = false;
+  });
+
+  it('renders a Guides nav link pointing at /ghid for logged-out visitors', () => {
+    mockAuth.user = null;
+    renderHeader();
+
+    const links = screen.getAllByRole('link', { name: 'Guides' });
+    expect(links.length).toBeGreaterThan(0);
+    links.forEach((link) => expect(link).toHaveAttribute('href', '/ghid'));
+  });
+});

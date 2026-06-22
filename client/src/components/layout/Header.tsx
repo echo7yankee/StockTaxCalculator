@@ -16,6 +16,7 @@ export default function Header() {
   const navLinks = [
     { to: '/', label: t('header:home') },
     { to: '/calculator', label: t('header:calculator') },
+    { to: '/ghid', label: t('header:guides') },
     ...(isPaid ? [{ to: '/dashboard', label: t('header:dashboard') }] : []),
     { to: '/filing-guide', label: t('header:filingGuide') },
     ...(!isPaid ? [{ to: '/pricing', label: t('header:pricing') }] : []),
