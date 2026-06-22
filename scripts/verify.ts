@@ -9,7 +9,8 @@
  * Steps:
  *   1. Unit tests            (npm test, all workspaces)         — local only
  *   2. Playwright E2E        (wraps existing suite + a11y + i18n specs)
- *   3. Lighthouse CI         (8 pages, Perf≥90/A11y=100/BP≥90/SEO≥95)
+ *   3. Lighthouse CI         (public routes, Perf≥90/A11y=100/BP≥90/SEO≥95;
+ *                            SEO skipped on the noindex app pages)
  *   4. Broken-link crawler   (depth 2 from root, internal only)
  *   5. Visual regression     (Docker-pinned Playwright, strict 0 tolerance)
  *
@@ -41,8 +42,11 @@ type StepResult = {
 
 // Pages audited by Lighthouse (Perf / A11y / Best-practices / SEO). Includes
 // the full /ghid SEO cluster: those pages exist to rank, so an SEO or a11y
-// regression there is exactly what this audit must catch. Authenticated-only
-// and noindex pages (e.g. /admin/analytics) are intentionally excluded.
+// regression there is exactly what this audit must catch. The SPA-only app
+// shells (/upload, /dashboard, /results, /filing-guide) are audited for
+// perf, a11y, and best-practices but exempt from SEO scoring (NOINDEX_PATHS
+// below), since PR #201 made them noindex-by-design. Authenticated-only and
+// other noindex pages (e.g. /admin/analytics) are excluded from the list.
 const PAGES = [
   '/',
   '/calculator',
@@ -64,6 +68,15 @@ const PAGES = [
   '/ghid/notificare-anaf-venituri-strainatate',
   '/ghid/impozit-xtb',
 ];
+
+// SPA-only app shells made noindex-by-design in PR #201 (#147 audit follow-up):
+// not prerendered, not in the sitemap, no rankable content, and they redirect
+// anonymous crawlers to the paywall/login. Lighthouse's SEO category penalizes
+// `noindex` (its "page isn't blocked from indexing" audit fails), so these can
+// never score SEO≥95. Exempt them from SEO scoring only; perf, a11y, and
+// best-practices still hold. A real SEO regression must still fail on the /ghid
+// content cluster + the public marketing pages, which is the point of the audit.
+const NOINDEX_PATHS = new Set(['/upload', '/dashboard', '/results', '/filing-guide']);
 
 const LH_THRESHOLDS = {
   performance: 90,
@@ -176,7 +189,11 @@ async function runLighthouse(baseUrl: string): Promise<StepResult> {
       const categories = report.categories as Record<string, { score: number | null; title: string }>;
 
       const pageFailures: string[] = [];
+      const skipSeo = NOINDEX_PATHS.has(path);
       for (const [key, threshold] of Object.entries(LH_THRESHOLDS)) {
+        // noindex-by-design app shells (#201) can't score SEO≥95; hold them to
+        // perf/a11y/best-practices only. See NOINDEX_PATHS above.
+        if (key === 'seo' && skipSeo) continue;
         const score = Math.round((categories[key]?.score ?? 0) * 100);
         if (score < threshold) {
           pageFailures.push(`${key}=${score} (need ≥${threshold})`);
