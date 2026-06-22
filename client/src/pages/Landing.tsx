@@ -4,6 +4,7 @@ import { useTranslation, Trans } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import PageMeta from '../components/common/PageMeta';
 import { taxYearInterpVars } from '../utils/taxYearVars';
+import { GHID_LIST } from '../lib/ghidIndexSchemas';
 
 export default function Landing() {
   const { t, i18n } = useTranslation('landing');
@@ -77,6 +78,36 @@ export default function Landing() {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Guides: internal links into the /ghid content cluster (SEO + discovery) */}
+      <section className="py-16">
+        <h2 className="text-2xl font-bold text-center mb-3">{t('guidesTitle')}</h2>
+        <p className="text-center text-gray-600 dark:text-slate-400 max-w-2xl mx-auto mb-10">
+          {t('guidesSubtitle')}
+        </p>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {GHID_LIST.map((g) => (
+            <Link
+              key={g.path}
+              to={g.path}
+              className="group flex items-start gap-3 p-4 border border-gray-200 dark:border-navy-700 rounded-xl hover:border-accent dark:hover:border-accent-light hover:bg-accent/5 dark:hover:bg-accent/10 transition-colors"
+            >
+              <FileText className="w-5 h-5 text-accent dark:text-accent-light shrink-0 mt-0.5" />
+              <span className="text-sm font-medium group-hover:text-accent dark:group-hover:text-accent-light transition-colors">
+                {g.title}
+              </span>
+            </Link>
+          ))}
+        </div>
+        <div className="text-center mt-8">
+          <Link
+            to="/ghid"
+            className="inline-flex items-center gap-1 text-accent dark:text-accent-light font-medium hover:underline"
+          >
+            {t('guidesSeeAll')} <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
       </section>
 
