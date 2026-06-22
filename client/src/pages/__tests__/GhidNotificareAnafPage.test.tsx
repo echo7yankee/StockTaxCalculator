@@ -22,10 +22,26 @@ describe('GhidNotificareAnafPage - crawlable nav and CTAs', () => {
     expect(screen.getByRole('link', { name: /Toate ghidurile/ })).toHaveAttribute('href', '/ghid');
   });
 
-  it('renders the 2025-scoped CTA pair as links (free calculator + paid upload)', () => {
+  it('routes the tool funnel through the free statement checker, then the paid upload', () => {
     renderPage();
-    expect(screen.getByRole('link', { name: /Calculator gratuit \(manual\)/ })).toHaveAttribute('href', '/calculator');
+    // Primary free entry: the engine-free pre-paywall parse checker (the funnel
+    // the other broker ghid pages already use). Lets a notificare recipient
+    // confirm we read their statement before paying.
+    expect(screen.getByRole('link', { name: /Verifică extrasul gratuit/ })).toHaveAttribute(
+      'href',
+      '/verifica-extras'
+    );
+    // Paid conversion + manual estimator stay available (two-tier framing, never free-only).
     expect(screen.getByRole('link', { name: /Încarcă extrasul \(anul 2025\)/ })).toHaveAttribute('href', '/pricing');
+    expect(screen.getByRole('link', { name: /Calculator gratuit \(manual\)/ })).toHaveAttribute('href', '/calculator');
+  });
+
+  it('offers the free parse check inline at the reconstruct-broker-history step', () => {
+    renderPage();
+    expect(screen.getByRole('link', { name: /verifica gratuit extrasul/ })).toHaveAttribute(
+      'href',
+      '/verifica-extras'
+    );
   });
 
   it('TL;DR links to the waitlist anchor on the same page (the demand probe, not a paid funnel)', () => {

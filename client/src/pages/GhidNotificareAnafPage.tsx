@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { ArrowLeft, AlertTriangle, Calculator, FileText, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Calculator, FileSearch, FileText, ShieldAlert } from 'lucide-react';
 import {
   GHID_NOTIFICARE_FAQS as FAQS,
   GHID_NOTIFICARE_ARTICLE_SCHEMA as articleSchema,
@@ -126,6 +126,15 @@ export default function GhidNotificareAnafPage() {
           <li>
             <strong>Reconstituie istoricul de la broker.</strong> Descarcă extrasele complete pentru anii vizați
             (tranzacții, dividende, rețineri la sursă). Toate platformele mari păstrează istoricul descărcabil.
+            Înainte de orice, poți{' '}
+            <Link
+              to="/verifica-extras"
+              className="text-accent dark:text-accent-light font-medium underline hover:no-underline"
+            >
+              verifica gratuit extrasul
+            </Link>{' '}
+            de broker (Trading 212, Revolut sau IBKR), fără cont și fără plată: vezi dacă îți putem citi corect
+            tranzacțiile și dividendele.
           </li>
           <li>
             <strong>Recalculează pe regulile anului respectiv</strong>, nu pe cele de azi. Cotele, plafoanele CASS și
@@ -249,17 +258,23 @@ export default function GhidNotificareAnafPage() {
             <h2 className="text-xl font-bold mb-2">Pentru anul fiscal 2025, calculul e deja automat</h2>
             <p className="text-sm text-gray-700 dark:text-slate-300 mb-4">
               Dacă pe lângă anii vechi ai de declarat și veniturile din 2025, InvesTax aplică automat metoda CMP,
-              cursurile BNR, cota de dividende și pragurile CASS pentru anul fiscal 2025. Calculatorul manual e
-              gratuit; încărcarea extrasului de broker e în planul plătit.
+              cursurile BNR, cota de dividende și pragurile CASS pentru anul fiscal 2025. Începe cu verificarea
+              gratuită a extrasului: vezi în câteva secunde dacă îți putem citi corect extrasul de broker, fără cont
+              și fără plată. Dacă totul e în regulă, încarci extrasul și primești declarația completată, iar
+              calculatorul manual rămâne gratuit pentru estimări rapide.
             </p>
             <div className="flex flex-wrap gap-3">
+              <Link to="/verifica-extras" className="btn-primary inline-flex items-center gap-2">
+                <FileSearch className="w-4 h-4" />
+                Verifică extrasul gratuit
+              </Link>
+              <Link to="/pricing" className="btn-secondary inline-flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Încarcă extrasul (anul 2025)
+              </Link>
               <Link to="/calculator" className="btn-secondary inline-flex items-center gap-2">
                 <Calculator className="w-4 h-4" />
                 Calculator gratuit (manual)
-              </Link>
-              <Link to="/pricing" className="btn-primary inline-flex items-center gap-2">
-                <FileText className="w-4 h-4" />
-                Încarcă extrasul (anul 2025)
               </Link>
             </div>
           </div>
