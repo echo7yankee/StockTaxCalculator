@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 
 import GhidXtbPage from '../GhidXtbPage';
+import { GHID_XTB_FAQS } from '../../lib/ghidXtbSchemas';
 
 function renderPage() {
   return render(
@@ -61,6 +62,15 @@ describe('GhidXtbPage - XTB tax facts (2025 scope, source-withholding regime)', 
     expect(text).toContain('Dividendele din acțiuni străine');
   });
 
+  it('states the US dividend withholding example as 10% (W-8BEN treaty rate), not 15%', () => {
+    const { container } = renderPage();
+    const text = container.textContent ?? '';
+    // The RO-USA treaty W-8BEN dividend rate is 10%; 15% is the Germany/Netherlands
+    // rate. Guards against the DE/NL bleed that put a wrong 15% on this page.
+    expect(text).toContain('10% pe dividendele din SUA');
+    expect(text).not.toContain('15%');
+  });
+
   it('does not leak the dormant 2026 16% rate (page is 2025-scoped)', () => {
     const { container } = renderPage();
     const text = container.textContent ?? '';
@@ -71,5 +81,18 @@ describe('GhidXtbPage - XTB tax facts (2025 scope, source-withholding regime)', 
     const { container } = renderPage();
     const text = container.textContent ?? '';
     expect(text).toContain('instrument software, nu consultanță fiscală personalizată');
+  });
+});
+
+describe('GHID_XTB_FAQS structured data (JSON-LD tax facts)', () => {
+  it('the dividend FAQ answer uses the 10% US W-8BEN rate, not 15%', () => {
+    const dividendFaq = GHID_XTB_FAQS.find((f) => f.q.includes('dividende prin XTB'));
+    expect(dividendFaq).toBeDefined();
+    expect(dividendFaq?.a).toContain('10% pe dividendele din SUA');
+    expect(dividendFaq?.a).not.toContain('15%');
+  });
+
+  it('no FAQ answer cites a 15% rate (Germany/Netherlands rate must not bleed into XTB content)', () => {
+    expect(GHID_XTB_FAQS.every((f) => !f.a.includes('15%'))).toBe(true);
   });
 });

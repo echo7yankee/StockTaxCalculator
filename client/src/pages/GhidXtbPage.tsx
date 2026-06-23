@@ -144,7 +144,7 @@ export default function GhidXtbPage() {
           <li>
             <strong>Dividendele din acțiuni străine.</strong> Se declară în Declarația Unică, separat de câștiguri,
             pentru că XTB nu reține impozitul român final pe ele. Pentru 2025 cota este 10%, cu <strong>credit
-            fiscal</strong> pentru impozitul deja reținut în țara sursă (de exemplu 15% pe dividendele din SUA, cu
+            fiscal</strong> pentru impozitul deja reținut în țara sursă (de exemplu 10% pe dividendele din SUA, cu
             formularul W-8BEN), ca să nu fii impozitat de două ori pe aceeași sumă (art. 131 din Codul Fiscal).
           </li>
           <li>
