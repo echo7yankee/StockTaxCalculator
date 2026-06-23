@@ -23,7 +23,7 @@ function formatRon(value: number): string {
  * Dividend-scoped quick calculator embedded in the /ghid/dividende-broker-strain
  * page. Reuses the shared, already-verified `calculateQuickTax` dividend path and
  * the geo-detected `countryConfig`, so the rate is config-driven (10% for tax year
- * 2025) and never hardcoded here -- it auto-updates when the engine flips to 2026.
+ * 2025) and never hardcoded here, so it auto-updates when the engine flips to 2026.
  * Surfaces ONLY the dividend obligation; CASS depends on total non-salary income,
  * so the result routes the user to the full calculator for that.
  */
