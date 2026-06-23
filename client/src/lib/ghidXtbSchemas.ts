@@ -17,7 +17,7 @@ export const GHID_XTB_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Am și dividende prin XTB. Le declar?',
-    a: 'Da. Dividendele din acțiuni străine se declară în Declarația Unică, separat de câștigurile din vânzarea acțiunilor, pentru că XTB nu reține impozitul român final pe ele. Pentru 2025 cota este 10%, cu credit fiscal pentru impozitul deja reținut în țara sursă (de exemplu 15% pe dividendele din SUA cu formularul W-8BEN), ca să nu fii impozitat de două ori pe aceeași sumă (art. 131 din Codul fiscal). Această parte rămâne în sarcina ta chiar dacă folosești doar XTB.',
+    a: 'Da. Dividendele din acțiuni străine se declară în Declarația Unică, separat de câștigurile din vânzarea acțiunilor, pentru că XTB nu reține impozitul român final pe ele. Pentru 2025 cota este 10%, cu credit fiscal pentru impozitul deja reținut în țara sursă (de exemplu 10% pe dividendele din SUA cu formularul W-8BEN), ca să nu fii impozitat de două ori pe aceeași sumă (art. 131 din Codul fiscal). Această parte rămâne în sarcina ta chiar dacă folosești doar XTB.',
   },
   {
     q: 'Dacă am și Trading212 sau Revolut pe lângă XTB, ce fac?',
