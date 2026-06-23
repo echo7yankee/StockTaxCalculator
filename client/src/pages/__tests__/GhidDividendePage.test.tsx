@@ -1,16 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 
 import GhidDividendePage from '../GhidDividendePage';
+import { CountryProvider } from '../../contexts/CountryContext';
 
 function renderPage() {
   return render(
     <HelmetProvider>
-      <MemoryRouter>
-        <GhidDividendePage />
-      </MemoryRouter>
+      <CountryProvider>
+        <MemoryRouter>
+          <GhidDividendePage />
+        </MemoryRouter>
+      </CountryProvider>
     </HelmetProvider>
   );
 }
@@ -32,5 +35,49 @@ describe('GhidDividendePage - crawlable conversion CTAs', () => {
     renderPage();
     expect(screen.getByRole('link', { name: /Acasă/ })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: /Toate ghidurile/ })).toHaveAttribute('href', '/ghid');
+  });
+});
+
+describe('GhidDividendePage - dividend calculator widget', () => {
+  function calculate(grossValue: string, withheldValue: string) {
+    fireEvent.change(screen.getByLabelText(/Dividend brut/), { target: { value: grossValue } });
+    fireEvent.change(screen.getByLabelText(/Reținere străină/), { target: { value: withheldValue } });
+    fireEvent.click(screen.getByRole('button', { name: /Calculează impozitul/ }));
+  }
+
+  it('renders the calculator inputs and the calculate button', () => {
+    renderPage();
+    expect(screen.getByLabelText(/Dividend brut/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Reținere străină/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Calculează impozitul/ })).toBeInTheDocument();
+  });
+
+  it('computes the dividend tax with a partial foreign credit', () => {
+    renderPage();
+    calculate('1000', '40');
+    // 10% of 1000 = 100 gross tax; credit 40; owed 60.
+    expect(screen.getByText('100,00 RON')).toBeInTheDocument();
+    expect(screen.getByText('-40,00 RON')).toBeInTheDocument();
+    expect(screen.getByText('60,00 RON')).toBeInTheDocument();
+  });
+
+  it('caps the foreign credit at the Romanian tax so nothing is owed when withholding exceeds it', () => {
+    renderPage();
+    calculate('1000', '150');
+    // Credit capped at the 100 RON Romanian tax; owed 0.
+    expect(screen.getByText('-100,00 RON')).toBeInTheDocument();
+    expect(screen.getByText('0,00 RON')).toBeInTheDocument();
+  });
+
+  it('routes from the result to the full calculator for CASS', () => {
+    renderPage();
+    calculate('500', '0');
+    expect(screen.getByRole('link', { name: /calculatorul complet cu CASS/ })).toHaveAttribute('href', '/calculator');
+  });
+
+  it('shows a validation hint when no gross amount is entered', () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /Calculează impozitul/ }));
+    expect(screen.getByRole('alert')).toHaveTextContent(/Introdu suma brută/);
   });
 });
