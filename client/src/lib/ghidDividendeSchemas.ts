@@ -59,8 +59,8 @@ export const GHID_DIVIDENDE_FAQ_SCHEMA = {
 };
 
 export const GHID_DIVIDENDE_META = {
-  title: 'Dividende de la broker străin în Declarația Unică 2026 | InvesTax',
+  title: 'Calculator impozit dividende broker străin | InvesTax',
   description:
-    'Cum declari dividendele primite de la Trading212, Revolut, IBKR, eToro: rata în RO, creditul pentru reținerea străină, ratele pe țară (SUA, UK, IE, NL), exemple, FAQ.',
+    'Calculator pentru impozitul pe dividende de la broker străin (Trading212, Revolut, IBKR): creditul pentru reținerea străină, ratele pe țară, exemple și FAQ.',
   url: 'https://investax.app/ghid/dividende-broker-strain/',
 };

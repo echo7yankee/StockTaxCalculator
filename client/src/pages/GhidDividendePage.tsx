@@ -7,21 +7,22 @@ import {
   GHID_DIVIDENDE_FAQ_SCHEMA as faqSchema,
 } from '../lib/ghidDividendeSchemas';
 import GhidRelatedGuides from '../components/common/GhidRelatedGuides';
+import DividendTaxCalculator from '../components/common/DividendTaxCalculator';
 
 export default function GhidDividendePage() {
   return (
     <article className="max-w-3xl mx-auto px-4 py-12">
       <Helmet>
-        <title>Dividende de la broker străin în Declarația Unică 2026 | InvesTax</title>
+        <title>Calculator impozit dividende broker străin | InvesTax</title>
         <meta
           name="description"
-          content="Cum declari dividendele primite de la Trading212, Revolut, IBKR, eToro: rata în RO, creditul pentru reținerea străină, ratele pe țară (SUA, UK, IE, NL), exemple, FAQ."
+          content="Calculator pentru impozitul pe dividende de la broker străin (Trading212, Revolut, IBKR): creditul pentru reținerea străină, ratele pe țară, exemple și FAQ."
         />
         <link rel="canonical" href="https://investax.app/ghid/dividende-broker-strain/" />
-        <meta property="og:title" content="Dividende de la broker străin în Declarația Unică 2026" />
+        <meta property="og:title" content="Calculator impozit dividende broker străin" />
         <meta
           property="og:description"
-          content="Reținerea străină, creditul fiscal, ratele pe țară, exemple lucrate. Pentru investitorii cu Trading212, Revolut, IBKR, eToro."
+          content="Calculează impozitul pe dividende de la broker străin, cu credit pentru reținerea străină. Plus ghid complet: ratele pe țară, exemple lucrate, FAQ."
         />
         <meta property="og:url" content="https://investax.app/ghid/dividende-broker-strain/" />
         <meta property="og:type" content="article" />
@@ -96,6 +97,17 @@ export default function GhidDividendePage() {
             recuperează.
           </li>
         </ul>
+      </Section>
+
+      <Section title="Calculator impozit dividende">
+        <p>
+          Introdu brutul dividendului în RON și cât ți-a reținut brokerul în țara emitentului. Calculatorul aplică
+          rata din România pe brut și scade creditul pentru reținerea străină, limitat la impozitul român, exact ca
+          în formula de mai sus.
+        </p>
+        <div className="mt-4">
+          <DividendTaxCalculator />
+        </div>
       </Section>
 
       <Section title="Ratele de reținere pe țară (pentru rezidenți fiscali RO)">

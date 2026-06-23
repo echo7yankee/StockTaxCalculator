@@ -13,6 +13,7 @@ import GhidDeclaratieUnicaPage from '../GhidDeclaratieUnicaPage';
 import GhidCumCalculamPage from '../GhidCumCalculamPage';
 import GhidNotificareAnafPage from '../GhidNotificareAnafPage';
 import GhidXtbPage from '../GhidXtbPage';
+import { CountryProvider } from '../../contexts/CountryContext';
 import { GHID_LIST, GHID_RELATED } from '../../lib/ghidIndexSchemas';
 
 const PAGES: { path: string; Page: ComponentType }[] = [
@@ -30,9 +31,11 @@ const PAGES: { path: string; Page: ComponentType }[] = [
 function renderPage(Page: ComponentType) {
   return render(
     <HelmetProvider>
-      <MemoryRouter>
-        <Page />
-      </MemoryRouter>
+      <CountryProvider>
+        <MemoryRouter>
+          <Page />
+        </MemoryRouter>
+      </CountryProvider>
     </HelmetProvider>,
   );
 }
