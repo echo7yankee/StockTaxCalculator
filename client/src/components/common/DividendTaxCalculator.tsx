@@ -123,7 +123,9 @@ export default function DividendTaxCalculator() {
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600 dark:text-slate-400">Credit pentru reținerea străină</span>
-            <span>-{formatRon(result.credit)} RON</span>
+            {/* No leading minus when the credit rounds to zero (avoids a misleading "-0,00 RON"
+                in the common no-foreign-withholding case, e.g. UK / Irish-domiciled ETFs). */}
+            <span>{Math.round(result.credit * 100) > 0 ? '-' : ''}{formatRon(result.credit)} RON</span>
           </div>
           <div className="flex justify-between font-bold text-base border-t border-gray-200 dark:border-navy-700 pt-2">
             <span>De plătit în România</span>
