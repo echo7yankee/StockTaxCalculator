@@ -23,6 +23,8 @@ import GhidDeclaratieUnicaPage from './pages/GhidDeclaratieUnicaPage';
 import GhidCumCalculamPage from './pages/GhidCumCalculamPage';
 import GhidNotificareAnafPage from './pages/GhidNotificareAnafPage';
 import GhidXtbPage from './pages/GhidXtbPage';
+import EmbedPage from './pages/EmbedPage';
+import EmbedCalculatorPage from './pages/EmbedCalculatorPage';
 import {
   GHID_INDEX_COLLECTION_SCHEMA,
   GHID_INDEX_META,
@@ -81,6 +83,10 @@ interface PageConfig {
   canonicalUrl: string;
   schemas: object[];
   ogType: 'website' | 'article';
+  /** Optional robots directive (e.g. 'noindex, follow'). Mirrors PageMeta's robots
+   *  prop for prerendered routes that should not be indexed (the embeddable widget
+   *  shell). Omitted => indexable. */
+  robots?: string;
 }
 
 // Build-time tax-year config. Mirrors the client-side PageMeta/i18n templating so
@@ -122,6 +128,20 @@ const CONTACT_META = {
   title: 'Contact | InvesTax',
   description: 'Contactează echipa InvesTax. Răspundem în maxim 24 de ore în zilele lucrătoare.',
   url: 'https://investax.app/contact/',
+};
+
+const EMBED_META = {
+  title: 'Widget gratuit: calculator de impozit pe investiții | InvesTax',
+  description:
+    'Adaugă gratuit calculatorul InvesTax de impozit pe investiții (câștiguri, dividende, CASS) pe site-ul sau blogul tău. Un singur cod de inserat, fără cont.',
+  url: 'https://investax.app/embed/',
+};
+
+const EMBED_WIDGET_META = {
+  title: 'Calculator impozit investiții | InvesTax',
+  description:
+    'Calculator gratuit de impozit pe investiții pentru anul fiscal 2025: câștiguri de capital, dividende și CASS.',
+  url: 'https://investax.app/embed/calculator/',
 };
 
 const PRERENDER_PAGES: Record<string, PageConfig> = {
@@ -172,6 +192,23 @@ const PRERENDER_PAGES: Record<string, PageConfig> = {
     canonicalUrl: CONTACT_META.url,
     schemas: [],
     ogType: 'website',
+  },
+  '/embed': {
+    component: () => <EmbedPage />,
+    title: EMBED_META.title,
+    description: EMBED_META.description,
+    canonicalUrl: EMBED_META.url,
+    schemas: [],
+    ogType: 'website',
+  },
+  '/embed/calculator': {
+    component: () => <EmbedCalculatorPage />,
+    title: EMBED_WIDGET_META.title,
+    description: EMBED_WIDGET_META.description,
+    canonicalUrl: EMBED_WIDGET_META.url,
+    schemas: [],
+    ogType: 'website',
+    robots: 'noindex, follow',
   },
   '/ghid': {
     component: () => <GhidIndexPage />,
@@ -290,21 +327,26 @@ export async function prerender(data: { url: string }) {
     .map((s) => `<script type="application/ld+json">${escapeJsonForScript(s)}</script>`)
     .join('');
 
+  const headElements = new Set<{ type: string; props: Record<string, string> }>([
+    { type: 'meta', props: { name: 'description', content: page.description } },
+    { type: 'link', props: { rel: 'canonical', href: page.canonicalUrl } },
+    { type: 'meta', props: { property: 'og:type', content: page.ogType } },
+    { type: 'meta', props: { property: 'og:title', content: page.title } },
+    { type: 'meta', props: { property: 'og:description', content: page.description } },
+    { type: 'meta', props: { property: 'og:url', content: page.canonicalUrl } },
+    { type: 'meta', props: { name: 'twitter:title', content: page.title } },
+    { type: 'meta', props: { name: 'twitter:description', content: page.description } },
+  ]);
+  if (page.robots) {
+    headElements.add({ type: 'meta', props: { name: 'robots', content: page.robots } });
+  }
+
   return {
     html: schemaScripts + body,
     head: {
       lang: 'ro',
       title: page.title,
-      elements: new Set([
-        { type: 'meta', props: { name: 'description', content: page.description } },
-        { type: 'link', props: { rel: 'canonical', href: page.canonicalUrl } },
-        { type: 'meta', props: { property: 'og:type', content: page.ogType } },
-        { type: 'meta', props: { property: 'og:title', content: page.title } },
-        { type: 'meta', props: { property: 'og:description', content: page.description } },
-        { type: 'meta', props: { property: 'og:url', content: page.canonicalUrl } },
-        { type: 'meta', props: { name: 'twitter:title', content: page.title } },
-        { type: 'meta', props: { name: 'twitter:description', content: page.description } },
-      ]),
+      elements: headElements,
     },
   };
 }

@@ -30,6 +30,8 @@ const GhidDeclaratieUnicaPage = lazy(() => import('./pages/GhidDeclaratieUnicaPa
 const GhidCumCalculamPage = lazy(() => import('./pages/GhidCumCalculamPage'));
 const GhidNotificareAnafPage = lazy(() => import('./pages/GhidNotificareAnafPage'));
 const GhidXtbPage = lazy(() => import('./pages/GhidXtbPage'));
+const EmbedPage = lazy(() => import('./pages/EmbedPage'));
+const EmbedCalculatorPage = lazy(() => import('./pages/EmbedCalculatorPage'));
 const AdminAnalyticsPage = lazy(() => import('./pages/AdminAnalyticsPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
@@ -66,6 +68,7 @@ export default function App() {
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/embed" element={<EmbedPage />} />
           <Route path="/ghid" element={<GhidIndexPage />} />
           <Route path="/ghid/declaratie-unica-trading212" element={<GhidTrading212Page />} />
           <Route path="/ghid/declaratie-unica-revolut" element={<GhidRevolutPage />} />
@@ -79,6 +82,10 @@ export default function App() {
           <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
+        {/* Chromeless, iframe-embeddable widget. Kept OUTSIDE the Layout group so
+            it renders with no Header/Footer on third-party sites. The exact path
+            outranks the Layout group's "*" catch-all. */}
+        <Route path="/embed/calculator" element={<EmbedCalculatorPage />} />
       </Routes>
     </Suspense>
   );

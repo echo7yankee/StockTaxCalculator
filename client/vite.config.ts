@@ -26,6 +26,8 @@ export default defineConfig({
         '/ghid/cum-calculam',
         '/ghid/notificare-anaf-venituri-strainatate',
         '/ghid/impozit-xtb',
+        '/embed',
+        '/embed/calculator',
       ],
     }),
   ],

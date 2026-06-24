@@ -40,6 +40,9 @@ export default function Footer() {
             <Link to="/ghid" className="hover:text-accent dark:hover:text-accent-light transition-colors">
               {t('links.guides')}
             </Link>
+            <Link to="/embed" className="hover:text-accent dark:hover:text-accent-light transition-colors">
+              {t('links.widget')}
+            </Link>
             <Link to="/privacy" className="hover:text-accent dark:hover:text-accent-light transition-colors">
               {t('links.privacy')}
             </Link>
