@@ -89,7 +89,7 @@ export default function EmbedPage() {
       <div className="card text-center">
         <p className="font-medium mb-2">Ai nevoie de ajutor la integrare sau vrei o altă dimensiune?</p>
         <p className="text-gray-600 dark:text-slate-400 mb-4 text-sm">
-          Scrie-mi și te ajut. Poți testa și instrumentul complet, gratuit.
+          Scrie-mi și te ajut cu integrarea. Cititorii tăi pot verifica gratuit un extras pe InvesTax.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Link to="/contact" className="btn-primary">
