@@ -69,6 +69,14 @@ describe('GhidDividendePage - dividend calculator widget', () => {
     expect(screen.getByText('0,00 RON')).toBeInTheDocument();
   });
 
+  it('shows a zero credit without a misleading minus sign when no foreign tax was withheld', () => {
+    renderPage();
+    calculate('1000', '0');
+    // 10% of 1000 = 100 gross tax, nothing withheld -> credit 0, full 100 owed.
+    expect(screen.getByText('0,00 RON')).toBeInTheDocument();
+    expect(screen.queryByText('-0,00 RON')).not.toBeInTheDocument();
+  });
+
   it('routes from the result to the full calculator for CASS', () => {
     renderPage();
     calculate('500', '0');
