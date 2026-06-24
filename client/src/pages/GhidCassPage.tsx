@@ -7,6 +7,7 @@ import {
   GHID_CASS_FAQ_SCHEMA as faqSchema,
 } from '../lib/ghidCassSchemas';
 import GhidRelatedGuides from '../components/common/GhidRelatedGuides';
+import CassCalculator from '../components/common/CassCalculator';
 
 export default function GhidCassPage() {
   return (
@@ -154,6 +155,16 @@ export default function GhidCassPage() {
           Veniturile salariale nu intră aici. CASS-ul reținut din salariu este o categorie separată și nu reduce
           obligația ta pe non-salariale.
         </p>
+      </Section>
+
+      <Section title="Calculează CASS pentru situația ta">
+        <p>
+          Introdu totalul veniturilor tale non-salariale și calculatorul îți spune în ce prag te încadrezi și ce CASS
+          datorezi. Reține: suma e fixă pe prag, nu un procent din venitul tău.
+        </p>
+        <div className="mt-4">
+          <CassCalculator />
+        </div>
       </Section>
 
       <Section title="Exemple de calcul">

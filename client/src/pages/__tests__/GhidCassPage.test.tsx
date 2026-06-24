@@ -1,16 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 
 import GhidCassPage from '../GhidCassPage';
+import { CountryProvider } from '../../contexts/CountryContext';
 
 function renderPage() {
   return render(
     <HelmetProvider>
-      <MemoryRouter>
-        <GhidCassPage />
-      </MemoryRouter>
+      <CountryProvider>
+        <MemoryRouter>
+          <GhidCassPage />
+        </MemoryRouter>
+      </CountryProvider>
     </HelmetProvider>
   );
 }
@@ -32,5 +35,62 @@ describe('GhidCassPage - crawlable conversion CTAs', () => {
     renderPage();
     expect(screen.getByRole('link', { name: /Acasă/ })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: /Toate ghidurile/ })).toHaveAttribute('href', '/ghid');
+  });
+});
+
+describe('GhidCassPage - CASS calculator widget', () => {
+  function calculate(incomeValue: string) {
+    fireEvent.change(screen.getByLabelText(/Total venituri non-salariale/), { target: { value: incomeValue } });
+    fireEvent.click(screen.getByRole('button', { name: /Calculează CASS/ }));
+  }
+
+  it('renders the calculator input and the calculate button', () => {
+    renderPage();
+    expect(screen.getByLabelText(/Total venituri non-salariale/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Calculează CASS/ })).toBeInTheDocument();
+  });
+
+  it('reports no CASS below the first plafon (page Example 1)', () => {
+    renderPage();
+    calculate('11100'); // under the 24.300 first threshold
+    const result = screen.getByTestId('cass-calc-result');
+    expect(within(result).getByText(/Nu datorezi CASS/)).toBeInTheDocument();
+  });
+
+  it('computes the fixed amount for the 6x plafon (page Example 2)', () => {
+    renderPage();
+    calculate('33500'); // 24.300-48.600 -> base 24.300, CASS 2.430
+    const result = screen.getByTestId('cass-calc-result');
+    expect(within(result).getByText('6 salarii minime')).toBeInTheDocument();
+    expect(within(result).getByText('2.430 RON')).toBeInTheDocument();
+  });
+
+  it('computes the fixed amount for the 12x plafon (page Example 3)', () => {
+    renderPage();
+    calculate('51000'); // 48.600-97.200 -> base 48.600, CASS 4.860
+    const result = screen.getByTestId('cass-calc-result');
+    expect(within(result).getByText('12 salarii minime')).toBeInTheDocument();
+    expect(within(result).getByText('4.860 RON')).toBeInTheDocument();
+  });
+
+  it('computes the fixed amount for the top (24x) plafon', () => {
+    renderPage();
+    calculate('120000'); // over 97.200 -> base 97.200, CASS 9.720
+    const result = screen.getByTestId('cass-calc-result');
+    expect(within(result).getByText('24 de salarii minime')).toBeInTheDocument();
+    expect(within(result).getByText('9.720 RON')).toBeInTheDocument();
+  });
+
+  it('shows a validation hint when no income is entered', () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /Calculează CASS/ }));
+    expect(screen.getByRole('alert')).toHaveTextContent(/Introdu totalul/);
+  });
+
+  it('routes from the result to the full calculator', () => {
+    renderPage();
+    calculate('33500');
+    const result = screen.getByTestId('cass-calc-result');
+    expect(within(result).getByRole('link', { name: /calculatorul complet/ })).toHaveAttribute('href', '/calculator');
   });
 });
