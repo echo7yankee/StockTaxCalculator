@@ -56,4 +56,8 @@ export const analytics = {
   previewStarted: () => send('preview_started'),
   previewClean: () => send('preview_clean'),
   previewBlocked: () => send('preview_blocked'),
+  // Distribution widget (/embed/calculator): the calculator was run inside an
+  // embed on a third-party site. Beacons same-origin (the iframe origin is ours),
+  // and the route's pageview already carries the embedding site as referrer.
+  embedCalculatorUsed: () => send('embed_calculator_used'),
 };
