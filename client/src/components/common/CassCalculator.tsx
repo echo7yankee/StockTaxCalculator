@@ -35,10 +35,12 @@ function formatRon(value: number): string {
  * FIXED amount per plafon (the 6/12/24 x minimum-wage threshold base), not a
  * percentage of your actual income; this widget makes that concrete. It reads the
  * already-verified health-contribution brackets straight off the geo-detected
- * `countryConfig`, so every threshold + amount is config-driven (2025 values
- * today, auto-updating when the engine flips to 2026) and nothing is hardcoded
- * here. It surfaces ONLY the CASS obligation; the income tax on gains/dividends is
- * separate, so the result routes the user to the full calculator.
+ * `countryConfig` (the shared RO config), so every threshold + amount is
+ * config-driven (the 2025 brackets today) and nothing is hardcoded here. The 2026
+ * values flow through when that shared RO config advances to tax year 2026 (the
+ * #13 engine-year flip), with no change to this widget. It surfaces ONLY the CASS
+ * obligation; the income tax on gains/dividends is separate, so the result routes
+ * the user to the full calculator.
  */
 export default function CassCalculator() {
   const { countryConfig } = useCountry();
