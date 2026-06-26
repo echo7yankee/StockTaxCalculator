@@ -73,7 +73,14 @@ app.use(rateLimit({
   // Client error beacons (routes/errors.ts) are excluded for the same reason: an
   // error-storm must not exhaust a real user's protective API budget; that endpoint
   // has its own dedicated limiter.
-  skip: (req) => req.path.startsWith('/api/track') || req.path.startsWith('/api/errors'),
+  // The public quick-calc compute endpoint (routes/calculator.ts) is documented for
+  // LLMs / ChatGPT Actions, whose calls cluster on a few shared provider egress IPs;
+  // it has its own dedicated limiter, so exclude it here too (otherwise one provider
+  // IP would exhaust the per-IP budget for every user of an InvesTax GPT).
+  skip: (req) =>
+    req.path.startsWith('/api/track') ||
+    req.path.startsWith('/api/errors') ||
+    req.path.startsWith('/api/calculator'),
 }));
 // Webhook route needs raw body for signature verification — must be before express.json()
 app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }), stripeWebhookRouter);
