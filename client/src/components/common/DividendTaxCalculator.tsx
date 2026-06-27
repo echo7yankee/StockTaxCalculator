@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Calculator } from 'lucide-react';
 import { useCountry } from '../../contexts/CountryContext';
+import { analytics } from '../../lib/analytics';
 import { calculateQuickTax } from '@shared/engine/quickCalculator';
 
 interface DividendCalcResult {
@@ -54,6 +55,7 @@ export default function DividendTaxCalculator() {
     const grossTax = grossRon * countryConfig.dividendTaxRate;
     setError('');
     setResult({ grossTax, credit: Math.min(withheldRon, grossTax), owed: quick.dividendTax });
+    analytics.ghidCalculatorUsed();
   };
 
   return (

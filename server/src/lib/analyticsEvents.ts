@@ -24,6 +24,7 @@ export const ANALYTICS_EVENTS = [
   'preview_clean',
   'preview_blocked',
   'embed_calculator_used',
+  'ghid_calculator_used',
 ] as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENTS)[number];

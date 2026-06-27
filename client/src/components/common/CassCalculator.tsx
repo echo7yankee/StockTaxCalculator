@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Calculator } from 'lucide-react';
 import { useCountry } from '../../contexts/CountryContext';
+import { analytics } from '../../lib/analytics';
 
 interface CassCalcResult {
   /** Matched bracket label from the tax config: 'none' | '6x' | '12x' | '24x'. */
@@ -72,6 +73,7 @@ export default function CassCalculator() {
         ? { label: bracket.label, base: bracket.minIncome, owed: bracket.fixedAmount }
         : { label: 'none', base: 0, owed: 0 },
     );
+    analytics.ghidCalculatorUsed();
   };
 
   return (

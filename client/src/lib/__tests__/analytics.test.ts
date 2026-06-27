@@ -34,6 +34,7 @@ describe('analytics (first-party emitter)', () => {
       [analytics.paymentCompleted, 'payment_completed'],
       [analytics.pdfExported, 'pdf_exported'],
       [analytics.d212Downloaded, 'd212_downloaded'],
+      [analytics.ghidCalculatorUsed, 'ghid_calculator_used'],
     ];
     for (const [fn, expected] of cases) {
       beacon.mockClear();
