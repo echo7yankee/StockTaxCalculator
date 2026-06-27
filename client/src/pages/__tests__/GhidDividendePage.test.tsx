@@ -1,10 +1,17 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 
 import GhidDividendePage from '../GhidDividendePage';
 import { CountryProvider } from '../../contexts/CountryContext';
+
+const ghidCalculatorUsed = vi.fn();
+vi.mock('../../lib/analytics', () => ({
+  analytics: { ghidCalculatorUsed: () => ghidCalculatorUsed() },
+}));
+
+beforeEach(() => ghidCalculatorUsed.mockClear());
 
 function renderPage() {
   return render(
@@ -87,5 +94,17 @@ describe('GhidDividendePage - dividend calculator widget', () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: /Calculează impozitul/ }));
     expect(screen.getByRole('alert')).toHaveTextContent(/Introdu suma brută/);
+  });
+
+  it('beacons ghid_calculator_used on a successful calculation', () => {
+    renderPage();
+    calculate('1000', '0');
+    expect(ghidCalculatorUsed).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not beacon when validation fails (no gross amount)', () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /Calculează impozitul/ }));
+    expect(ghidCalculatorUsed).not.toHaveBeenCalled();
   });
 });

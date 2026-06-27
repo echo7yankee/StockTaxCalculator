@@ -60,4 +60,9 @@ export const analytics = {
   // embed on a third-party site. Beacons same-origin (the iframe origin is ours),
   // and the route's pageview already carries the embedding site as referrer.
   embedCalculatorUsed: () => send('embed_calculator_used'),
+  // Topic-scoped calculator widgets embedded in the SEO /ghid pages (the dividende
+  // and CASS widgets). Fired on a successful in-page calculation so we can see
+  // engagement on those search-intent pages; the beacon's path field tells which
+  // page (e.g. /ghid/dividende-broker-strain vs /ghid/cass-investitii).
+  ghidCalculatorUsed: () => send('ghid_calculator_used'),
 };

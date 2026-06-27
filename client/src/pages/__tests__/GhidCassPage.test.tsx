@@ -1,10 +1,17 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 
 import GhidCassPage from '../GhidCassPage';
 import { CountryProvider } from '../../contexts/CountryContext';
+
+const ghidCalculatorUsed = vi.fn();
+vi.mock('../../lib/analytics', () => ({
+  analytics: { ghidCalculatorUsed: () => ghidCalculatorUsed() },
+}));
+
+beforeEach(() => ghidCalculatorUsed.mockClear());
 
 function renderPage() {
   return render(
@@ -92,5 +99,17 @@ describe('GhidCassPage - CASS calculator widget', () => {
     calculate('33500');
     const result = screen.getByTestId('cass-calc-result');
     expect(within(result).getByRole('link', { name: /calculatorul complet/ })).toHaveAttribute('href', '/calculator');
+  });
+
+  it('beacons ghid_calculator_used on a successful calculation (incl. the no-CASS case)', () => {
+    renderPage();
+    calculate('11100'); // valid input, under the first plafon -> still a completed calc
+    expect(ghidCalculatorUsed).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not beacon when validation fails (no income entered)', () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /Calculează CASS/ }));
+    expect(ghidCalculatorUsed).not.toHaveBeenCalled();
   });
 });
