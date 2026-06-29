@@ -179,11 +179,11 @@ export default function GhidXtbPage() {
               broker este în planul plătit.
             </p>
             <div className="flex flex-wrap gap-3">
-              <Link to="/calculator" className="btn-secondary inline-flex items-center gap-2">
+              <Link to="/calculator/" className="btn-secondary inline-flex items-center gap-2">
                 <Calculator className="w-4 h-4" />
                 Calculator gratuit (manual)
               </Link>
-              <Link to="/pricing" className="btn-primary inline-flex items-center gap-2">
+              <Link to="/pricing/" className="btn-primary inline-flex items-center gap-2">
                 <FileText className="w-4 h-4" />
                 Încarcă extrasul (anul 2025)
               </Link>
@@ -215,11 +215,11 @@ export default function GhidXtbPage() {
         </div>
       </Section>
 
-      <GhidRelatedGuides currentPath="/ghid/impozit-xtb" />
+      <GhidRelatedGuides currentPath="/ghid/impozit-xtb/" />
 
       <nav className="mt-12">
         <Link
-          to="/ghid"
+          to="/ghid/"
           className="flex items-center gap-1 text-sm text-accent dark:text-accent-light hover:underline transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Toate ghidurile

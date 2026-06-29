@@ -26,7 +26,7 @@ export default function Footer() {
         <p className="text-xs text-gray-500 dark:text-slate-400 mb-6 leading-relaxed">
           {t('disclaimerMethodology')}{' '}
           <Link
-            to="/ghid/cum-calculam"
+            to="/ghid/cum-calculam/"
             className="underline underline-offset-2 hover:text-accent dark:hover:text-accent-light transition-colors"
           >
             {t('disclaimerMethodologyLink')}
@@ -37,19 +37,19 @@ export default function Footer() {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500 dark:text-slate-400">
           <p data-testid="current-year">{t('copyright', { year: new Date().getFullYear() })}</p>
           <div className="flex items-center gap-4">
-            <Link to="/ghid" className="hover:text-accent dark:hover:text-accent-light transition-colors">
+            <Link to="/ghid/" className="hover:text-accent dark:hover:text-accent-light transition-colors">
               {t('links.guides')}
             </Link>
-            <Link to="/embed" className="hover:text-accent dark:hover:text-accent-light transition-colors">
+            <Link to="/embed/" className="hover:text-accent dark:hover:text-accent-light transition-colors">
               {t('links.widget')}
             </Link>
-            <Link to="/privacy" className="hover:text-accent dark:hover:text-accent-light transition-colors">
+            <Link to="/privacy/" className="hover:text-accent dark:hover:text-accent-light transition-colors">
               {t('links.privacy')}
             </Link>
-            <Link to="/terms" className="hover:text-accent dark:hover:text-accent-light transition-colors">
+            <Link to="/terms/" className="hover:text-accent dark:hover:text-accent-light transition-colors">
               {t('links.terms')}
             </Link>
-            <Link to="/contact" className="hover:text-accent dark:hover:text-accent-light transition-colors">
+            <Link to="/contact/" className="hover:text-accent dark:hover:text-accent-light transition-colors">
               {t('links.contact')}
             </Link>
           </div>

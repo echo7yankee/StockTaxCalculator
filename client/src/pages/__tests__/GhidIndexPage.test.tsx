@@ -20,13 +20,13 @@ describe('GhidIndexPage - crawlable internal links', () => {
   it('renders the top intro CTA chip as a link to pricing', () => {
     renderPage();
     const topCta = screen.getByRole('link', { name: /Vrei calculul automat din PDF Trading212.*Vezi planuri/ });
-    expect(topCta).toHaveAttribute('href', '/pricing');
+    expect(topCta).toHaveAttribute('href', '/pricing/');
   });
 
   it('renders the bottom CTA pair as links (free calculator + paid PDF upload)', () => {
     renderPage();
-    expect(screen.getByRole('link', { name: /Calculator gratuit \(manual\)/ })).toHaveAttribute('href', '/calculator');
-    expect(screen.getByRole('link', { name: /Upload PDF \(€12 lansare\)/ })).toHaveAttribute('href', '/pricing');
+    expect(screen.getByRole('link', { name: /Calculator gratuit \(manual\)/ })).toHaveAttribute('href', '/calculator/');
+    expect(screen.getByRole('link', { name: /Upload PDF \(€12 lansare\)/ })).toHaveAttribute('href', '/pricing/');
   });
 
   it('links every guide as a crawlable anchor (not a JS-only button)', () => {

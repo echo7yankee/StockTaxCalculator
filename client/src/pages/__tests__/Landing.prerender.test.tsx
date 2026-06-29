@@ -74,8 +74,8 @@ describe('Landing prerender (SSR)', () => {
 
   it('emits the primary calls-to-action (calculator + upload PDF)', () => {
     const html = renderLandingSsr();
-    expect(html).toMatch(/href="\/calculator"/);
-    expect(html).toMatch(/href="\/(upload|pricing)"/);
+    expect(html).toMatch(/href="\/calculator\/"/);
+    expect(html).toMatch(/href="\/(upload|pricing\/)"/);
   });
 
   it('confirms no browser globals leak into the SSR scope', () => {

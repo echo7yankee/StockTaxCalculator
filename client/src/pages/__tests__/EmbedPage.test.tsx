@@ -54,7 +54,7 @@ describe('EmbedPage', () => {
 
   it('routes its CTAs to contact and the free checker', () => {
     renderPage();
-    expect(screen.getByRole('link', { name: /^Contact/ })).toHaveAttribute('href', '/contact');
+    expect(screen.getByRole('link', { name: /^Contact/ })).toHaveAttribute('href', '/contact/');
     expect(screen.getByRole('link', { name: /Verifică un extras gratuit/ })).toHaveAttribute('href', '/verifica-extras');
   });
 });

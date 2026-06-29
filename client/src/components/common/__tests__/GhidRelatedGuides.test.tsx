@@ -15,7 +15,7 @@ function renderAt(currentPath: string) {
 
 describe('GhidRelatedGuides', () => {
   it('renders the heading + the mapped guides as crawlable anchors with descriptive titles', () => {
-    const path = '/ghid/declaratie-unica-trading212';
+    const path = '/ghid/declaratie-unica-trading212/';
     renderAt(path);
 
     expect(screen.getByRole('heading', { name: 'Ghiduri conexe' })).toBeInTheDocument();

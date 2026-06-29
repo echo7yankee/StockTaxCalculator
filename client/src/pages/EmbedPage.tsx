@@ -92,7 +92,7 @@ export default function EmbedPage() {
           Scrie-mi și te ajut cu integrarea. Cititorii tăi pot verifica gratuit un extras pe InvesTax.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <Link to="/contact" className="btn-primary">
+          <Link to="/contact/" className="btn-primary">
             Contact
           </Link>
           <Link to="/verifica-extras" className="btn-secondary">

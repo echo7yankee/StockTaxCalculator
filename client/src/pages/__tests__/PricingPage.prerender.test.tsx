@@ -61,7 +61,7 @@ describe('PricingPage prerender (SSR)', () => {
 
   it('emits the free-tier link to /calculator', () => {
     const html = renderPricingSsr();
-    expect(html).toMatch(/href="\/calculator"/);
+    expect(html).toMatch(/href="\/calculator\/"/);
   });
 
   it('confirms no browser globals leak into the SSR scope', () => {

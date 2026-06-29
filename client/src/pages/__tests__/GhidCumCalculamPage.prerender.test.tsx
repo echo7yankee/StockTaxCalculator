@@ -89,15 +89,15 @@ describe('GhidCumCalculamPage prerender (SSR)', () => {
 
   it('cross-links to /ghid/cass-investitii and /ghid/dividende-broker-strain', () => {
     const html = renderSsr();
-    expect(html).toMatch(/href="\/ghid\/cass-investitii"/);
-    expect(html).toMatch(/href="\/ghid\/dividende-broker-strain"/);
+    expect(html).toMatch(/href="\/ghid\/cass-investitii\/"/);
+    expect(html).toMatch(/href="\/ghid\/dividende-broker-strain\/"/);
   });
 
   it('emits the nav CTAs as crawlable anchors, zero JS-only buttons (SEO: buttons -> Link)', () => {
     const html = renderSsr();
-    expect(html).toMatch(/href="\/calculator"/);
-    expect(html).toMatch(/href="\/pricing"/);
-    expect(html).toMatch(/href="\/ghid"/);
+    expect(html).toMatch(/href="\/calculator\/"/);
+    expect(html).toMatch(/href="\/pricing\/"/);
+    expect(html).toMatch(/href="\/ghid\/"/);
     expect(html).toMatch(/href="\/"/);
     // Every former navigate() button on this page is now an anchor; nothing here renders a <button>.
     expect(html).not.toContain('<button');

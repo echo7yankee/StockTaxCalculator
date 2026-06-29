@@ -136,7 +136,7 @@ export default function DividendTaxCalculator() {
           <p className="text-xs text-gray-500 dark:text-slate-400 pt-2">
             Acesta este doar impozitul pe dividende. CASS (contribuția de sănătate) se calculează separat, pe totalul
             veniturilor tale non-salariale.{' '}
-            <Link to="/calculator" className="text-accent dark:text-accent-light underline hover:no-underline">
+            <Link to="/calculator/" className="text-accent dark:text-accent-light underline hover:no-underline">
               Vezi calculatorul complet cu CASS
             </Link>
             .

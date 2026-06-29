@@ -57,7 +57,7 @@ export default function GhidTrading212Page() {
         </p>
         <p className="mt-3 text-sm">
           <Link
-            to="/pricing"
+            to="/pricing/"
             className="text-accent dark:text-accent-light font-medium underline hover:no-underline"
           >
             Vrei calculul automat din PDF Trading212? Vezi planuri →
@@ -322,11 +322,11 @@ export default function GhidTrading212Page() {
               automată a PDF-ului Trading212 ai nevoie de un plan plătit.
             </p>
             <div className="flex flex-wrap gap-3">
-              <Link to="/calculator" className="btn-secondary inline-flex items-center gap-2">
+              <Link to="/calculator/" className="btn-secondary inline-flex items-center gap-2">
                 <Calculator className="w-4 h-4" />
                 Calculator gratuit (manual)
               </Link>
-              <Link to="/pricing" className="btn-primary inline-flex items-center gap-2">
+              <Link to="/pricing/" className="btn-primary inline-flex items-center gap-2">
                 <FileText className="w-4 h-4" />
                 Upload PDF (€12 lansare)
               </Link>
@@ -346,11 +346,11 @@ export default function GhidTrading212Page() {
         </div>
       </Section>
 
-      <GhidRelatedGuides currentPath="/ghid/declaratie-unica-trading212" />
+      <GhidRelatedGuides currentPath="/ghid/declaratie-unica-trading212/" />
 
       <nav className="mt-12">
         <Link
-          to="/ghid"
+          to="/ghid/"
           className="flex items-center gap-1 text-sm text-accent dark:text-accent-light hover:underline transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Toate ghidurile

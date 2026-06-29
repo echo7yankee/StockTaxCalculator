@@ -57,7 +57,7 @@ export default function GhidDeclaratieUnicaPage() {
         </p>
         <p className="mt-3 text-sm">
           <Link
-            to="/pricing"
+            to="/pricing/"
             className="text-accent dark:text-accent-light font-medium underline hover:no-underline"
           >
             Vrei calculul automat din PDF Trading212? Vezi planuri →
@@ -146,14 +146,14 @@ export default function GhidDeclaratieUnicaPage() {
               pierderea ca sumă negativă), calculat fie pe metoda Costului Mediu Ponderat (CMP), fie pe FIFO (alege
               una și aplic-o consistent). Detalii în{' '}
               <Link
-                to="/ghid/declaratie-unica-trading212"
+                to="/ghid/declaratie-unica-trading212/"
                 className="text-accent dark:text-accent-light underline hover:no-underline"
               >
                 ghidul Trading212
               </Link>
               {' '}sau{' '}
               <Link
-                to="/ghid/declaratie-unica-revolut"
+                to="/ghid/declaratie-unica-revolut/"
                 className="text-accent dark:text-accent-light underline hover:no-underline"
               >
                 ghidul Revolut
@@ -164,7 +164,7 @@ export default function GhidDeclaratieUnicaPage() {
               <strong>Capitolul „Veniturile din dividende din străinătate":</strong> brutul în RON și reținerea
               străină ca credit. Detalii în{' '}
               <Link
-                to="/ghid/dividende-broker-strain"
+                to="/ghid/dividende-broker-strain/"
                 className="text-accent dark:text-accent-light underline hover:no-underline"
               >
                 ghidul dividendelor de la broker străin
@@ -182,7 +182,7 @@ export default function GhidDeclaratieUnicaPage() {
               <strong>Capitolul „Stabilirea contribuției de asigurări sociale de sănătate":</strong> bifezi pragul în
               care te încadrezi pe baza sumei totale a veniturilor non-salariale. Detalii în{' '}
               <Link
-                to="/ghid/cass-investitii"
+                to="/ghid/cass-investitii/"
                 className="text-accent dark:text-accent-light underline hover:no-underline"
               >
                 ghidul CASS pe investiții
@@ -321,11 +321,11 @@ export default function GhidDeclaratieUnicaPage() {
               extraselor.
             </p>
             <div className="flex flex-wrap gap-3">
-              <Link to="/calculator" className="btn-secondary inline-flex items-center gap-2">
+              <Link to="/calculator/" className="btn-secondary inline-flex items-center gap-2">
                 <Calculator className="w-4 h-4" />
                 Calculator gratuit (manual)
               </Link>
-              <Link to="/pricing" className="btn-primary inline-flex items-center gap-2">
+              <Link to="/pricing/" className="btn-primary inline-flex items-center gap-2">
                 <FileText className="w-4 h-4" />
                 Upload PDF (€12 lansare)
               </Link>
@@ -339,7 +339,7 @@ export default function GhidDeclaratieUnicaPage() {
         <ul className="list-disc list-outside pl-6 space-y-2 mt-3">
           <li>
             <Link
-              to="/ghid/declaratie-unica-trading212"
+              to="/ghid/declaratie-unica-trading212/"
               className="text-accent dark:text-accent-light underline hover:no-underline"
             >
               Trading212 în Declarația Unică
@@ -348,7 +348,7 @@ export default function GhidDeclaratieUnicaPage() {
           </li>
           <li>
             <Link
-              to="/ghid/declaratie-unica-revolut"
+              to="/ghid/declaratie-unica-revolut/"
               className="text-accent dark:text-accent-light underline hover:no-underline"
             >
               Revolut Stocks / Trading în Declarația Unică
@@ -357,7 +357,7 @@ export default function GhidDeclaratieUnicaPage() {
           </li>
           <li>
             <Link
-              to="/ghid/dividende-broker-strain"
+              to="/ghid/dividende-broker-strain/"
               className="text-accent dark:text-accent-light underline hover:no-underline"
             >
               Dividende de la broker străin
@@ -366,7 +366,7 @@ export default function GhidDeclaratieUnicaPage() {
           </li>
           <li>
             <Link
-              to="/ghid/cass-investitii"
+              to="/ghid/cass-investitii/"
               className="text-accent dark:text-accent-light underline hover:no-underline"
             >
               CASS pentru investitori
@@ -387,11 +387,11 @@ export default function GhidDeclaratieUnicaPage() {
         </div>
       </Section>
 
-      <GhidRelatedGuides currentPath="/ghid/cum-completez-declaratia-unica" />
+      <GhidRelatedGuides currentPath="/ghid/cum-completez-declaratia-unica/" />
 
       <nav className="mt-12">
         <Link
-          to="/ghid"
+          to="/ghid/"
           className="flex items-center gap-1 text-sm text-accent dark:text-accent-light hover:underline transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Toate ghidurile

@@ -15,14 +15,21 @@ export default function Header() {
 
   const navLinks = [
     { to: '/', label: t('header:home') },
-    { to: '/calculator', label: t('header:calculator') },
-    { to: '/ghid', label: t('header:guides') },
+    { to: '/calculator/', label: t('header:calculator') },
+    { to: '/ghid/', label: t('header:guides') },
     ...(isPaid ? [{ to: '/dashboard', label: t('header:dashboard') }] : []),
     { to: '/filing-guide', label: t('header:filingGuide') },
-    ...(!isPaid ? [{ to: '/pricing', label: t('header:pricing') }] : []),
+    ...(!isPaid ? [{ to: '/pricing/', label: t('header:pricing') }] : []),
   ];
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Internal nav links now point at the trailing-slash canonical (e.g. "/calculator/"),
+  // but location.pathname may arrive with or without the trailing slash depending on how
+  // the route was reached. Compare on a slash-normalized form so the active state stays
+  // correct either way. The root "/" is left untouched.
+  const stripTrailingSlash = (p: string) => (p !== '/' && p.endsWith('/') ? p.slice(0, -1) : p);
+  const isActiveLink = (to: string) => stripTrailingSlash(location.pathname) === stripTrailingSlash(to);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -70,7 +77,7 @@ export default function Header() {
                 key={link.to}
                 to={link.to}
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  location.pathname === link.to
+                  isActiveLink(link.to)
                     ? 'bg-accent/10 text-accent dark:text-accent-light'
                     : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 hover:bg-gray-100 dark:hover:bg-navy-700'
                 }`}
@@ -219,7 +226,7 @@ export default function Header() {
                 key={link.to}
                 to={link.to}
                 className={`block px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  location.pathname === link.to
+                  isActiveLink(link.to)
                     ? 'bg-accent/10 text-accent dark:text-accent-light'
                     : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-navy-700'
                 }`}
