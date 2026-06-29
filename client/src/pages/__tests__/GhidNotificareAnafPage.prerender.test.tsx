@@ -71,9 +71,9 @@ describe('GhidNotificareAnafPage prerender (SSR)', () => {
 
   it('cross-links the cluster with crawlable anchors (related guides + hub)', () => {
     const html = renderSsr();
-    expect(html).toMatch(/href="\/ghid\/cum-completez-declaratia-unica"/);
-    expect(html).toMatch(/href="\/ghid\/declaratie-unica-trading212"/);
-    expect(html).toMatch(/href="\/ghid"/);
+    expect(html).toMatch(/href="\/ghid\/cum-completez-declaratia-unica\/"/);
+    expect(html).toMatch(/href="\/ghid\/declaratie-unica-trading212\/"/);
+    expect(html).toMatch(/href="\/ghid\/"/);
   });
 
   it('emits FAQ questions used by the FAQPage schema', () => {

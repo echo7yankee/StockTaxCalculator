@@ -145,7 +145,7 @@ export default function CassCalculator() {
           )}
           <p className="text-xs text-gray-500 dark:text-slate-400 pt-2">
             Acesta este doar CASS. Impozitul pe câștigurile din titluri și pe dividende se calculează separat.{' '}
-            <Link to="/calculator" className="text-accent dark:text-accent-light underline hover:no-underline">
+            <Link to="/calculator/" className="text-accent dark:text-accent-light underline hover:no-underline">
               Vezi calculatorul complet
             </Link>
             .

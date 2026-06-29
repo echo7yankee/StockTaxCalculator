@@ -75,7 +75,7 @@ export default function GhidCumCalculamPage() {
         </ul>
         <p className="mt-3 text-sm">
           <Link
-            to="/pricing"
+            to="/pricing/"
             className="text-accent dark:text-accent-light font-medium underline hover:no-underline"
           >
             Vezi planuri și încarcă PDF-ul Trading212 →
@@ -184,7 +184,7 @@ export default function GhidCumCalculamPage() {
           131. Dacă reținerea străină depășește 10% (de exemplu 30% în SUA fără W-8BEN, 15% în Olanda, 26,375% în
           Germania), diferența nu se recuperează în România. Pentru detalii pe țară, exemple lucrate și tratatele de
           evitare a dublei impuneri, vezi{' '}
-          <a className="text-accent dark:text-accent-light underline hover:no-underline" href="/ghid/dividende-broker-strain">
+          <a className="text-accent dark:text-accent-light underline hover:no-underline" href="/ghid/dividende-broker-strain/">
             ghidul dividendelor de la broker străin
           </a>
           .
@@ -234,7 +234,7 @@ export default function GhidCumCalculamPage() {
           Veniturile care intră în calculul pragului: câștiguri din transferul titlurilor de valoare, dividende
           (brut), dobânzi, chirii, alte venituri ale persoanei fizice. InvesTax cumulează automat veniturile pe care
           le declari și determină pragul corect. Detalii și exemple în{' '}
-          <a className="text-accent dark:text-accent-light underline hover:no-underline" href="/ghid/cass-investitii">
+          <a className="text-accent dark:text-accent-light underline hover:no-underline" href="/ghid/cass-investitii/">
             ghidul CASS pe investiții
           </a>
           .
@@ -352,11 +352,11 @@ export default function GhidCumCalculamPage() {
               direct din PDF-ul Trading212, vezi planurile de plată.
             </p>
             <div className="flex flex-wrap gap-3">
-              <Link to="/calculator" className="btn-secondary inline-flex items-center gap-2">
+              <Link to="/calculator/" className="btn-secondary inline-flex items-center gap-2">
                 <Calculator className="w-4 h-4" />
                 Calculator manual
               </Link>
-              <Link to="/pricing" className="btn-primary inline-flex items-center gap-2">
+              <Link to="/pricing/" className="btn-primary inline-flex items-center gap-2">
                 <FileText className="w-4 h-4" />
                 Upload PDF (€12 lansare)
               </Link>
@@ -376,11 +376,11 @@ export default function GhidCumCalculamPage() {
         </div>
       </Section>
 
-      <GhidRelatedGuides currentPath="/ghid/cum-calculam" />
+      <GhidRelatedGuides currentPath="/ghid/cum-calculam/" />
 
       <nav className="mt-12">
         <Link
-          to="/ghid"
+          to="/ghid/"
           className="flex items-center gap-1 text-sm text-accent dark:text-accent-light hover:underline transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Toate ghidurile

@@ -20,19 +20,19 @@ describe('GhidXtbPage - crawlable nav and CTAs', () => {
   it('renders the page nav as crawlable anchors (home + back to the guides hub)', () => {
     renderPage();
     expect(screen.getByRole('link', { name: /Acasă/ })).toHaveAttribute('href', '/');
-    expect(screen.getByRole('link', { name: /Toate ghidurile/ })).toHaveAttribute('href', '/ghid');
+    expect(screen.getByRole('link', { name: /Toate ghidurile/ })).toHaveAttribute('href', '/ghid/');
   });
 
   it('renders the 2025-scoped two-tier CTA pair as links (free calculator + paid upload)', () => {
     renderPage();
-    expect(screen.getByRole('link', { name: /Calculator gratuit \(manual\)/ })).toHaveAttribute('href', '/calculator');
-    expect(screen.getByRole('link', { name: /Încarcă extrasul \(anul 2025\)/ })).toHaveAttribute('href', '/pricing');
+    expect(screen.getByRole('link', { name: /Calculator gratuit \(manual\)/ })).toHaveAttribute('href', '/calculator/');
+    expect(screen.getByRole('link', { name: /Încarcă extrasul \(anul 2025\)/ })).toHaveAttribute('href', '/pricing/');
   });
 
   it('does not link to itself', () => {
     renderPage();
     const hrefs = screen.getAllByRole('link').map((a) => a.getAttribute('href'));
-    expect(hrefs).not.toContain('/ghid/impozit-xtb');
+    expect(hrefs).not.toContain('/ghid/impozit-xtb/');
   });
 });
 

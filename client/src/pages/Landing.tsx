@@ -10,7 +10,7 @@ export default function Landing() {
   const { t, i18n } = useTranslation('landing');
   const { user } = useAuth();
   const isPaid = user?.plan === 'paid';
-  const uploadLink = isPaid ? '/upload' : '/pricing';
+  const uploadLink = isPaid ? '/upload' : '/pricing/';
   const yearVars = taxYearInterpVars(i18n.language);
 
   const steps = [
@@ -38,7 +38,7 @@ export default function Landing() {
           {t('heroSubtitle', yearVars)}
         </p>
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link to="/calculator" className="btn-primary text-lg px-8 py-3 flex items-center gap-2">
+          <Link to="/calculator/" className="btn-primary text-lg px-8 py-3 flex items-center gap-2">
             {t('tryCalculator')} <ArrowRight className="w-5 h-5" />
           </Link>
           <Link to={uploadLink} className="btn-secondary text-lg px-8 py-3 flex items-center gap-2">
@@ -103,7 +103,7 @@ export default function Landing() {
         </div>
         <div className="text-center mt-8">
           <Link
-            to="/ghid"
+            to="/ghid/"
             className="inline-flex items-center gap-1 text-accent dark:text-accent-light font-medium hover:underline"
           >
             {t('guidesSeeAll')} <ArrowRight className="w-4 h-4" />

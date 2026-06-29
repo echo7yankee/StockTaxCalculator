@@ -107,6 +107,6 @@ describe('Header guides nav link (SEO internal linking into /ghid)', () => {
 
     const links = screen.getAllByRole('link', { name: 'Guides' });
     expect(links.length).toBeGreaterThan(0);
-    links.forEach((link) => expect(link).toHaveAttribute('href', '/ghid'));
+    links.forEach((link) => expect(link).toHaveAttribute('href', '/ghid/'));
   });
 });

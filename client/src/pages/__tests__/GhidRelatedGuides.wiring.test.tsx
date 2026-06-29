@@ -17,15 +17,15 @@ import { CountryProvider } from '../../contexts/CountryContext';
 import { GHID_LIST, GHID_RELATED } from '../../lib/ghidIndexSchemas';
 
 const PAGES: { path: string; Page: ComponentType }[] = [
-  { path: '/ghid/declaratie-unica-trading212', Page: GhidTrading212Page },
-  { path: '/ghid/declaratie-unica-revolut', Page: GhidRevolutPage },
-  { path: '/ghid/declaratie-unica-ibkr', Page: GhidIbkrPage },
-  { path: '/ghid/cass-investitii', Page: GhidCassPage },
-  { path: '/ghid/dividende-broker-strain', Page: GhidDividendePage },
-  { path: '/ghid/cum-completez-declaratia-unica', Page: GhidDeclaratieUnicaPage },
-  { path: '/ghid/cum-calculam', Page: GhidCumCalculamPage },
-  { path: '/ghid/notificare-anaf-venituri-strainatate', Page: GhidNotificareAnafPage },
-  { path: '/ghid/impozit-xtb', Page: GhidXtbPage },
+  { path: '/ghid/declaratie-unica-trading212/', Page: GhidTrading212Page },
+  { path: '/ghid/declaratie-unica-revolut/', Page: GhidRevolutPage },
+  { path: '/ghid/declaratie-unica-ibkr/', Page: GhidIbkrPage },
+  { path: '/ghid/cass-investitii/', Page: GhidCassPage },
+  { path: '/ghid/dividende-broker-strain/', Page: GhidDividendePage },
+  { path: '/ghid/cum-completez-declaratia-unica/', Page: GhidDeclaratieUnicaPage },
+  { path: '/ghid/cum-calculam/', Page: GhidCumCalculamPage },
+  { path: '/ghid/notificare-anaf-venituri-strainatate/', Page: GhidNotificareAnafPage },
+  { path: '/ghid/impozit-xtb/', Page: GhidXtbPage },
 ];
 
 function renderPage(Page: ComponentType) {

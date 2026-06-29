@@ -23,15 +23,15 @@ describe('Footer: methodology link', () => {
   it('renders the inline link pointing at the methodology ghid page', () => {
     renderFooter();
     const link = screen.getByRole('link', { name: 'Methodology' });
-    expect(link).toHaveAttribute('href', '/ghid/cum-calculam');
+    expect(link).toHaveAttribute('href', '/ghid/cum-calculam/');
   });
 
   it('keeps the existing legal/admin link cluster intact', () => {
     renderFooter();
-    expect(screen.getByRole('link', { name: 'Guides' })).toHaveAttribute('href', '/ghid');
-    expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '/privacy');
-    expect(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', '/terms');
-    expect(screen.getByRole('link', { name: 'Contact' })).toHaveAttribute('href', '/contact');
+    expect(screen.getByRole('link', { name: 'Guides' })).toHaveAttribute('href', '/ghid/');
+    expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '/privacy/');
+    expect(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', '/terms/');
+    expect(screen.getByRole('link', { name: 'Contact' })).toHaveAttribute('href', '/contact/');
   });
 });
 

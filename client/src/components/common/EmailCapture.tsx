@@ -159,7 +159,7 @@ export default function EmailCapture({
 
         <p className="text-xs text-gray-500 dark:text-slate-400">
           {t('consent')}{' '}
-          <Link to="/privacy" className="underline hover:no-underline">
+          <Link to="/privacy/" className="underline hover:no-underline">
             {t('consentLink')}
           </Link>
         </p>

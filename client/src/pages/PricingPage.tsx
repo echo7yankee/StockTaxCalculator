@@ -128,7 +128,7 @@ export default function PricingPage() {
             ))}
           </ul>
           <Link
-            to="/calculator"
+            to="/calculator/"
             className="btn-secondary text-center mt-6 py-3"
           >
             {t('features.quickCalc')}

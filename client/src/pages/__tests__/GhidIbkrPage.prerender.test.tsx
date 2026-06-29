@@ -71,8 +71,8 @@ describe('GhidIbkrPage prerender (SSR)', () => {
 
   it('cross-links to the shared-mechanics guides (crawlable anchors)', () => {
     const html = renderSsr();
-    expect(html).toMatch(/href="\/ghid\/declaratie-unica-trading212"/);
-    expect(html).toMatch(/href="\/ghid\/cum-calculam"/);
+    expect(html).toMatch(/href="\/ghid\/declaratie-unica-trading212\/"/);
+    expect(html).toMatch(/href="\/ghid\/cum-calculam\/"/);
   });
 
   it('emits FAQ questions used by the FAQPage schema', () => {

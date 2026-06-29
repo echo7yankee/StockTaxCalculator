@@ -59,7 +59,7 @@ export default function GhidIbkrPage() {
         </p>
         <p className="mt-3 text-sm">
           <Link
-            to="/pricing"
+            to="/pricing/"
             className="text-accent dark:text-accent-light font-medium underline hover:no-underline"
           >
             Vrei calculul automat din extrasul IBKR? Vezi planuri →
@@ -177,22 +177,22 @@ export default function GhidIbkrPage() {
         </p>
         <ul className="list-disc list-outside pl-6 space-y-1 mt-3">
           <li>
-            <Link to="/ghid/declaratie-unica-trading212" className="text-accent dark:text-accent-light hover:underline">
+            <Link to="/ghid/declaratie-unica-trading212/" className="text-accent dark:text-accent-light hover:underline">
               Ghidul pas cu pas (cu exemplu numeric lucrat)
             </Link>
           </li>
           <li>
-            <Link to="/ghid/cum-calculam" className="text-accent dark:text-accent-light hover:underline">
+            <Link to="/ghid/cum-calculam/" className="text-accent dark:text-accent-light hover:underline">
               Metodologia InvesTax (CMP, cursuri BNR, citate Codul Fiscal)
             </Link>
           </li>
           <li>
-            <Link to="/ghid/dividende-broker-strain" className="text-accent dark:text-accent-light hover:underline">
+            <Link to="/ghid/dividende-broker-strain/" className="text-accent dark:text-accent-light hover:underline">
               Dividende de la broker străin: creditul fiscal pe țări
             </Link>
           </li>
           <li>
-            <Link to="/ghid/cass-investitii" className="text-accent dark:text-accent-light hover:underline">
+            <Link to="/ghid/cass-investitii/" className="text-accent dark:text-accent-light hover:underline">
               CASS pe investiții: praguri și exemple
             </Link>
           </li>
@@ -209,7 +209,7 @@ export default function GhidIbkrPage() {
         <p className="mt-3">
           Ambele metode sunt acceptate în practica retail; important este să aplici una consistent pe toate vânzările.
           Logica detaliată este în{' '}
-          <Link to="/ghid/cum-calculam" className="text-accent dark:text-accent-light underline">
+          <Link to="/ghid/cum-calculam/" className="text-accent dark:text-accent-light underline">
             ghidul de metodologie
           </Link>
           .
@@ -251,11 +251,11 @@ export default function GhidIbkrPage() {
               extrasului IBKR (beta) ai nevoie de un plan plătit.
             </p>
             <div className="flex flex-wrap gap-3">
-              <Link to="/calculator" className="btn-secondary inline-flex items-center gap-2">
+              <Link to="/calculator/" className="btn-secondary inline-flex items-center gap-2">
                 <Calculator className="w-4 h-4" />
                 Calculator gratuit (manual)
               </Link>
-              <Link to="/pricing" className="btn-primary inline-flex items-center gap-2">
+              <Link to="/pricing/" className="btn-primary inline-flex items-center gap-2">
                 <FileText className="w-4 h-4" />
                 Încarcă extrasul IBKR (beta)
               </Link>
@@ -285,11 +285,11 @@ export default function GhidIbkrPage() {
         </div>
       </Section>
 
-      <GhidRelatedGuides currentPath="/ghid/declaratie-unica-ibkr" />
+      <GhidRelatedGuides currentPath="/ghid/declaratie-unica-ibkr/" />
 
       <nav className="mt-12">
         <Link
-          to="/ghid"
+          to="/ghid/"
           className="flex items-center gap-1 text-sm text-accent dark:text-accent-light hover:underline transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Toate ghidurile

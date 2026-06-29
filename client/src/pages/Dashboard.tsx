@@ -187,7 +187,7 @@ export default function Dashboard() {
           <p className="text-sm text-gray-600 dark:text-slate-400">{t('dashboard:uploadStatementDesc')}</p>
         </Link>
 
-        <Link to="/calculator" className="card hover:border-accent transition-colors group">
+        <Link to="/calculator/" className="card hover:border-accent transition-colors group">
           <Calculator className="w-8 h-8 text-accent dark:text-accent-light mb-3" />
           <h3 className="text-lg font-semibold mb-1 group-hover:text-accent dark:hover:text-accent-light transition-colors">{t('dashboard:quickCalculatorTitle')}</h3>
           <p className="text-sm text-gray-600 dark:text-slate-400">{t('dashboard:quickCalculatorDesc')}</p>

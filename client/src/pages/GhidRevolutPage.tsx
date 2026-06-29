@@ -58,7 +58,7 @@ export default function GhidRevolutPage() {
         </p>
         <p className="mt-3 text-sm">
           <Link
-            to="/pricing"
+            to="/pricing/"
             className="text-accent dark:text-accent-light font-medium underline hover:no-underline"
           >
             Vrei calculul automat din extrasul Revolut? Vezi planuri →
@@ -285,7 +285,7 @@ export default function GhidRevolutPage() {
             Pragul se calculează pe SUMA tuturor veniturilor tale non-salariale (dividende + câștiguri + dobânzi +
             chirii + altele), nu doar pe Revolut. Pentru detalii, vezi ghidul nostru despre{' '}
             <Link
-              to="/ghid/cass-investitii"
+              to="/ghid/cass-investitii/"
               className="text-accent dark:text-accent-light underline hover:no-underline"
             >
               CASS pe investiții
@@ -415,11 +415,11 @@ export default function GhidRevolutPage() {
               Statement-ului Revolut (beta) ai nevoie de un plan plătit.
             </p>
             <div className="flex flex-wrap gap-3">
-              <Link to="/calculator" className="btn-secondary inline-flex items-center gap-2">
+              <Link to="/calculator/" className="btn-secondary inline-flex items-center gap-2">
                 <Calculator className="w-4 h-4" />
                 Calculator gratuit (manual)
               </Link>
-              <Link to="/pricing" className="btn-primary inline-flex items-center gap-2">
+              <Link to="/pricing/" className="btn-primary inline-flex items-center gap-2">
                 <FileText className="w-4 h-4" />
                 Încarcă extrasul Revolut (beta)
               </Link>
@@ -449,11 +449,11 @@ export default function GhidRevolutPage() {
         </div>
       </Section>
 
-      <GhidRelatedGuides currentPath="/ghid/declaratie-unica-revolut" />
+      <GhidRelatedGuides currentPath="/ghid/declaratie-unica-revolut/" />
 
       <nav className="mt-12">
         <Link
-          to="/ghid"
+          to="/ghid/"
           className="flex items-center gap-1 text-sm text-accent dark:text-accent-light hover:underline transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Toate ghidurile

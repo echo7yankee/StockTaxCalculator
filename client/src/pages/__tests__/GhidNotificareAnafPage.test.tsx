@@ -19,7 +19,7 @@ describe('GhidNotificareAnafPage - crawlable nav and CTAs', () => {
   it('renders the page nav as crawlable anchors (home + back to the guides hub)', () => {
     renderPage();
     expect(screen.getByRole('link', { name: /Acasă/ })).toHaveAttribute('href', '/');
-    expect(screen.getByRole('link', { name: /Toate ghidurile/ })).toHaveAttribute('href', '/ghid');
+    expect(screen.getByRole('link', { name: /Toate ghidurile/ })).toHaveAttribute('href', '/ghid/');
   });
 
   it('routes the tool funnel through the free statement checker, then the paid upload', () => {
@@ -32,8 +32,8 @@ describe('GhidNotificareAnafPage - crawlable nav and CTAs', () => {
       '/verifica-extras'
     );
     // Paid conversion + manual estimator stay available (two-tier framing, never free-only).
-    expect(screen.getByRole('link', { name: /Încarcă extrasul \(anul 2025\)/ })).toHaveAttribute('href', '/pricing');
-    expect(screen.getByRole('link', { name: /Calculator gratuit \(manual\)/ })).toHaveAttribute('href', '/calculator');
+    expect(screen.getByRole('link', { name: /Încarcă extrasul \(anul 2025\)/ })).toHaveAttribute('href', '/pricing/');
+    expect(screen.getByRole('link', { name: /Calculator gratuit \(manual\)/ })).toHaveAttribute('href', '/calculator/');
   });
 
   it('offers the free parse check inline at the reconstruct-broker-history step', () => {
@@ -53,7 +53,7 @@ describe('GhidNotificareAnafPage - crawlable nav and CTAs', () => {
   it('does not link to itself', () => {
     renderPage();
     const hrefs = screen.getAllByRole('link').map((a) => a.getAttribute('href'));
-    expect(hrefs).not.toContain('/ghid/notificare-anaf-venituri-strainatate');
+    expect(hrefs).not.toContain('/ghid/notificare-anaf-venituri-strainatate/');
   });
 });
 
