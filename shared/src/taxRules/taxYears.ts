@@ -25,18 +25,21 @@ export interface TaxYearConfig {
 }
 
 export const TAX_YEARS: Record<number, TaxYearConfig> = {
-  // 2023 + 2024 entries: DORMANT (engineSupported false). Encoded for the prior-year
-  // regularization lane (the ANAF notificare-de-conformare / declaratie rectificativa
-  // segment); verification + per-claim sources in
-  // investax-docs/prior-year-regularization-spec.md Section 3 (ANAF Brasov DU deck
-  // 14.05.2025, ANAF Cluj notes 03.2024 + 01.2025). The ONE engine math delta vs 2025
-  // is dividends at 8% (OG 16/2022; 10% applies only to dividends distributed from
-  // 2025-01-01, OUG 156/2024). earlyFilingDeadline* null + earlyFilingDiscountRate 0 =
-  // NO bonificatie existed for either cycle. Do NOT flip engineSupported true before
-  // the spec's Section 6 Step 3 gates: demand trigger (20+ waitlist signups or 2+
-  // direct asks), BNR 2023/2024 rate availability check, d212Fields QA vs OPANAF
-  // 6/2024 + 7015/2024, and the 28,053 regression staying byte-identical. Tax year
-  // 2022 and earlier are OUT OF SCOPE (pre-CMP cost-method territory, Legea 142/2022).
+  // 2023 + 2024 entries: LIVE (engineSupported true since the prior-year flip,
+  // prior-year-regularization-spec.md Section 6 Step 3). They serve the ANAF
+  // notificare-de-conformare / declaratie rectificativa segment: a paid upload of a
+  // 2023/2024 broker statement now computes at that year's rates. Verification +
+  // per-claim sources in that spec Section 3 (ANAF Brasov DU deck 14.05.2025, ANAF
+  // Cluj notes 03.2024 + 01.2025). The ONE engine math delta vs 2025 is dividends at
+  // 8% (OG 16/2022; 10% applies only to dividends distributed from 2025-01-01, OUG
+  // 156/2024). earlyFilingDeadline* null + earlyFilingDiscountRate 0 = NO bonificatie
+  // existed for either cycle. Step 3 engineering gates cleared at flip: BNR 2023/2024
+  // rate availability (nbrfxrates{year}.xml served by bnrRates.ts), and the 28,053
+  // regression byte-identical (the 2025 config is untouched). D212 XML generation
+  // stays 2025-only (D212_SUPPORTED_TAX_YEAR) until the per-year XSD + d212Fields QA
+  // lands, so past-year filers get correct numbers + the filing guide, never a wrong
+  // declaration. Tax year 2022 and earlier remain OUT OF SCOPE (pre-CMP cost-method
+  // territory, Legea 142/2022).
   2023: {
     taxYear: 2023,
     filingYear: 2024,
@@ -55,7 +58,7 @@ export const TAX_YEARS: Record<number, TaxYearConfig> = {
     residentBrokerShortHoldRate: 0.03,
     romanianDividendWithholdingRate: 0.08, // OG 16/2022: 8% from 2023-01-01 (NOT 10%)
     earlyFilingDiscountRate: 0,
-    engineSupported: false, // GATE: prior-year-regularization-spec.md Section 6 Step 3
+    engineSupported: true, // LIVE: prior-year flip (spec Section 6 Step 3); 8% dividend math verified, BNR 2023 available
   },
   2024: {
     taxYear: 2024,
@@ -75,7 +78,7 @@ export const TAX_YEARS: Record<number, TaxYearConfig> = {
     residentBrokerShortHoldRate: 0.03,
     romanianDividendWithholdingRate: 0.08, // 8% for 2024 incomes too; 10% only from dividends distributed after 2025-01-01
     earlyFilingDiscountRate: 0,
-    engineSupported: false, // GATE: prior-year-regularization-spec.md Section 6 Step 3
+    engineSupported: true, // LIVE: prior-year flip (spec Section 6 Step 3); 8% dividend math verified, BNR 2024 available
   },
   2025: {
     taxYear: 2025,
@@ -138,6 +141,20 @@ export function getCurrentTaxYear(now: Date = new Date()): number {
 
 export function getTaxYearConfig(year: number): TaxYearConfig | undefined {
   return TAX_YEARS[year];
+}
+
+/**
+ * Whether the engine can calculate this exact tax year end-to-end (its rates are
+ * verified and signed off via the engineSupported flag). The single source of
+ * truth for the UI "can we compute this year?" guards: the paid upload flow and
+ * the free pre-paywall checker both gate on it so an unsupported year never
+ * silently falls back to another year's rates. getTaxConfigForYear's fallback is
+ * correct for engine safety but invisible to the user, so the UI checks support
+ * up front and blocks with an explanation instead. Distinct from getTaxYearConfig,
+ * which returns dormant entries (e.g. 2026) too.
+ */
+export function isEngineSupportedTaxYear(year: number): boolean {
+  return TAX_YEARS[year]?.engineSupported === true;
 }
 
 /**

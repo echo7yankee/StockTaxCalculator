@@ -11,7 +11,7 @@ import { getBrokerMeta } from '../lib/brokers';
 import PageMeta from '../components/common/PageMeta';
 import D212Download from '../components/D212Download';
 import AuditTrailDownload from '../components/AuditTrailDownload';
-import { taxYearInterpVars } from '../utils/taxYearVars';
+import { taxYearInterpVarsForYear } from '../utils/taxYearVars';
 import { isBeforeEarlyFilingDeadline } from '../utils/earlyFiling';
 import { cassBracketLabelKey } from '../utils/cassBracket';
 
@@ -30,8 +30,10 @@ export default function ResultsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  // Disclaimer reflects the engine-applicable tax year, not the uploaded statement's year.
-  const yearVars = taxYearInterpVars(i18n.language);
+  // Disclaimer reflects the uploaded statement's tax year (it can be a prior year
+  // now that 2023/2024 are engine-supported), so the footnote year matches the
+  // results title rather than always naming the current engine year.
+  const yearVars = taxYearInterpVarsForYear(i18n.language, taxYear);
 
   // Dividend foreign-tax credit. Some statements (notably the Revolut Account
   // Statement) carry no withholding line, so the parser reports 0 withholding and

@@ -20,5 +20,6 @@ export {
   getTaxYearConfig,
   getCurrentTaxYearConfig,
   getLatestEngineSupportedConfig,
+  isEngineSupportedTaxYear,
 } from './taxYears.js';
 export type { TaxYearConfig } from './taxYears.js';

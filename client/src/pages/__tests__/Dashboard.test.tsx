@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
+import { romaniaTaxConfig } from '@shared/taxRules/romania';
 import Dashboard from '../Dashboard';
 
 // Mock useAuth to simulate logged-in user
@@ -19,9 +20,10 @@ vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => mockAuth,
 }));
 
+const mockSetUploadData = vi.fn();
 vi.mock('../../contexts/UploadContext', () => ({
   useUpload: () => ({
-    setUploadData: vi.fn(),
+    setUploadData: mockSetUploadData,
     clearUpload: vi.fn(),
     parseResult: null,
     transactions: [],
@@ -29,6 +31,15 @@ vi.mock('../../contexts/UploadContext', () => ({
     securities: [],
     fileName: '',
     taxYear: 2025,
+  }),
+}));
+
+vi.mock('../../contexts/CountryContext', () => ({
+  useCountry: () => ({
+    countryCode: 'RO',
+    countryConfig: romaniaTaxConfig,
+    setCountryCode: vi.fn(),
+    supportedCountries: [{ code: 'RO', name: 'Romania' }],
   }),
 }));
 
@@ -74,6 +85,7 @@ function renderDashboard() {
 describe('Dashboard', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    mockSetUploadData.mockClear();
   });
 
   it('shows loading state initially', () => {
@@ -175,6 +187,50 @@ describe('Dashboard', () => {
     });
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/tax-years/1', { method: 'DELETE', credentials: 'include' });
+  });
+
+  it('reconstructs a saved 2024 calc at the 8% prior-year dividend rate, not 10%', async () => {
+    // Regression for the qa-found defect: the Dashboard reload reconstruction
+    // hardcoded the 2025 dividend rate (0.10). For a 2023/2024 saved calc the
+    // Filing Guide's rd.8 (gross dividend tax) must use that year's 8% rate.
+    const user = userEvent.setup();
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify(mockTaxYears), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: 'ty2',
+            year: 2024,
+            calculation: {
+              totalDividendsGross: 1000,
+              dividendTaxOwed: 80,
+              totalWithholdingTax: 0,
+              totalCapitalGains: 0,
+              netCapitalGains: 0,
+              totalCapitalLosses: 0,
+              capitalGainsTax: 0,
+              totalNonSalaryIncome: 1000,
+              cassThresholdHit: 'none',
+              cassOwed: 0,
+              totalTaxOwed: 80,
+              earlyFilingDiscount: 0,
+              calculatedAt: '2025-04-01T10:00:00Z',
+              securities: [],
+            },
+          }),
+          { status: 200 },
+        ),
+      );
+
+    renderDashboard();
+    await waitFor(() => expect(screen.getByText('trading212-2024.csv')).toBeInTheDocument());
+    await user.click(screen.getByText('trading212-2024.csv'));
+
+    await waitFor(() => expect(mockSetUploadData).toHaveBeenCalled());
+    const payload = mockSetUploadData.mock.calls.at(-1)?.[0];
+    expect(payload.taxYear).toBe(2024);
+    expect(payload.taxResult.dividends.taxRate).toBe(0.08);
+    expect(payload.taxResult.dividends.taxBeforeCredit).toBe(80); // 1000 * 0.08, not 100
   });
 
   it('renders quick action links', async () => {

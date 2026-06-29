@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { Upload, Calculator, FileText, Trash2, ClipboardList, LogIn, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUpload } from '../contexts/UploadContext';
+import { useCountry } from '../contexts/CountryContext';
+import { getTaxConfigForYear } from '@shared/index';
 import PageMeta from '../components/common/PageMeta';
 import { Skeleton, SkeletonRow } from '../components/common/Skeleton';
 import type { TaxCalculationResult, SecurityBreakdown } from '@shared/types/tax';
@@ -41,6 +43,7 @@ export default function Dashboard() {
   const { t } = useTranslation(['dashboard', 'common']);
   const { user, loading: authLoading, logout } = useAuth();
   const { setUploadData } = useUpload();
+  const { countryConfig } = useCountry();
   const navigate = useNavigate();
   const [taxYears, setTaxYears] = useState<SavedTaxYear[]>([]);
   const [loading, setLoading] = useState(false);
@@ -82,15 +85,18 @@ export default function Dashboard() {
       const data = await res.json();
       const calc = data.calculation;
       if (!calc) throw new Error('No calculation data');
+      if (!countryConfig) throw new Error('No country config');
 
       // Persisted scalars don't store the gross dividend RO tax / credit, so
       // reconstruct the full ANAF line-up (rd.8 = gross * dividend rate, rd.10 =
-      // rd.8 - rd.11) for the Filing Guide. 2025 dividend rate = 0.10, mirroring the
-      // hardcoded capitalGains rate. The live upload flow carries exact engine
-      // values; this reconstructs a saved calc to within a leu.
+      // rd.8 - rd.11) for the Filing Guide. Dispatch the rates by the saved income
+      // year: dividends are 8% for 2023/2024 and 10% for 2025 (prior-year flip), cap
+      // gains 10% across all supported years. The live upload flow carries exact
+      // engine values; this reconstructs a saved calc to within a leu.
+      const yearConfig = getTaxConfigForYear(countryConfig, data.year);
       const divGrossTotal = calc.totalDividendsGross ?? 0;
       const divNetTax = calc.dividendTaxOwed ?? 0;
-      const divGrossTax = Math.round(divGrossTotal * 0.10 * 100) / 100;
+      const divGrossTax = Math.round(divGrossTotal * yearConfig.dividendTaxRate * 100) / 100;
       const divCredit = Math.max(0, Math.round((divGrossTax - divNetTax) * 100) / 100);
 
       const taxResult: TaxCalculationResult = {
@@ -100,7 +106,7 @@ export default function Dashboard() {
           totalCostBasis: (calc.totalCapitalGains ?? 0) - (calc.netCapitalGains ?? 0),
           netGains: calc.netCapitalGains ?? 0,
           losses: calc.totalCapitalLosses ?? 0,
-          taxRate: 0.10,
+          taxRate: yearConfig.capitalGainsTaxRate,
           taxOwed: calc.capitalGainsTax ?? 0,
         },
         dividends: {
@@ -109,7 +115,7 @@ export default function Dashboard() {
           withholdingTaxPaid: calc.totalWithholdingTax ?? 0,
           foreignTaxCredit: divCredit,
           taxOwed: divNetTax,
-          taxRate: 0.10,
+          taxRate: yearConfig.dividendTaxRate,
         },
         healthContribution: {
           totalNonSalaryIncome: calc.totalNonSalaryIncome ?? 0,

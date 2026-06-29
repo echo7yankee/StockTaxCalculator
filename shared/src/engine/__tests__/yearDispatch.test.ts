@@ -130,3 +130,48 @@ describe('CSV engine partitions the 2025/2026 boundary and applies each year its
     expect(taxResult.capitalGains.taxOwed).toBeCloseTo(320, 2);
   });
 });
+
+describe('engine applies the prior-year rates (2023/2024) after the flip', () => {
+  // Prior-year regularization go-live (prior-year-regularization-spec.md Step 3):
+  // the ONE engine math delta vs 2025 is dividends at 8% (OG 16/2022); cap gains
+  // stay 10%, CASS uses the year's brackets. 1,000 RON-equiv gain + 1,000 gross
+  // dividend (no WHT), rate 1, so dividend tax is the cleanest 8% vs 10% witness.
+  const config2023 = buildRomaniaTaxConfig(TAX_YEARS[2023]);
+  const config2024 = buildRomaniaTaxConfig(TAX_YEARS[2024]);
+  const priorYearPdf: PdfParseResult = {
+    overview: {
+      closedResult: 1000, profit: 1000, loss: 0, netDividends: 1000, grossDividends: 1000,
+      taxWithheld: 0, openResult: 0, accountValue: 0, currency: 'USD',
+    } as PdfParseResult['overview'],
+    sellTrades: [
+      {
+        executionTime: '15.06.2024 10:00', instrument: 'Test Co', isin: 'US0000000001',
+        instrumentType: 'Stock', instrumentCurrency: 'USD', positionSize: 10, averagePrice: 100,
+        executionPrice: 200, fxRate: 1, transactionCurrency: 'USD', totalResult: 1000,
+      } as PdfSellTrade,
+    ],
+    dividends: [
+      {
+        instrument: 'Test Co', isin: 'US0000000001', instrumentCurrency: 'USD', issuingCountry: 'US',
+        eligibleHoldings: 10, payDate: '15.06.2024', grossAmountPerShare: 100, grossAmount: 1000,
+        fxRate: 1, grossAmountUsd: 1000, whtRate: '0%', whtUsd: 0, netAmountUsd: 1000,
+      } as PdfDividend,
+    ],
+    distributions: [],
+    year: 2024,
+    warnings: [],
+  };
+
+  it('2023: cap gains 10%, dividends 8% (the OG 16/2022 delta vs 2025)', () => {
+    const { taxResult } = calculateTaxesFromPdf({ ...priorYearPdf, year: 2023 }, config2023, 1);
+    expect(taxResult.capitalGains.taxRate).toBe(0.10);
+    expect(taxResult.capitalGains.taxOwed).toBeCloseTo(100, 2);
+    expect(taxResult.dividends.taxOwed).toBeCloseTo(80, 2); // 8% of 1,000, NOT 2025's 100
+  });
+
+  it('2024: cap gains 10%, dividends 8%', () => {
+    const { taxResult } = calculateTaxesFromPdf({ ...priorYearPdf, year: 2024 }, config2024, 1);
+    expect(taxResult.capitalGains.taxOwed).toBeCloseTo(100, 2);
+    expect(taxResult.dividends.taxOwed).toBeCloseTo(80, 2);
+  });
+});

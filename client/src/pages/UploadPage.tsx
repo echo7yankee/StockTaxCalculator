@@ -7,6 +7,7 @@ import {
   calculateTaxesFromPdf,
   applyBnrRates,
   getTaxConfigForYear,
+  isEngineSupportedTaxYear,
 } from '@shared/index';
 import type { ParseResult, CurrencyBnrRates } from '@shared/index';
 import { useCountry } from '../contexts/CountryContext';
@@ -264,6 +265,12 @@ export default function UploadPage() {
   const handleCalculate = useCallback(async () => {
     if (!countryConfig) return;
 
+    // Defense-in-depth for the year guard (the disabled Calculate button is the
+    // primary gate): never run the engine on a year we don't support, so a future
+    // refactor that triggers this elsewhere can't produce a wrong-year number.
+    const yearForCalc = preview?.fileType === 'pdf' ? preview.year : selectedYear;
+    if (preview && !isEngineSupportedTaxYear(yearForCalc)) return;
+
     if (preview?.fileType === 'pdf' && pdfData) {
       // Convert from account currency to local currency (e.g. USD to RON)
       const needsConversion = preview.currency !== countryConfig.currency;
@@ -325,7 +332,7 @@ export default function UploadPage() {
     }
 
     navigate('/results');
-  }, [countryConfig, preview, pdfData, csvParse, csvBroker, exchangeRate, pdfDailyRates, setUploadData, navigate, finalizeCsv]);
+  }, [countryConfig, preview, pdfData, csvParse, csvBroker, exchangeRate, pdfDailyRates, selectedYear, setUploadData, navigate, finalizeCsv]);
 
   const clearUpload = () => {
     clearPreview();
@@ -337,6 +344,15 @@ export default function UploadPage() {
   if (authLoading || !user || user.plan !== 'paid') {
     return null;
   }
+
+  // Year-support guard: the engine computes only the years flagged engineSupported
+  // (2023-2025 today). A statement whose year is older (the notificare audience can
+  // reach back to 2019) or otherwise unsupported would silently fall back to the
+  // latest year's rates via getTaxConfigForYear, so block the calculate action and
+  // explain instead of producing a wrong-year number. CSV uses the selected year;
+  // PDF uses the year detected in the statement.
+  const calcYear = preview ? (preview.fileType === 'pdf' ? preview.year : selectedYear) : null;
+  const calcYearSupported = calcYear == null || isEngineSupportedTaxYear(calcYear);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
@@ -734,8 +750,8 @@ export default function UploadPage() {
               </div>
               <button
                 onClick={handleCalculate}
-                disabled={csvRateLoading || csvHistoryWarning}
-                className={`flex items-center justify-center gap-2 text-lg px-6 py-3 w-full sm:w-auto ${csvHistoryWarning ? 'btn-secondary opacity-50 cursor-not-allowed' : 'btn-primary'}`}
+                disabled={csvRateLoading || csvHistoryWarning || !calcYearSupported}
+                className={`flex items-center justify-center gap-2 text-lg px-6 py-3 w-full sm:w-auto ${csvHistoryWarning || !calcYearSupported ? 'btn-secondary opacity-50 cursor-not-allowed' : 'btn-primary'}`}
               >
                 {csvRateLoading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -745,6 +761,11 @@ export default function UploadPage() {
                 {csvRateLoading ? t('fetchingBnrRates') : t('calculateTaxes')}
               </button>
             </div>
+            {!calcYearSupported && calcYear != null && (
+              <p className="text-sm text-red-600 dark:text-red-400 mt-3" data-testid="year-unsupported-note">
+                {t('yearUnsupportedNote', { year: calcYear })}
+              </p>
+            )}
             {countryConfig && (
               <p className="text-xs text-gray-500 dark:text-slate-400 mt-3">
                 {t('usingTaxRules', { country: countryConfig.name, rate: countryConfig.capitalGainsTaxRate * 100 })}

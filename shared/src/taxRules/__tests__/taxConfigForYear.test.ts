@@ -18,7 +18,7 @@ describe('buildRomaniaTaxConfig', () => {
     expect(cfg.earlyFilingDiscountRate).toBe(0.03);
   });
 
-  it('derives the 2023 config with 8% dividends, zero discount, and 3.000-wage CASS brackets (dormant until the prior-year flip)', () => {
+  it('derives the 2023 config with 8% dividends, zero discount, and 3.000-wage CASS brackets (live after the prior-year flip)', () => {
     const cfg = buildRomaniaTaxConfig(TAX_YEARS[2023]);
     expect(cfg.capitalGainsTaxRate).toBe(0.10);
     expect(cfg.dividendTaxRate).toBe(0.08);
@@ -31,7 +31,7 @@ describe('buildRomaniaTaxConfig', () => {
     ]);
   });
 
-  it('derives the 2024 config with 8% dividends, zero discount, and 3.300-wage CASS brackets (dormant until the prior-year flip)', () => {
+  it('derives the 2024 config with 8% dividends, zero discount, and 3.300-wage CASS brackets (live after the prior-year flip)', () => {
     const cfg = buildRomaniaTaxConfig(TAX_YEARS[2024]);
     expect(cfg.capitalGainsTaxRate).toBe(0.10);
     expect(cfg.dividendTaxRate).toBe(0.08);
@@ -85,16 +85,21 @@ describe('getTaxConfigForYear', () => {
     expect(cfg.dividendTaxRate).toBe(0.10);
   });
 
-  it('falls back to the latest supported year for the configured-but-dormant prior years (2023/2024 gated)', () => {
-    // A 2023 or 2024 statement must NOT silently compute at 8% dividends before the
-    // prior-year flip (prior-year-regularization-spec.md Section 6 Step 3). Until then
-    // it uses 2025 rates, exactly as it did before these entries existed.
-    for (const year of [2023, 2024]) {
-      const cfg = getTaxConfigForYear(romaniaTaxConfig, year);
-      expect(cfg).toEqual(romaniaTaxConfig);
-      expect(cfg.capitalGainsTaxRate).toBe(0.10);
-      expect(cfg.dividendTaxRate).toBe(0.10);
-    }
+  it('dispatches the live prior-year configs after the flip (2023/2024: 8% dividends, 10% cap gains, year CASS)', () => {
+    // Post-flip (prior-year-regularization-spec.md Section 6 Step 3), a 2023 or 2024
+    // statement computes at its OWN rates: dividends 8% (OG 16/2022, the one delta vs
+    // 2025's 10%), cap gains 10%, and that year's CASS brackets. No more 2025 fallback.
+    const cfg2023 = getTaxConfigForYear(romaniaTaxConfig, 2023);
+    expect(cfg2023.dividendTaxRate).toBe(0.08);
+    expect(cfg2023.capitalGainsTaxRate).toBe(0.10);
+    expect(cfg2023.earlyFilingDiscountRate).toBe(0);
+    expect(cfg2023.healthContributionBrackets[1]).toMatchObject({ minIncome: 18000, fixedAmount: 1800 });
+
+    const cfg2024 = getTaxConfigForYear(romaniaTaxConfig, 2024);
+    expect(cfg2024.dividendTaxRate).toBe(0.08);
+    expect(cfg2024.capitalGainsTaxRate).toBe(0.10);
+    expect(cfg2024.earlyFilingDiscountRate).toBe(0);
+    expect(cfg2024.healthContributionBrackets[1]).toMatchObject({ minIncome: 19800, fixedAmount: 1980 });
   });
 
   it('falls back to the latest supported year for an unconfigured year', () => {
