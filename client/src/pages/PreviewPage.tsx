@@ -12,7 +12,7 @@ import {
   ShieldCheck,
   XCircle,
 } from 'lucide-react';
-import { getTaxYearConfig } from '@shared/taxRules/taxYears';
+import { isEngineSupportedTaxYear } from '@shared/taxRules/taxYears';
 import { useStatementPreview } from '../hooks/useStatementPreview';
 import { analytics } from '../lib/analytics';
 import { CSV_BROKERS, BROKERS, type BrokerId } from '../lib/brokers';
@@ -91,9 +91,9 @@ export default function PreviewPage() {
 
   // Year support comes from the engine-supported flag (the single source of
   // truth, backlog #13). We do NOT hardcode "2025": a missing config or a year
-  // whose engine support has not been signed off is treated as unsupported.
-  const yearConfig = preview ? getTaxYearConfig(preview.year) : undefined;
-  const yearSupported = yearConfig?.engineSupported === true;
+  // whose engine support has not been signed off is treated as unsupported. The
+  // prior-year flip made 2023/2024 supported, so they now resolve green here.
+  const yearSupported = preview ? isEngineSupportedTaxYear(preview.year) : false;
   const historyBlocked = csvHistoryWarning && preview?.fileType === 'csv';
   const hasWarnings = (preview?.warnings.length ?? 0) > 0;
   // The uploaded PDF is not a Trading212 statement (e.g. an Interactive Brokers
@@ -117,17 +117,17 @@ export default function PreviewPage() {
   }, [preview]);
 
   // Which waitlist (if any) fits an unsupported case: a beta broker -> its
-  // graduation list; a prior-year file (2023/2024) -> the prior-year lane. Other
-  // unsupported years are not on the roadmap, so no list is offered (contact only).
-  const priorYear = preview ? preview.year === 2023 || preview.year === 2024 : false;
+  // graduation list. The prior-year `prior_years` arm is retired here now that
+  // 2023/2024 are engine-supported (a clean prior-year file goes straight to
+  // unlock; a warning/history one goes to contact, like any supported year). The
+  // /ghid notificare demand-probe page still carries that waitlist for genuinely
+  // future-gated cases. Other unsupported years offer contact only.
   const waitlistTopic: SubscribeTopic | null = !canUnlock
-    ? priorYear
-      ? 'prior_years'
-      : previewBroker === 'ibkr'
-        ? 'broker_ibkr'
-        : previewBroker === 'revolut'
-          ? 'broker_revolut'
-          : null
+    ? previewBroker === 'ibkr'
+      ? 'broker_ibkr'
+      : previewBroker === 'revolut'
+        ? 'broker_revolut'
+        : null
     : null;
 
   const goToContact = () => {
@@ -512,9 +512,7 @@ export default function PreviewPage() {
               <span className="text-gray-700 dark:text-slate-300">
                 {yearSupported
                   ? t('previewYearSupported', { year: preview.year })
-                  : priorYear
-                    ? t('previewYearPrior', { year: preview.year })
-                    : t('previewYearUnsupported', { year: preview.year })}
+                  : t('previewYearUnsupported', { year: preview.year })}
               </span>
             </div>
           </div>

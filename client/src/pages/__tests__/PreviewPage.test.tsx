@@ -231,7 +231,10 @@ describe('PreviewPage - support verdict', () => {
     expect(analytics.previewBlocked).not.toHaveBeenCalled();
   });
 
-  it('AMBER (unsupported year): no pay button, shows contact CTA + prior-year waitlist', async () => {
+  it('GREEN (now-supported prior year 2023): unlock CTA, supported-year copy, no waitlist', async () => {
+    // The prior-year flip made 2023 engine-supported, so a clean 2023 statement
+    // converts (unlock) instead of routing to the old prior-year waitlist. This is
+    // the demand-probe -> conversion transition the go-live is meant to deliver.
     sharedExports.parseTrading212AnnualStatement.mockReturnValueOnce(
       makePdfParseResult({ year: 2023 }),
     );
@@ -242,12 +245,33 @@ describe('PreviewPage - support verdict', () => {
     await waitFor(() => {
       expect(screen.getByTestId('support-verdict')).toBeInTheDocument();
     });
-    // 2023 is not engine-supported -> prior-year copy + no unlock button.
-    expect(screen.getByText(/We do not calculate 2023 yet/)).toBeInTheDocument();
+    expect(screen.getByText('We calculate tax year 2023.')).toBeInTheDocument();
+    expect(screen.getByTestId('preview-unlock-cta')).toBeInTheDocument();
+    expect(screen.queryByTestId('preview-contact-cta')).not.toBeInTheDocument();
+    // The prior-year waitlist is retired now that 2023/2024 are supported.
+    expect(screen.queryByText("Notify me when it's ready")).not.toBeInTheDocument();
+    expect(analytics.previewClean).toHaveBeenCalledTimes(1);
+    expect(analytics.previewBlocked).not.toHaveBeenCalled();
+  });
+
+  it('AMBER (out-of-scope year 2022): no pay button, contact CTA, no waitlist', async () => {
+    // A pre-2023 year is genuinely unsupported (pre-CMP cost-method territory). It
+    // stays amber -> contact, with no waitlist (a Trading212 PDF is not a beta
+    // broker, and the prior-year waitlist retired once 2023/2024 went live).
+    sharedExports.parseTrading212AnnualStatement.mockReturnValueOnce(
+      makePdfParseResult({ year: 2022 }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.upload(findHiddenFileInput(container), makePdfFile());
+
+    await waitFor(() => {
+      expect(screen.getByTestId('support-verdict')).toBeInTheDocument();
+    });
+    expect(screen.getByText(/We do not calculate 2022 yet/)).toBeInTheDocument();
     expect(screen.queryByTestId('preview-unlock-cta')).not.toBeInTheDocument();
     expect(screen.getByTestId('preview-contact-cta')).toBeInTheDocument();
-    // Prior-year waitlist capture is offered.
-    expect(screen.getByText("Notify me when it's ready")).toBeInTheDocument();
+    expect(screen.queryByText("Notify me when it's ready")).not.toBeInTheDocument();
     expect(analytics.previewBlocked).toHaveBeenCalledTimes(1);
     expect(analytics.previewClean).not.toHaveBeenCalled();
   });

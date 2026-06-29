@@ -4,10 +4,11 @@ import {
   getCurrentTaxYear,
   getTaxYearConfig,
   getCurrentTaxYearConfig,
+  isEngineSupportedTaxYear,
 } from '../taxYears.js';
 
 describe('TAX_YEARS config', () => {
-  it('has 2023 entry with OG 16/2022 8% dividends, no bonificatie, dormant (engineSupported false)', () => {
+  it('has 2023 entry with OG 16/2022 8% dividends, no bonificatie, LIVE (engineSupported true after the prior-year flip)', () => {
     const cfg = TAX_YEARS[2023];
     expect(cfg).toBeDefined();
     expect(cfg.taxYear).toBe(2023);
@@ -23,10 +24,10 @@ describe('TAX_YEARS config', () => {
     expect(cfg.residentBrokerShortHoldRate).toBe(0.03);
     expect(cfg.romanianDividendWithholdingRate).toBe(0.08);
     expect(cfg.earlyFilingDiscountRate).toBe(0);
-    expect(cfg.engineSupported).toBe(false);
+    expect(cfg.engineSupported).toBe(true);
   });
 
-  it('has 2024 entry with 8% dividends, HG 900/2023 wage anchor, no bonificatie, dormant', () => {
+  it('has 2024 entry with 8% dividends, HG 900/2023 wage anchor, no bonificatie, LIVE (engineSupported true after the prior-year flip)', () => {
     const cfg = TAX_YEARS[2024];
     expect(cfg).toBeDefined();
     expect(cfg.taxYear).toBe(2024);
@@ -42,7 +43,7 @@ describe('TAX_YEARS config', () => {
     expect(cfg.residentBrokerShortHoldRate).toBe(0.03);
     expect(cfg.romanianDividendWithholdingRate).toBe(0.08);
     expect(cfg.earlyFilingDiscountRate).toBe(0);
-    expect(cfg.engineSupported).toBe(false);
+    expect(cfg.engineSupported).toBe(true);
   });
 
   it('has 2025 entry with Legea 239/2025 pre-change rates and engineSupported true', () => {
@@ -179,15 +180,32 @@ describe('getCurrentTaxYearConfig', () => {
     expect(getCurrentTaxYearConfig(new Date(Date.UTC(2026, 11, 31)))).toBe(TAX_YEARS[2025]);
   });
 
-  it('never returns the dormant 2023/2024 entries (prior-year regularization lane, production-safety invariant)', () => {
-    // The prior-year entries encode verified research (prior-year-regularization-spec.md) but stay
-    // dormant until the spec's Step 3 demand trigger. Even for a clock inside those filing seasons
-    // (impossible in production, the calendar is past them), the fallback skips dormant entries.
-    expect(TAX_YEARS[2023].engineSupported).toBe(false);
-    expect(TAX_YEARS[2024].engineSupported).toBe(false);
+  it('returns the 2023/2024 entries in their own filing season now that the prior-year flip made them live', () => {
+    // Post-flip, the prior-year configs are engine-supported (Step 3,
+    // prior-year-regularization-spec.md). A clock inside the 2023 or 2024 filing
+    // season (impossible in production, the calendar is past them) resolves to that
+    // year's own config rather than the 2025 fallback. The production-safety
+    // invariant that still matters (the dormant 2026 entry is never returned) is
+    // covered by the test above.
+    expect(TAX_YEARS[2023].engineSupported).toBe(true);
+    expect(TAX_YEARS[2024].engineSupported).toBe(true);
     expect(getCurrentTaxYear(new Date(Date.UTC(2024, 2, 15)))).toBe(2023);
-    expect(getCurrentTaxYearConfig(new Date(Date.UTC(2024, 2, 15)))).toBe(TAX_YEARS[2025]);
+    expect(getCurrentTaxYearConfig(new Date(Date.UTC(2024, 2, 15)))).toBe(TAX_YEARS[2023]);
     expect(getCurrentTaxYear(new Date(Date.UTC(2025, 2, 15)))).toBe(2024);
-    expect(getCurrentTaxYearConfig(new Date(Date.UTC(2025, 2, 15)))).toBe(TAX_YEARS[2025]);
+    expect(getCurrentTaxYearConfig(new Date(Date.UTC(2025, 2, 15)))).toBe(TAX_YEARS[2024]);
+  });
+});
+
+describe('isEngineSupportedTaxYear', () => {
+  it('is true for the engine-supported years (2023, 2024, 2025 after the prior-year flip)', () => {
+    expect(isEngineSupportedTaxYear(2023)).toBe(true);
+    expect(isEngineSupportedTaxYear(2024)).toBe(true);
+    expect(isEngineSupportedTaxYear(2025)).toBe(true);
+  });
+
+  it('is false for dormant 2026 and for years not in TAX_YEARS (2022 and earlier, future)', () => {
+    expect(isEngineSupportedTaxYear(2026)).toBe(false); // encoded but dormant (backlog #13)
+    expect(isEngineSupportedTaxYear(2022)).toBe(false); // out of scope: pre-CMP
+    expect(isEngineSupportedTaxYear(2099)).toBe(false);
   });
 });

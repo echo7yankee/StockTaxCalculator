@@ -542,6 +542,52 @@ describe('UploadPage - Calculate Taxes flow', () => {
     );
   });
 
+  it('computes a supported prior year (PDF 2024): Calculate enabled, engine gets taxYear 2024', async () => {
+    // The prior-year flip lets a paid user compute a 2024 statement. Calculate is
+    // enabled, no unsupported-year note, and the engine + results carry taxYear 2024.
+    sharedExports.parseTrading212AnnualStatement.mockReturnValueOnce(
+      makePdfParseResult({ year: 2024 }),
+    );
+    sharedExports.calculateTaxesFromPdf.mockReturnValueOnce({
+      taxResult: { totals: { totalTaxOwed: 500 } },
+      securities: [],
+      warnings: [],
+    });
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.upload(findHiddenFileInput(container), makePdfFile());
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeInTheDocument(),
+    );
+    expect(screen.queryByTestId('year-unsupported-note')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: /Calculate Taxes/ }));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
+    expect(mockSetUploadData).toHaveBeenCalledWith(
+      expect.objectContaining({ taxYear: 2024 }),
+    );
+  });
+
+  it('blocks an out-of-scope PDF year (2022, pre-CMP): Calculate disabled, note shown, engine never runs', async () => {
+    // A pre-2023 statement would silently fall back to 2025 rates via
+    // getTaxConfigForYear, so the year guard disables Calculate and explains.
+    sharedExports.parseTrading212AnnualStatement.mockReturnValueOnce(
+      makePdfParseResult({ year: 2022 }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.upload(findHiddenFileInput(container), makePdfFile());
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId('year-unsupported-note')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeDisabled();
+    expect(sharedExports.calculateTaxesFromPdf).not.toHaveBeenCalled();
+  });
+
   it('passes the per-date daily BNR map to the engine for a single-currency PDF (backlog #21)', async () => {
     const dailyMap = { '2025-06-01': 4.7, '2025-07-15': 4.3 };
     vi.spyOn(globalThis, 'fetch').mockImplementation(() =>

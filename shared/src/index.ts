@@ -2,7 +2,7 @@ export type { Transaction, TransactionAction, Currency, BrokerType, RawCsvRow } 
 export type { TaxYear, TaxCalculationResult, SecurityBreakdown, PdfAuditRow, ManualCalculatorInput, ManualCalculatorResult } from './types/tax.js';
 export type { CountryTaxConfig, HealthContributionBracket } from './types/country.js';
 
-export { getCountryConfig, getSupportedCountries, romaniaTaxConfig, buildRomaniaTaxConfig, getTaxConfigForYear } from './taxRules/index.js';
+export { getCountryConfig, getSupportedCountries, romaniaTaxConfig, buildRomaniaTaxConfig, getTaxConfigForYear, isEngineSupportedTaxYear } from './taxRules/index.js';
 export { parseTrading212Csv } from './parsers/trading212.js';
 export type { ParseResult, SkippedRow } from './parsers/trading212.js';
 export { parseIbkrCsv } from './parsers/ibkr.js';
