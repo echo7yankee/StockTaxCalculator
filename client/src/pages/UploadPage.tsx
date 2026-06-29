@@ -265,6 +265,12 @@ export default function UploadPage() {
   const handleCalculate = useCallback(async () => {
     if (!countryConfig) return;
 
+    // Defense-in-depth for the year guard (the disabled Calculate button is the
+    // primary gate): never run the engine on a year we don't support, so a future
+    // refactor that triggers this elsewhere can't produce a wrong-year number.
+    const yearForCalc = preview?.fileType === 'pdf' ? preview.year : selectedYear;
+    if (preview && !isEngineSupportedTaxYear(yearForCalc)) return;
+
     if (preview?.fileType === 'pdf' && pdfData) {
       // Convert from account currency to local currency (e.g. USD to RON)
       const needsConversion = preview.currency !== countryConfig.currency;
@@ -326,7 +332,7 @@ export default function UploadPage() {
     }
 
     navigate('/results');
-  }, [countryConfig, preview, pdfData, csvParse, csvBroker, exchangeRate, pdfDailyRates, setUploadData, navigate, finalizeCsv]);
+  }, [countryConfig, preview, pdfData, csvParse, csvBroker, exchangeRate, pdfDailyRates, selectedYear, setUploadData, navigate, finalizeCsv]);
 
   const clearUpload = () => {
     clearPreview();
