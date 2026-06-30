@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import prisma from '../lib/prisma.js';
 import { ANALYTICS_EVENTS } from '../lib/analyticsEvents.js';
+import { isPageviewSweep } from '../lib/analyticsBotGuard.js';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -65,6 +66,14 @@ trackRouter.post('/', trackLimiter, async (req, res) => {
   const parsed = trackSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).end();
+    return;
+  }
+
+  // UA rotation defeats the static BOT_UA list, so also gate the pageview
+  // firehose on behaviour: a single IP enumerating the site is a sweep, not a
+  // reader. Funnel/other events are left alone (low volume, need real JS).
+  if (parsed.data.name === 'pageview' && isPageviewSweep(req.ip ?? 'unknown', Date.now())) {
+    res.status(204).end();
     return;
   }
 

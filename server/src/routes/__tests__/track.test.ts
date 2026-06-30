@@ -11,6 +11,7 @@ vi.mock('../../lib/prisma.js', () => ({
 }));
 
 const { trackRouter } = await import('../track.js');
+const { resetPageviewSweepGuard } = await import('../../lib/analyticsBotGuard.js');
 
 let server: Server;
 let BASE = '';
@@ -39,6 +40,7 @@ beforeEach(() => {
   process.env.NODE_ENV = 'test';
   createMock.mockReset();
   createMock.mockResolvedValue({});
+  resetPageviewSweepGuard();
 });
 
 afterEach(() => {
@@ -87,6 +89,28 @@ describe('POST /api/track', () => {
     const res = await post({ name: 'pageview', path: '/' }, { 'user-agent': 'Googlebot/2.1' });
     expect(res.status).toBe(204);
     expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it('drops a single source sweeping pageviews (UA-rotation guard) but still writes the early ones', async () => {
+    // All requests share the loopback IP, so this simulates one source firing
+    // many pageviews fast. The first 8 are written; the 9th is dropped as a sweep.
+    for (let i = 0; i < 8; i++) {
+      const res = await post({ name: 'pageview', path: `/ghid/page-${i}` });
+      expect(res.status).toBe(204);
+    }
+    expect(createMock).toHaveBeenCalledTimes(8);
+    const res = await post({ name: 'pageview', path: '/ghid/page-9' });
+    expect(res.status).toBe(204);
+    expect(createMock).toHaveBeenCalledTimes(8); // no new row for the 9th
+  });
+
+  it('does not gate funnel events behind the sweep guard', async () => {
+    // Even after a pageview sweep trips, valuable funnel events still record.
+    for (let i = 0; i < 9; i++) await post({ name: 'pageview', path: `/p${i}` });
+    createMock.mockClear();
+    const res = await post({ name: 'pricing_viewed', path: '/pricing' });
+    expect(res.status).toBe(204);
+    expect(createMock).toHaveBeenCalledTimes(1);
   });
 
   it('never 500s when the DB write throws (telemetry is best-effort)', async () => {
