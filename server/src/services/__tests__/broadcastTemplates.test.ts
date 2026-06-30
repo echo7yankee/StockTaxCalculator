@@ -77,6 +77,21 @@ describe('product-update-2026-06 content', () => {
     }
   });
 
+  it.each(LANGUAGES)(
+    'frames 2023/2024 as live, not a waitlist, and links the free checker (%s)',
+    (lang) => {
+      // PR #221 flipped 2023/2024 engineSupported on, so these years compute
+      // now. The template must not invite users onto a waitlist for a
+      // capability that already shipped.
+      const rendered = template.render(lang, UNSUB_URL);
+      for (const part of [rendered.html, rendered.text]) {
+        expect(part).toContain('https://investax.app/verifica-extras');
+        expect(part).not.toMatch(/list[ăa] de a[șs]teptare|waitlist/i);
+        expect(part).not.toMatch(/Pregătim anii|Groundwork for tax years/i);
+      }
+    }
+  );
+
   it.each(LANGUAGES)('states no tax rate, bracket, or deadline claims (%s)', (lang) => {
     const rendered = template.render(lang, UNSUB_URL);
     // The template deliberately links to the guides instead of stating tax
