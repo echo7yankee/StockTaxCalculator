@@ -29,7 +29,7 @@ export const GHID_NOTIFICARE_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Poate InvesTax să calculeze automat anii 2023 și 2024?',
-    a: 'Încă nu. Motorul InvesTax acoperă azi anul fiscal 2025. Regulile pentru 2023 și 2024 (cote, plafoane CASS, conversii BNR) sunt deja verificate și pregătite, iar suportul complet îl construim în funcție de cererea reală. Lasă-ți emailul pe pagină și te anunțăm când îl poți folosi.',
+    a: 'Da. Motorul InvesTax calculează automat anii fiscali 2023, 2024 și 2025, fiecare pe regulile lui: cotele (8% pe dividende pentru 2023 și 2024, 10% pentru 2025), plafoanele CASS ale anului respectiv și conversiile BNR. Poți verifica gratuit extrasul de broker, fără cont și fără plată, ca să vezi întâi dacă îți citim corect tranzacțiile și dividendele. Generarea declarației D212 din fișier este disponibilă pentru anul fiscal 2025; pentru 2023 și 2024 primești cifrele corecte și ghidul de depunere pe formularul anului respectiv.',
   },
 ];
 

@@ -811,13 +811,14 @@ function subscribeTopicLine(topic: string, language: Language): string {
     broker_ibkr:
       'o notificare când suportul pentru extrasele Interactive Brokers (IBKR) iese din beta',
     prior_years:
-      'o notificare când InvesTax poate calcula automat anii fiscali 2023 și 2024',
+      'noutăți despre regularizarea anilor trecuți (2023 și 2024 se pot calcula deja automat în InvesTax)',
   };
   const en: Record<string, string> = {
     filing_reminder: 'an email reminder when filing opens for the 2026 Declarația Unică',
     broker_revolut: 'a heads-up when Revolut statement support leaves beta',
     broker_ibkr: 'a heads-up when Interactive Brokers (IBKR) statement support leaves beta',
-    prior_years: 'a heads-up when InvesTax can automatically compute the 2023 and 2024 tax years',
+    prior_years:
+      'updates on regularizing prior tax years (2023 and 2024 can already be computed automatically in InvesTax)',
   };
   const table = language === 'ro' ? ro : en;
   return table[topic] ?? (language === 'ro' ? 'o notificare când avem noutăți' : 'a heads-up when we have news');

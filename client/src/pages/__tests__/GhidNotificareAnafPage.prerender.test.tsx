@@ -82,10 +82,12 @@ describe('GhidNotificareAnafPage prerender (SSR)', () => {
     expect(html).toContain('Depun rectificativ');
   });
 
-  it('server-renders the prior_years waitlist capture (visible to crawlers / no-JS)', () => {
+  it('server-renders the now-live 2023/2024/2025 CTA (no waitlist after PR #221)', () => {
     const html = renderSsr();
-    expect(html).toContain('Vrei calcul automat pentru anii 2023');
-    expect(html).toContain('cererea reală');
+    expect(html).toContain('Pentru 2023, 2024 și 2025, calculul e deja automat');
+    expect(html).toContain('href="/verifica-extras"');
+    // The demand-probe waitlist copy is gone now that the capability shipped.
+    expect(html).not.toContain('cererea reală');
   });
 
   it('confirms no browser globals leak into the SSR scope', () => {

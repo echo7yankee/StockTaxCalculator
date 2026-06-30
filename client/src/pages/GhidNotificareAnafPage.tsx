@@ -7,7 +7,6 @@ import {
   GHID_NOTIFICARE_FAQ_SCHEMA as faqSchema,
 } from '../lib/ghidNotificareAnafSchemas';
 import GhidRelatedGuides from '../components/common/GhidRelatedGuides';
-import EmailCapture from '../components/common/EmailCapture';
 
 export default function GhidNotificareAnafPage() {
   return (
@@ -58,12 +57,12 @@ export default function GhidNotificareAnafPage() {
           se impozitează cu <strong>8%</strong>, nu 10%, iar plafoanele CASS sunt mai mici decât cele de azi.
         </p>
         <p className="mt-3 text-sm">
-          <a
-            href="#lista-asteptare"
+          <Link
+            to="/verifica-extras"
             className="text-accent dark:text-accent-light font-medium underline hover:no-underline"
           >
-            Vrei calcul automat pentru 2023 și 2024? Intră pe lista de așteptare ↓
-          </a>
+            InvesTax calculează acum automat anii 2023 și 2024. Verifică gratuit extrasul →
+          </Link>
         </p>
       </section>
 
@@ -241,27 +240,17 @@ export default function GhidNotificareAnafPage() {
         </p>
       </Section>
 
-      <section id="lista-asteptare" className="my-12 scroll-mt-24">
-        <EmailCapture
-          topic="prior_years"
-          variant="broker"
-          source="ghid-notificare-anaf"
-          heading="Vrei calcul automat pentru anii 2023 și 2024?"
-          description="Motorul InvesTax acoperă azi anul fiscal 2025. Regulile pentru 2023 și 2024 (cote, plafoane CASS, conversii BNR) sunt deja verificate și pregătite; suportul complet îl construim în funcție de cererea reală. Lasă-ți emailul și te anunțăm când îl poți folosi."
-        />
-      </section>
-
-      <section className="my-12 p-6 bg-gradient-to-br from-accent/10 to-accent/5 dark:from-accent/20 dark:to-accent/5 border border-accent/20 rounded-xl">
+      <section id="calcul-automat" className="my-12 p-6 bg-gradient-to-br from-accent/10 to-accent/5 dark:from-accent/20 dark:to-accent/5 border border-accent/20 rounded-xl scroll-mt-24">
         <div className="flex items-start gap-4">
           <Calculator className="w-8 h-8 text-accent dark:text-accent-light flex-shrink-0 mt-1" />
           <div>
-            <h2 className="text-xl font-bold mb-2">Pentru anul fiscal 2025, calculul e deja automat</h2>
+            <h2 className="text-xl font-bold mb-2">Pentru 2023, 2024 și 2025, calculul e deja automat</h2>
             <p className="text-sm text-gray-700 dark:text-slate-300 mb-4">
-              Dacă pe lângă anii vechi ai de declarat și veniturile din 2025, InvesTax aplică automat metoda CMP,
-              cursurile BNR, cota de dividende și pragurile CASS pentru anul fiscal 2025. Începe cu verificarea
-              gratuită a extrasului: vezi în câteva secunde dacă îți putem citi corect extrasul de broker, fără cont
-              și fără plată. Dacă totul e în regulă, încarci extrasul și primești declarația completată, iar
-              calculatorul manual rămâne gratuit pentru estimări rapide.
+              InvesTax aplică automat metoda CMP, cursurile BNR, cota de dividende și pragurile CASS pentru fiecare an
+              în parte: 8% pe dividende pentru 2023 și 2024, 10% pentru 2025, cu plafoanele CASS ale anului respectiv.
+              Începe cu verificarea gratuită a extrasului: vezi în câteva secunde dacă îți putem citi corect extrasul
+              de broker, fără cont și fără plată. Dacă totul e în regulă, încarci extrasul și primești declarația
+              completată, iar calculatorul manual rămâne gratuit pentru estimări rapide.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link to="/verifica-extras" className="btn-primary inline-flex items-center gap-2">
@@ -270,7 +259,7 @@ export default function GhidNotificareAnafPage() {
               </Link>
               <Link to="/pricing/" className="btn-secondary inline-flex items-center gap-2">
                 <FileText className="w-4 h-4" />
-                Încarcă extrasul (anul 2025)
+                Încarcă extrasul (2023-2025)
               </Link>
               <Link to="/calculator/" className="btn-secondary inline-flex items-center gap-2">
                 <Calculator className="w-4 h-4" />
