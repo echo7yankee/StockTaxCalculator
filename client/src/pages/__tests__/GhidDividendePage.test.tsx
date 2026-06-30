@@ -5,6 +5,7 @@ import { HelmetProvider } from 'react-helmet-async';
 
 import GhidDividendePage from '../GhidDividendePage';
 import { CountryProvider } from '../../contexts/CountryContext';
+import { DIVIDEND_COUNTRIES } from '../../lib/dividendCountries';
 
 const ghidCalculatorUsed = vi.fn();
 vi.mock('../../lib/analytics', () => ({
@@ -106,5 +107,55 @@ describe('GhidDividendePage - dividend calculator widget', () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: /Calculează impozitul/ }));
     expect(ghidCalculatorUsed).not.toHaveBeenCalled();
+  });
+});
+
+describe('GhidDividendePage - per-country dividend coverage', () => {
+  it('renders a per-country detail block with a deep-link anchor for every country in the dataset', () => {
+    const { container } = renderPage();
+    for (const c of DIVIDEND_COUNTRIES) {
+      const block = container.querySelector(`#dividende-${c.id}`);
+      expect(block, `missing detail block for ${c.id}`).not.toBeNull();
+      expect(block).toHaveTextContent(`Dividende din ${c.name}`);
+      expect(block).toHaveTextContent(c.detail.slice(0, 40));
+    }
+  });
+
+  it('links each country row in the rates table to its detail anchor', () => {
+    renderPage();
+    for (const c of DIVIDEND_COUNTRIES) {
+      const link = screen.getByRole('link', { name: c.name });
+      expect(link).toHaveAttribute('href', `#dividende-${c.id}`);
+    }
+  });
+
+  it('still covers the eight originally verified jurisdictions', () => {
+    const ids = DIVIDEND_COUNTRIES.map((c) => c.id);
+    for (const id of ['sua', 'marea-britanie', 'irlanda', 'germania', 'olanda', 'franta', 'spania', 'elvetia']) {
+      expect(ids).toContain(id);
+    }
+  });
+});
+
+describe('dividendCountries dataset integrity', () => {
+  it('has unique anchor ids', () => {
+    const ids = DIVIDEND_COUNTRIES.map((c) => c.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('uses URL-safe lowercase anchor slugs', () => {
+    for (const c of DIVIDEND_COUNTRIES) {
+      expect(c.id).toMatch(/^[a-z0-9-]+$/);
+    }
+  });
+
+  it('has every display field populated for every country', () => {
+    for (const c of DIVIDEND_COUNTRIES) {
+      expect(c.name.length).toBeGreaterThan(0);
+      expect(c.standardRate.length).toBeGreaterThan(0);
+      expect(c.treatyRate.length).toBeGreaterThan(0);
+      expect(c.stillOwesRo.length).toBeGreaterThan(0);
+      expect(c.detail.length).toBeGreaterThan(40);
+    }
   });
 });
