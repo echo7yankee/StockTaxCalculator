@@ -32,7 +32,7 @@ describe('GhidNotificareAnafPage - crawlable nav and CTAs', () => {
       '/verifica-extras'
     );
     // Paid conversion + manual estimator stay available (two-tier framing, never free-only).
-    expect(screen.getByRole('link', { name: /Încarcă extrasul \(anul 2025\)/ })).toHaveAttribute('href', '/pricing/');
+    expect(screen.getByRole('link', { name: /Încarcă extrasul \(2023-2025\)/ })).toHaveAttribute('href', '/pricing/');
     expect(screen.getByRole('link', { name: /Calculator gratuit \(manual\)/ })).toHaveAttribute('href', '/calculator/');
   });
 
@@ -44,10 +44,12 @@ describe('GhidNotificareAnafPage - crawlable nav and CTAs', () => {
     );
   });
 
-  it('TL;DR links to the waitlist anchor on the same page (the demand probe, not a paid funnel)', () => {
+  it('TL;DR routes to the free statement checker now that 2023/2024 compute (no more waitlist)', () => {
     renderPage();
-    const tldrCta = screen.getByRole('link', { name: /Intră pe lista de așteptare/ });
-    expect(tldrCta).toHaveAttribute('href', '#lista-asteptare');
+    const tldrCta = screen.getByRole('link', {
+      name: /InvesTax calculează acum automat anii 2023 și 2024/,
+    });
+    expect(tldrCta).toHaveAttribute('href', '/verifica-extras');
   });
 
   it('does not link to itself', () => {
@@ -102,14 +104,16 @@ describe('GhidNotificareAnafPage - prior-year tax facts (2023/2024 scope)', () =
   });
 });
 
-describe('GhidNotificareAnafPage - prior-years waitlist (the demand probe)', () => {
-  it('renders the prior_years email capture with the honest 2025-only framing', () => {
+describe('GhidNotificareAnafPage - prior-years are now live (post PR #221 funnel reframe)', () => {
+  it('drops the waitlist and announces 2023/2024/2025 are computed automatically', () => {
     renderPage();
-    expect(screen.getByText(/Vrei calcul automat pentru anii 2023 și 2024\?/)).toBeInTheDocument();
-    // The 2025-only framing appears in both the capture description and the FAQ
-    // answer; either way it must be on the page at least once.
-    expect(screen.getAllByText(/Motorul InvesTax acoperă azi anul fiscal 2025/).length).toBeGreaterThanOrEqual(1);
-    // Capture form chrome is present (the submit button from the subscribe namespace).
-    expect(screen.getByRole('button', { name: /notify me/i })).toBeInTheDocument();
+    // The capability shipped (PR #221), so the demand-probe waitlist is gone:
+    // no email-capture submit button, no "join the list" anchor.
+    expect(screen.queryByRole('button', { name: /notify me/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/lista de așteptare/i)).not.toBeInTheDocument();
+    // The CTA section now states all three years compute automatically.
+    expect(
+      screen.getByRole('heading', { name: /Pentru 2023, 2024 și 2025, calculul e deja automat/ })
+    ).toBeInTheDocument();
   });
 });
