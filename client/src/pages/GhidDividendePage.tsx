@@ -8,6 +8,7 @@ import {
 } from '../lib/ghidDividendeSchemas';
 import GhidRelatedGuides from '../components/common/GhidRelatedGuides';
 import DividendTaxCalculator from '../components/common/DividendTaxCalculator';
+import { DIVIDEND_COUNTRIES } from '../lib/dividendCountries';
 
 export default function GhidDividendePage() {
   return (
@@ -126,54 +127,21 @@ export default function GhidDividendePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-navy-700">
-              <tr>
-                <td className="py-2 pr-4">SUA</td>
-                <td className="py-2 pr-4">30%</td>
-                <td className="py-2 pr-4">10% (cu W-8BEN)</td>
-                <td className="py-2">0 (credit complet)</td>
-              </tr>
-              <tr>
-                <td className="py-2 pr-4">Marea Britanie</td>
-                <td className="py-2 pr-4">0%</td>
-                <td className="py-2 pr-4">0%</td>
-                <td className="py-2">10% pe brut</td>
-              </tr>
-              <tr>
-                <td className="py-2 pr-4">Irlanda (ETF-uri UCITS)</td>
-                <td className="py-2 pr-4">0% pentru non-rezidenți</td>
-                <td className="py-2 pr-4">0%</td>
-                <td className="py-2">10% pe brut</td>
-              </tr>
-              <tr>
-                <td className="py-2 pr-4">Germania</td>
-                <td className="py-2 pr-4">26,375%</td>
-                <td className="py-2 pr-4">15% (tratat)</td>
-                <td className="py-2">0 (credit complet)</td>
-              </tr>
-              <tr>
-                <td className="py-2 pr-4">Olanda</td>
-                <td className="py-2 pr-4">15%</td>
-                <td className="py-2 pr-4">15%</td>
-                <td className="py-2">0 (credit complet)</td>
-              </tr>
-              <tr>
-                <td className="py-2 pr-4">Franța</td>
-                <td className="py-2 pr-4">25%</td>
-                <td className="py-2 pr-4">10% (tratat)</td>
-                <td className="py-2">0 (credit complet)</td>
-              </tr>
-              <tr>
-                <td className="py-2 pr-4">Spania</td>
-                <td className="py-2 pr-4">19%</td>
-                <td className="py-2 pr-4">5% (tratat)</td>
-                <td className="py-2">0 (credit complet)</td>
-              </tr>
-              <tr>
-                <td className="py-2 pr-4">Elveția</td>
-                <td className="py-2 pr-4">35%</td>
-                <td className="py-2 pr-4">15% (tratat, cu cerere recuperare diferență)</td>
-                <td className="py-2">0 (credit pe partea de 10%)</td>
-              </tr>
+              {DIVIDEND_COUNTRIES.map((c) => (
+                <tr key={c.id}>
+                  <td className="py-2 pr-4">
+                    <a
+                      href={`#dividende-${c.id}`}
+                      className="text-accent dark:text-accent-light hover:underline"
+                    >
+                      {c.name}
+                    </a>
+                  </td>
+                  <td className="py-2 pr-4">{c.standardRate}</td>
+                  <td className="py-2 pr-4">{c.treatyRate}</td>
+                  <td className="py-2">{c.stillOwesRo}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -186,6 +154,38 @@ export default function GhidDividendePage() {
           Pentru SUA, Trading212 și Revolut gestionează W-8BEN automat la deschiderea contului. Pentru alte țări,
           ratele aplicate sunt cele standard sau de tratat, în funcție de procedurile interne ale brokerului. Pe
           extrasul fiscal vezi exact ce ți s-a reținut.
+        </p>
+      </Section>
+
+      <Section title="Impozitul pe dividende, pe fiecare țară">
+        <p>
+          Mai jos găsești, pentru fiecare țară din care primesc dividende cei mai mulți investitori români, ce se
+          reține la sursă, ce prevede tratatul cu România și cât mai ai de plătit în România după aplicarea creditului
+          fiscal (limitat la 10% din brut). Valorile sunt pentru anul fiscal 2025.
+        </p>
+        <div className="mt-6 space-y-6">
+          {DIVIDEND_COUNTRIES.map((c) => (
+            <div key={c.id} id={`dividende-${c.id}`} className="scroll-mt-24">
+              <h3 className="text-lg font-semibold mb-2">Dividende din {c.name}</h3>
+              <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-slate-400">
+                <span>
+                  Reținere standard: <strong className="text-gray-800 dark:text-slate-200">{c.standardRate}</strong>
+                </span>
+                <span>
+                  Cu tratat / W-8BEN: <strong className="text-gray-800 dark:text-slate-200">{c.treatyRate}</strong>
+                </span>
+                <span>
+                  Mai plătești în RO: <strong className="text-gray-800 dark:text-slate-200">{c.stillOwesRo}</strong>
+                </span>
+              </div>
+              <p className="text-base text-gray-700 dark:text-slate-300 leading-relaxed">{c.detail}</p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-6 text-sm text-gray-500 dark:text-slate-400 italic">
+          Ratele de mai sus sunt cele uzuale pentru investitorii români persoane fizice. Pe extrasul fiscal al
+          brokerului vezi exact suma reținută; aceea este cea pe care o treci ca și credit. Pentru jurisdicții mai
+          puțin frecvente, verifică tratatul exact pe anaf.ro.
         </p>
       </Section>
 
