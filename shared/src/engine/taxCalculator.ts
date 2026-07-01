@@ -1,5 +1,5 @@
 import type { Transaction } from '../types/transaction.js';
-import type { TaxCalculationResult, SecurityBreakdown } from '../types/tax.js';
+import type { TaxCalculationResult, SecurityBreakdown, OpeningPosition } from '../types/tax.js';
 import type { CountryTaxConfig } from '../types/country.js';
 
 interface HoldingLot {
@@ -22,7 +22,14 @@ export function calculateTaxes(
   // dividend tax is over-stated. When the user supplies the amount actually
   // withheld abroad, the results page passes it here and it REPLACES the (zero)
   // summed withholding. Omitting it is byte-identical to the prior behavior.
-  dividendWithholdingOverrideLocal?: number
+  dividendWithholdingOverrideLocal?: number,
+  // Optional holdings carried in from a PRIOR year, whose acquiring BUYs are NOT
+  // in `transactions` (e.g. a year-scoped statement that only covers the target
+  // year but sells positions opened earlier). Each seeds a cost-basis lot before
+  // the year's transactions run, so such a sell gets its real cost basis instead
+  // of 0. Omitting it (or passing []) is byte-identical to the prior behavior.
+  // See `OpeningPosition` for the caller contract (do NOT also pass the buys).
+  openingPositions: OpeningPosition[] = []
 ): TaxEngineResult {
   // Sort ALL transactions chronologically — do NOT filter by year.
   // Historical buys are needed to build correct cost basis for positions
@@ -61,6 +68,35 @@ export function calculateTaxes(
   }
 
   const isTargetYear = (t: Transaction) => t.transactionDate.getFullYear() === year;
+
+  // Seed carried-forward holdings BEFORE processing the year's transactions, so a
+  // sell of a prior-year position finds its cost basis. `carriedKeys` lets the
+  // final breakdown surface a carried position that had NO activity this year
+  // (otherwise it would be filtered out and the carry-forward chain would break),
+  // while leaving the no-opening-positions path byte-identical.
+  const carriedKeys = new Set<string>();
+  for (const pos of openingPositions) {
+    const key = pos.isin || pos.ticker;
+    if (!key || !(pos.shares > 0)) continue;
+    holdings.set(key, [{ shares: pos.shares, costPerShareLocal: pos.costPerShareLocal }]);
+    carriedKeys.add(key);
+    if (!securityData.has(key)) {
+      securityData.set(key, {
+        isin: pos.isin,
+        ticker: pos.ticker,
+        securityName: pos.securityName || pos.ticker || pos.isin,
+        totalBoughtShares: 0,
+        totalSoldShares: 0,
+        remainingShares: 0,
+        weightedAvgCostLocal: pos.costPerShareLocal,
+        totalProceeds: 0,
+        totalCostBasis: 0,
+        realizedGainLoss: 0,
+        totalDividends: 0,
+        totalWithholdingTax: 0,
+      });
+    }
+  }
 
   for (const t of sorted) {
     // Guard against malformed transactions
@@ -212,9 +248,13 @@ export function calculateTaxes(
     calculatedAt: new Date(),
   };
 
-  // Only include securities that had activity in the target year
+  // Only include securities that had activity in the target year, plus any
+  // carried-forward position still held at year end (so it can be persisted and
+  // carried into the following year). With no opening positions, `carriedKeys` is
+  // empty and this reduces to the original activity-only filter.
   const securities = Array.from(securityData.values())
-    .filter(s => s.totalSoldShares > 0 || s.totalBoughtShares > 0 || s.totalDividends > 0)
+    .filter(s => s.totalSoldShares > 0 || s.totalBoughtShares > 0 || s.totalDividends > 0
+      || (carriedKeys.has(s.isin || s.ticker) && s.remainingShares > 0))
     .map(s => ({
       ...s,
       totalBoughtShares: round4(s.totalBoughtShares),

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { calculateTaxes } from '../taxCalculator.js';
 import { romaniaTaxConfig } from '../../taxRules/romania.js';
 import type { Transaction } from '../../types/transaction.js';
+import type { OpeningPosition } from '../../types/tax.js';
 
 function makeTx(overrides: Partial<Transaction> = {}): Transaction {
   return {
@@ -303,5 +304,126 @@ describe('calculateTaxes', () => {
     expect(result.taxResult.dividends.taxOwed).toBe(0);
     expect(result.taxResult.healthContribution.amountOwed).toBe(0);
     expect(result.securities).toHaveLength(0);
+  });
+
+  // Year-round position memory (opportunity #3, PR-1): the engine can be seeded
+  // with holdings carried in from a prior year, so a file that only covers the
+  // target year but sells a position opened earlier gets its real cost basis.
+  // This is the inert engine capability; wiring it to the upload flow is a
+  // separate PR. The no-opening-positions path must stay byte-identical.
+  describe('opening positions (year-round carry-forward)', () => {
+    it('an omitted opening-positions arg is identical to passing []', () => {
+      const txs = [
+        makeTx({ id: 'b1', action: 'buy', shares: 100, totalAmountOriginal: 10000 }),
+        makeTx({ id: 's1', action: 'sell', shares: 100, totalAmountOriginal: 40000 }),
+      ];
+      const without = calculateTaxes(txs, romaniaTaxConfig, 2025);
+      const withEmpty = calculateTaxes(txs, romaniaTaxConfig, 2025, undefined, []);
+      // Compare the deterministic parts (taxResult.calculatedAt is a fresh Date).
+      expect(withEmpty.securities).toEqual(without.securities);
+      expect(withEmpty.taxResult.capitalGains).toEqual(without.taxResult.capitalGains);
+      expect(withEmpty.taxResult.dividends).toEqual(without.taxResult.dividends);
+      expect(withEmpty.taxResult.healthContribution).toEqual(without.taxResult.healthContribution);
+      expect(withEmpty.taxResult.totals).toEqual(without.taxResult.totals);
+    });
+
+    it('gives a prior-year position its real cost basis instead of 0', () => {
+      // The file covers only 2025 and holds a SELL whose BUY was in an earlier year.
+      const txs = [
+        makeTx({ id: 's1', action: 'sell', shares: 100, totalAmountOriginal: 40000, transactionDate: new Date('2025-06-01') }),
+      ];
+      // Without carry-forward: no lot is found, cost basis is 0, the whole 40000
+      // is taxed as gain (the over-taxation this feature fixes).
+      const naive = calculateTaxes(txs, romaniaTaxConfig, 2025);
+      expect(naive.taxResult.capitalGains.totalCostBasis).toBe(0);
+      expect(naive.taxResult.capitalGains.netGains).toBe(40000);
+      // With the carried opening lot (100 sh @ 100 RON = 10000 basis): gain 30000.
+      const opening: OpeningPosition[] = [
+        { isin: 'US0378331005', ticker: 'AAPL', shares: 100, costPerShareLocal: 100 },
+      ];
+      const carried = calculateTaxes(txs, romaniaTaxConfig, 2025, undefined, opening);
+      expect(carried.taxResult.capitalGains.totalCostBasis).toBe(10000);
+      expect(carried.taxResult.capitalGains.netGains).toBe(30000);
+      expect(carried.taxResult.capitalGains.taxOwed).toBe(3000);
+    });
+
+    it('re-averages a carried lot with an in-year buy (weighted-average)', () => {
+      // Carried 100 sh @ 100 RON, then an in-year buy of 100 sh @ 200 RON.
+      // New weighted avg = (100*100 + 100*200) / 200 = 150/share.
+      const txs = [
+        makeTx({ id: 'b1', action: 'buy', shares: 100, totalAmountOriginal: 20000, transactionDate: new Date('2025-03-01') }),
+        makeTx({ id: 's1', action: 'sell', shares: 100, totalAmountOriginal: 30000, transactionDate: new Date('2025-06-01') }),
+      ];
+      const opening: OpeningPosition[] = [
+        { isin: 'US0378331005', ticker: 'AAPL', shares: 100, costPerShareLocal: 100 },
+      ];
+      const result = calculateTaxes(txs, romaniaTaxConfig, 2025, undefined, opening);
+      // Sell 100 @ avg 150 -> cost basis 15000, proceeds 30000, gain 15000.
+      expect(result.taxResult.capitalGains.totalCostBasis).toBe(15000);
+      expect(result.taxResult.capitalGains.netGains).toBe(15000);
+      const sec = result.securities[0];
+      // 100 carried + 100 bought - 100 sold = 100 remaining, at the blended avg.
+      expect(sec.remainingShares).toBe(100);
+      expect(sec.weightedAvgCostLocal).toBe(150);
+    });
+
+    it('surfaces an untouched carried position so it persists to next year', () => {
+      // AAPL is carried and held all year with no 2025 activity; only MSFT trades.
+      const txs = [
+        makeTx({ id: 'b1', isin: 'US5949181045', ticker: 'MSFT', action: 'buy', shares: 5, totalAmountOriginal: 1000 }),
+      ];
+      const opening: OpeningPosition[] = [
+        { isin: 'US0378331005', ticker: 'AAPL', shares: 40, costPerShareLocal: 90 },
+      ];
+      const result = calculateTaxes(txs, romaniaTaxConfig, 2025, undefined, opening);
+      const aapl = result.securities.find(s => s.ticker === 'AAPL');
+      expect(aapl).toBeDefined();
+      expect(aapl!.remainingShares).toBe(40);
+      expect(aapl!.weightedAvgCostLocal).toBe(90);
+      expect(aapl!.totalSoldShares).toBe(0);
+      expect(aapl!.realizedGainLoss).toBe(0);
+    });
+
+    it('a carried position sold to zero surfaces via its sell, with real basis', () => {
+      const txs = [
+        makeTx({ id: 's1', action: 'sell', shares: 50, totalAmountOriginal: 10000 }),
+      ];
+      const opening: OpeningPosition[] = [
+        { isin: 'US0378331005', ticker: 'AAPL', shares: 50, costPerShareLocal: 100 },
+      ];
+      const result = calculateTaxes(txs, romaniaTaxConfig, 2025, undefined, opening);
+      const aapl = result.securities.find(s => s.ticker === 'AAPL')!;
+      expect(aapl.remainingShares).toBe(0);
+      expect(aapl.totalSoldShares).toBe(50);
+      expect(aapl.totalCostBasis).toBe(5000);
+      expect(aapl.realizedGainLoss).toBe(5000);
+    });
+
+    it('matches an opening position by ISIN, falling back to ticker', () => {
+      // Opening and sell are both ticker-only (no ISIN); they must still match.
+      const txs = [
+        makeTx({ id: 's1', isin: '', ticker: 'TSLA', action: 'sell', shares: 10, totalAmountOriginal: 5000 }),
+      ];
+      const opening: OpeningPosition[] = [
+        { isin: '', ticker: 'TSLA', shares: 10, costPerShareLocal: 200 },
+      ];
+      const result = calculateTaxes(txs, romaniaTaxConfig, 2025, undefined, opening);
+      expect(result.taxResult.capitalGains.totalCostBasis).toBe(2000);
+      expect(result.taxResult.capitalGains.netGains).toBe(3000);
+    });
+
+    it('ignores malformed opening positions (no key or non-positive shares)', () => {
+      const txs = [
+        makeTx({ id: 's1', action: 'sell', shares: 10, totalAmountOriginal: 5000 }),
+      ];
+      const opening: OpeningPosition[] = [
+        { isin: '', ticker: '', shares: 10, costPerShareLocal: 100 }, // no key -> ignored
+        { isin: 'US0378331005', ticker: 'AAPL', shares: 0, costPerShareLocal: 100 }, // 0 shares -> ignored
+      ];
+      const result = calculateTaxes(txs, romaniaTaxConfig, 2025, undefined, opening);
+      // Nothing seeded AAPL, so the sell falls back to cost basis 0.
+      expect(result.taxResult.capitalGains.totalCostBasis).toBe(0);
+      expect(result.taxResult.capitalGains.netGains).toBe(5000);
+    });
   });
 });
