@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import type { OpeningPosition } from '@investax/shared';
 import prisma from '../lib/prisma.js';
 
 const securitySchema = z.object({
@@ -154,5 +155,72 @@ uploadsRouter.post('/', async (req, res) => {
   } catch (err) {
     console.error('Upload error:', err);
     res.status(500).json({ error: 'Failed to save calculation' });
+  }
+});
+
+const openingPositionsSchema = z.object({
+  year: z.coerce.number().int().min(2000).max(2100),
+});
+
+// GET /api/uploads/opening-positions?year=YYYY
+//
+// Year-round position memory (board #3): return the year-end holdings from the
+// user's most-recent PRIOR filed year, so the CSV flow can seed cost-basis lots
+// for positions opened before the requested year (whose buys are absent from a
+// year-scoped export). The engine already accepts these as `openingPositions`
+// (PR-1); this endpoint only surfaces the persisted holdings to seed them.
+//
+// Only rows still held at year end (remainingShares > 0), with an identifier
+// (isin or ticker) and a real weighted-average cost, are eligible. Missing/zero
+// cost is skipped rather than seeded at 0, which would over-tax the position.
+// No prior year is a normal, non-error case: 200 with { year: null, positions: [] }.
+uploadsRouter.get('/opening-positions', async (req, res) => {
+  try {
+    const parsed = openingPositionsSchema.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid query', details: parsed.error.issues });
+      return;
+    }
+    const { year } = parsed.data;
+    const userId = req.user!.id;
+
+    // Closest prior year that has a calculation. Year-end holdings roll forward
+    // one step at a time, so the immediately preceding filed year is the source.
+    const priorYear = await prisma.taxYear.findFirst({
+      where: {
+        userId,
+        year: { lt: year },
+        calculation: { isNot: null },
+      },
+      include: { calculation: { include: { securities: true } } },
+      orderBy: { year: 'desc' },
+    });
+
+    if (!priorYear || !priorYear.calculation) {
+      res.status(200).json({ year: null, positions: [] });
+      return;
+    }
+
+    const positions: OpeningPosition[] = priorYear.calculation.securities
+      .filter(
+        (s) =>
+          s.remainingShares != null &&
+          s.remainingShares > 0 &&
+          s.weightedAvgCost != null &&
+          s.weightedAvgCost > 0 &&
+          (s.isin || s.ticker),
+      )
+      .map((s) => ({
+        isin: s.isin ?? '',
+        ticker: s.ticker ?? '',
+        securityName: s.securityName ?? undefined,
+        shares: s.remainingShares!,
+        costPerShareLocal: s.weightedAvgCost!,
+      }));
+
+    res.status(200).json({ year: priorYear.year, positions });
+  } catch (err) {
+    console.error('Opening-positions error:', err);
+    res.status(500).json({ error: 'Failed to load opening positions' });
   }
 });

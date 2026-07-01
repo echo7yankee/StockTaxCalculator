@@ -892,6 +892,168 @@ describe('UploadPage - Calculate Taxes flow', () => {
   });
 });
 
+describe('UploadPage - year-round carry-forward (board #3)', () => {
+  // Route both the BNR-rate fetches and the opening-positions fetch off one spy.
+  // `openingPositions` seeds the /api/uploads/opening-positions response; every
+  // other URL returns a BNR-shaped body so the rate path is unaffected.
+  function mockFetch(openingPositions: {
+    year: number | null;
+    positions: Array<Record<string, unknown>>;
+  }) {
+    return vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
+      const u = String(url);
+      if (u.includes('/api/uploads/opening-positions')) {
+        return Promise.resolve(new Response(JSON.stringify(openingPositions), { status: 200 }));
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ rates: {}, count: 0, rate: 4.9 }), { status: 200 }),
+      );
+    });
+  }
+
+  async function runCsvCalculate() {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.upload(findHiddenFileInput(container), makeCsvFile());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole('button', { name: /Calculate Taxes/ }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
+  }
+
+  it('requests opening positions for the selected year on the CSV path', async () => {
+    const fetchSpy = mockFetch({ year: null, positions: [] });
+    await runCsvCalculate();
+    const urls = fetchSpy.mock.calls.map((c) => String(c[0]));
+    expect(urls).toContain('/api/uploads/opening-positions?year=2025');
+  });
+
+  it('excludes a carried security whose BUY is in the file (double-count guard)', async () => {
+    // Default CSV has an AAPL buy. A carried AAPL must NOT be seeded, or the
+    // engine would count the shares twice. Result: no positions passed, no note.
+    mockFetch({
+      year: 2024,
+      positions: [
+        { isin: 'US0378331005', ticker: 'AAPL', securityName: 'Apple Inc.', shares: 5, costPerShareLocal: 300 },
+      ],
+    });
+    await runCsvCalculate();
+
+    const lastCall = sharedExports.calculateTaxes.mock.calls.at(-1);
+    expect(lastCall?.[4]).toEqual([]);
+    expect(screen.queryByTestId('carry-forward-note')).not.toBeInTheDocument();
+  });
+
+  it('keeps a carried security that is only SOLD in the file and passes it to the engine', async () => {
+    // A CSV that only SELLS MSFT (no MSFT buy), plus a prior-year buy of an
+    // unrelated security so the file spans >1 year and the single-year
+    // missing-history guard stays quiet (Calculate reachable). The carried MSFT
+    // position must be seeded so the sell gets its real prior-year cost basis.
+    sharedExports.parseTrading212Csv.mockReturnValueOnce(
+      makeCsvParseResult({
+        transactions: [
+          {
+            action: 'buy', ticker: 'VOO', isin: 'US9229083632', shares: 2, price: 400,
+            priceCurrency: 'USD', transactionDate: '2024-02-01', total: 800, totalCurrency: 'USD',
+          } as unknown as Transaction,
+          {
+            action: 'sell', ticker: 'MSFT', isin: 'US5949181045', shares: 4, price: 400,
+            priceCurrency: 'USD', transactionDate: '2025-06-20', total: 1600, totalCurrency: 'USD',
+          } as unknown as Transaction,
+        ],
+      }),
+    );
+    mockFetch({
+      year: 2024,
+      positions: [
+        { isin: 'US5949181045', ticker: 'MSFT', securityName: 'Microsoft', shares: 10, costPerShareLocal: 250 },
+      ],
+    });
+    await runCsvCalculate();
+
+    const lastCall = sharedExports.calculateTaxes.mock.calls.at(-1);
+    expect(lastCall?.[4]).toEqual([
+      { isin: 'US5949181045', ticker: 'MSFT', securityName: 'Microsoft', shares: 10, costPerShareLocal: 250 },
+    ]);
+  });
+
+  it('renders the transparency note only when a position was actually carried', async () => {
+    sharedExports.parseTrading212Csv.mockReturnValueOnce(
+      makeCsvParseResult({
+        transactions: [
+          {
+            action: 'buy', ticker: 'VOO', isin: 'US9229083632', shares: 2, price: 400,
+            priceCurrency: 'USD', transactionDate: '2024-02-01', total: 800, totalCurrency: 'USD',
+          } as unknown as Transaction,
+          {
+            action: 'sell', ticker: 'MSFT', isin: 'US5949181045', shares: 4, price: 400,
+            priceCurrency: 'USD', transactionDate: '2025-06-20', total: 1600, totalCurrency: 'USD',
+          } as unknown as Transaction,
+        ],
+      }),
+    );
+    mockFetch({
+      year: 2024,
+      positions: [
+        { isin: 'US5949181045', ticker: 'MSFT', securityName: 'Microsoft', shares: 10, costPerShareLocal: 250 },
+      ],
+    });
+    await runCsvCalculate();
+
+    expect(screen.getByTestId('carry-forward-note')).toBeInTheDocument();
+    expect(
+      screen.getByText('Carried 1 position(s) from 2024 (cost basis from your previous filing).'),
+    ).toBeInTheDocument();
+  });
+
+  it('does not render the note when there are no carried positions', async () => {
+    mockFetch({ year: null, positions: [] });
+    await runCsvCalculate();
+
+    const lastCall = sharedExports.calculateTaxes.mock.calls.at(-1);
+    expect(lastCall?.[4]).toEqual([]);
+    expect(screen.queryByTestId('carry-forward-note')).not.toBeInTheDocument();
+  });
+
+  it('falls back to no seeding when the opening-positions fetch fails (calc still runs)', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
+      const u = String(url);
+      if (u.includes('/api/uploads/opening-positions')) {
+        return Promise.reject(new Error('network down'));
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ rates: {}, count: 0, rate: 4.9 }), { status: 200 }),
+      );
+    });
+    await runCsvCalculate();
+
+    // Calc still runs, seeded with []; behaviour identical to the no-carry path.
+    const lastCall = sharedExports.calculateTaxes.mock.calls.at(-1);
+    expect(lastCall?.[4]).toEqual([]);
+    expect(screen.queryByTestId('carry-forward-note')).not.toBeInTheDocument();
+    expect(mockSetUploadData).toHaveBeenCalled();
+  });
+
+  it('falls back to no seeding when the endpoint returns a non-ok response', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
+      const u = String(url);
+      if (u.includes('/api/uploads/opening-positions')) {
+        return Promise.resolve(new Response('server error', { status: 500 }));
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ rates: {}, count: 0, rate: 4.9 }), { status: 200 }),
+      );
+    });
+    await runCsvCalculate();
+
+    const lastCall = sharedExports.calculateTaxes.mock.calls.at(-1);
+    expect(lastCall?.[4]).toEqual([]);
+    expect(screen.queryByTestId('carry-forward-note')).not.toBeInTheDocument();
+  });
+});
+
 describe('UploadPage - drag-and-drop drop zone', () => {
   it('processes a dropped PDF the same as a file-input upload', async () => {
     const { container } = renderPage();
