@@ -60,6 +60,32 @@ export interface SecurityBreakdown {
 }
 
 /**
+ * A holding carried into the target year from a PRIOR year: the opening balance
+ * of a position whose acquiring BUY transactions are NOT present in the file the
+ * engine is given. Feeding these to `calculateTaxes` seeds the cost-basis lots
+ * before the year's transactions are processed, so a SELL of a position opened in
+ * an earlier year gets its real cost basis instead of the current fallback of 0
+ * (which over-taxes the whole proceeds as gain).
+ *
+ * `costPerShareLocal` is the weighted-average cost per share in LOCAL currency
+ * (RON), the same basis the engine builds internally and the same value already
+ * persisted as `SecurityCalculation.weightedAvgCost`, so a later year can be
+ * seeded directly from the prior year's stored breakdown.
+ *
+ * CONTRACT: the caller must only supply positions whose BUYs are absent from
+ * `transactions`. Supplying an opening position AND that position's original buy
+ * in the same call double-counts the shares. A full-history statement (every buy
+ * present) therefore needs NO opening positions.
+ */
+export interface OpeningPosition {
+  isin: string;
+  ticker: string;
+  securityName?: string;
+  shares: number;
+  costPerShareLocal: number;
+}
+
+/**
  * One row in the PDF flow's per-trade audit trail. The Trading212 Annual
  * Statement PDF reports closed positions (each with a pre-computed result) and
  * dividend payments rather than raw buy/sell transactions, so
