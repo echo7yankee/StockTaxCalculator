@@ -14,5 +14,14 @@
   "dividendTax": "Impozit pe dividende ({{rate}}% minus re\u021binerea)",
   "healthContribution": "Contribu\u021bie de s\u0103n\u0103tate (prag: {{bracket}})",
   "totalTaxOwed": "Total impozit datorat",
-  "earlyFilingDiscount": "Depune p\u00e2n\u0103 la {{deadline}} pentru a economisi {{amount}} {{currency}} (reducere {{rate}}% la impozitul pe venit)"
+  "earlyFilingDiscount": "Depune p\u00e2n\u0103 la {{deadline}} pentru a economisi {{amount}} {{currency}} (reducere {{rate}}% la impozitul pe venit)",
+  "whatIfToggle": "Compar\u0103 dou\u0103 scenarii",
+  "whatIfHeading": "Compar\u0103 dou\u0103 scenarii",
+  "whatIfIntro": "Vezi cum se schimb\u0103 impozitul total dac\u0103 realizezi un c\u00e2\u0219tig \u00een plus sau valorifici o pierdere \u00een acest an fiscal.",
+  "scenarioA": "Scenariul A",
+  "scenarioB": "Scenariul B",
+  "differenceHeader": "Diferen\u021b\u0103 (B minus A)",
+  "compare": "Compar\u0103",
+  "cassCliffCallout": "{{scenario}} intr\u0103 \u00een pragul CASS de {{bracket}}, cu {{amount}} {{currency}} CASS \u00een plus fa\u021b\u0103 de {{other}}.",
+  "cassStepExplainer": "CASS se datoreaz\u0103 ca sum\u0103 fix\u0103 pe prag (o func\u021bie \u00een trepte), a\u0219a c\u0103 un venit realizat chiar peste un prag poate ad\u0103uga o sum\u0103 \u00eentreag\u0103 la total."
 }

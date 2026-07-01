@@ -14,5 +14,14 @@
   "dividendTax": "Dividend tax ({{rate}}% minus withholding)",
   "healthContribution": "Health contribution (bracket: {{bracket}})",
   "totalTaxOwed": "Total tax owed",
-  "earlyFilingDiscount": "File by {{deadline}} to save {{amount}} {{currency}} ({{rate}}% discount on income tax)"
+  "earlyFilingDiscount": "File by {{deadline}} to save {{amount}} {{currency}} ({{rate}}% discount on income tax)",
+  "whatIfToggle": "Compare two scenarios",
+  "whatIfHeading": "Compare two scenarios",
+  "whatIfIntro": "See how your total tax changes if you realize an extra gain or harvest a loss within this tax year.",
+  "scenarioA": "Scenario A",
+  "scenarioB": "Scenario B",
+  "differenceHeader": "Difference (B minus A)",
+  "compare": "Compare",
+  "cassCliffCallout": "{{scenario}} lands in the {{bracket}} CASS bracket, adding {{amount}} {{currency}} of CASS compared with {{other}}.",
+  "cassStepExplainer": "CASS is owed as a fixed amount per bracket (a step function), so income realized just over a threshold can add a whole lump to your total."
 }
