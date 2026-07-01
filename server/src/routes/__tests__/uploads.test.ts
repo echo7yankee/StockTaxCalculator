@@ -174,3 +174,119 @@ describe('uploads + taxYears API', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe('GET /api/uploads/opening-positions (year-round carry-forward, board #3)', () => {
+  const OTHER_USER_ID = 'test-user-other-00000';
+  const OTHER_USER_EMAIL = 'test-other@test.com';
+
+  // Seed a prior-year calculation for the test user with a mix of securities:
+  // one still held (should carry), one fully sold (remainingShares 0, must drop),
+  // one with a null cost (must drop), one with no identifier (must drop).
+  async function seedYear(userId: string, year: number, securities: Array<Record<string, unknown>>) {
+    const ty = await prisma.taxYear.create({
+      data: { userId, year, country: 'RO', status: 'calculated' },
+    });
+    const calc = await prisma.taxCalculation.create({
+      data: { taxYearId: ty.id, totalTaxOwed: 100 },
+    });
+    for (const sec of securities) {
+      await prisma.securityCalculation.create({
+        data: { taxCalculationId: calc.id, ...sec },
+      });
+    }
+    return ty;
+  }
+
+  beforeAll(async () => {
+    await prisma.user.upsert({
+      where: { email: OTHER_USER_EMAIL },
+      update: {},
+      create: { id: OTHER_USER_ID, email: OTHER_USER_EMAIL, name: 'Other User', plan: 'free' },
+    });
+
+    // Prior year 2050 for the authed test user: AAPL held (carries), MSFT sold out,
+    // TSLA null cost, an ID-less row. Only AAPL should surface.
+    await seedYear(TEST_USER_ID, 2050, [
+      { isin: 'US0378331005', ticker: 'AAPL', securityName: 'Apple Inc.', remainingShares: 10, weightedAvgCost: 350 },
+      { isin: 'US5949181045', ticker: 'MSFT', securityName: 'Microsoft', remainingShares: 0, weightedAvgCost: 200 },
+      { isin: 'US88160R1014', ticker: 'TSLA', securityName: 'Tesla', remainingShares: 5, weightedAvgCost: null },
+      { isin: null, ticker: null, securityName: 'Mystery', remainingShares: 3, weightedAvgCost: 50 },
+    ]);
+    // An even-earlier year 2049, held but should NOT win over 2050 (closest prior).
+    await seedYear(TEST_USER_ID, 2049, [
+      { isin: 'US02079K3059', ticker: 'GOOGL', securityName: 'Alphabet', remainingShares: 8, weightedAvgCost: 130 },
+    ]);
+    // The OTHER user holds NFLX in 2050; must never leak to the test user.
+    await seedYear(OTHER_USER_ID, 2050, [
+      { isin: 'US64110L1061', ticker: 'NFLX', securityName: 'Netflix', remainingShares: 2, weightedAvgCost: 500 },
+    ]);
+  });
+
+  afterAll(async () => {
+    for (const uid of [TEST_USER_ID, OTHER_USER_ID]) {
+      const tys = await prisma.taxYear.findMany({ where: { userId: uid } });
+      for (const ty of tys) {
+        await prisma.securityCalculation.deleteMany({ where: { taxCalculation: { taxYearId: ty.id } } });
+        await prisma.taxCalculation.deleteMany({ where: { taxYearId: ty.id } });
+      }
+      await prisma.taxYear.deleteMany({ where: { userId: uid } });
+    }
+    await prisma.user.deleteMany({ where: { id: OTHER_USER_ID } });
+  });
+
+  it('maps only the eligible securities from the closest prior year', async () => {
+    const res = await fetch(`${BASE}/api/uploads/opening-positions?year=2051`);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.year).toBe(2050);
+    // AAPL only: MSFT (0 shares), TSLA (null cost), and the ID-less row are dropped.
+    expect(data.positions).toHaveLength(1);
+    expect(data.positions[0]).toEqual({
+      isin: 'US0378331005',
+      ticker: 'AAPL',
+      securityName: 'Apple Inc.',
+      shares: 10,
+      costPerShareLocal: 350,
+    });
+  });
+
+  it('picks the closest prior year when several exist (2050 over 2049)', async () => {
+    const res = await fetch(`${BASE}/api/uploads/opening-positions?year=2051`);
+    const data = await res.json();
+    // 2050 is closer than 2049, so GOOGL from 2049 must not appear.
+    expect(data.year).toBe(2050);
+    expect(data.positions.some((p: { ticker: string }) => p.ticker === 'GOOGL')).toBe(false);
+  });
+
+  it('falls to 2049 when the requested year is 2050 (only strictly-prior years count)', async () => {
+    const res = await fetch(`${BASE}/api/uploads/opening-positions?year=2050`);
+    const data = await res.json();
+    expect(data.year).toBe(2049);
+    expect(data.positions).toHaveLength(1);
+    expect(data.positions[0].ticker).toBe('GOOGL');
+  });
+
+  it('returns { year: null, positions: [] } when there is no prior year', async () => {
+    const res = await fetch(`${BASE}/api/uploads/opening-positions?year=2049`);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.year).toBeNull();
+    expect(data.positions).toEqual([]);
+  });
+
+  it('does not leak another user\'s holdings (user isolation)', async () => {
+    const res = await fetch(`${BASE}/api/uploads/opening-positions?year=2051`);
+    const data = await res.json();
+    expect(data.positions.some((p: { ticker: string }) => p.ticker === 'NFLX')).toBe(false);
+  });
+
+  it('returns 400 for a missing year param', async () => {
+    const res = await fetch(`${BASE}/api/uploads/opening-positions`);
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 for an out-of-range year', async () => {
+    const res = await fetch(`${BASE}/api/uploads/opening-positions?year=1800`);
+    expect(res.status).toBe(400);
+  });
+});

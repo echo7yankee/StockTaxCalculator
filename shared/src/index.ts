@@ -1,5 +1,5 @@
 export type { Transaction, TransactionAction, Currency, BrokerType, RawCsvRow } from './types/transaction.js';
-export type { TaxYear, TaxCalculationResult, SecurityBreakdown, PdfAuditRow, ManualCalculatorInput, ManualCalculatorResult } from './types/tax.js';
+export type { TaxYear, TaxCalculationResult, SecurityBreakdown, OpeningPosition, PdfAuditRow, ManualCalculatorInput, ManualCalculatorResult } from './types/tax.js';
 export type { CountryTaxConfig, HealthContributionBracket } from './types/country.js';
 
 export { getCountryConfig, getSupportedCountries, romaniaTaxConfig, buildRomaniaTaxConfig, getTaxConfigForYear, isEngineSupportedTaxYear } from './taxRules/index.js';

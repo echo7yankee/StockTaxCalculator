@@ -9,7 +9,7 @@ import {
   getTaxConfigForYear,
   isEngineSupportedTaxYear,
 } from '@shared/index';
-import type { ParseResult, CurrencyBnrRates } from '@shared/index';
+import type { ParseResult, CurrencyBnrRates, OpeningPosition } from '@shared/index';
 import { useCountry } from '../contexts/CountryContext';
 import { useUpload } from '../contexts/UploadContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -44,6 +44,10 @@ export default function UploadPage() {
   // explicitly because every message contains the literal "BNR" so a substring
   // check can't tell success from a degraded conversion (backlog #25).
   const [csvRateStatusKind, setCsvRateStatusKind] = useState<'ok' | 'partial' | 'fallback' | null>(null);
+  // Year-round carry-forward note (board #3): set when the engine was seeded with
+  // prior-year opening positions, so a changed tax number is never silent. Null
+  // when nothing was carried (the byte-identical no-opening-positions path).
+  const [carryForwardNote, setCarryForwardNote] = useState<string | null>(null);
 
   const fetchBnrRate = useCallback((year: number, currency: string) => {
     if (!countryConfig || currency === countryConfig.currency) return;
@@ -152,6 +156,8 @@ export default function UploadPage() {
   const finalizeCsv = useCallback(async (parsed: ParseResult, broker: BrokerId, fileName: string) => {
     if (!countryConfig) return;
 
+    setCarryForwardNote(null);
+
     // Detect every foreign currency present (not just the dominant one) and
     // fetch BNR rates per currency, so a mixed USD/GBP/EUR statement converts
     // each transaction at its OWN currency's rate (backlog #5). IBKR and merged
@@ -242,9 +248,60 @@ export default function UploadPage() {
       }
     }
 
+    // Year-round carry-forward (board #3): seed cost-basis lots from the user's
+    // most-recent prior filed year, so a sell of a position opened before this
+    // year (whose buys are absent from a year-scoped export) gets its real cost
+    // basis instead of 0. Best-effort: a failed/empty fetch leaves the calc
+    // byte-identical to the no-opening-positions path, so it must never block.
+    let filteredOpeningPositions: OpeningPosition[] = [];
+    let carryForwardYear: number | null = null;
+    try {
+      const res = await fetch(`/api/uploads/opening-positions?year=${selectedYear}`, {
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const data: { year: number | null; positions?: OpeningPosition[] } = await res.json();
+        const positions = Array.isArray(data.positions) ? data.positions : [];
+        if (positions.length > 0) {
+          // Double-count guard: never seed a security whose acquiring BUY is in
+          // this file (the engine would then count the shares twice). The buy
+          // predicate matches the engine exactly (`t.action === 'buy'`). A carried
+          // security that is only SOLD in the file (not bought) is the case we DO
+          // seed, so it keeps its real prior-year cost basis.
+          const buyKeys = new Set(
+            enrichedTransactions
+              .filter((tx) => tx.action === 'buy')
+              .map((tx) => tx.isin || tx.ticker),
+          );
+          filteredOpeningPositions = positions.filter((p) => {
+            const key = p.isin || p.ticker;
+            return !!key && !buyKeys.has(key);
+          });
+          if (filteredOpeningPositions.length > 0) carryForwardYear = data.year;
+        }
+      }
+    } catch {
+      // Carry-forward is best-effort; on any failure fall back to no seeding.
+      filteredOpeningPositions = [];
+    }
+
     // Dispatch tax rates by the selected income year (backlog #13).
     const yearConfig = getTaxConfigForYear(countryConfig, selectedYear);
-    const { taxResult, securities } = calculateTaxes(enrichedTransactions, yearConfig, selectedYear);
+    const { taxResult, securities } = calculateTaxes(
+      enrichedTransactions,
+      yearConfig,
+      selectedYear,
+      undefined,
+      filteredOpeningPositions,
+    );
+
+    // Trust: never change a user's tax number silently. Surface a short note when
+    // positions were actually carried (and survived the double-count guard).
+    if (filteredOpeningPositions.length > 0 && carryForwardYear != null) {
+      setCarryForwardNote(
+        t('carryForwardNote', { count: filteredOpeningPositions.length, year: carryForwardYear }),
+      );
+    }
 
     setUploadData({
       parseResult: parsed,
@@ -338,6 +395,7 @@ export default function UploadPage() {
     clearPreview();
     setCsvRateStatus(null);
     setCsvRateStatusKind(null);
+    setCarryForwardNote(null);
   };
 
   // Don't render while checking auth: prevents flash
@@ -778,6 +836,11 @@ export default function UploadPage() {
                 csvRateStatusKind === 'ok' ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'
               }`}>
                 {csvRateStatus}
+              </p>
+            )}
+            {carryForwardNote && preview?.fileType === 'csv' && (
+              <p className="text-xs mt-1 text-accent dark:text-accent-light" data-testid="carry-forward-note">
+                {carryForwardNote}
               </p>
             )}
           </div>
