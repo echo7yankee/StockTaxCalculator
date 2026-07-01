@@ -6,6 +6,7 @@ import EmailCapture from '../components/common/EmailCapture';
 import { taxYearInterpVars } from '../utils/taxYearVars';
 import { analytics } from '../lib/analytics';
 import { cassBracketLabelKey } from '../utils/cassBracket';
+import WhatIfSimulator from '../components/calculator/WhatIfSimulator';
 import { calculateQuickTax } from '@shared/engine/quickCalculator';
 import type { QuickTaxResult } from '@shared/engine/quickCalculator';
 import type { ManualCalculatorInput } from '@shared/types/tax';
@@ -136,6 +137,8 @@ export default function CalculatorPage() {
           </div>
         </div>
       )}
+
+      <WhatIfSimulator countryConfig={countryConfig} />
 
       {/* Off-season audience capture: convert a free-calculator visitor into a
           warm 2026-season lead instead of a bounce. */}
