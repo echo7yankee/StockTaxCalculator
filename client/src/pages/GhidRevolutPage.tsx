@@ -16,7 +16,7 @@ export default function GhidRevolutPage() {
         <title>Cum declar Revolut Trading în Declarația Unică 2026 | InvesTax</title>
         <meta
           name="description"
-          content="Ghid pentru investitorii Revolut Stocks / Trading: cum declari câștigurile, pierderile și dividendele în Declarația Unică 2026. Pași, exemplu, FAQ. Deadline 25 mai."
+          content="Ghid pentru investitorii Revolut: cum declari câștigurile, pierderile și dividendele în Declarația Unică 2026. Pași, exemplu, FAQ. Termen 25 mai."
         />
         <link rel="canonical" href="https://investax.app/ghid/declaratie-unica-revolut/" />
         <meta property="og:title" content="Cum declar Revolut Trading în Declarația Unică 2026" />

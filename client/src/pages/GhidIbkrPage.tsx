@@ -16,7 +16,7 @@ export default function GhidIbkrPage() {
         <title>Cum declar Interactive Brokers (IBKR) în Declarația Unică 2026 | InvesTax</title>
         <meta
           name="description"
-          content="Ghid pentru investitorii cu cont Interactive Brokers (IBKR): cum scoți extrasul Activity Statement în format CSV, cum declari câștigurile și dividendele în Declarația Unică 2026. Deadline 25 mai."
+          content="Ghid Interactive Brokers (IBKR): cum scoți extrasul Activity Statement (CSV) și cum declari câștigurile și dividendele în Declarația Unică 2026. Termen 25 mai."
         />
         <link rel="canonical" href="https://investax.app/ghid/declaratie-unica-ibkr/" />
         <meta property="og:title" content="Cum declar Interactive Brokers (IBKR) în Declarația Unică 2026" />

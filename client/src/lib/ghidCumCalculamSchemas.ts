@@ -61,6 +61,6 @@ export const GHID_CUM_CALCULAM_FAQ_SCHEMA = {
 export const GHID_CUM_CALCULAM_META = {
   title: 'Cum calculează InvesTax: metodologia explicată | InvesTax',
   description:
-    'Metodologia InvesTax pas cu pas: CMP pentru câștiguri de capital, BNR per-data sau anual (după regulă), credit fiscal pe dividende, CASS pe praguri, raportare pierderi. Cu citate exacte din Codul Fiscal.',
+    'Metodologia InvesTax pas cu pas: CMP pentru câștiguri, BNR per-data sau anual după caz, credit fiscal pe dividende, CASS pe praguri. Citate din Codul Fiscal.',
   url: 'https://investax.app/ghid/cum-calculam/',
 };

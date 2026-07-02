@@ -95,7 +95,7 @@ const taxYearConfig = getCurrentTaxYearConfig();
 
 const HOMEPAGE_META = {
   title: 'InvesTax | Calculator taxe investiții România',
-  description: `Declarația Unică ${taxYearConfig.taxYear} pentru investitorii Trading 212, Revolut, IBKR. Câștiguri pe metoda CMP, dividende externe cu credit fiscal (W-8BEN), CASS. Termen ${taxYearConfig.filingDeadlineRo}.`,
+  description: `Declarația Unică ${taxYearConfig.taxYear} pentru investitorii Trading 212, Revolut, IBKR. Câștiguri pe metoda CMP, dividende externe cu credit fiscal, CASS. Termen ${taxYearConfig.filingDeadlineRo}.`,
   url: 'https://investax.app/',
 };
 
@@ -144,7 +144,7 @@ const EMBED_WIDGET_META = {
   url: 'https://investax.app/embed/calculator/',
 };
 
-const PRERENDER_PAGES: Record<string, PageConfig> = {
+export const PRERENDER_PAGES: Record<string, PageConfig> = {
   '/': {
     component: () => <Landing />,
     title: HOMEPAGE_META.title,

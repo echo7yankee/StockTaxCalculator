@@ -16,7 +16,7 @@ export default function GhidCassPage() {
         <title>CASS pe investiții 2025: praguri, calcul, exemple | InvesTax</title>
         <meta
           name="description"
-          content="Cum se calculează CASS pentru investitorii la bursă: pragurile de 6, 12, 24 salarii minime, ce venituri intră în calcul, exemple, FAQ. Pentru anul fiscal 2025, depus în 2026."
+          content="Cum se calculează CASS pentru investitorii la bursă: pragurile de 6, 12, 24 salarii minime, ce venituri intră în calcul, exemple și FAQ. Anul fiscal 2025."
         />
         <link rel="canonical" href="https://investax.app/ghid/cass-investitii/" />
         <meta property="og:title" content="CASS pe investiții 2025: praguri, calcul, exemple" />
