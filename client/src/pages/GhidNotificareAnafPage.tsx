@@ -15,7 +15,7 @@ export default function GhidNotificareAnafPage() {
         <title>Notificare ANAF venituri din străinătate: ghid pentru investitori | InvesTax</title>
         <meta
           name="description"
-          content="Ai primit notificare de conformare de la ANAF pentru venituri din străinătate? Ce înseamnă, în cât timp răspunzi, cum corectezi anii 2023 și 2024 cu declarație rectificativă: cote, CASS, accesorii."
+          content="Ai primit notificare de conformare de la ANAF pentru venituri din străinătate? Ce înseamnă, cum răspunzi și cum corectezi anii 2023 și 2024 cu rectificativă."
         />
         <link rel="canonical" href="https://investax.app/ghid/notificare-anaf-venituri-strainatate/" />
         <meta property="og:title" content="Notificare ANAF pentru venituri din străinătate: ghidul investitorului" />

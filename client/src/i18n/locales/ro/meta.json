@@ -1,6 +1,6 @@
 {
   "landingTitle": "InvesTax | Calculator taxe investiții România",
-  "landingDesc": "Declarația Unică {{taxYear}} pentru investitorii Trading 212, Revolut, IBKR. Câștiguri pe metoda CMP, dividende externe cu credit fiscal (W-8BEN), CASS. Termen {{filingDeadline}}.",
+  "landingDesc": "Declarația Unică {{taxYear}} pentru investitorii Trading 212, Revolut, IBKR. Câștiguri pe metoda CMP, dividende externe cu credit fiscal, CASS. Termen {{filingDeadline}}.",
   "calculatorTitle": "Calculator taxe gratuit | InvesTax",
   "calculatorDesc": "Calculează gratuit impozitul pe câștiguri de capital, dividende și CASS pentru anul fiscal {{taxYear}}. Fără cont, fără card.",
   "pricingTitle": "Prețuri | InvesTax",

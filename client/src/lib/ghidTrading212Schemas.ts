@@ -61,6 +61,6 @@ export const GHID_T212_FAQ_SCHEMA = {
 export const GHID_T212_META = {
   title: 'Cum declar Trading212 în Declarația Unică 2026 | InvesTax',
   description:
-    'Ghid complet: cum declari câștigurile, pierderile și dividendele de la Trading212 în Declarația Unică 2026. Pași, exemplu lucrat, greșeli frecvente, FAQ. Deadline 25 mai.',
+    'Ghid complet: cum declari câștigurile, pierderile și dividendele de la Trading212 în Declarația Unică 2026. Pași, exemplu lucrat, FAQ. Termen 25 mai.',
   url: 'https://investax.app/ghid/declaratie-unica-trading212/',
 };

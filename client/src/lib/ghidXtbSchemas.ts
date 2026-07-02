@@ -53,6 +53,6 @@ export const GHID_XTB_FAQ_SCHEMA = {
 export const GHID_XTB_META = {
   title: 'Impozit XTB România: ce declari în Declarația Unică | InvesTax',
   description:
-    'XTB are sucursală în România și reține impozitul pe câștiguri la sursă, deci nu depui Declarația Unică pentru impozitul pe ele. Ce îți rămâne totuși de declarat: dividende din străinătate și CASS. Diferența față de Trading212, Revolut și IBKR.',
+    'XTB are sucursală în România și reține impozitul pe câștiguri la sursă: pentru ele nu depui Declarația Unică. De declarat rămân dividendele externe și CASS.',
   url: 'https://investax.app/ghid/impozit-xtb/',
 };
