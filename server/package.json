@@ -14,6 +14,7 @@
     "analytics": "node dist/scripts/analytics-report.js",
     "analytics:digest": "node dist/scripts/analytics-digest.js",
     "errors": "node dist/scripts/errors-report.js",
+    "indexnow": "node dist/scripts/indexnow.js",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
