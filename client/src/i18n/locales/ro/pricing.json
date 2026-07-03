@@ -32,8 +32,16 @@
     "d212Guide": "Ghid Declarația Unică (D212) cu valori gata de copiat",
     "pdfExport": "Export raport PDF descărcabil",
     "savedHistory": "Salvare calcule în istoric (dashboard)",
-    "previousYears": "Acces la calcule din anii anteriori",
+    "previousYears": "Calcul pentru anii 2023, 2024 și 2025 (util la notificările de conformare)",
     "emailSupport": "Suport prin email (răspuns în 24h)"
+  },
+  "notificare": {
+    "heading": "Ai primit o notificare de conformare de la ANAF?",
+    "body": "Dacă ANAF ți-a cerut să declari venituri din investiții din anii trecuți, InvesTax calculează anii 2023, 2024 și 2025 pe regulile fiecărui an (dividende 8% pentru 2023 și 2024, plafoanele CASS ale anului respectiv) și îți dă valorile de trecut în declarația rectificativă.",
+    "anchor": "Un contabil cere de obicei câteva sute de lei pentru fiecare an (orientativ 400-600 lei pentru o declarație cu venituri din investiții). O singură plată InvesTax îți dă acces 365 de zile la toți anii suportați, de la 2023 la 2025.",
+    "guardrail": "InvesTax este un instrument software, nu consultanță fiscală personalizată: nu îți evaluăm scrisoarea și nu promitem un rezultat în relația cu ANAF.",
+    "ctaGuide": "Citește ghidul pentru notificare",
+    "ctaCheck": "Verifică extrasul gratuit"
   },
   "faq": {
     "title": "Întrebări frecvente",
@@ -52,7 +60,9 @@
     "q7": "Ce brokeri sunt suportați?",
     "a7": "Trading 212 (PDF și CSV), plus Interactive Brokers și Revolut în beta (verifică rezultatul înainte de depunere).",
     "q8": "Se aplică și pentru anul fiscal 2026?",
-    "a8": "Nu. Începând cu 1 ianuarie 2026, Legea 239/2025 a schimbat cota de impozitare la 16% pentru câștigurile obținute prin brokeri nerezidenți (Trading212, Interactive Brokers, eToro, Revolut). Pentru brokeri rezidenți fiscal în România (XTB România, Tradeville, BT Capital Partners etc.) se aplică reținere la sursă de 3% sau 6% în funcție de perioada de deținere. InvesTax calculează taxele pentru veniturile obținute în 2025, care se depun prin Declarația Unică până la 25 mai 2026. Vom actualiza calculatorul pentru anul fiscal 2026 înainte de sezonul de depunere 2027."
+    "a8": "Nu. Începând cu 1 ianuarie 2026, Legea 239/2025 a schimbat cota de impozitare la 16% pentru câștigurile obținute prin brokeri nerezidenți (Trading212, Interactive Brokers, eToro, Revolut). Pentru brokeri rezidenți fiscal în România (XTB România, Tradeville, BT Capital Partners etc.) se aplică reținere la sursă de 3% sau 6% în funcție de perioada de deținere. InvesTax calculează taxele pentru veniturile obținute în 2025, care se depun prin Declarația Unică până la 25 mai 2026. Vom actualiza calculatorul pentru anul fiscal 2026 înainte de sezonul de depunere 2027.",
+    "q9": "Pot calcula anii trecuți dacă am primit o notificare de conformare?",
+    "a9": "Da. InvesTax calculează anii fiscali 2023, 2024 și 2025, fiecare pe regulile lui (dividendele sunt 8% pentru 2023 și 2024, nu 10%, iar plafoanele CASS diferă pe ani), și îți dă valorile pentru declarația rectificativă. Accesul complet acoperă toți anii suportați cu o singură plată, nu per an. Nu depunem în locul tău și nu oferim consultanță pe cazul tău specific."
   },
   "trustBadge": "Construit de un developer român care și-a depus singur Declarația Unică, pe calea dureroasă",
   "previewLinkText": "Nu ești sigur că extrasul tău funcționează?",

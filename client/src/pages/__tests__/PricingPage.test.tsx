@@ -93,6 +93,70 @@ describe('PricingPage — Section 3.9 Site 3 (promo/price skeleton)', () => {
   });
 });
 
+describe('PricingPage - notificare / prior-year offer (P3)', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockUseAuth.mockReturnValue({
+      user: null,
+      loading: false,
+      login: vi.fn(),
+      signup: vi.fn(),
+      loginWithGoogle: vi.fn(),
+      logout: vi.fn(),
+    });
+    // Resolve the promo fetch so the page settles; the offer block is
+    // independent of promo state but this avoids act() noise.
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ count: 0, limit: 100, remaining: 100 }), { status: 200 })
+    );
+  });
+
+  it('renders the ANAF compliance-notice offer block with the accountant price anchor', async () => {
+    renderPricing();
+    await waitFor(() => {
+      expect(screen.queryByTestId('promo-badge-skeleton')).not.toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByRole('heading', { name: /Got a compliance notice/i })
+    ).toBeInTheDocument();
+    // The offer's crux: an accountant bills per year; one payment covers all years.
+    expect(screen.getByText(/400-600 lei/)).toBeInTheDocument();
+    expect(screen.getByText(/single InvesTax payment/i)).toBeInTheDocument();
+    // Honest guardrail must be present (no outcome promises, no personalized advice).
+    expect(screen.getByText(/not personalized tax advice/i)).toBeInTheDocument();
+  });
+
+  it('routes the offer block to the notificare guide and the free statement checker', async () => {
+    renderPricing();
+    await waitFor(() => {
+      expect(screen.queryByTestId('promo-badge-skeleton')).not.toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByRole('link', { name: /Read the compliance-notice guide/i })
+    ).toHaveAttribute('href', '/ghid/notificare-anaf-venituri-strainatate/');
+    expect(
+      screen.getByRole('link', { name: /Check your statement for free/i })
+    ).toHaveAttribute('href', '/verifica-extras');
+  });
+
+  it('exposes a prior-year FAQ item (q9) without leaking the dormant 2026 16% rate', async () => {
+    renderPricing();
+    await waitFor(() => {
+      expect(screen.queryByTestId('promo-badge-skeleton')).not.toBeInTheDocument();
+    });
+
+    // q9 question renders; the 8% prior-year rate is the truthful claim.
+    expect(screen.getByText(/Can I compute past years/i)).toBeInTheDocument();
+    // Guard scoped to the prior-year offer block: the FAQ a8 answer legitimately
+    // cites the 16% rate for tax year 2026, so this must not be a whole-page check.
+    const offerHeading = screen.getByRole('heading', { name: /Got a compliance notice/i });
+    const offerSection = offerHeading.closest('section');
+    expect(offerSection?.textContent ?? '').not.toContain('16%');
+  });
+});
+
 describe('PricingPage — checkout 502 friendlier message', () => {
   beforeEach(() => {
     vi.restoreAllMocks();

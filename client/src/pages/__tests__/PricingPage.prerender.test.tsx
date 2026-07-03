@@ -64,6 +64,22 @@ describe('PricingPage prerender (SSR)', () => {
     expect(html).toMatch(/href="\/calculator\/"/);
   });
 
+  it('emits the notificare / prior-year offer block with the accountant price anchor (RO)', () => {
+    const html = renderPricingSsr();
+    expect(html).toContain('Ai primit o notificare de conformare de la ANAF?');
+    expect(html).toContain('400-600 lei');
+    // Crawlable CTAs to the guide + the free checker.
+    expect(html).toMatch(/href="\/ghid\/notificare-anaf-venituri-strainatate\/"/);
+    expect(html).toMatch(/href="\/verifica-extras"/);
+    // The prior-year offer copy must never carry the dormant 2026 16% rate.
+    // Scope the guard to the offer block: the FAQ a8 answer legitimately cites 16%
+    // for tax year 2026, so a whole-page assertion would be wrong. (FAQ answers are
+    // collapsed during SSR anyway, but scoping keeps the intent precise.)
+    const offerStart = html.indexOf('Ai primit o notificare de conformare de la ANAF?');
+    const offerBlock = html.slice(offerStart, offerStart + 1200);
+    expect(offerBlock).not.toContain('16%');
+  });
+
   it('confirms no browser globals leak into the SSR scope', () => {
     expect(typeof window).toBe('undefined');
     expect(typeof document).toBe('undefined');

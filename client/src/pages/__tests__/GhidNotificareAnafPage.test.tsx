@@ -116,4 +116,14 @@ describe('GhidNotificareAnafPage - prior-years are now live (post PR #221 funnel
       screen.getByRole('heading', { name: /Pentru 2023, 2024 și 2025, calculul e deja automat/ })
     ).toBeInTheDocument();
   });
+
+  it('carries the accountant price anchor in the offer block (P3: one payment vs per-year contabil)', () => {
+    const { container } = renderPage();
+    const text = container.textContent ?? '';
+    // The per-year accountant cost vs one InvesTax payment for all supported years.
+    expect(text).toContain('400-600 lei');
+    expect(text).toContain('nu per an');
+    // Anchor must not drag in the dormant 2026 16% rate on a prior-year page.
+    expect(text).not.toContain('16%');
+  });
 });

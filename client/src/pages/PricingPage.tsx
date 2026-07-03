@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Check, X, Zap, Shield, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, X, Zap, Shield, ChevronDown, ChevronUp, BellRing, FileSearch, BookOpen } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { analytics } from '../lib/analytics';
 import PageMeta from '../components/common/PageMeta';
@@ -89,7 +89,7 @@ export default function PricingPage() {
     }
   };
 
-  const faqItems = Array.from({ length: 8 }, (_, i) => ({
+  const faqItems = Array.from({ length: 9 }, (_, i) => ({
     question: t(`faq.q${i + 1}`),
     answer: t(`faq.a${i + 1}`),
   }));
@@ -232,6 +232,42 @@ export default function PricingPage() {
           {t('previewLinkCta')}
         </Link>
       </div>
+
+      {/* Prior-year / notificare-de-conformare offer (P3, distribution diagnosis).
+          Speaks to the ANAF compliance-notice segment: a distinct buyer whose real
+          alternative is an accountant billing per declaration per year. Additive block,
+          no new URL. Tax claims (8% dividends 2023/2024, accountant price anchor) are
+          verified via the ideation tax-fact gate before shipping. */}
+      <section className="max-w-3xl mx-auto mb-16 p-6 sm:p-8 bg-gradient-to-br from-accent/10 to-accent/5 dark:from-accent/20 dark:to-accent/5 border border-accent/20 rounded-xl">
+        <div className="flex items-start gap-4">
+          <BellRing className="w-8 h-8 text-accent dark:text-accent-light flex-shrink-0 mt-1" />
+          <div>
+            <h2 className="text-xl font-bold mb-2">{t('notificare.heading')}</h2>
+            <p className="text-sm text-gray-700 dark:text-slate-300 mb-3 leading-relaxed">
+              {t('notificare.body')}
+            </p>
+            <p className="text-sm text-gray-700 dark:text-slate-300 mb-3 leading-relaxed">
+              {t('notificare.anchor')}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mb-4 leading-relaxed">
+              {t('notificare.guardrail')}
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                to="/ghid/notificare-anaf-venituri-strainatate/"
+                className="btn-secondary inline-flex items-center gap-2"
+              >
+                <BookOpen className="w-4 h-4" />
+                {t('notificare.ctaGuide')}
+              </Link>
+              <Link to="/verifica-extras" className="btn-secondary inline-flex items-center gap-2">
+                <FileSearch className="w-4 h-4" />
+                {t('notificare.ctaCheck')}
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* FAQ */}
       <div className="max-w-3xl mx-auto">
