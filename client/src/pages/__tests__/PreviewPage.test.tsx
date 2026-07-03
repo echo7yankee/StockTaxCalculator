@@ -29,6 +29,8 @@ vi.mock('../../lib/analytics', () => ({
     previewStarted: vi.fn(),
     previewClean: vi.fn(),
     previewBlocked: vi.fn(),
+    gateEligible: vi.fn(),
+    gateBlocked: vi.fn(),
   },
 }));
 
@@ -229,6 +231,9 @@ describe('PreviewPage - support verdict', () => {
     expect(screen.queryByTestId('preview-contact-cta')).not.toBeInTheDocument();
     expect(analytics.previewClean).toHaveBeenCalledTimes(1);
     expect(analytics.previewBlocked).not.toHaveBeenCalled();
+    // Gate telemetry: the eligible event fires, the blocked event does not.
+    expect(analytics.gateEligible).toHaveBeenCalledTimes(1);
+    expect(analytics.gateBlocked).not.toHaveBeenCalled();
   });
 
   it('GREEN (now-supported prior year 2023): unlock CTA, supported-year copy, no waitlist', async () => {
@@ -274,6 +279,37 @@ describe('PreviewPage - support verdict', () => {
     expect(screen.queryByText("Notify me when it's ready")).not.toBeInTheDocument();
     expect(analytics.previewBlocked).toHaveBeenCalledTimes(1);
     expect(analytics.previewClean).not.toHaveBeenCalled();
+    // Gate telemetry: blocked with the unsupported-year reason (Mihai's case).
+    expect(analytics.gateBlocked).toHaveBeenCalledTimes(1);
+    expect(analytics.gateBlocked).toHaveBeenCalledWith('unsupported_year');
+    expect(analytics.gateEligible).not.toHaveBeenCalled();
+  });
+
+  it('BENIGN warning (skipped rows on a supported broker + year): warnings shown but the gate stays OPEN', async () => {
+    // The refinement PR-1 delivers: a supported-broker + supported-year file
+    // whose only warnings are benign (here a skipped-rows note) now shows the
+    // green unlock CTA instead of the old lead-capture path, while STILL
+    // rendering the informational warning. This is the case the old
+    // verdict === 'green' gate wrongly blocked.
+    sharedExports.parseTrading212Csv.mockReturnValueOnce(
+      makeCsvParseResult({ warnings: ['3 rows skipped (unknown action)'] }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.upload(findHiddenFileInput(container), makeCsvFile());
+
+    await waitFor(() => {
+      expect(screen.getByTestId('support-verdict')).toBeInTheDocument();
+    });
+    // The benign warning is still surfaced informationally.
+    expect(screen.getByText('3 rows skipped (unknown action)')).toBeInTheDocument();
+    // Gate is OPEN: unlock CTA shown, no contact/lead-capture path.
+    expect(screen.getByTestId('preview-unlock-cta')).toBeInTheDocument();
+    expect(screen.queryByTestId('preview-contact-cta')).not.toBeInTheDocument();
+    // Gate telemetry: eligible, not blocked.
+    expect(analytics.gateEligible).toHaveBeenCalledTimes(1);
+    expect(analytics.gateBlocked).not.toHaveBeenCalled();
   });
 
   it('BETA broker, clean + supported year: shows the beta caveat AND still allows unlock', async () => {
@@ -321,6 +357,9 @@ describe('PreviewPage - support verdict', () => {
     expect(screen.getByText('This statement cannot be calculated correctly right now.')).toBeInTheDocument();
     expect(screen.queryByTestId('preview-unlock-cta')).not.toBeInTheDocument();
     expect(screen.getByTestId('preview-contact-cta')).toBeInTheDocument();
+    // Gate telemetry: blocked with the missing-history reason.
+    expect(analytics.gateBlocked).toHaveBeenCalledWith('missing_history');
+    expect(analytics.gateEligible).not.toHaveBeenCalled();
   });
 });
 
@@ -360,6 +399,10 @@ describe('PreviewPage - PDF broker mismatch (non-Trading212 PDF)', () => {
     expect(screen.queryByText('Warnings')).not.toBeInTheDocument();
     // Moat: the engine is never invoked.
     expect(sharedExports.calculateTaxesFromPdf).not.toHaveBeenCalled();
+    // Gate telemetry: blocked with the wrong-broker reason (PR-4 keys crypto /
+    // Binance lead-capture off this reason).
+    expect(analytics.gateBlocked).toHaveBeenCalledWith('wrong_broker');
+    expect(analytics.gateEligible).not.toHaveBeenCalled();
   });
 });
 
@@ -376,8 +419,11 @@ describe('PreviewPage - analytics', () => {
 
 describe('PreviewPage - lead capture pre-fill', () => {
   it('contact CTA pre-fills the form with the file name + warnings (like the #24A banner)', async () => {
+    // An unsupported year (2022) is a FATAL block, so the contact / lead-capture
+    // path renders. (A benign warning on a SUPPORTED year now unlocks instead,
+    // per the PR-1 gate refinement, so this case needs a genuinely fatal reason.)
     sharedExports.parseTrading212AnnualStatement.mockReturnValueOnce(
-      makePdfParseResult({ year: 2023, warnings: ['Year mis-detected'] }),
+      makePdfParseResult({ year: 2022, warnings: ['Year mis-detected'] }),
     );
     const user = userEvent.setup();
     const { container } = renderPage();

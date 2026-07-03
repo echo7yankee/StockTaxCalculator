@@ -44,6 +44,25 @@ describe('analytics (first-party emitter)', () => {
     }
   });
 
+  it('maps the pre-pay gate events, encoding the block reason in the event name', async () => {
+    beacon.mockClear();
+    analytics.gateEligible();
+    expect((await beaconBody(beacon.mock.calls[0][1])).name).toBe('gate_eligible');
+
+    beacon.mockClear();
+    analytics.gateBlocked('unsupported_year');
+    expect((await beaconBody(beacon.mock.calls[0][1])).name).toBe('gate_blocked_unsupported_year');
+
+    beacon.mockClear();
+    analytics.gateBlocked('wrong_broker');
+    expect((await beaconBody(beacon.mock.calls[0][1])).name).toBe('gate_blocked_wrong_broker');
+
+    // Defensive: a null reason falls back to the bare gate_blocked event.
+    beacon.mockClear();
+    analytics.gateBlocked(null);
+    expect((await beaconBody(beacon.mock.calls[0][1])).name).toBe('gate_blocked');
+  });
+
   it('is a no-op (no throw) when navigator is unavailable (SSR/prerender)', () => {
     vi.stubGlobal('navigator', undefined);
     expect(() => analytics.pageview()).not.toThrow();

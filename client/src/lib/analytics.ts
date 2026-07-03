@@ -12,6 +12,8 @@
  * Event names must match the server allowlist in server/src/lib/analyticsEvents.ts.
  */
 
+import type { GateBlockReason } from './parseEligibility';
+
 function send(name: string) {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return;
   try {
@@ -56,6 +58,15 @@ export const analytics = {
   previewStarted: () => send('preview_started'),
   previewClean: () => send('preview_clean'),
   previewBlocked: () => send('preview_blocked'),
+  // Pre-pay parse GATE (backlog #24B Phase 2): the eligibility predicate opened
+  // (gate_eligible) or closed the gate. The block reason rides in the event NAME
+  // rather than a separate dimension, because the analytics store keys on `name`
+  // only (no dimension column, and adding one would need a DB migration). A null
+  // reason should not happen on the blocked path, but is mapped defensively so a
+  // stray call still records a countable event.
+  gateEligible: () => send('gate_eligible'),
+  gateBlocked: (reason: GateBlockReason | null) =>
+    send(reason ? `gate_blocked_${reason}` : 'gate_blocked'),
   // Distribution widget (/embed/calculator): the calculator was run inside an
   // embed on a third-party site. Beacons same-origin (the iframe origin is ours),
   // and the route's pageview already carries the embedding site as referrer.
