@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { isEngineSupportedTaxYear } from '@shared/taxRules/taxYears';
 import { useStatementPreview } from '../hooks/useStatementPreview';
+import { evaluateParseEligibility } from '../lib/parseEligibility';
 import { analytics } from '../lib/analytics';
 import { CSV_BROKERS, BROKERS, type BrokerId } from '../lib/brokers';
 import EmailCapture, { type SubscribeTopic } from '../components/common/EmailCapture';
@@ -100,19 +101,42 @@ export default function PreviewPage() {
   // PDF). Show a dedicated localized redirect to the CSV export instead of the
   // raw English "no sell trades / defaulted year" parser warning.
   const pdfBrokerMismatch = preview?.fileType === 'pdf' && preview.brokerMismatch;
+
+  // The pre-pay gate decision is the single source of truth for whether the
+  // unlock CTA shows (backlog #24B Phase 2). It BLOCKS on a hard error, a fatal
+  // warning (unsupported year, missing-history, PDF broker-mismatch, empty
+  // result) and OPENS on a supported broker + year even when benign warnings
+  // (skipped rows, splits, duplicates, mixed-currency notes) are present. This
+  // is the deliberate refinement over the old verdict === 'green' gate, which
+  // wrongly routed benign warnings to lead-capture.
+  const eligibility = evaluateParseEligibility({ preview, error, csvHistoryWarning });
+  const canUnlock = eligibility.eligible;
+
+  // The verdict card's colour still reflects parse health at a glance: green when
+  // the gate is open, red for the missing-history hard-stop, amber for the other
+  // blocked cases and for benign warnings. It is presentational only; the gate
+  // above owns the unlock decision.
   const verdict: Verdict = preview
-    ? resolveVerdict({ historyBlocked: !!historyBlocked, hasWarnings, yearSupported })
+    ? canUnlock
+      ? 'green'
+      : resolveVerdict({ historyBlocked: !!historyBlocked, hasWarnings, yearSupported })
     : 'green';
 
-  // Clean + supported -> show the unlock CTA. Otherwise the lead-capture path.
-  const canUnlock = verdict === 'green';
-
-  // Fire the clean/blocked outcome once per landed preview.
+  // Fire the gate outcome once per landed preview. gate_blocked carries the
+  // block reason (as a reason-suffixed event name; see analytics.ts). We keep
+  // the legacy previewClean/previewBlocked events so existing funnel dashboards
+  // do not lose coverage while the gate metrics ramp.
   useEffect(() => {
     if (!preview) return;
-    if (verdict === 'green') analytics.previewClean();
-    else analytics.previewBlocked();
-    // verdict is derived from preview; keying on preview fires once per parse.
+    if (eligibility.eligible) {
+      analytics.gateEligible();
+      analytics.previewClean();
+    } else {
+      analytics.gateBlocked(eligibility.blockReason);
+      analytics.previewBlocked();
+    }
+    // eligibility is derived from preview/error/csvHistoryWarning; keying on
+    // preview fires once per landed parse.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preview]);
 

@@ -23,6 +23,18 @@ export const ANALYTICS_EVENTS = [
   'preview_started',
   'preview_clean',
   'preview_blocked',
+  // Pre-pay parse GATE (backlog #24B Phase 2): the eligibility predicate opened
+  // the gate, or closed it with a reason. The block reason rides in the event
+  // name (the store keys on `name` only, no dimension column), so each reason is
+  // its own allowlisted event. 'gate_blocked' (no reason) is kept as a defensive
+  // fallback for a null-reason call.
+  'gate_eligible',
+  'gate_blocked',
+  'gate_blocked_unreadable',
+  'gate_blocked_unsupported_year',
+  'gate_blocked_missing_history',
+  'gate_blocked_wrong_broker',
+  'gate_blocked_empty',
   'embed_calculator_used',
   'ghid_calculator_used',
 ] as const;
