@@ -2,13 +2,23 @@
  * Extract structured text from a Trading212 Annual Statement PDF.
  * Uses pdfjs-dist with positional text items to reconstruct table rows.
  */
+// Installs Promise.withResolvers on the main thread before pdf.js loads.
+import './promiseWithResolversPolyfill';
 import * as pdfjsLib from 'pdfjs-dist';
+// Our own worker entry (see pdfWorker.ts): a polyfill-first wrapper around the
+// pdf.js worker, so Promise.withResolvers exists in the worker scope too.
+import PdfWorker from './pdfWorker?worker';
 
-// Configure worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.mjs',
-  import.meta.url,
-).toString();
+// Route pdf.js through the wrapped worker. workerPort overrides workerSrc and
+// takes a Worker instance. Configured lazily on first use so the module never
+// instantiates a Worker at import time (keeps it safe under Node/prerender,
+// where a Worker constructor would not exist).
+let workerConfigured = false;
+function ensureWorkerConfigured(): void {
+  if (workerConfigured) return;
+  pdfjsLib.GlobalWorkerOptions.workerPort = new PdfWorker();
+  workerConfigured = true;
+}
 
 interface TextItem {
   str: string;
@@ -21,6 +31,7 @@ interface TextItem {
  * Returns one string per page, with items on the same line joined by tabs.
  */
 export async function extractPdfPageTexts(file: File): Promise<string[]> {
+  ensureWorkerConfigured();
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   const pageTexts: string[] = [];
