@@ -1,3 +1,7 @@
+// Must run before any pdf.js code loads: installs Promise.withResolvers on
+// older browsers (Safari < 17.4 etc.) so PDF upload does not throw. See
+// promiseWithResolversPolyfill.ts (2026-07-03 incident).
+import './utils/promiseWithResolversPolyfill';
 import './i18n/i18n';
 import { initErrorMonitor } from './lib/errorMonitor';
 import React from 'react';
