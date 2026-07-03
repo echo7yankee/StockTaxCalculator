@@ -32,8 +32,16 @@
     "d212Guide": "D212 filing guide with copy-ready values",
     "pdfExport": "Downloadable PDF report",
     "savedHistory": "Save calculations to dashboard",
-    "previousYears": "Access previous years' calculations",
+    "previousYears": "Calculations for 2023, 2024 and 2025 (useful for compliance notices)",
     "emailSupport": "Email support (24h response)"
+  },
+  "notificare": {
+    "heading": "Got a compliance notice (notificare de conformare) from ANAF?",
+    "body": "If ANAF asked you to declare investment income from past years, InvesTax computes 2023, 2024 and 2025 each on that year's rules (dividends are 8% for 2023 and 2024, with each year's own CASS brackets) and gives you the values to carry into your amended return.",
+    "anchor": "An accountant typically charges a few hundred lei per year (around 400-600 lei for a return with investment income). A single InvesTax payment gives you 365 days of access to every supported year, 2023 through 2025.",
+    "guardrail": "InvesTax is a software tool, not personalized tax advice: we don't assess your letter and don't promise any outcome with ANAF.",
+    "ctaGuide": "Read the compliance-notice guide",
+    "ctaCheck": "Check your statement for free"
   },
   "faq": {
     "title": "Frequently asked questions",
@@ -52,7 +60,9 @@
     "q7": "Which brokers are supported?",
     "a7": "Trading 212 (PDF and CSV), plus Interactive Brokers and Revolut in beta (double-check the result before filing).",
     "q8": "Does this apply to tax year 2026?",
-    "a8": "No. Starting January 1, 2026, Law 239/2025 changed the tax rate to 16% for capital gains through non-resident brokers (Trading212, Interactive Brokers, eToro, Revolut). For Romania-resident brokers (XTB Romania, Tradeville, BT Capital Partners, etc.), withholding at source applies at 3% or 6% depending on holding period. InvesTax calculates taxes on income earned in 2025, filed via Declarația Unică by May 25, 2026. We will update the calculator for tax year 2026 before the 2027 filing season."
+    "a8": "No. Starting January 1, 2026, Law 239/2025 changed the tax rate to 16% for capital gains through non-resident brokers (Trading212, Interactive Brokers, eToro, Revolut). For Romania-resident brokers (XTB Romania, Tradeville, BT Capital Partners, etc.), withholding at source applies at 3% or 6% depending on holding period. InvesTax calculates taxes on income earned in 2025, filed via Declarația Unică by May 25, 2026. We will update the calculator for tax year 2026 before the 2027 filing season.",
+    "q9": "Can I compute past years if I received a compliance notice?",
+    "a9": "Yes. InvesTax computes tax years 2023, 2024 and 2025, each on its own rules (dividends are 8% for 2023 and 2024, not 10%, and the CASS brackets differ by year), and gives you the values for your amended return. Full access covers every supported year with a single payment, not per year. We don't file on your behalf and don't give advice on your specific case."
   },
   "trustBadge": "Built by a Romanian developer who filed his own Declarația Unică, the painful way",
   "previewLinkText": "Not sure your statement works?",

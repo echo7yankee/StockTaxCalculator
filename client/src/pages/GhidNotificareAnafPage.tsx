@@ -252,6 +252,11 @@ export default function GhidNotificareAnafPage() {
               de broker, fără cont și fără plată. Dacă totul e în regulă, încarci extrasul și primești declarația
               completată, iar calculatorul manual rămâne gratuit pentru estimări rapide.
             </p>
+            <p className="text-sm text-gray-700 dark:text-slate-300 mb-4">
+              Un contabil cere de obicei câteva sute de lei pentru fiecare an (orientativ 400-600 lei pentru o
+              declarație cu venituri din investiții), deci un contribuabil cu trei ani de regularizat ajunge la peste o
+              mie de lei. O singură plată InvesTax îți dă acces la toți anii suportați, de la 2023 la 2025, nu per an.
+            </p>
             <div className="flex flex-wrap gap-3">
               <Link to="/verifica-extras" className="btn-primary inline-flex items-center gap-2">
                 <FileSearch className="w-4 h-4" />
