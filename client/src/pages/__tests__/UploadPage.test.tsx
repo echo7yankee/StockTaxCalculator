@@ -1154,6 +1154,45 @@ describe('UploadPage - carry-forward guard-relax (board #3 PR-3)', () => {
     );
   });
 
+  it('(a) one fetch, one result: Calculate reuses the coverage-effect fetch (no second request)', async () => {
+    // The reuse guard keys on the REQUESTED tax year (2025), not the response's
+    // prior year (2024). This guards the "one fetch, one result" design: when the
+    // coverage effect already fetched opening-positions for the year Calculate
+    // will file, finalizeCsv must NOT issue a second identical request.
+    sharedExports.parseTrading212Csv.mockReturnValueOnce(singleYearOversellCsv());
+    const fetchSpy = mockFetch({
+      year: 2024,
+      positions: [
+        { isin: 'US0378331005', ticker: 'AAPL', securityName: 'Apple Inc.', shares: 12, costPerShareLocal: 300 },
+      ],
+    });
+    const user = await uploadSingleYearOversell();
+    await waitFor(() => {
+      expect(screen.getByTestId('carry-forward-covers-note')).toBeInTheDocument();
+    });
+
+    // Exactly one opening-positions request so far (from the coverage effect).
+    const openingCallsBefore = fetchSpy.mock.calls.filter((c) =>
+      String(c[0]).includes('/api/uploads/opening-positions'),
+    );
+    expect(openingCallsBefore).toHaveLength(1);
+    expect(String(openingCallsBefore[0][0])).toBe('/api/uploads/opening-positions?year=2025');
+
+    await user.click(screen.getByRole('button', { name: /Calculate Taxes/ }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
+
+    // Still exactly one: finalizeCsv reused the stash instead of re-fetching.
+    const openingCallsAfter = fetchSpy.mock.calls.filter((c) =>
+      String(c[0]).includes('/api/uploads/opening-positions'),
+    );
+    expect(openingCallsAfter).toHaveLength(1);
+    // The reused stash still produced the correct engine seeding.
+    const lastCall = sharedExports.calculateTaxes.mock.calls.at(-1);
+    expect(lastCall?.[4]).toEqual([
+      { isin: 'US0378331005', ticker: 'AAPL', securityName: 'Apple Inc.', shares: 12, costPerShareLocal: 300 },
+    ]);
+  });
+
   it('(b) partially-covered: block stays, Calculate disabled, no covered note', async () => {
     sharedExports.parseTrading212Csv.mockReturnValueOnce(singleYearOversellCsv());
     // Prior filing holds only 4 AAPL against a 10-share deficit -> not covered.

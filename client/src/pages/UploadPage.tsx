@@ -57,7 +57,13 @@ export default function UploadPage() {
   // positions are stashed so handleCalculate reuses this single fetch.
   const [carryForwardCoversHistory, setCarryForwardCoversHistory] = useState(false);
   const [openingPositions, setOpeningPositions] = useState<OpeningPosition[] | null>(null);
-  const [openingPositionsYear, setOpeningPositionsYear] = useState<number | null>(null);
+  // The tax year the coverage effect FETCHED FOR (the requested `selectedYear`),
+  // so finalizeCsv can tell whether the stash is reusable for the year it is about
+  // to file. Distinct from the response's `data.year` (the PRIOR filing year the
+  // positions came from), which the endpoint enforces to be < the requested year
+  // and which drives the display note.
+  const [openingPositionsRequestedYear, setOpeningPositionsRequestedYear] = useState<number | null>(null);
+  const [openingPositionsPriorYear, setOpeningPositionsPriorYear] = useState<number | null>(null);
 
   const fetchBnrRate = useCallback((year: number, currency: string) => {
     if (!countryConfig || currency === countryConfig.currency) return;
@@ -214,11 +220,16 @@ export default function UploadPage() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setCarryForwardCoversHistory(false);
       setOpeningPositions(null);
-      setOpeningPositionsYear(null);
+      setOpeningPositionsRequestedYear(null);
+      setOpeningPositionsPriorYear(null);
       return;
     }
 
     let cancelled = false;
+    // The year we are fetching FOR (the requested tax year). Captured up front so
+    // both the stash key and the URL use the same value even if selectedYear
+    // changes before the async fetch resolves.
+    const requestedYear = selectedYear;
 
     // Per-security deficit: shares sold beyond what was bought in the file. Uses
     // the SAME key convention (isin || ticker) as the engine and the double-count
@@ -239,20 +250,20 @@ export default function UploadPage() {
 
     (async () => {
       let positions: OpeningPosition[] = [];
-      let year: number | null = null;
+      let priorYear: number | null = null;
       try {
-        const res = await fetch(`/api/uploads/opening-positions?year=${selectedYear}`, {
+        const res = await fetch(`/api/uploads/opening-positions?year=${requestedYear}`, {
           credentials: 'include',
         });
         if (res.ok) {
           const data: { year: number | null; positions?: OpeningPosition[] } = await res.json();
           positions = Array.isArray(data.positions) ? data.positions : [];
-          year = data.year;
+          priorYear = data.year;
         }
       } catch {
         // Best-effort: on any failure the block stays (positions empty, no coverage).
         positions = [];
-        year = null;
+        priorYear = null;
       }
       if (cancelled) return;
 
@@ -278,7 +289,8 @@ export default function UploadPage() {
         shortKeys.every((k) => (carriedShares[k] || 0) >= deficit[k] - 0.01);
 
       setOpeningPositions(positions);
-      setOpeningPositionsYear(year);
+      setOpeningPositionsRequestedYear(requestedYear);
+      setOpeningPositionsPriorYear(priorYear);
       setCarryForwardCoversHistory(covered);
     })();
 
@@ -404,15 +416,18 @@ export default function UploadPage() {
     //
     // PR-3: the coverage-check effect above may already have fetched the
     // positions for this year (when the missing-history guard fired). Reuse that
-    // single result to avoid a second identical request; fall back to a fresh
+    // single result to avoid a second identical request. The reuse key is the
+    // REQUESTED tax year (`openingPositionsRequestedYear`), i.e. the year we
+    // fetched FOR, not the response's `data.year` (the prior filing year the
+    // positions came from, always < the requested year). Fall back to a fresh
     // fetch when the effect never ran (the common no-guard path) or fetched a
     // different year. Either way the double-count guard runs here on the final
     // enriched transactions, so the seeded set is identical to the pre-PR-3 path.
     let positions: OpeningPosition[] = [];
-    let fetchedYear: number | null = null;
-    if (openingPositions !== null && openingPositionsYear === year) {
+    let priorYear: number | null = null;
+    if (openingPositions !== null && openingPositionsRequestedYear === year) {
       positions = openingPositions;
-      fetchedYear = openingPositionsYear;
+      priorYear = openingPositionsPriorYear;
     } else {
       try {
         const res = await fetch(`/api/uploads/opening-positions?year=${year}`, {
@@ -421,12 +436,12 @@ export default function UploadPage() {
         if (res.ok) {
           const data: { year: number | null; positions?: OpeningPosition[] } = await res.json();
           positions = Array.isArray(data.positions) ? data.positions : [];
-          fetchedYear = data.year;
+          priorYear = data.year;
         }
       } catch {
         // Carry-forward is best-effort; on any failure fall back to no seeding.
         positions = [];
-        fetchedYear = null;
+        priorYear = null;
       }
     }
 
@@ -447,7 +462,7 @@ export default function UploadPage() {
         const key = p.isin || p.ticker;
         return !!key && !buyKeys.has(key);
       });
-      if (filteredOpeningPositions.length > 0) carryForwardYear = fetchedYear;
+      if (filteredOpeningPositions.length > 0) carryForwardYear = priorYear;
     }
 
     // Dispatch tax rates by the selected income year (backlog #13).
@@ -486,7 +501,7 @@ export default function UploadPage() {
       carriedPositions: filteredOpeningPositions,
       carryForwardYear: filteredOpeningPositions.length > 0 ? carryForwardYear : null,
     });
-  }, [countryConfig, selectedYear, setUploadData, t, openingPositions, openingPositionsYear]);
+  }, [countryConfig, selectedYear, setUploadData, t, openingPositions, openingPositionsRequestedYear, openingPositionsPriorYear]);
 
   // Run the PDF engine path and stash the result. Shared by the re-upload
   // "Calculate" click and the post-pay rehydration (PR-2), so the engine call is
@@ -672,7 +687,8 @@ export default function UploadPage() {
     setCarryForwardNote(null);
     setCarryForwardCoversHistory(false);
     setOpeningPositions(null);
-    setOpeningPositionsYear(null);
+    setOpeningPositionsRequestedYear(null);
+    setOpeningPositionsPriorYear(null);
   };
 
   // Don't render while checking auth: prevents flash
@@ -1046,7 +1062,7 @@ export default function UploadPage() {
                 <p className="text-sm text-gray-700 dark:text-slate-300">
                   {t('carryForwardCoversHistoryNote', {
                     year: selectedYear,
-                    priorYear: openingPositionsYear ?? selectedYear - 1,
+                    priorYear: openingPositionsPriorYear ?? selectedYear - 1,
                   })}
                 </p>
               </div>
