@@ -21,7 +21,15 @@ export default function LoginPage() {
   );
   const [loading, setLoading] = useState(false);
 
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
+  // Post-login destination priority: an explicit protected-route intent
+  // (location.state.from, set by the route guard) wins; then a `?redirect=` query
+  // param (used by the pre-pay parse gate to send an anonymous buyer back to
+  // /pricing after they sign in); then the dashboard default. The redirect param is
+  // constrained to a same-site absolute path so it cannot be an open redirect.
+  const redirectParam = searchParams.get('redirect');
+  const safeRedirect = redirectParam && /^\/[^/]/.test(redirectParam) ? redirectParam : null;
+  const from =
+    (location.state as { from?: { pathname: string } })?.from?.pathname || safeRedirect || '/dashboard';
 
   const validateEmail = useCallback((value: string) => {
     if (!value) return t('common:validation.required');

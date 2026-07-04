@@ -46,11 +46,15 @@ describe('internal links point at the trailing-slash canonical (SSR, no 301 hop)
     const out = await prerender({ url: '/' });
     const hrefs = internalHrefs(out.html);
 
-    // The homepage links the calculator, /ghid hub, the upload/pricing CTA and every
-    // guide card. The scoped routes it surfaces must all carry the trailing slash.
+    // The homepage links the calculator, the /ghid hub, and every guide card; the
+    // scoped routes it surfaces must all carry the trailing slash. Since the pre-pay
+    // parse gate (backlog #24B Phase 2, PR-3) the anonymous primary CTA routes through
+    // the free checker (/verifica-extras, a noindex route), not straight to /pricing/,
+    // so the homepage no longer emits a direct /pricing/ link (the /ghid hub + spoke
+    // pages still do, asserted below). The trailing-slash guard for any /pricing/ link
+    // that IS present is unaffected.
     expect(hrefs).toContain('/calculator/');
     expect(hrefs).toContain('/ghid/');
-    expect(hrefs).toContain('/pricing/');
     for (const guide of SCOPED_TRAILING_SLASH_HREFS) {
       if (guide.startsWith('/ghid/') && guide !== '/ghid/') {
         expect(hrefs, `homepage missing trailing-slash guide link ${guide}`).toContain(guide);

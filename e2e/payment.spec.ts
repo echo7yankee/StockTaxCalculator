@@ -52,11 +52,13 @@ test.describe('Payment Infrastructure', () => {
     await expect(launchBadge.first()).toBeVisible();
   });
 
-  test('pricing page shows buy button for unauthenticated users', async ({ page }) => {
+  test('pricing page shows the pre-check gate CTA for a visitor without a verified parse', async ({ page }) => {
     await page.goto('/pricing');
-    // Should show "Log in to purchase" button
-    const buyButton = page.getByRole('button', { name: /log in|autentifică/i });
-    await expect(buyButton).toBeVisible();
+    // Pre-pay parse gate (#24B Phase 2): with no verified parse this session, the
+    // purchase CTA is a free pre-check that routes to /verifica-extras, not a direct
+    // buy/login button. The gated routing itself is covered in payment-flow.spec.ts.
+    await expect(page.getByTestId('pricing-buy-cta')).toBeVisible();
+    await expect(page.getByTestId('pricing-check-first-note')).toBeVisible();
   });
 
   test('upload page redirects to pricing for unauthenticated users', async ({ page }) => {

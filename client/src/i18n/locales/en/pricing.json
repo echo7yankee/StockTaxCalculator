@@ -66,5 +66,7 @@
   },
   "trustBadge": "Built by a Romanian developer who filed his own Declarația Unică, the painful way",
   "previewLinkText": "Not sure your statement works?",
-  "previewLinkCta": "Check it for free first"
+  "previewLinkCta": "Check it for free first",
+  "checkFirstCta": "Check your file first",
+  "checkFirstNote": "We check your file is supported before you pay. It is free and takes a few seconds."
 }

@@ -3,6 +3,7 @@
   "heroSubtitle": "Made for Romanian investors using Trading 212, Revolut, or IBKR. Upload your statement, get the D212 numbers for {{taxYear}}. Ideal for passive investors: ETFs, buy & hold, foreign dividends.",
   "tryCalculator": "Try Free Calculator",
   "uploadPdf": "Upload PDF Statement",
+  "checkStatementCta": "Check your statement (free)",
   "howItWorks": "How it works",
   "stepUploadTitle": "Upload Statement",
   "stepUploadDesc": "Upload your Trading212 annual statement (PDF recommended) or full transaction history (CSV).",

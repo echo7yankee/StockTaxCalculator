@@ -1,13 +1,19 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 
 const mockUseAuth = vi.fn();
+const mockNavigate = vi.fn();
 
 vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => mockUseAuth(),
 }));
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return { ...actual, useNavigate: () => mockNavigate };
+});
 
 vi.mock('../../lib/analytics', () => ({
   analytics: {
@@ -17,6 +23,28 @@ vi.mock('../../lib/analytics', () => ({
 }));
 
 import PricingPage from '../PricingPage';
+import { writePendingParse } from '../../lib/pendingParse';
+import type { PdfParseResult } from '@shared/parsers/trading212Pdf';
+
+// Keep the gate token from leaking between tests (a seed in one must not open the
+// gate in another). Cleared after every test regardless of describe block.
+afterEach(() => {
+  window.sessionStorage.clear();
+});
+
+/** Seed the pre-pay gate token: a valid pending parse in sessionStorage, standing in
+ *  for the green unlock PreviewPage writes. Its presence opens the checkout gate. */
+function seedPendingParse() {
+  const pdf = {
+    year: 2025,
+    overview: { currency: 'USD', closedResult: 1000, taxWithheld: 0 },
+    sellTrades: [{ ticker: 'AAPL', isin: 'US0378331005', executionTime: '2025-06-01' }],
+    dividends: [],
+    distributions: [],
+    warnings: [],
+  } as unknown as PdfParseResult;
+  writePendingParse({ fileType: 'pdf', fileName: 'annual-statement-2025.pdf', pdf });
+}
 
 function renderPricing() {
   return render(
@@ -160,6 +188,8 @@ describe('PricingPage - notificare / prior-year offer (P3)', () => {
 describe('PricingPage — checkout 502 friendlier message', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    window.sessionStorage.clear();
+    mockNavigate.mockReset();
     mockUseAuth.mockReturnValue({
       user: { id: 'u1', email: 'a@example.com', name: 'A', plan: 'free' },
       loading: false,
@@ -171,6 +201,8 @@ describe('PricingPage — checkout 502 friendlier message', () => {
   });
 
   it('shows the translated "provider unavailable" alert when /api/payment/checkout returns 502', async () => {
+    // The pre-pay gate must be OPEN for checkout to fire: seed a verified parse.
+    seedPendingParse();
     const promoResponse = new Response(
       JSON.stringify({ count: 0, limit: 100, remaining: 100 }),
       { status: 200 }
@@ -198,7 +230,7 @@ describe('PricingPage — checkout 502 friendlier message', () => {
       expect(screen.queryByTestId('promo-badge-skeleton')).not.toBeInTheDocument();
     });
 
-    const buyButton = screen.getByRole('button', { name: /Get full access/i });
+    const buyButton = screen.getByTestId('pricing-buy-cta');
     fireEvent.click(buyButton);
 
     await waitFor(() => {
@@ -209,5 +241,113 @@ describe('PricingPage — checkout 502 friendlier message', () => {
 
     // Sanity: we hit the checkout endpoint exactly once after the promo fetch.
     expect(fetchMock).toHaveBeenCalledWith('/api/payment/checkout', { credentials: 'include' });
+  });
+});
+
+describe('PricingPage - pre-pay parse gate (PR-3)', () => {
+  /** Render with only the promo fetch stubbed (resolves so the page settles). */
+  function renderSettled() {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ count: 0, limit: 100, remaining: 100 }), { status: 200 })
+    );
+    return render(
+      <HelmetProvider>
+        <MemoryRouter>
+          <PricingPage />
+        </MemoryRouter>
+      </HelmetProvider>
+    );
+  }
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    window.sessionStorage.clear();
+    mockNavigate.mockReset();
+  });
+
+  it('WITHOUT a verified parse: Buy is a "check your file first" CTA that routes to the checker, NOT checkout (logged-in free)', async () => {
+    mockUseAuth.mockReturnValue({ user: { id: 'u1', email: 'a@example.com', plan: 'free' } });
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ count: 0, limit: 100, remaining: 100 }), { status: 200 })
+    );
+
+    render(
+      <HelmetProvider>
+        <MemoryRouter>
+          <PricingPage />
+        </MemoryRouter>
+      </HelmetProvider>
+    );
+    await waitFor(() => expect(screen.queryByTestId('promo-badge-skeleton')).not.toBeInTheDocument());
+
+    // The gate is closed: the CTA reads as a free pre-check and the benefit note shows.
+    expect(screen.getByText('Check your file first')).toBeInTheDocument();
+    expect(screen.getByTestId('pricing-check-first-note')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('pricing-buy-cta'));
+
+    // Routed to the free checker; checkout is NOT called (no charge without a parse).
+    expect(mockNavigate).toHaveBeenCalledWith('/verifica-extras');
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/payment/checkout', { credentials: 'include' });
+  });
+
+  it('WITHOUT a verified parse: an anonymous visitor is ALSO routed to the checker, not to login', async () => {
+    mockUseAuth.mockReturnValue({ user: null });
+    renderSettled();
+    await waitFor(() => expect(screen.queryByTestId('promo-badge-skeleton')).not.toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId('pricing-buy-cta'));
+    // The parse gate is checked BEFORE the auth gate: no file, go check the file.
+    expect(mockNavigate).toHaveBeenCalledWith('/verifica-extras');
+    expect(mockNavigate).not.toHaveBeenCalledWith('/login?redirect=/pricing');
+  });
+
+  it('WITH a verified parse (anonymous): Buy routes to login with redirect back to pricing', async () => {
+    mockUseAuth.mockReturnValue({ user: null });
+    seedPendingParse();
+    renderSettled();
+    await waitFor(() => expect(screen.queryByTestId('promo-badge-skeleton')).not.toBeInTheDocument());
+
+    // Gate open: the buy label is the login-to-buy copy, no check-first note.
+    expect(screen.queryByTestId('pricing-check-first-note')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('pricing-buy-cta'));
+    expect(mockNavigate).toHaveBeenCalledWith('/login?redirect=/pricing');
+  });
+
+  it('WITH a verified parse (logged-in free): Buy proceeds to checkout', async () => {
+    mockUseAuth.mockReturnValue({ user: { id: 'u1', email: 'a@example.com', plan: 'free' } });
+    seedPendingParse();
+    const checkoutUrl = 'https://checkout.stripe.com/c/pay/test';
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ count: 0, limit: 100, remaining: 100 }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ checkoutUrl }), { status: 200 }));
+
+    // jsdom does not implement navigation; stub the href setter so the checkout
+    // redirect does not throw. We only assert the checkout endpoint was hit.
+    const hrefSetter = vi.fn();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...window.location, set href(v: string) { hrefSetter(v); } },
+    });
+
+    render(
+      <HelmetProvider>
+        <MemoryRouter>
+          <PricingPage />
+        </MemoryRouter>
+      </HelmetProvider>
+    );
+    await waitFor(() => expect(screen.queryByTestId('promo-badge-skeleton')).not.toBeInTheDocument());
+
+    // Gate open: the CTA is the normal buy button, no check-first note.
+    expect(screen.getByText('Get full access')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('pricing-buy-cta'));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/payment/checkout', { credentials: 'include' });
+    });
+    // The checker route is never taken when the gate is open.
+    expect(mockNavigate).not.toHaveBeenCalledWith('/verifica-extras');
   });
 });

@@ -66,5 +66,7 @@
   },
   "trustBadge": "Construit de un developer român care și-a depus singur Declarația Unică, pe calea dureroasă",
   "previewLinkText": "Nu ești sigur că extrasul tău funcționează?",
-  "previewLinkCta": "Verifică-l gratuit întâi"
+  "previewLinkCta": "Verifică-l gratuit întâi",
+  "checkFirstCta": "Verifică-ți fișierul întâi",
+  "checkFirstNote": "Verificăm gratuit dacă fișierul tău este suportat înainte să plătești. Durează câteva secunde."
 }

@@ -325,8 +325,11 @@ test.describe('Scenario C — Free user paywall journey', () => {
     // Should be redirected to pricing
     await expect(page).toHaveURL(/pricing/);
 
-    // Pricing page should show the buy CTA (not login variant since user is authenticated)
-    await expect(page.getByRole('button', { name: /full access|acces complet/i })).toBeVisible();
+    // Pricing page should show the purchase CTA. With the pre-pay parse gate
+    // (#24B Phase 2) and no verified parse this session, that CTA is the free
+    // pre-check that routes to /verifica-extras, not the direct buy button.
+    await expect(page.getByTestId('pricing-buy-cta')).toBeVisible();
+    await expect(page.getByTestId('pricing-check-first-note')).toBeVisible();
 
     // Launch promo badge should be visible
     await expect(page.getByText(/\d+\/100|\d+ (spots|locuri)/i).first()).toBeVisible({ timeout: 5_000 });

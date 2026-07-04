@@ -168,6 +168,30 @@ test.describe('Pre-pay parse persist + rehydrate (PR-2)', () => {
     expect(rehydrated).toBe(reupload);
   });
 
+  // Pre-pay parse gate ON (PR-3): the checker's green unlock now carries the buyer
+  // THROUGH to purchase, branching on auth state so there is never a dead-end. A paid
+  // user already owns access, so unlock routes them straight to /upload?welcome=1 where
+  // the PR-2 rehydration runs the engine on the just-stashed parse and lands on results
+  // with NO re-upload and NO trip through the paywall. This is the "clean file can always
+  // complete" guarantee expressed for the already-paid buyer (the free-user pricing leg
+  // is covered in payment-flow.spec.ts).
+  test('PR-3: paid user unlock on the checker carries straight to results (no pricing dead-end)', async ({ page }) => {
+    await login(page, REHYDRATE_EMAIL);
+
+    await page.goto('/verifica-extras');
+    await page.locator('input[type="file"]').setInputFiles(PDF_PATH);
+    await expect(page.getByTestId('preview-unlock-cta')).toBeVisible({ timeout: 15_000 });
+
+    // Click unlock and let the app route itself (no manual page.goto): a paid user
+    // must land on /upload?welcome=1 and then on /results, never on /pricing.
+    await page.getByTestId('preview-unlock-cta').click();
+    await page.waitForURL(/\/results/, { timeout: 20_000 });
+    await expect(page.locator('h1')).toContainText('Tax Results');
+    await expect(page.getByText('Total Tax Owed')).toBeVisible();
+    // Never bounced through the paywall.
+    expect(page.url()).not.toContain('/pricing');
+  });
+
   test('absent sessionStorage: /upload?welcome=1 degrades to the normal re-upload flow', async ({ page }) => {
     await login(page, REHYDRATE_EMAIL);
     // Land post-pay with NO pending parse (nothing stashed): the drop zone renders

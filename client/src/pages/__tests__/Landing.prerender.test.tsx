@@ -72,10 +72,14 @@ describe('Landing prerender (SSR)', () => {
     expect(html).not.toContain('{{');
   });
 
-  it('emits the primary calls-to-action (calculator + upload PDF)', () => {
+  it('emits the primary calls-to-action (calculator + statement checker)', () => {
     const html = renderLandingSsr();
     expect(html).toMatch(/href="\/calculator\/"/);
-    expect(html).toMatch(/href="\/(upload|pricing\/)"/);
+    // Pre-pay parse gate (backlog #24B Phase 2, PR-3): the anonymous SSR render (the
+    // prerendered homepage is always anonymous) routes the primary "get started" CTA
+    // through the FREE checker (/verifica-extras) instead of straight to the paywall.
+    // A paid user (client-side only) still gets /upload.
+    expect(html).toMatch(/href="\/verifica-extras"/);
   });
 
   it('confirms no browser globals leak into the SSR scope', () => {

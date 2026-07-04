@@ -54,9 +54,16 @@ describe('PricingPage prerender (SSR)', () => {
     expect(html).not.toContain('data-testid="promo-badge"');
   });
 
-  it('emits the unauthenticated checkout CTA (no user during SSR)', () => {
+  it('emits the pre-pay parse gate CTA (no verified parse during SSR -> check-file-first, PR-3)', () => {
+    // SSR has no sessionStorage, so the pre-pay gate token is absent and the Buy CTA
+    // routes to the free checker instead of checkout. The prerendered (anonymous, no
+    // session) pricing page therefore leads with the free pre-check, not the login
+    // prompt. The login-to-buy label still shows client-side once a parse is verified.
     const html = renderPricingSsr();
-    expect(html).toContain('Autentifică-te pentru a cumpăra');
+    expect(html).toContain('Verifică-ți fișierul întâi');
+    expect(html).toContain('data-testid="pricing-check-first-note"');
+    // The bare login-to-buy label is NOT the gate-closed CTA.
+    expect(html).not.toContain('Autentifică-te pentru a cumpăra');
   });
 
   it('emits the free-tier link to /calculator', () => {
