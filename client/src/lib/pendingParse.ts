@@ -131,6 +131,25 @@ export function readPendingParse(): PendingParse | null {
   }
 }
 
+/**
+ * The pre-pay GATE TOKEN (backlog #24B Phase 2, PR-3). A valid pending parse is
+ * written ONLY by PreviewPage on a green, eligible unlock click, so its presence
+ * this session is the proof that the buyer already ran a clean, engine-supported
+ * parse of their own file in their own browser. The purchase funnel keys off this:
+ * a checkout is allowed only when the token exists, otherwise the buyer is routed
+ * to the free checker first (so the four historical post-pay walls surface pre-pay).
+ *
+ * This is a thin, intention-revealing wrapper over `readPendingParse`: the funnel
+ * does not need the payload, only whether the gate is open, and naming it here keeps
+ * the "presence == eligible-parse-verified" contract in one documented place. It is
+ * a session UX signal, NOT a payment authorization: the server checkout route and the
+ * webhook are unchanged and still own the real paid-plan grant (execution plan
+ * Section 5). The gate reorders the funnel; it never force-grants access.
+ */
+export function hasEligiblePendingParse(): boolean {
+  return readPendingParse() !== null;
+}
+
 /** Remove the persisted pending parse. Called after a SUCCESSFUL rehydrated engine
  *  run so a browser refresh does not re-run it, and defensively on any invalid read. */
 export function clearPendingParse(): void {

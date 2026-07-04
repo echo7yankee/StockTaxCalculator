@@ -10,7 +10,13 @@ export default function Landing() {
   const { t, i18n } = useTranslation('landing');
   const { user } = useAuth();
   const isPaid = user?.plan === 'paid';
-  const uploadLink = isPaid ? '/upload' : '/pricing/';
+  // Pre-pay parse gate (backlog #24B Phase 2, PR-3): the primary "get started" CTA
+  // routes a non-paid visitor through the FREE checker (/verifica-extras) instead of
+  // straight to the paywall, so they confirm we can read their file before any charge.
+  // A paid user still goes straight to /upload. Secondary links (free calculator,
+  // guides) are unchanged. The label reads as a free pre-check, not a hurdle.
+  const primaryCtaLink = isPaid ? '/upload' : '/verifica-extras';
+  const primaryCtaLabel = isPaid ? t('uploadPdf') : t('checkStatementCta');
   const yearVars = taxYearInterpVars(i18n.language);
 
   const steps = [
@@ -41,8 +47,8 @@ export default function Landing() {
           <Link to="/calculator/" className="btn-primary text-lg px-8 py-3 flex items-center gap-2">
             {t('tryCalculator')} <ArrowRight className="w-5 h-5" />
           </Link>
-          <Link to={uploadLink} className="btn-secondary text-lg px-8 py-3 flex items-center gap-2">
-            <FileText className="w-5 h-5" /> {t('uploadPdf')}
+          <Link to={primaryCtaLink} className="btn-secondary text-lg px-8 py-3 flex items-center gap-2">
+            <FileText className="w-5 h-5" /> {primaryCtaLabel}
           </Link>
         </div>
       </section>

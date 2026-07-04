@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { isEngineSupportedTaxYear } from '@shared/taxRules/taxYears';
 import { useStatementPreview } from '../hooks/useStatementPreview';
+import { useAuth } from '../contexts/AuthContext';
 import { evaluateParseEligibility } from '../lib/parseEligibility';
 import { writePendingParse } from '../lib/pendingParse';
 import { analytics } from '../lib/analytics';
@@ -56,6 +57,7 @@ function resolveVerdict(opts: {
 export default function PreviewPage() {
   const { t } = useTranslation('upload');
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const {
     fileInputRef,
@@ -158,15 +160,21 @@ export default function PreviewPage() {
         : null
     : null;
 
-  // The green unlock path (backlog #24B Phase 2, PR-2). Before sending the buyer
-  // onward to pay, stash the PARSED result in sessionStorage so /upload?welcome=1
-  // can rehydrate it and run the engine once, skipping the re-upload. This holds
-  // parser output only (never the raw File, never any engine figure); the moat
-  // stays paid. A failed write (oversized / no storage) is a no-op here: the buyer
-  // still proceeds and simply re-uploads post-pay, today's behaviour.
+  // The green unlock path (backlog #24B Phase 2, PR-2 + PR-3). First stash the
+  // PARSED result in sessionStorage so /upload?welcome=1 can rehydrate it and run the
+  // engine once, skipping the re-upload. This holds parser output only (never the raw
+  // File, never any engine figure); the moat stays paid. A failed write (oversized /
+  // no storage) is a no-op here: the buyer still proceeds and re-uploads post-pay.
   //
-  // PR-2 leaves the CTA target as-is (straight to /pricing) so this ships and
-  // tests independently; PR-3 wires the full signup/login -> checkout funnel.
+  // PR-3 wires the carry-through to purchase, branching on auth state so the parse
+  // survives the trip and the buyer never dead-ends:
+  //  - paid user: they already own access, so go straight to /upload?welcome=1 and let
+  //    the PR-2 rehydration run the engine on the parse we just stashed (no charge).
+  //  - logged-in free user: to /pricing, where the Buy click proceeds (the gate token
+  //    is now set) into checkout.
+  //  - anonymous: to signup with redirect=/pricing, so after creating an account they
+  //    land back on pricing and complete the purchase. The stashed parse persists
+  //    across the same-tab auth + Stripe round-trip (sessionStorage).
   const goToUnlock = () => {
     if (canUnlock && preview) {
       if (preview.fileType === 'pdf' && pdfData) {
@@ -181,7 +189,13 @@ export default function PreviewPage() {
         });
       }
     }
-    navigate('/pricing');
+    if (user?.plan === 'paid') {
+      navigate('/upload?welcome=1');
+    } else if (user) {
+      navigate('/pricing');
+    } else {
+      navigate('/signup?redirect=/pricing');
+    }
   };
 
   const goToContact = () => {

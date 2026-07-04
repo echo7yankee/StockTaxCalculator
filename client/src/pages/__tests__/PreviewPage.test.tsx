@@ -10,11 +10,18 @@ import type { Transaction } from '@shared/types/transaction';
 const mockNavigate = vi.fn();
 const mockExtractPdfPageTexts = vi.fn();
 const mockReportParseEvent = vi.fn();
+const mockUseAuth = vi.fn();
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return { ...actual, useNavigate: () => mockNavigate };
 });
+
+// The unlock carry-through (PR-3) branches on auth state, so PreviewPage now reads
+// useAuth. Default: anonymous (no user); individual tests override per path.
+vi.mock('../../contexts/AuthContext', () => ({
+  useAuth: () => mockUseAuth(),
+}));
 
 vi.mock('../../utils/pdfExtractor', () => ({
   extractPdfPageTexts: (file: File) => mockExtractPdfPageTexts(file),
@@ -136,6 +143,9 @@ function makeCsvParseResult(overrides: Partial<ParseResult> = {}): ParseResult {
 beforeEach(() => {
   vi.clearAllMocks();
   window.sessionStorage.clear();
+  // Default auth state: anonymous visitor. Tests that exercise the logged-in or
+  // paid unlock branch override this per-case.
+  mockUseAuth.mockReturnValue({ user: null });
   sharedExports.parseTrading212Csv.mockReturnValue(makeCsvParseResult());
   sharedExports.parseIbkrCsv.mockReturnValue(makeCsvParseResult());
   sharedExports.parseRevolutStatement.mockReturnValue(makeCsvParseResult());
@@ -213,7 +223,7 @@ describe('PreviewPage - MOAT BOUNDARY (headline test: zero engine output)', () =
 });
 
 describe('PreviewPage - support verdict', () => {
-  it('GREEN: trusted broker + supported year shows the unlock CTA to /pricing', async () => {
+  it('GREEN (anonymous): trusted broker + supported year unlock routes to signup with redirect back to pricing', async () => {
     const user = userEvent.setup();
     const { container } = renderPage();
     await user.upload(findHiddenFileInput(container), makePdfFile());
@@ -224,11 +234,12 @@ describe('PreviewPage - support verdict', () => {
     // Trusted broker + 2025 supported.
     expect(screen.getByText('Trading 212: full support.')).toBeInTheDocument();
     expect(screen.getByText('We calculate tax year 2025.')).toBeInTheDocument();
-    // Unlock CTA present; routes to /pricing.
+    // Unlock CTA present; an anonymous buyer is sent to signup, then back to pricing
+    // to complete the purchase (the stashed parse survives the round-trip).
     const unlock = screen.getByTestId('preview-unlock-cta');
     expect(unlock).toBeInTheDocument();
     await user.click(unlock);
-    expect(mockNavigate).toHaveBeenCalledWith('/pricing');
+    expect(mockNavigate).toHaveBeenCalledWith('/signup?redirect=/pricing');
     // No contact CTA in the green state.
     expect(screen.queryByTestId('preview-contact-cta')).not.toBeInTheDocument();
     expect(analytics.previewClean).toHaveBeenCalledTimes(1);
@@ -257,7 +268,7 @@ describe('PreviewPage - support verdict', () => {
       expect(pending.pdf.year).toBe(2025);
       expect(pending.pdf.sellTrades.length).toBeGreaterThan(0);
     }
-    expect(mockNavigate).toHaveBeenCalledWith('/pricing');
+    expect(mockNavigate).toHaveBeenCalledWith('/signup?redirect=/pricing');
   });
 
   it('GREEN CSV: clicking unlock persists the merged CSV parse with broker + selected year', async () => {
@@ -276,7 +287,37 @@ describe('PreviewPage - support verdict', () => {
       expect(pending.selectedYear).toBe(2025);
       expect(pending.csv.transactions.length).toBeGreaterThan(0);
     }
+    expect(mockNavigate).toHaveBeenCalledWith('/signup?redirect=/pricing');
+  });
+
+  it('GREEN (logged-in free): unlock persists the parse and routes to /pricing to buy (PR-3)', async () => {
+    mockUseAuth.mockReturnValue({ user: { id: 'u1', email: 'a@example.com', plan: 'free' } });
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.upload(findHiddenFileInput(container), makePdfFile('annual-statement-2025.pdf'));
+
+    await waitFor(() => expect(screen.getByTestId('preview-unlock-cta')).toBeInTheDocument());
+    await user.click(screen.getByTestId('preview-unlock-cta'));
+
+    // A logged-in free user is sent to pricing, where the gate token (now set)
+    // lets the Buy click proceed into checkout.
     expect(mockNavigate).toHaveBeenCalledWith('/pricing');
+    expect(readPendingParse()).not.toBeNull();
+  });
+
+  it('GREEN (paid): unlock persists the parse and routes straight to /upload?welcome=1 (PR-3)', async () => {
+    mockUseAuth.mockReturnValue({ user: { id: 'u1', email: 'a@example.com', plan: 'paid' } });
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.upload(findHiddenFileInput(container), makePdfFile('annual-statement-2025.pdf'));
+
+    await waitFor(() => expect(screen.getByTestId('preview-unlock-cta')).toBeInTheDocument());
+    await user.click(screen.getByTestId('preview-unlock-cta'));
+
+    // A paid user already owns access, so they skip checkout and land on the upload
+    // page where the PR-2 rehydration runs the engine on the stashed parse (no charge).
+    expect(mockNavigate).toHaveBeenCalledWith('/upload?welcome=1');
+    expect(readPendingParse()).not.toBeNull();
   });
 
   it('BLOCKED: the contact CTA does NOT persist a pending parse', async () => {

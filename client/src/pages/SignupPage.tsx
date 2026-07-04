@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { UserPlus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth, ApiError } from '../contexts/AuthContext';
@@ -11,7 +11,16 @@ import PageMeta from '../components/common/PageMeta';
 export default function SignupPage() {
   const { t } = useTranslation(['signup', 'common']);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { signup, loginWithGoogle } = useAuth();
+
+  // Post-signup destination. A `?redirect=` query param (used by the pre-pay parse
+  // gate to send an anonymous buyer back to /pricing after they create an account)
+  // takes the buyer straight back into the purchase flow; otherwise the dashboard.
+  // Constrained to a same-site absolute path so it cannot be an open redirect.
+  const redirectParam = searchParams.get('redirect');
+  const postSignupTarget =
+    redirectParam && /^\/[^/]/.test(redirectParam) ? redirectParam : '/dashboard';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -69,7 +78,7 @@ export default function SignupPage() {
     setLoading(true);
     try {
       await signup(email.trim(), password, name.trim());
-      navigate('/dashboard', { replace: true });
+      navigate(postSignupTarget, { replace: true });
     } catch (err) {
       if (err instanceof ApiError && err.fields) {
         setFieldErrors(err.fields);

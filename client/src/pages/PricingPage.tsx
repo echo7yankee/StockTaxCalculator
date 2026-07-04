@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Check, X, Zap, Shield, ChevronDown, ChevronUp, BellRing, FileSearch, BookOpen } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { analytics } from '../lib/analytics';
+import { hasEligiblePendingParse } from '../lib/pendingParse';
 import PageMeta from '../components/common/PageMeta';
 import { Skeleton } from '../components/common/Skeleton';
 
@@ -60,8 +61,32 @@ export default function PricingPage() {
   const hasLaunchSpots = promo && promo.remaining > 0;
   const displayPrice = hasLaunchSpots ? LAUNCH_PRICE : REGULAR_PRICE;
 
+  // Whether the buyer has a verified parse this session (the gate token). Read at
+  // render so the CTA label reflects the current state: "Check your file first" when
+  // the gate is closed (the click routes to the free checker), the normal buy label
+  // when it is open. A benign extra read of sessionStorage; no need to reactively
+  // subscribe since a token change always arrives via a navigation that remounts.
+  const parseVerified = hasEligiblePendingParse();
+
+  // Pre-pay parse gate (backlog #24B Phase 2, PR-3). Bare checkout is blocked until
+  // the buyer has run a green, engine-supported parse of their own file THIS session
+  // (the pendingParse token PreviewPage writes on unlock). Without it, we route to the
+  // free checker instead of starting a charge, so the four historical post-pay walls
+  // (empty parse / unsupported broker or year / old-browser crash) surface pre-pay and
+  // no money changes hands for a file we cannot serve. The gate is client-side UX only:
+  // it reorders the funnel (parse first) and never removes the ability to buy. The
+  // /api/payment/checkout route and the webhook are untouched (execution plan Section 5).
   const handleCheckout = async () => {
+    if (!hasEligiblePendingParse()) {
+      // No verified parse this session: send the buyer to check their file first
+      // (free, seconds). They return here with the token and the Buy click proceeds.
+      navigate('/verifica-extras');
+      return;
+    }
+
     if (!user) {
+      // Token present but anonymous: sign in / sign up, then land back on pricing to
+      // complete the purchase. The pendingParse survives the same-tab round-trip.
       navigate('/login?redirect=/pricing');
       return;
     }
@@ -198,20 +223,35 @@ export default function PricingPage() {
               {t('alreadyPaid')}
             </div>
           ) : (
-            <button
-              onClick={handleCheckout}
-              disabled={checkoutLoading}
-              className="btn-primary mt-6 py-3 text-center text-lg flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {checkoutLoading ? (
-                <span className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
-              ) : (
-                <>
-                  <Zap className="w-5 h-5" />
-                  {user ? t('buyAccess') : t('loginToBuy')}
-                </>
+            <>
+              <button
+                onClick={handleCheckout}
+                disabled={checkoutLoading}
+                className="btn-primary mt-6 py-3 text-center text-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                data-testid="pricing-buy-cta"
+              >
+                {checkoutLoading ? (
+                  <span className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
+                ) : parseVerified ? (
+                  <>
+                    <Zap className="w-5 h-5" />
+                    {user ? t('buyAccess') : t('loginToBuy')}
+                  </>
+                ) : (
+                  <>
+                    <FileSearch className="w-5 h-5" />
+                    {t('checkFirstCta')}
+                  </>
+                )}
+              </button>
+              {/* Benefit-framed pre-check note: the gate is a helpful free step, not a
+                  wall. Only shown when the buyer has not verified a file this session. */}
+              {!parseVerified && !checkoutLoading && (
+                <p className="mt-2 text-xs text-center text-gray-500 dark:text-slate-400" data-testid="pricing-check-first-note">
+                  {t('checkFirstNote')}
+                </p>
               )}
-            </button>
+            </>
           )}
         </div>
       </div>
