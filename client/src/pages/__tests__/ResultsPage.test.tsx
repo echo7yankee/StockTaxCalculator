@@ -19,7 +19,7 @@ vi.mock('../../contexts/AuthContext', () => ({
     logout: vi.fn(),
   }),
 }));
-import type { TaxCalculationResult, SecurityBreakdown, Transaction } from '@shared/index';
+import type { TaxCalculationResult, SecurityBreakdown, Transaction, OpeningPosition } from '@shared/index';
 import type { BrokerId } from '../../lib/brokers';
 
 const mockTaxResult: TaxCalculationResult = {
@@ -69,7 +69,13 @@ const mockSecurities: SecurityBreakdown[] = [
 ];
 
 // Helper to pre-fill the upload context (runs once via ref guard)
-function SetupUpload({ children, warnings = [], broker }: { children: React.ReactNode; warnings?: string[]; broker?: 'trading212' | 'ibkr' }) {
+function SetupUpload({ children, warnings = [], broker, carriedPositions, carryForwardYear }: {
+  children: React.ReactNode;
+  warnings?: string[];
+  broker?: 'trading212' | 'ibkr';
+  carriedPositions?: OpeningPosition[];
+  carryForwardYear?: number | null;
+}) {
   const { setUploadData } = useUpload();
   const didSet = useRef(false);
 
@@ -84,21 +90,34 @@ function SetupUpload({ children, warnings = [], broker }: { children: React.Reac
         transactions: [],
         parseWarnings: warnings,
         ...(broker ? { broker } : {}),
+        ...(carriedPositions ? { carriedPositions } : {}),
+        ...(carryForwardYear !== undefined ? { carryForwardYear } : {}),
       });
     }
-  }, [setUploadData, warnings, broker]);
+  }, [setUploadData, warnings, broker, carriedPositions, carryForwardYear]);
 
   return <>{children}</>;
 }
 
-function renderResults(withData = true, warnings: string[] = [], broker?: 'trading212' | 'ibkr') {
+function renderResults(
+  withData = true,
+  warnings: string[] = [],
+  broker?: 'trading212' | 'ibkr',
+  carriedPositions?: OpeningPosition[],
+  carryForwardYear?: number | null,
+) {
   if (withData) {
     return render(
       <HelmetProvider>
         <MemoryRouter>
           <CountryProvider>
             <UploadProvider>
-              <SetupUpload warnings={warnings} broker={broker}>
+              <SetupUpload
+                warnings={warnings}
+                broker={broker}
+                carriedPositions={carriedPositions}
+                carryForwardYear={carryForwardYear}
+              >
                 <ResultsPage />
               </SetupUpload>
             </UploadProvider>
@@ -188,6 +207,27 @@ describe('ResultsPage', () => {
     renderResults();
     expect(screen.getByText('PLTR')).toBeInTheDocument();
     expect(screen.getByText('NVDA')).toBeInTheDocument();
+  });
+
+  it('does not render the carried-positions panel when nothing was carried', () => {
+    renderResults();
+    expect(screen.queryByTestId('carried-positions')).not.toBeInTheDocument();
+  });
+
+  it('surfaces carried prior-year positions (count, source year, per-position rows)', () => {
+    renderResults(true, [], undefined, [
+      { isin: 'US5949181045', ticker: 'MSFT', securityName: 'Microsoft', shares: 10, costPerShareLocal: 250 },
+    ], 2024);
+
+    const panel = screen.getByTestId('carried-positions');
+    expect(panel).toBeInTheDocument();
+    // Source year is named in the body.
+    expect(screen.getByText(/from your 2024 filing/)).toBeInTheDocument();
+    // The carried security row shows ticker + carried shares + cost basis.
+    expect(screen.getByText('MSFT')).toBeInTheDocument();
+    expect(screen.getByText('Microsoft')).toBeInTheDocument();
+    expect(screen.getByText('10')).toBeInTheDocument();
+    expect(screen.getByText(/250\.00/)).toBeInTheDocument();
   });
 
   it('shows Save to Dashboard button', () => {

@@ -35,6 +35,7 @@
   "bnrRateFallback": "Could not fetch BNR rates. Using broker rates as fallback.",
   "bnrRatePartial": "BNR rates applied for {{ok}}. For {{failed}}, the broker rate was used (BNR unavailable).",
   "carryForwardNote": "Carried {{count}} position(s) from {{year}} (cost basis from your previous filing).",
+  "carryForwardCoversHistoryNote": "The cost basis for positions opened before {{year}} will be carried over from your {{priorYear}} filing, so this export is complete for the calculation.",
   "recommendedPdf": "Recommended: Upload your annual statement (PDF) for most accurate results.",
   "csvFullHistoryNote": "For CSV: export your full Trading212 history (from account opening), not just the tax year.",
   "csvMissingHistoryWarning": "This CSV is missing historical buy transactions. You are selling shares that were not purchased in this CSV. The cost basis will be wrong and your tax calculation will be incorrect.",

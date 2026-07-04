@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import type { Transaction, TaxCalculationResult, SecurityBreakdown, PdfAuditRow, ParseResult } from '@shared/index';
+import type { Transaction, TaxCalculationResult, SecurityBreakdown, PdfAuditRow, ParseResult, OpeningPosition } from '@shared/index';
 import type { BrokerId } from '../lib/brokers';
 
 interface UploadState {
@@ -16,6 +16,12 @@ interface UploadState {
   taxYear: number;
   /** Which broker produced the upload. Drives the beta verify-before-filing caveat. */
   broker: BrokerId;
+  /** Prior-year positions that seeded cost basis on the CSV flow (board #3 carry-forward),
+   *  after the double-count guard. Empty when nothing was carried. Surfaced on Results
+   *  so a carried cost basis is never silent. */
+  carriedPositions: OpeningPosition[];
+  /** The prior filing year the carried positions came from; null when nothing was carried. */
+  carryForwardYear: number | null;
 }
 
 interface UploadContextType extends UploadState {
@@ -34,6 +40,8 @@ const defaultState: UploadState = {
   fileName: '',
   taxYear: new Date().getFullYear() - 1,
   broker: 'trading212',
+  carriedPositions: [],
+  carryForwardYear: null,
 };
 
 const UploadContext = createContext<UploadContextType | undefined>(undefined);

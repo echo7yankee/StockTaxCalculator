@@ -35,6 +35,7 @@
   "bnrRateFallback": "Nu s-au putut ob\u021bine cursurile BNR. Se folosesc cursurile brokerului",
   "bnrRatePartial": "Cursurile BNR s-au aplicat pentru {{ok}}. Pentru {{failed}} s-a folosit cursul brokerului (BNR indisponibil).",
   "carryForwardNote": "S-au reportat {{count}} poziții din anul {{year}} (cost de achiziție din declarația anterioară).",
+  "carryForwardCoversHistoryNote": "Costul de achiziție pentru pozițiile deschise înainte de {{year}} va fi preluat din declarația ta {{priorYear}}, așa că acest export este complet pentru calcul.",
   "recommendedPdf": "Recomandat: \u00cencarc\u0103 extrasul anual (PDF) pentru cele mai precise rezultate.",
   "csvFullHistoryNote": "Pentru CSV: export\u0103 istoricul complet Trading212 (de la deschiderea contului), nu doar anul fiscal.",
   "csvMissingHistoryWarning": "Acest CSV nu con\u021bine tranzac\u021biile istorice de cump\u0103rare. Vinzi ac\u021biuni care nu au fost cump\u0103rate \u00een acest CSV. Costul de achizi\u021bie va fi gre\u0219it \u0219i calculul fiscal va fi incorect.",
