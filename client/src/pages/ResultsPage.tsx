@@ -313,6 +313,7 @@ export default function ResultsPage() {
           detail={t('results:totalTaxOwedDetail', { amount: fmt(result.totals.totalAfterDiscount), symbol: sym })}
           color="accent"
           highlight
+          testId="total-tax-owed-value"
         />
       </div>
 
@@ -433,13 +434,14 @@ export default function ResultsPage() {
   );
 }
 
-function SummaryCard({ icon, label, value, detail, color, highlight }: {
+function SummaryCard({ icon, label, value, detail, color, highlight, testId }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   detail: string;
   color: string;
   highlight?: boolean;
+  testId?: string;
 }) {
   const bgMap: Record<string, string> = {
     green: 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400',
@@ -454,7 +456,7 @@ function SummaryCard({ icon, label, value, detail, color, highlight }: {
         {icon}
       </div>
       <p className="text-sm text-gray-500 dark:text-slate-400">{label}</p>
-      <p className="text-2xl font-bold mt-1">{value}</p>
+      <p className="text-2xl font-bold mt-1" data-testid={testId}>{value}</p>
       <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">{detail}</p>
     </div>
   );

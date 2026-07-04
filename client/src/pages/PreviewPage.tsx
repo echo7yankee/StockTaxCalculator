@@ -15,6 +15,7 @@ import {
 import { isEngineSupportedTaxYear } from '@shared/taxRules/taxYears';
 import { useStatementPreview } from '../hooks/useStatementPreview';
 import { evaluateParseEligibility } from '../lib/parseEligibility';
+import { writePendingParse } from '../lib/pendingParse';
 import { analytics } from '../lib/analytics';
 import { CSV_BROKERS, BROKERS, type BrokerId } from '../lib/brokers';
 import EmailCapture, { type SubscribeTopic } from '../components/common/EmailCapture';
@@ -64,6 +65,9 @@ export default function PreviewPage() {
     processing,
     error,
     preview,
+    selectedYear,
+    csvParse,
+    pdfData,
     csvHistoryWarning,
     setDragOver,
     handleTabChange,
@@ -153,6 +157,32 @@ export default function PreviewPage() {
         ? 'broker_revolut'
         : null
     : null;
+
+  // The green unlock path (backlog #24B Phase 2, PR-2). Before sending the buyer
+  // onward to pay, stash the PARSED result in sessionStorage so /upload?welcome=1
+  // can rehydrate it and run the engine once, skipping the re-upload. This holds
+  // parser output only (never the raw File, never any engine figure); the moat
+  // stays paid. A failed write (oversized / no storage) is a no-op here: the buyer
+  // still proceeds and simply re-uploads post-pay, today's behaviour.
+  //
+  // PR-2 leaves the CTA target as-is (straight to /pricing) so this ships and
+  // tests independently; PR-3 wires the full signup/login -> checkout funnel.
+  const goToUnlock = () => {
+    if (canUnlock && preview) {
+      if (preview.fileType === 'pdf' && pdfData) {
+        writePendingParse({ fileType: 'pdf', fileName: preview.fileName, pdf: pdfData });
+      } else if (preview.fileType === 'csv' && csvParse) {
+        writePendingParse({
+          fileType: 'csv',
+          fileName: preview.fileName,
+          broker: csvBroker,
+          selectedYear,
+          csv: csvParse,
+        });
+      }
+    }
+    navigate('/pricing');
+  };
 
   const goToContact = () => {
     // Pre-fill the contact form exactly like the #24A results banner does, so an
@@ -551,7 +581,7 @@ export default function PreviewPage() {
                   <p className="text-sm text-gray-600 dark:text-slate-400">{t('previewUnlockBody')}</p>
                 </div>
                 <button
-                  onClick={() => navigate('/pricing')}
+                  onClick={goToUnlock}
                   className="btn-primary flex items-center justify-center gap-2 whitespace-nowrap self-start sm:self-auto"
                   data-testid="preview-unlock-cta"
                 >
