@@ -1515,4 +1515,95 @@ describe('UploadPage - post-pay rehydration (backlog #24B Phase 2)', () => {
     expect(sharedExports.calculateTaxesFromPdf).not.toHaveBeenCalled();
     expect(mockNavigate).not.toHaveBeenCalledWith('/results');
   });
+
+  // Regression for the qa-flagged race (PR #234): `user`, `authLoading`, and
+  // `countryConfig` settle on independent async timelines, so a benign dep-settle
+  // fires the effect cleanup + re-run AFTER the first committed rehydrate. The old
+  // cancel-on-cleanup aborted the in-flight run before navigate('/results'); the
+  // fix must drive the committed run to completion regardless.
+  it('completes the rehydrate even when a benign dep settles mid-flight (no cancel-on-settle)', async () => {
+    // Hold the BNR fetch open so the async run is still in flight when we re-render
+    // with a settled dep, reproducing the exact abort window.
+    let resolveFetch: (r: Response) => void = () => {};
+    const gate = new Promise<Response>((res) => {
+      resolveFetch = res;
+    });
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => gate.then((r) => r.clone()));
+    sharedExports.calculateTaxesFromPdf.mockReturnValueOnce({
+      taxResult: { totals: { totalTaxOwed: 28053 } },
+      securities: [],
+      warnings: [],
+    });
+    writePendingParse(makePdfPending());
+    searchParamsValue = new URLSearchParams('welcome=1');
+
+    const { rerender } = renderPage('/upload?welcome=1');
+
+    // The effect has committed and is awaiting the (still-pending) BNR fetch. Now a
+    // benign settle: `user` gets a fresh object identity (as /api/auth/me resolving
+    // would produce), changing the effect dep and triggering cleanup + re-run.
+    authState = {
+      user: { id: 'u1', email: 'maria@example.com', name: 'Maria Popescu', plan: 'paid' },
+      loading: false,
+    };
+    await act(async () => {
+      rerender(
+        <HelmetProvider>
+          <MemoryRouter initialEntries={['/upload?welcome=1']}>
+            <UploadPage />
+          </MemoryRouter>
+        </HelmetProvider>,
+      );
+    });
+
+    // Release the BNR fetch; the committed run must finish and navigate.
+    await act(async () => {
+      resolveFetch(new Response(JSON.stringify({ rate: 4.55, rates: { '2025-06-01': 4.6 }, count: 1 }), { status: 200 }));
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
+    // Exactly one engine run: the re-run must not double-fire, and the abort must
+    // not swallow the run.
+    expect(sharedExports.calculateTaxesFromPdf).toHaveBeenCalledTimes(1);
+    expect(readPendingParse()).toBeNull();
+  });
+
+  it('runs the rehydrate when auth settles AFTER mount (initial authLoading=true)', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ rate: 4.55, rates: {}, count: 0 }), { status: 200 }),
+      ),
+    );
+    sharedExports.calculateTaxesFromPdf.mockReturnValueOnce({
+      taxResult: { totals: { totalTaxOwed: 28053 } },
+      securities: [],
+      warnings: [],
+    });
+    writePendingParse(makePdfPending());
+    searchParamsValue = new URLSearchParams('welcome=1');
+    // Auth still loading at mount: the first effect run bails on the gate, no latch.
+    authState = { user: null, loading: true };
+
+    const { rerender } = renderPage('/upload?welcome=1');
+    expect(sharedExports.calculateTaxesFromPdf).not.toHaveBeenCalled();
+
+    // Auth resolves to a paid user: the effect re-runs and now commits.
+    authState = {
+      user: { id: 'u1', email: 'maria@example.com', name: 'Maria Popescu', plan: 'paid' },
+      loading: false,
+    };
+    await act(async () => {
+      rerender(
+        <HelmetProvider>
+          <MemoryRouter initialEntries={['/upload?welcome=1']}>
+            <UploadPage />
+          </MemoryRouter>
+        </HelmetProvider>,
+      );
+    });
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
+    expect(sharedExports.calculateTaxesFromPdf).toHaveBeenCalledTimes(1);
+  });
 });

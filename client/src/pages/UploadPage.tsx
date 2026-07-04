@@ -473,30 +473,46 @@ export default function UploadPage() {
   // normal drop-zone flow renders unchanged. An unsupported year is refused the
   // same way the Calculate guard refuses it (no wrong-year number). The key is
   // cleared only after a SUCCESSFUL engine run so a refresh does not re-run it.
+  //
+  // Concurrency (qa PR #234): `user` (from /api/auth/me), `authLoading`, and
+  // `countryConfig` (geo-detection) settle on independent async timelines, so at
+  // least one dep typically settles AFTER the first qualifying run. This effect
+  // must NOT carry an effect-cleanup that cancels the in-flight run when that
+  // happens: doing so aborted the rehydrate before navigate('/results') while the
+  // re-run hit the once-latch and bailed. Instead we latch exactly-once only after
+  // we have a valid parse to consume, and drive the committed async run to
+  // completion irrespective of later benign dep settles. The gates above already
+  // guarantee we only commit when paid + ready, and the callbacks captured here
+  // are the paid-and-ready versions (countryConfig is truthy), so the closure is
+  // the correct one to run with.
   const rehydratedRef = useRef(false);
   useEffect(() => {
+    if (rehydratedRef.current) return;
     if (authLoading || !user || user.plan !== 'paid') return;
     if (!countryConfig) return;
     if (!landedFromPaymentRef.current) return;
-    if (rehydratedRef.current) return;
-    rehydratedRef.current = true;
 
     const pending = readPendingParse();
+    // No valid parse: leave the latch UNSET so a legitimate parse arriving on a
+    // later ready render is still honored, and render the normal re-upload flow.
     if (!pending) return;
 
-    let cancelled = false;
-    (async () => {
+    // Commit: this run owns the rehydrate and will drive it to completion. Latch
+    // now so no dep-settle re-run can double-fire the engine.
+    rehydratedRef.current = true;
+
+    void (async () => {
       try {
         if (pending.fileType === 'pdf') {
           const pdf = pending.pdf;
           // Same year guard as Calculate: never run the engine on an unsupported
-          // year. Leave the pending parse in place and fall through to re-upload.
+          // year. Fall through to re-upload (the latch stays set: a wrong-year
+          // stored parse should not silently re-run).
           if (!isEngineSupportedTaxYear(pdf.year)) return;
           const { avgRate, dailyMap } = await fetchPdfBnrRatesForRehydrate(
             pdf.year,
             pdf.overview.currency,
           );
-          if (cancelled) return;
           const { rate, dailyRates } = resolvePdfRates(pdf, avgRate, dailyMap);
           finalizePdf(pdf, pending.fileName, rate, dailyRates);
         } else {
@@ -509,7 +525,6 @@ export default function UploadPage() {
           setSelectedYear(pending.selectedYear);
           await finalizeCsv(pending.csv, pending.broker, pending.fileName, pending.selectedYear);
         }
-        if (cancelled) return;
         // Success: this parse has been consumed. Clear so a refresh cannot re-run it.
         clearPendingParse();
         navigate('/results');
@@ -519,11 +534,8 @@ export default function UploadPage() {
         // transient failure can be retried on a manual refresh.
       }
     })();
-
-    return () => {
-      cancelled = true;
-    };
-    // Keyed on the paid+ready gate; the ref makes it fire at most once per mount.
+    // Keyed on the paid+ready gate; the ref makes it fire at most once per mount,
+    // and the committed run drives itself to completion (no cancel-on-settle).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user, countryConfig]);
 
