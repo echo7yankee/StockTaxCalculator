@@ -65,10 +65,13 @@ test.describe('Payment Flow — Free User Paywall', () => {
     await expect(page).toHaveURL(/pricing/);
   });
 
-  test('pricing page shows buy button (not log-in variant) for authenticated free user', async ({ page }) => {
+  test('pricing page shows buy button (not log-in variant) for an authenticated free user with a verified parse', async ({ page }) => {
     await login(page, email);
+    // Pre-pay parse gate (PR-3): the buy label only appears once the gate is open.
+    // Parse the fixture on the free checker first to write the pendingParse token.
+    await verifyParseViaChecker(page);
     await page.goto('/pricing');
-    // Authenticated → button text should be "Get full access" / "Obține acces complet"
+    // Authenticated + gate open → button text should be "Get full access" / "Obține acces complet"
     const buyBtn = page.getByRole('button', { name: /full access|acces complet/i });
     await expect(buyBtn).toBeVisible();
     // Should NOT show the "Log in to purchase" variant
