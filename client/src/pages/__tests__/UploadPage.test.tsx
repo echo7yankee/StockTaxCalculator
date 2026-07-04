@@ -115,6 +115,7 @@ vi.mock('read-excel-file/browser', () => ({
 
 import UploadPage from '../UploadPage';
 import { analytics } from '../../lib/analytics';
+import { writePendingParse, readPendingParse } from '../../lib/pendingParse';
 
 function renderPage(initialPath = '/upload') {
   return render(
@@ -205,6 +206,7 @@ function makeCsvParseResult(overrides: Partial<ParseResult> = {}): ParseResult {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.sessionStorage.clear();
   searchParamsValue = new URLSearchParams();
   authState = {
     user: { id: 'u1', email: 'maria@example.com', name: 'Maria Popescu', plan: 'paid' },
@@ -1367,5 +1369,150 @@ describe('UploadPage - multi-file CSV merge', () => {
         parseResult: expect.objectContaining({ sourceFileCount: 2 }),
       }),
     );
+  });
+});
+
+describe('UploadPage - post-pay rehydration (backlog #24B Phase 2)', () => {
+  // Seed a full PdfParseResult (not the preview shape) as the persisted parse.
+  function makePdfPending(overrides: Partial<PdfParseResult> = {}) {
+    return {
+      fileType: 'pdf' as const,
+      fileName: 'annual-statement-2025.pdf',
+      pdf: makePdfParseResult(overrides),
+    };
+  }
+
+  function makeCsvPending(selectedYear = 2025) {
+    const parsed = makeCsvParseResult();
+    return {
+      fileType: 'csv' as const,
+      fileName: 'transactions.csv',
+      broker: 'trading212' as const,
+      selectedYear,
+      csv: { ...parsed, sourceFileCount: 1, duplicatesRemoved: 0 },
+    };
+  }
+
+  it('rehydrates a persisted PDF parse on ?welcome=1, runs the engine, and lands on /results WITHOUT a file input', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ rate: 4.55, rates: { '2025-06-01': 4.6 }, count: 1 }), {
+          status: 200,
+        }),
+      ),
+    );
+    sharedExports.calculateTaxesFromPdf.mockReturnValueOnce({
+      taxResult: { totals: { totalTaxOwed: 28053 } },
+      securities: [{ ticker: 'AAPL' }],
+      warnings: [],
+    });
+    writePendingParse(makePdfPending());
+    searchParamsValue = new URLSearchParams('welcome=1');
+
+    const { container } = renderPage('/upload?welcome=1');
+
+    // No file was ever dropped; the engine runs purely from the rehydrated parse.
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
+    expect(container.querySelector('input[type="file"]')).not.toBeNull(); // page rendered, no upload needed
+    expect(sharedExports.calculateTaxesFromPdf).toHaveBeenCalledTimes(1);
+    expect(mockSetUploadData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileName: 'annual-statement-2025.pdf',
+        taxYear: 2025,
+        broker: 'trading212',
+        taxResult: expect.objectContaining({
+          totals: expect.objectContaining({ totalTaxOwed: 28053 }),
+        }),
+      }),
+    );
+  });
+
+  it('clears the sessionStorage key after a successful rehydrated engine run', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ rate: 4.55, rates: {}, count: 0 }), { status: 200 }),
+      ),
+    );
+    writePendingParse(makePdfPending());
+    searchParamsValue = new URLSearchParams('welcome=1');
+    renderPage('/upload?welcome=1');
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
+    // Consumed: a refresh must not re-run the engine on the same parse.
+    expect(readPendingParse()).toBeNull();
+  });
+
+  it('rehydrates a persisted CSV parse, runs the engine, and lands on /results', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ rates: {}, count: 0, rate: 4.9 }), { status: 200 }),
+      ),
+    );
+    sharedExports.calculateTaxes.mockReturnValueOnce({
+      taxResult: { totals: { totalTaxOwed: 1000 } },
+      securities: [],
+    });
+    // Persist year 2024 (a supported prior year) so the assertion proves the
+    // OVERRIDE drives the engine, not the hook default (which resolves to 2025).
+    writePendingParse(makeCsvPending(2024));
+    searchParamsValue = new URLSearchParams('welcome=1');
+    renderPage('/upload?welcome=1');
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
+    expect(sharedExports.calculateTaxes).toHaveBeenCalledTimes(1);
+    // Parity guard: the engine runs on the PERSISTED year (2024), not the hook's
+    // default selectedYear (which would be flushed a tick late).
+    const calcCall = sharedExports.calculateTaxes.mock.calls.at(-1);
+    expect(calcCall?.[2]).toBe(2024);
+    expect(mockSetUploadData).toHaveBeenCalledWith(
+      expect.objectContaining({ fileName: 'transactions.csv', broker: 'trading212', taxYear: 2024 }),
+    );
+  });
+
+  it('does NOT rehydrate when there is no pending parse: the drop zone renders (today behaviour)', async () => {
+    searchParamsValue = new URLSearchParams('welcome=1');
+    renderPage('/upload?welcome=1');
+
+    // The welcome toast and the normal drop zone render; no engine, no navigation.
+    await waitFor(() => expect(screen.getByText('Welcome to InvesTax!')).toBeInTheDocument());
+    expect(screen.getByText('Drop your PDF statement here')).toBeInTheDocument();
+    expect(sharedExports.calculateTaxesFromPdf).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalledWith('/results');
+  });
+
+  it('does NOT rehydrate when NOT arriving from payment (no ?welcome=1), even if a parse is stored', async () => {
+    writePendingParse(makePdfPending());
+    // No welcome flag: a stored parse from a prior session must not auto-run.
+    renderPage('/upload');
+
+    await waitFor(() => expect(screen.getByText('Drop your PDF statement here')).toBeInTheDocument());
+    expect(sharedExports.calculateTaxesFromPdf).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalledWith('/results');
+    // The stored parse is left intact (it is not consumed off the non-welcome path).
+    expect(readPendingParse()).not.toBeNull();
+  });
+
+  it('falls back to re-upload (no rehydrate) when the stored PDF year is unsupported', async () => {
+    writePendingParse(makePdfPending({ year: 2021 }));
+    searchParamsValue = new URLSearchParams('welcome=1');
+    renderPage('/upload?welcome=1');
+
+    await waitFor(() => expect(screen.getByText('Drop your PDF statement here')).toBeInTheDocument());
+    expect(sharedExports.calculateTaxesFromPdf).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalledWith('/results');
+  });
+
+  it('falls back to re-upload when the stored blob is a version mismatch (stale schema)', async () => {
+    // A v0 envelope from an older build: readPendingParse returns null -> re-upload.
+    window.sessionStorage.setItem(
+      'investax.pendingParse',
+      JSON.stringify({ version: 'v0', payload: makePdfPending() }),
+    );
+    searchParamsValue = new URLSearchParams('welcome=1');
+    renderPage('/upload?welcome=1');
+
+    await waitFor(() => expect(screen.getByText('Drop your PDF statement here')).toBeInTheDocument());
+    expect(sharedExports.calculateTaxesFromPdf).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalledWith('/results');
   });
 });

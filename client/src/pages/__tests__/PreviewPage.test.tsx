@@ -67,6 +67,7 @@ vi.mock('papaparse', () => ({
 
 import PreviewPage from '../PreviewPage';
 import { analytics } from '../../lib/analytics';
+import { readPendingParse } from '../../lib/pendingParse';
 
 function renderPage(initialPath = '/verifica-extras') {
   return render(
@@ -134,6 +135,7 @@ function makeCsvParseResult(overrides: Partial<ParseResult> = {}): ParseResult {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.sessionStorage.clear();
   sharedExports.parseTrading212Csv.mockReturnValue(makeCsvParseResult());
   sharedExports.parseIbkrCsv.mockReturnValue(makeCsvParseResult());
   sharedExports.parseRevolutStatement.mockReturnValue(makeCsvParseResult());
@@ -234,6 +236,61 @@ describe('PreviewPage - support verdict', () => {
     // Gate telemetry: the eligible event fires, the blocked event does not.
     expect(analytics.gateEligible).toHaveBeenCalledTimes(1);
     expect(analytics.gateBlocked).not.toHaveBeenCalled();
+  });
+
+  it('GREEN PDF: clicking unlock persists the parsed PDF result for post-pay rehydration (PR-2)', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.upload(findHiddenFileInput(container), makePdfFile('annual-statement-2025.pdf'));
+
+    await waitFor(() => expect(screen.getByTestId('preview-unlock-cta')).toBeInTheDocument());
+    // Nothing stashed until the buyer commits to unlock.
+    expect(readPendingParse()).toBeNull();
+    await user.click(screen.getByTestId('preview-unlock-cta'));
+
+    const pending = readPendingParse();
+    expect(pending).not.toBeNull();
+    expect(pending?.fileType).toBe('pdf');
+    expect(pending?.fileName).toBe('annual-statement-2025.pdf');
+    // The persisted blob is the full PDF parser result the engine consumes.
+    if (pending?.fileType === 'pdf') {
+      expect(pending.pdf.year).toBe(2025);
+      expect(pending.pdf.sellTrades.length).toBeGreaterThan(0);
+    }
+    expect(mockNavigate).toHaveBeenCalledWith('/pricing');
+  });
+
+  it('GREEN CSV: clicking unlock persists the merged CSV parse with broker + selected year', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.upload(findHiddenFileInput(container), makeCsvFile('transactions.csv'));
+
+    await waitFor(() => expect(screen.getByTestId('preview-unlock-cta')).toBeInTheDocument());
+    await user.click(screen.getByTestId('preview-unlock-cta'));
+
+    const pending = readPendingParse();
+    expect(pending?.fileType).toBe('csv');
+    if (pending?.fileType === 'csv') {
+      expect(pending.broker).toBe('trading212');
+      expect(pending.selectedYear).toBe(2025);
+      expect(pending.csv.transactions.length).toBeGreaterThan(0);
+    }
+    expect(mockNavigate).toHaveBeenCalledWith('/pricing');
+  });
+
+  it('BLOCKED: the contact CTA does NOT persist a pending parse', async () => {
+    sharedExports.parseTrading212AnnualStatement.mockReturnValueOnce(
+      makePdfParseResult({ year: 2022 }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.upload(findHiddenFileInput(container), makePdfFile());
+
+    await waitFor(() => expect(screen.getByTestId('preview-contact-cta')).toBeInTheDocument());
+    await user.click(screen.getByTestId('preview-contact-cta'));
+    // A blocked file must never be stashed for rehydration.
+    expect(readPendingParse()).toBeNull();
   });
 
   it('GREEN (now-supported prior year 2023): unlock CTA, supported-year copy, no waitlist', async () => {

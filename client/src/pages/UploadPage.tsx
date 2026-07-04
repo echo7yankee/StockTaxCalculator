@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Upload, FileText, AlertTriangle, CheckCircle, X, PartyPopper } from 'lucide-react';
@@ -9,13 +9,14 @@ import {
   getTaxConfigForYear,
   isEngineSupportedTaxYear,
 } from '@shared/index';
-import type { ParseResult, CurrencyBnrRates, OpeningPosition } from '@shared/index';
+import type { ParseResult, CurrencyBnrRates, OpeningPosition, PdfParseResult } from '@shared/index';
 import { useCountry } from '../contexts/CountryContext';
 import { useUpload } from '../contexts/UploadContext';
 import { useAuth } from '../contexts/AuthContext';
 import { analytics } from '../lib/analytics';
 import { reportParseEvent } from '../lib/parseMonitor';
 import { CSV_BROKERS, type BrokerId } from '../lib/brokers';
+import { readPendingParse, clearPendingParse } from '../lib/pendingParse';
 import { useStatementPreview } from '../hooks/useStatementPreview';
 import PageMeta from '../components/common/PageMeta';
 
@@ -87,6 +88,37 @@ export default function UploadPage() {
       .finally(() => setRateLoading(false));
   }, [countryConfig]);
 
+  // Awaitable twin of fetchBnrRate for the post-pay rehydration path (PR-2). It
+  // hits the SAME two endpoints and resolves the SAME two values the re-upload
+  // path derives (the annual-average rate and the daily map), but returns them so
+  // the rehydration can pass them straight into finalizePdf rather than routing
+  // through render state. The endpoints, the empty-map guard, and the
+  // degrade-to-average-on-daily-failure behavior match fetchBnrRate exactly, so
+  // the engine input stays byte-identical to the re-upload path. A local account
+  // currency (no conversion) short-circuits to the default rate + null map.
+  const fetchPdfBnrRatesForRehydrate = useCallback(async (
+    year: number,
+    currency: string,
+  ): Promise<{ avgRate: number; dailyMap: Record<string, number> | null }> => {
+    if (!countryConfig || currency === countryConfig.currency) {
+      return { avgRate: DEFAULT_EXCHANGE_RATE_EUR_RON, dailyMap: null };
+    }
+    const [avgRes, dailyRes] = await Promise.all([
+      fetch(`/api/exchange-rates/${year}/average?currency=${currency}`),
+      fetch(`/api/exchange-rates/${year}/daily?currency=${currency}`),
+    ]);
+    if (!avgRes.ok) throw new Error('Failed to fetch rate');
+    const avgData = await avgRes.json();
+    let dailyMap: Record<string, number> | null = null;
+    if (dailyRes.ok) {
+      const dailyData = await dailyRes.json();
+      if (dailyData?.rates && Object.keys(dailyData.rates).length > 0) {
+        dailyMap = dailyData.rates;
+      }
+    }
+    return { avgRate: avgData.rate, dailyMap };
+  }, [countryConfig]);
+
   // Shared parse-to-preview state/handlers (single source of truth, also used by
   // the free pre-paywall checker). The engine call and the results
   // write-and-navigate below stay local to the paid upload flow. The PDF rate
@@ -118,6 +150,11 @@ export default function UploadPage() {
   });
 
   const [showWelcome, setShowWelcome] = useState(() => searchParams.get('welcome') === '1');
+  // Capture the post-pay landing intent ONCE at mount. The welcome-toast effect
+  // strips ?welcome=1 from the URL, so the rehydration effect below cannot rely on
+  // reading it later (it may fire after the strip, once countryConfig loads). The
+  // ref freezes the arrival signal so rehydration triggers regardless of ordering.
+  const landedFromPaymentRef = useRef(searchParams.get('welcome') === '1');
 
   // Paywall: redirect free/unauthenticated users to pricing
   useEffect(() => {
@@ -153,8 +190,18 @@ export default function UploadPage() {
   // result for the results page. Shared by the Trading212 and IBKR CSV paths,
   // which both produce a ParseResult of Transactions; the `broker` is recorded so
   // the results page can show the beta verify-before-filing caveat where needed.
-  const finalizeCsv = useCallback(async (parsed: ParseResult, broker: BrokerId, fileName: string) => {
+  // `yearOverride` lets the post-pay rehydration (PR-2) run the engine on the year
+  // the buyer selected in the checker, instead of the hook's `selectedYear` state
+  // (which a same-tick setSelectedYear would not have flushed yet). The re-upload
+  // path passes nothing and keeps using `selectedYear`, byte-identical to before.
+  const finalizeCsv = useCallback(async (
+    parsed: ParseResult,
+    broker: BrokerId,
+    fileName: string,
+    yearOverride?: number,
+  ) => {
     if (!countryConfig) return;
+    const year = yearOverride ?? selectedYear;
 
     setCarryForwardNote(null);
 
@@ -192,8 +239,8 @@ export default function UploadPage() {
           foreignCurrencies.map(async (currency) => {
             try {
               const [dailyRes, avgRes] = await Promise.all([
-                fetch(`/api/exchange-rates/${selectedYear}/daily?currency=${currency}`),
-                fetch(`/api/exchange-rates/${selectedYear}/average?currency=${currency}`),
+                fetch(`/api/exchange-rates/${year}/daily?currency=${currency}`),
+                fetch(`/api/exchange-rates/${year}/average?currency=${currency}`),
               ]);
               if (!dailyRes.ok) throw new Error(`Failed to fetch BNR rates for ${currency}`);
               const dailyData = await dailyRes.json();
@@ -235,8 +282,8 @@ export default function UploadPage() {
         } else {
           setCsvRateStatus(
             okCurrencies.length === 1
-              ? `BNR ${selectedYear} daily rates (${totalDates} dates)`
-              : `BNR ${selectedYear} daily rates (${okCurrencies.length} currencies, ${totalDates} dates)`,
+              ? `BNR ${year} daily rates (${totalDates} dates)`
+              : `BNR ${year} daily rates (${okCurrencies.length} currencies, ${totalDates} dates)`,
           );
           setCsvRateStatusKind('ok');
         }
@@ -256,7 +303,7 @@ export default function UploadPage() {
     let filteredOpeningPositions: OpeningPosition[] = [];
     let carryForwardYear: number | null = null;
     try {
-      const res = await fetch(`/api/uploads/opening-positions?year=${selectedYear}`, {
+      const res = await fetch(`/api/uploads/opening-positions?year=${year}`, {
         credentials: 'include',
       });
       if (res.ok) {
@@ -286,11 +333,11 @@ export default function UploadPage() {
     }
 
     // Dispatch tax rates by the selected income year (backlog #13).
-    const yearConfig = getTaxConfigForYear(countryConfig, selectedYear);
+    const yearConfig = getTaxConfigForYear(countryConfig, year);
     const { taxResult, securities } = calculateTaxes(
       enrichedTransactions,
       yearConfig,
-      selectedYear,
+      year,
       undefined,
       filteredOpeningPositions,
     );
@@ -314,10 +361,83 @@ export default function UploadPage() {
       auditRows: [],
       pdfNetFromOverview: false,
       fileName,
-      taxYear: selectedYear,
+      taxYear: year,
       broker,
     });
   }, [countryConfig, selectedYear, setUploadData, t]);
+
+  // Run the PDF engine path and stash the result. Shared by the re-upload
+  // "Calculate" click and the post-pay rehydration (PR-2), so the engine call is
+  // literally the same code in both cases: same `pdfData`, same resolved `rate`
+  // and per-date `dailyRates`, same `calculateTaxesFromPdf`. The rehydrated path
+  // must produce a byte-identical input, hence a single implementation.
+  const finalizePdf = useCallback((
+    pdf: PdfParseResult,
+    fileName: string,
+    rate: number,
+    dailyRates: Record<string, number> | undefined,
+  ) => {
+    if (!countryConfig) return;
+
+    // Dispatch tax rates by the statement's income year (backlog #13). 2025 ->
+    // current rates; 2026+ falls back to the latest engine-supported year until
+    // its rates are signed off (TAX_YEARS[year].engineSupported gate).
+    const yearConfig = getTaxConfigForYear(countryConfig, pdf.year);
+    const { taxResult, securities, warnings: engineWarnings, auditRows, netFromOverview } = calculateTaxesFromPdf(pdf, yearConfig, rate, dailyRates);
+
+    // Engine-emitted warnings (sign + magnitude mismatch) reach the operator
+    // through the same channel as parser warnings, but tagged separately so
+    // the parse-report log + DB queries can distinguish parser drift from engine drift.
+    if (engineWarnings.length > 0) {
+      reportParseEvent({
+        fileType: 'pdf',
+        outcome: 'warning',
+        fileName,
+        warnings: [],
+        engineWarnings,
+        summary: {
+          sells: pdf.sellTrades.length,
+          dividends: pdf.dividends.length,
+          distributions: pdf.distributions.length,
+          year: pdf.year,
+        },
+      });
+    }
+
+    setUploadData({
+      parseResult: null,
+      parseWarnings: [...pdf.warnings, ...engineWarnings],
+      transactions: [],
+      taxResult,
+      securities,
+      auditRows,
+      pdfNetFromOverview: netFromOverview,
+      fileName,
+      taxYear: pdf.year,
+      broker: 'trading212',
+    });
+  }, [countryConfig, setUploadData]);
+
+  // Resolve the account-currency conversion rate + the per-date BNR map for a PDF
+  // exactly as the re-upload path does: the annual-average rate governs the
+  // overview/dividend fallback, and the daily map drives per-trade-date capital
+  // gains ONLY when every sell shares the overview currency (backlog #21, art. 96).
+  // Extracted so the rehydration path derives the same `dailyRates` gate.
+  const resolvePdfRates = useCallback((
+    pdf: PdfParseResult,
+    avgRate: number,
+    dailyMap: Record<string, number> | null,
+  ): { rate: number; dailyRates: Record<string, number> | undefined } => {
+    if (!countryConfig) return { rate: 1, dailyRates: undefined };
+    const needsConversion = pdf.overview.currency !== countryConfig.currency;
+    const rate = needsConversion ? avgRate : 1;
+    const allTradesMatchOverview =
+      pdf.sellTrades.length > 0 &&
+      pdf.sellTrades.every((tr) => tr.transactionCurrency === pdf.overview.currency);
+    const dailyRates =
+      needsConversion && allTradesMatchOverview ? dailyMap ?? undefined : undefined;
+    return { rate, dailyRates };
+  }, [countryConfig]);
 
   const handleCalculate = useCallback(async () => {
     if (!countryConfig) return;
@@ -329,58 +449,8 @@ export default function UploadPage() {
     if (preview && !isEngineSupportedTaxYear(yearForCalc)) return;
 
     if (preview?.fileType === 'pdf' && pdfData) {
-      // Convert from account currency to local currency (e.g. USD to RON)
-      const needsConversion = preview.currency !== countryConfig.currency;
-      const rate = needsConversion ? exchangeRate : 1;
-
-      // Per-date BNR for capital gains (backlog #21, art. 96): supply the daily
-      // map only when every sell trade shares the overview currency, i.e. when
-      // the engine takes the per-row branch. For mixed-currency / mismatched
-      // statements the engine uses overview * annual-rate anyway, so withholding
-      // the map keeps that path byte-identical to the prior single-rate behavior.
-      const allTradesMatchOverview =
-        pdfData.sellTrades.length > 0 &&
-        pdfData.sellTrades.every((tr) => tr.transactionCurrency === pdfData.overview.currency);
-      const dailyRates =
-        needsConversion && allTradesMatchOverview ? pdfDailyRates ?? undefined : undefined;
-
-      // Dispatch tax rates by the statement's income year (backlog #13). 2025 ->
-      // current rates; 2026+ falls back to the latest engine-supported year until
-      // its rates are signed off (TAX_YEARS[year].engineSupported gate).
-      const yearConfig = getTaxConfigForYear(countryConfig, pdfData.year);
-      const { taxResult, securities, warnings: engineWarnings, auditRows, netFromOverview } = calculateTaxesFromPdf(pdfData, yearConfig, rate, dailyRates);
-
-      // Engine-emitted warnings (sign + magnitude mismatch) reach the operator
-      // through the same channel as parser warnings, but tagged separately so
-      // the parse-report log + DB queries can distinguish parser drift from engine drift.
-      if (engineWarnings.length > 0) {
-        reportParseEvent({
-          fileType: 'pdf',
-          outcome: 'warning',
-          fileName: preview.fileName,
-          warnings: [],
-          engineWarnings,
-          summary: {
-            sells: pdfData.sellTrades.length,
-            dividends: pdfData.dividends.length,
-            distributions: pdfData.distributions.length,
-            year: pdfData.year,
-          },
-        });
-      }
-
-      setUploadData({
-        parseResult: null,
-        parseWarnings: [...pdfData.warnings, ...engineWarnings],
-        transactions: [],
-        taxResult,
-        securities,
-        auditRows,
-        pdfNetFromOverview: netFromOverview,
-        fileName: preview.fileName,
-        taxYear: pdfData.year,
-        broker: 'trading212',
-      });
+      const { rate, dailyRates } = resolvePdfRates(pdfData, exchangeRate, pdfDailyRates);
+      finalizePdf(pdfData, preview.fileName, rate, dailyRates);
     } else if (preview?.fileType === 'csv') {
       if (!csvParse || csvParse.transactions.length === 0) return;
       await finalizeCsv(csvParse, csvBroker, preview.fileName);
@@ -389,7 +459,73 @@ export default function UploadPage() {
     }
 
     navigate('/results');
-  }, [countryConfig, preview, pdfData, csvParse, csvBroker, exchangeRate, pdfDailyRates, selectedYear, setUploadData, navigate, finalizeCsv]);
+  }, [countryConfig, preview, pdfData, csvParse, csvBroker, exchangeRate, pdfDailyRates, selectedYear, navigate, finalizeCsv, finalizePdf, resolvePdfRates]);
+
+  // Post-pay rehydration (backlog #24B Phase 2, PR-2). On /upload?welcome=1, if the
+  // buyer parsed their statement pre-pay (PreviewPage stashed it in sessionStorage),
+  // rehydrate it and run the EXISTING engine path directly, then land on /results,
+  // skipping the drop-zone and the re-upload. The engine call is the same
+  // finalizePdf / finalizeCsv the "Calculate" button uses, so the number is
+  // identical to the re-upload path (the 28,053 founder case is proven by E2E).
+  //
+  // Belt and suspenders: a missing / stale / version-mismatch / oversized-skipped
+  // pending parse makes readPendingParse return null, so we do nothing and the
+  // normal drop-zone flow renders unchanged. An unsupported year is refused the
+  // same way the Calculate guard refuses it (no wrong-year number). The key is
+  // cleared only after a SUCCESSFUL engine run so a refresh does not re-run it.
+  const rehydratedRef = useRef(false);
+  useEffect(() => {
+    if (authLoading || !user || user.plan !== 'paid') return;
+    if (!countryConfig) return;
+    if (!landedFromPaymentRef.current) return;
+    if (rehydratedRef.current) return;
+    rehydratedRef.current = true;
+
+    const pending = readPendingParse();
+    if (!pending) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        if (pending.fileType === 'pdf') {
+          const pdf = pending.pdf;
+          // Same year guard as Calculate: never run the engine on an unsupported
+          // year. Leave the pending parse in place and fall through to re-upload.
+          if (!isEngineSupportedTaxYear(pdf.year)) return;
+          const { avgRate, dailyMap } = await fetchPdfBnrRatesForRehydrate(
+            pdf.year,
+            pdf.overview.currency,
+          );
+          if (cancelled) return;
+          const { rate, dailyRates } = resolvePdfRates(pdf, avgRate, dailyMap);
+          finalizePdf(pdf, pending.fileName, rate, dailyRates);
+        } else {
+          if (!isEngineSupportedTaxYear(pending.selectedYear)) return;
+          if (pending.csv.transactions.length === 0) return;
+          // Pass the persisted year explicitly so the engine + BNR fetch use the
+          // buyer's checker selection, not the hook's default `selectedYear` (a
+          // same-tick setSelectedYear would not have flushed). Also sync the UI
+          // state for the (brief) render before /results.
+          setSelectedYear(pending.selectedYear);
+          await finalizeCsv(pending.csv, pending.broker, pending.fileName, pending.selectedYear);
+        }
+        if (cancelled) return;
+        // Success: this parse has been consumed. Clear so a refresh cannot re-run it.
+        clearPendingParse();
+        navigate('/results');
+      } catch {
+        // Any failure (rate fetch, engine) degrades to the normal re-upload flow;
+        // the buyer still has their file and can re-drop it. Leave the key so a
+        // transient failure can be retried on a manual refresh.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // Keyed on the paid+ready gate; the ref makes it fire at most once per mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user, countryConfig]);
 
   const clearUpload = () => {
     clearPreview();
