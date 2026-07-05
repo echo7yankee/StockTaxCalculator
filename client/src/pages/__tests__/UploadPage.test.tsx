@@ -1056,6 +1056,268 @@ describe('UploadPage - year-round carry-forward (board #3)', () => {
   });
 });
 
+describe('UploadPage - carry-forward guard-relax (board #3 PR-3)', () => {
+  // Route the opening-positions fetch (coverage check + finalizeCsv) and the BNR
+  // fetches off one spy. openingPositions seeds the /api/uploads/opening-positions
+  // body; every other URL returns a BNR-shaped body so the rate path is unaffected.
+  function mockFetch(openingPositions: {
+    year: number | null;
+    positions: Array<Record<string, unknown>>;
+  }) {
+    return vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
+      const u = String(url);
+      if (u.includes('/api/uploads/opening-positions')) {
+        return Promise.resolve(new Response(JSON.stringify(openingPositions), { status: 200 }));
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ rates: {}, count: 0, rate: 4.9 }), { status: 200 }),
+      );
+    });
+  }
+
+  // A single-year (2025-only) CSV that SELLS 10 AAPL it never bought -> the
+  // missing-history guard fires (deficit: AAPL 10). Carry-forward is the fix.
+  function singleYearOversellCsv() {
+    return makeCsvParseResult({
+      transactions: [
+        {
+          action: 'sell', ticker: 'AAPL', isin: 'US0378331005', shares: 10, price: 200,
+          priceCurrency: 'USD', transactionDate: '2025-06-20', total: 2000, totalCurrency: 'USD',
+        } as unknown as Transaction,
+      ],
+    });
+  }
+
+  // Upload a single-year oversell CSV without asserting on the (transient) block.
+  // In the covered case the block appears then disappears once the coverage effect
+  // resolves, so callers that need to observe the block should assert it themselves.
+  async function uploadSingleYearOversell() {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.upload(findHiddenFileInput(container), makeCsvFile());
+    // Wait until the CSV preview has rendered (the Calculate button exists).
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeInTheDocument();
+    });
+    return user;
+  }
+
+  it('(a) fully-covered: relaxes the block, enables Calculate, shows the covered note', async () => {
+    sharedExports.parseTrading212Csv.mockReturnValueOnce(singleYearOversellCsv());
+    // Prior 2024 filing holds 12 AAPL, covering the 10-share deficit.
+    mockFetch({
+      year: 2024,
+      positions: [
+        { isin: 'US0378331005', ticker: 'AAPL', securityName: 'Apple Inc.', shares: 12, costPerShareLocal: 300 },
+      ],
+    });
+    await uploadSingleYearOversell();
+
+    // The coverage check resolves -> the red block is dropped, the neutral covered
+    // note appears, and Calculate becomes enabled.
+    await waitFor(() => {
+      expect(screen.getByTestId('carry-forward-covers-note')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Incomplete Transaction History Detected')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeEnabled();
+  });
+
+  it('(a) fully-covered: Calculate seeds the carried position and surfaces it to Results', async () => {
+    sharedExports.parseTrading212Csv.mockReturnValueOnce(singleYearOversellCsv());
+    mockFetch({
+      year: 2024,
+      positions: [
+        { isin: 'US0378331005', ticker: 'AAPL', securityName: 'Apple Inc.', shares: 12, costPerShareLocal: 300 },
+      ],
+    });
+    const user = await uploadSingleYearOversell();
+    await waitFor(() => {
+      expect(screen.getByTestId('carry-forward-covers-note')).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: /Calculate Taxes/ }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
+
+    // Engine seeded with the carried AAPL (the sold-but-not-bought security).
+    const lastCall = sharedExports.calculateTaxes.mock.calls.at(-1);
+    expect(lastCall?.[4]).toEqual([
+      { isin: 'US0378331005', ticker: 'AAPL', securityName: 'Apple Inc.', shares: 12, costPerShareLocal: 300 },
+    ]);
+    // Results receives the carried positions + source year.
+    expect(mockSetUploadData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        carriedPositions: [
+          { isin: 'US0378331005', ticker: 'AAPL', securityName: 'Apple Inc.', shares: 12, costPerShareLocal: 300 },
+        ],
+        carryForwardYear: 2024,
+      }),
+    );
+  });
+
+  it('(a) one fetch, one result: Calculate reuses the coverage-effect fetch (no second request)', async () => {
+    // The reuse guard keys on the REQUESTED tax year (2025), not the response's
+    // prior year (2024). This guards the "one fetch, one result" design: when the
+    // coverage effect already fetched opening-positions for the year Calculate
+    // will file, finalizeCsv must NOT issue a second identical request.
+    sharedExports.parseTrading212Csv.mockReturnValueOnce(singleYearOversellCsv());
+    const fetchSpy = mockFetch({
+      year: 2024,
+      positions: [
+        { isin: 'US0378331005', ticker: 'AAPL', securityName: 'Apple Inc.', shares: 12, costPerShareLocal: 300 },
+      ],
+    });
+    const user = await uploadSingleYearOversell();
+    await waitFor(() => {
+      expect(screen.getByTestId('carry-forward-covers-note')).toBeInTheDocument();
+    });
+
+    // Exactly one opening-positions request so far (from the coverage effect).
+    const openingCallsBefore = fetchSpy.mock.calls.filter((c) =>
+      String(c[0]).includes('/api/uploads/opening-positions'),
+    );
+    expect(openingCallsBefore).toHaveLength(1);
+    expect(String(openingCallsBefore[0][0])).toBe('/api/uploads/opening-positions?year=2025');
+
+    await user.click(screen.getByRole('button', { name: /Calculate Taxes/ }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/results'));
+
+    // Still exactly one: finalizeCsv reused the stash instead of re-fetching.
+    const openingCallsAfter = fetchSpy.mock.calls.filter((c) =>
+      String(c[0]).includes('/api/uploads/opening-positions'),
+    );
+    expect(openingCallsAfter).toHaveLength(1);
+    // The reused stash still produced the correct engine seeding.
+    const lastCall = sharedExports.calculateTaxes.mock.calls.at(-1);
+    expect(lastCall?.[4]).toEqual([
+      { isin: 'US0378331005', ticker: 'AAPL', securityName: 'Apple Inc.', shares: 12, costPerShareLocal: 300 },
+    ]);
+  });
+
+  it('(b) partially-covered: block stays, Calculate disabled, no covered note', async () => {
+    sharedExports.parseTrading212Csv.mockReturnValueOnce(singleYearOversellCsv());
+    // Prior filing holds only 4 AAPL against a 10-share deficit -> not covered.
+    mockFetch({
+      year: 2024,
+      positions: [
+        { isin: 'US0378331005', ticker: 'AAPL', securityName: 'Apple Inc.', shares: 4, costPerShareLocal: 300 },
+      ],
+    });
+    await uploadSingleYearOversell();
+
+    // Give the coverage effect time to resolve; the block must remain.
+    await waitFor(() => {
+      const urls = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.map((c) => String(c[0]));
+      expect(urls).toContain('/api/uploads/opening-positions?year=2025');
+    });
+    expect(screen.getByText('Incomplete Transaction History Detected')).toBeInTheDocument();
+    expect(screen.queryByTestId('carry-forward-covers-note')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeDisabled();
+  });
+
+  it('(c) no carry-forward (empty fetch): block stays (fail safe), Calculate disabled', async () => {
+    sharedExports.parseTrading212Csv.mockReturnValueOnce(singleYearOversellCsv());
+    mockFetch({ year: null, positions: [] });
+    await uploadSingleYearOversell();
+
+    await waitFor(() => {
+      const urls = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.map((c) => String(c[0]));
+      expect(urls).toContain('/api/uploads/opening-positions?year=2025');
+    });
+    expect(screen.getByText('Incomplete Transaction History Detected')).toBeInTheDocument();
+    expect(screen.queryByTestId('carry-forward-covers-note')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeDisabled();
+  });
+
+  it('(c) fetch failure: block stays (fail safe), Calculate disabled', async () => {
+    sharedExports.parseTrading212Csv.mockReturnValueOnce(singleYearOversellCsv());
+    vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
+      const u = String(url);
+      if (u.includes('/api/uploads/opening-positions')) {
+        return Promise.reject(new Error('network down'));
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ rates: {}, count: 0, rate: 4.9 }), { status: 200 }),
+      );
+    });
+    await uploadSingleYearOversell();
+
+    // The block never relaxes on a failed fetch.
+    expect(screen.getByText('Incomplete Transaction History Detected')).toBeInTheDocument();
+    expect(screen.queryByTestId('carry-forward-covers-note')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeDisabled();
+  });
+
+  it('(d) multi-year upload is unaffected (guard never fired, no coverage fetch on that basis)', async () => {
+    // A 2024 buy + 2025 sell of the same security spans 2 years, so the single-year
+    // guard never fires. The block is absent and no covered note appears; the
+    // coverage effect stays dormant (nothing to relax).
+    sharedExports.parseTrading212Csv.mockReturnValueOnce(
+      makeCsvParseResult({
+        transactions: [
+          {
+            action: 'buy', ticker: 'AAPL', isin: 'US0378331005', shares: 10, price: 150,
+            priceCurrency: 'USD', transactionDate: '2024-01-15', total: 1500, totalCurrency: 'USD',
+          } as unknown as Transaction,
+          {
+            action: 'sell', ticker: 'AAPL', isin: 'US0378331005', shares: 5, price: 200,
+            priceCurrency: 'USD', transactionDate: '2025-06-20', total: 1000, totalCurrency: 'USD',
+          } as unknown as Transaction,
+        ],
+      }),
+    );
+    mockFetch({ year: 2024, positions: [] });
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.upload(findHiddenFileInput(container), makeCsvFile());
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeInTheDocument(),
+    );
+    expect(screen.queryByText('Incomplete Transaction History Detected')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('carry-forward-covers-note')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeEnabled();
+  });
+
+  it('(e) double-count guard blocks coverage credit for an in-file-bought security', async () => {
+    sharedExports.parseTrading212Csv.mockReturnValueOnce(
+      makeCsvParseResult({
+        transactions: [
+          {
+            action: 'buy', ticker: 'AAPL', isin: 'US0378331005', shares: 2, price: 150,
+            priceCurrency: 'USD', transactionDate: '2025-01-15', total: 300, totalCurrency: 'USD',
+          } as unknown as Transaction,
+          {
+            action: 'sell', ticker: 'AAPL', isin: 'US0378331005', shares: 10, price: 200,
+            priceCurrency: 'USD', transactionDate: '2025-06-20', total: 2000, totalCurrency: 'USD',
+          } as unknown as Transaction,
+        ],
+      }),
+    );
+    mockFetch({
+      year: 2024,
+      positions: [
+        { isin: 'US0378331005', ticker: 'AAPL', securityName: 'Apple Inc.', shares: 50, costPerShareLocal: 300 },
+      ],
+    });
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+    await user.upload(findHiddenFileInput(container), makeCsvFile());
+    await waitFor(() => {
+      expect(screen.getByText('Incomplete Transaction History Detected')).toBeInTheDocument();
+    });
+    // The carried AAPL is excluded (its buy is in-file), so coverage is never met.
+    await waitFor(() => {
+      const urls = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.map((c) => String(c[0]));
+      expect(urls).toContain('/api/uploads/opening-positions?year=2025');
+    });
+    expect(screen.getByText('Incomplete Transaction History Detected')).toBeInTheDocument();
+    expect(screen.queryByTestId('carry-forward-covers-note')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeDisabled();
+  });
+});
+
 describe('UploadPage - drag-and-drop drop zone', () => {
   it('processes a dropped PDF the same as a file-input upload', async () => {
     const { container } = renderPage();

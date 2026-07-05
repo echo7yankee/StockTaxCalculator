@@ -151,6 +151,13 @@ export default function Dashboard() {
         taxYear: data.year,
         fileName: data.csvUploads?.[0]?.filename ?? '',
         transactions: [],
+        // Saved calcs do not persist carry-forward metadata (no transactions or
+        // opening positions in the payload), so clear any carried positions left
+        // in context from a live upload in the same session. Surfacing carried
+        // positions on the Dashboard would need new persisted fields + a migration
+        // (protected), so it is intentionally out of scope for PR-3.
+        carriedPositions: [],
+        carryForwardYear: null,
       });
 
       navigate('/results');

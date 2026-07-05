@@ -18,7 +18,7 @@ import { cassBracketLabelKey } from '../utils/cassBracket';
 export default function ResultsPage() {
   const { t, i18n } = useTranslation(['results', 'common']);
   const navigate = useNavigate();
-  const { taxResult, securities, fileName, taxYear, transactions, auditRows, pdfNetFromOverview, parseWarnings, broker } = useUpload();
+  const { taxResult, securities, fileName, taxYear, transactions, auditRows, pdfNetFromOverview, parseWarnings, broker, carriedPositions, carryForwardYear } = useUpload();
   const hasWarnings = parseWarnings.length > 0;
   // Beta brokers (parser built to the broker's published format without a real
   // account to validate against) must always carry a verify-before-filing caveat,
@@ -375,6 +375,51 @@ export default function ResultsPage() {
           <p className="text-sm text-green-600 dark:text-green-500 mt-1">
             {t('results:earlyFilingDetail', { earlyDeadline: countryConfig?.earlyFilingDeadline, rate: `${((countryConfig?.earlyFilingDiscountRate ?? 0) * 100)}`, finalDeadline: countryConfig?.finalFilingDeadline })}
           </p>
+        </div>
+      )}
+
+      {/* Carried prior-year positions (board #3 PR-3). Surfaces which positions
+          seeded cost basis from a previous filing, so a carried number is never
+          silent. CSV flow only (the PDF flow does not carry); empty otherwise. */}
+      {carriedPositions.length > 0 && (
+        <div className="card mb-6" data-testid="carried-positions">
+          <div className="flex items-start gap-3 mb-4">
+            <Coins className="w-5 h-5 text-accent dark:text-accent-light shrink-0 mt-1" />
+            <div>
+              <h2 className="text-xl font-semibold">{t('results:carriedPositionsTitle')}</h2>
+              <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">
+                {t('results:carriedPositionsBody', {
+                  count: carriedPositions.length,
+                  year: carryForwardYear ?? taxYear - 1,
+                })}
+              </p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-navy-600">
+                  <th className="text-left py-2 px-2 font-medium">{t('results:carriedPositionsColSecurity')}</th>
+                  <th className="text-right py-2 px-2 font-medium">{t('results:carriedPositionsColShares')}</th>
+                  <th className="text-right py-2 px-2 font-medium">{t('results:carriedPositionsColCost')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {carriedPositions.map((p) => (
+                  <tr key={p.isin || p.ticker} className="border-b border-gray-100 dark:border-navy-700">
+                    <td className="py-2 px-2">
+                      <p className="font-medium">{p.ticker || p.isin}</p>
+                      {p.securityName && (
+                        <p className="text-xs text-gray-500 dark:text-slate-400 truncate max-w-[180px]">{p.securityName}</p>
+                      )}
+                    </td>
+                    <td className="text-right py-2 px-2">{p.shares}</td>
+                    <td className="text-right py-2 px-2">{fmt(p.costPerShareLocal)} {sym}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

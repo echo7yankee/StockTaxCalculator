@@ -49,6 +49,21 @@ export default function UploadPage() {
   // prior-year opening positions, so a changed tax number is never silent. Null
   // when nothing was carried (the byte-identical no-opening-positions path).
   const [carryForwardNote, setCarryForwardNote] = useState<string | null>(null);
+  // Carry-forward guard-relax (board #3 PR-3): when the single-year missing-history
+  // guard fires, we check whether the user's prior-year opening positions cover
+  // every short security's deficit. Fully covered -> the block is relaxed (the
+  // carried cost basis is real, not missing). Partially covered / no carry-forward
+  // / fetch failure keeps the block (fail safe: never under-declare). The fetched
+  // positions are stashed so handleCalculate reuses this single fetch.
+  const [carryForwardCoversHistory, setCarryForwardCoversHistory] = useState(false);
+  const [openingPositions, setOpeningPositions] = useState<OpeningPosition[] | null>(null);
+  // The tax year the coverage effect FETCHED FOR (the requested `selectedYear`),
+  // so finalizeCsv can tell whether the stash is reusable for the year it is about
+  // to file. Distinct from the response's `data.year` (the PRIOR filing year the
+  // positions came from), which the endpoint enforces to be < the requested year
+  // and which drives the display note.
+  const [openingPositionsRequestedYear, setOpeningPositionsRequestedYear] = useState<number | null>(null);
+  const [openingPositionsPriorYear, setOpeningPositionsPriorYear] = useState<number | null>(null);
 
   const fetchBnrRate = useCallback((year: number, currency: string) => {
     if (!countryConfig || currency === countryConfig.currency) return;
@@ -186,6 +201,104 @@ export default function UploadPage() {
     else analytics.csvUploaded();
   }, [preview]);
 
+  // Carry-forward coverage check (board #3 PR-3). The single-year missing-history
+  // guard (useStatementPreview) hard-stops a CSV that sells shares it never bought,
+  // because the cost basis would be understated. But carry-forward can now supply
+  // those missing historical buys from the user's prior filed year. When the guard
+  // fires on a CSV, fetch the prior-year opening positions and check whether they
+  // cover EVERY short security's deficit; if so, relax the block. The fetch is
+  // stashed so handleCalculate reuses it (one fetch, one result). Best-effort:
+  // any failure / partial coverage leaves the block in place (fail safe: never
+  // under-declare). This lives in UploadPage, not the shared hook, so the free
+  // pre-paywall checker never runs the paid opening-positions fetch.
+  useEffect(() => {
+    if (!csvHistoryWarning || preview?.fileType !== 'csv' || !csvParse) {
+      // Reset when the guard is not active (no CSV, guard cleared, or PDF). The
+      // synchronous reset here is the intended "clear derived state" path, not a
+      // cascading-render smell; the rule's alternatives (derive during render)
+      // don't fit because the coverage result is the product of an async fetch.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCarryForwardCoversHistory(false);
+      setOpeningPositions(null);
+      setOpeningPositionsRequestedYear(null);
+      setOpeningPositionsPriorYear(null);
+      return;
+    }
+
+    let cancelled = false;
+    // The year we are fetching FOR (the requested tax year). Captured up front so
+    // both the stash key and the URL use the same value even if selectedYear
+    // changes before the async fetch resolves.
+    const requestedYear = selectedYear;
+
+    // Per-security deficit: shares sold beyond what was bought in the file. Uses
+    // the SAME key convention (isin || ticker) as the engine and the double-count
+    // guard, so a carried position is matched to the security it actually covers.
+    const sellShares: Record<string, number> = {};
+    const buyShares: Record<string, number> = {};
+    for (const tx of csvParse.transactions) {
+      const key = tx.isin || tx.ticker;
+      if (!key) continue;
+      if (tx.action === 'sell') sellShares[key] = (sellShares[key] || 0) + tx.shares;
+      if (tx.action === 'buy') buyShares[key] = (buyShares[key] || 0) + tx.shares;
+    }
+    const deficit: Record<string, number> = {};
+    for (const key of Object.keys(sellShares)) {
+      const short = sellShares[key] - (buyShares[key] || 0);
+      if (short > 0.01) deficit[key] = short;
+    }
+
+    (async () => {
+      let positions: OpeningPosition[] = [];
+      let priorYear: number | null = null;
+      try {
+        const res = await fetch(`/api/uploads/opening-positions?year=${requestedYear}`, {
+          credentials: 'include',
+        });
+        if (res.ok) {
+          const data: { year: number | null; positions?: OpeningPosition[] } = await res.json();
+          positions = Array.isArray(data.positions) ? data.positions : [];
+          priorYear = data.year;
+        }
+      } catch {
+        // Best-effort: on any failure the block stays (positions empty, no coverage).
+        positions = [];
+        priorYear = null;
+      }
+      if (cancelled) return;
+
+      // Double-count guard (mirrors finalizeCsv): a carried security whose acquiring
+      // BUY is already in the file must not be credited, or the engine would count
+      // the shares twice. Only positions surviving this guard can cover a deficit.
+      const buyKeys = new Set(
+        csvParse.transactions
+          .filter((tx) => tx.action === 'buy')
+          .map((tx) => tx.isin || tx.ticker),
+      );
+      const carriedShares: Record<string, number> = {};
+      for (const p of positions) {
+        const key = p.isin || p.ticker;
+        if (!key || buyKeys.has(key)) continue;
+        carriedShares[key] = (carriedShares[key] || 0) + p.shares;
+      }
+
+      // Covered only when EVERY short security's deficit is met by carried shares.
+      const shortKeys = Object.keys(deficit);
+      const covered =
+        shortKeys.length > 0 &&
+        shortKeys.every((k) => (carriedShares[k] || 0) >= deficit[k] - 0.01);
+
+      setOpeningPositions(positions);
+      setOpeningPositionsRequestedYear(requestedYear);
+      setOpeningPositionsPriorYear(priorYear);
+      setCarryForwardCoversHistory(covered);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [csvHistoryWarning, selectedYear, csvParse, preview?.fileType]);
+
   // Enrich CSV transactions with BNR rates and run the engine, then stash the
   // result for the results page. Shared by the Trading212 and IBKR CSV paths,
   // which both produce a ParseResult of Transactions; the `broker` is recorded so
@@ -300,36 +413,56 @@ export default function UploadPage() {
     // year (whose buys are absent from a year-scoped export) gets its real cost
     // basis instead of 0. Best-effort: a failed/empty fetch leaves the calc
     // byte-identical to the no-opening-positions path, so it must never block.
+    //
+    // PR-3: the coverage-check effect above may already have fetched the
+    // positions for this year (when the missing-history guard fired). Reuse that
+    // single result to avoid a second identical request. The reuse key is the
+    // REQUESTED tax year (`openingPositionsRequestedYear`), i.e. the year we
+    // fetched FOR, not the response's `data.year` (the prior filing year the
+    // positions came from, always < the requested year). Fall back to a fresh
+    // fetch when the effect never ran (the common no-guard path) or fetched a
+    // different year. Either way the double-count guard runs here on the final
+    // enriched transactions, so the seeded set is identical to the pre-PR-3 path.
+    let positions: OpeningPosition[] = [];
+    let priorYear: number | null = null;
+    if (openingPositions !== null && openingPositionsRequestedYear === year) {
+      positions = openingPositions;
+      priorYear = openingPositionsPriorYear;
+    } else {
+      try {
+        const res = await fetch(`/api/uploads/opening-positions?year=${year}`, {
+          credentials: 'include',
+        });
+        if (res.ok) {
+          const data: { year: number | null; positions?: OpeningPosition[] } = await res.json();
+          positions = Array.isArray(data.positions) ? data.positions : [];
+          priorYear = data.year;
+        }
+      } catch {
+        // Carry-forward is best-effort; on any failure fall back to no seeding.
+        positions = [];
+        priorYear = null;
+      }
+    }
+
     let filteredOpeningPositions: OpeningPosition[] = [];
     let carryForwardYear: number | null = null;
-    try {
-      const res = await fetch(`/api/uploads/opening-positions?year=${year}`, {
-        credentials: 'include',
+    if (positions.length > 0) {
+      // Double-count guard: never seed a security whose acquiring BUY is in
+      // this file (the engine would then count the shares twice). The buy
+      // predicate matches the engine exactly (`t.action === 'buy'`). A carried
+      // security that is only SOLD in the file (not bought) is the case we DO
+      // seed, so it keeps its real prior-year cost basis.
+      const buyKeys = new Set(
+        enrichedTransactions
+          .filter((tx) => tx.action === 'buy')
+          .map((tx) => tx.isin || tx.ticker),
+      );
+      filteredOpeningPositions = positions.filter((p) => {
+        const key = p.isin || p.ticker;
+        return !!key && !buyKeys.has(key);
       });
-      if (res.ok) {
-        const data: { year: number | null; positions?: OpeningPosition[] } = await res.json();
-        const positions = Array.isArray(data.positions) ? data.positions : [];
-        if (positions.length > 0) {
-          // Double-count guard: never seed a security whose acquiring BUY is in
-          // this file (the engine would then count the shares twice). The buy
-          // predicate matches the engine exactly (`t.action === 'buy'`). A carried
-          // security that is only SOLD in the file (not bought) is the case we DO
-          // seed, so it keeps its real prior-year cost basis.
-          const buyKeys = new Set(
-            enrichedTransactions
-              .filter((tx) => tx.action === 'buy')
-              .map((tx) => tx.isin || tx.ticker),
-          );
-          filteredOpeningPositions = positions.filter((p) => {
-            const key = p.isin || p.ticker;
-            return !!key && !buyKeys.has(key);
-          });
-          if (filteredOpeningPositions.length > 0) carryForwardYear = data.year;
-        }
-      }
-    } catch {
-      // Carry-forward is best-effort; on any failure fall back to no seeding.
-      filteredOpeningPositions = [];
+      if (filteredOpeningPositions.length > 0) carryForwardYear = priorYear;
     }
 
     // Dispatch tax rates by the selected income year (backlog #13).
@@ -363,8 +496,12 @@ export default function UploadPage() {
       fileName,
       taxYear: year,
       broker,
+      // Surface the carried positions on Results (board #3 PR-3): which prior-year
+      // positions seeded cost basis, and from which filing year.
+      carriedPositions: filteredOpeningPositions,
+      carryForwardYear: filteredOpeningPositions.length > 0 ? carryForwardYear : null,
     });
-  }, [countryConfig, selectedYear, setUploadData, t]);
+  }, [countryConfig, selectedYear, setUploadData, t, openingPositions, openingPositionsRequestedYear, openingPositionsPriorYear]);
 
   // Run the PDF engine path and stash the result. Shared by the re-upload
   // "Calculate" click and the post-pay rehydration (PR-2), so the engine call is
@@ -415,6 +552,10 @@ export default function UploadPage() {
       fileName,
       taxYear: pdf.year,
       broker: 'trading212',
+      // PDF flow never carries prior-year positions; clear any left in context
+      // from a CSV carry-forward earlier in the same session.
+      carriedPositions: [],
+      carryForwardYear: null,
     });
   }, [countryConfig, setUploadData]);
 
@@ -544,6 +685,10 @@ export default function UploadPage() {
     setCsvRateStatus(null);
     setCsvRateStatusKind(null);
     setCarryForwardNote(null);
+    setCarryForwardCoversHistory(false);
+    setOpeningPositions(null);
+    setOpeningPositionsRequestedYear(null);
+    setOpeningPositionsPriorYear(null);
   };
 
   // Don't render while checking auth: prevents flash
@@ -559,6 +704,13 @@ export default function UploadPage() {
   // PDF uses the year detected in the statement.
   const calcYear = preview ? (preview.fileType === 'pdf' ? preview.year : selectedYear) : null;
   const calcYearSupported = calcYear == null || isEngineSupportedTaxYear(calcYear);
+
+  // Missing-history block, relaxed by carry-forward (board #3 PR-3). The guard
+  // still fires whenever a single-year CSV sells shares it never bought, but when
+  // the user's prior-year opening positions fully cover every short security's
+  // deficit, the carried cost basis is real (not missing), so we drop the block
+  // and show a positive note instead. Partial / no coverage keeps the hard-stop.
+  const historyBlocks = csvHistoryWarning && !carryForwardCoversHistory;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
@@ -878,8 +1030,8 @@ export default function UploadPage() {
             </div>
           )}
 
-          {/* Critical: CSV missing historical buys */}
-          {csvHistoryWarning && preview?.fileType === 'csv' && (
+          {/* Critical: CSV missing historical buys (kept when carry-forward does not cover it) */}
+          {historyBlocks && preview?.fileType === 'csv' && (
             <div className="p-5 bg-red-50 dark:bg-red-900/20 border-2 border-red-400 dark:border-red-600 rounded-xl">
               <div className="flex items-start gap-3">
                 <AlertTriangle className="w-6 h-6 text-red-500 shrink-0 mt-0.5" />
@@ -894,6 +1046,25 @@ export default function UploadPage() {
                         : t('csvHistoryBlockAction')}
                   </p>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Carry-forward covers the missing history: the block is relaxed and the
+              carried cost basis is announced (no rate/tax-fact claim). */}
+          {csvHistoryWarning && carryForwardCoversHistory && preview?.fileType === 'csv' && (
+            <div
+              className="p-4 bg-accent/5 dark:bg-accent/10 border border-accent/30 rounded-xl"
+              data-testid="carry-forward-covers-note"
+            >
+              <div className="flex items-start gap-3">
+                <CheckCircle className="w-5 h-5 text-accent dark:text-accent-light shrink-0 mt-0.5" />
+                <p className="text-sm text-gray-700 dark:text-slate-300">
+                  {t('carryForwardCoversHistoryNote', {
+                    year: selectedYear,
+                    priorYear: openingPositionsPriorYear ?? selectedYear - 1,
+                  })}
+                </p>
               </div>
             </div>
           )}
@@ -956,8 +1127,8 @@ export default function UploadPage() {
               </div>
               <button
                 onClick={handleCalculate}
-                disabled={csvRateLoading || csvHistoryWarning || !calcYearSupported}
-                className={`flex items-center justify-center gap-2 text-lg px-6 py-3 w-full sm:w-auto ${csvHistoryWarning || !calcYearSupported ? 'btn-secondary opacity-50 cursor-not-allowed' : 'btn-primary'}`}
+                disabled={csvRateLoading || historyBlocks || !calcYearSupported}
+                className={`flex items-center justify-center gap-2 text-lg px-6 py-3 w-full sm:w-auto ${historyBlocks || !calcYearSupported ? 'btn-secondary opacity-50 cursor-not-allowed' : 'btn-primary'}`}
               >
                 {csvRateLoading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
