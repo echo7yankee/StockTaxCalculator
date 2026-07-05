@@ -6,13 +6,14 @@
   "workspaces": [
     "shared",
     "client",
-    "server"
+    "server",
+    "mcp"
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev -w client\" \"npm run dev -w server\"",
-    "build": "npm run build -w shared && npm run build -w client && npm run build -w server",
-    "test": "npm run test -w shared && npm run test -w client && npm run test -w server",
-    "test:coverage": "npm run test:coverage -w shared && npm run test:coverage -w client && npm run test:coverage -w server",
+    "build": "npm run build -w shared && npm run build -w client && npm run build -w server && npm run build -w mcp",
+    "test": "npm run test -w shared && npm run test -w client && npm run test -w server && npm run test -w mcp",
+    "test:coverage": "npm run test:coverage -w shared && npm run test:coverage -w client && npm run test:coverage -w server && npm run test:coverage -w mcp",
     "lint": "eslint .",
     "stylelint": "stylelint \"client/src/**/*.css\"",
     "verify": "tsx scripts/verify.ts",

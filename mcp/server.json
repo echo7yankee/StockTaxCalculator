@@ -1,0 +1,20 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "name": "io.github.echo7yankee/investax-mcp",
+  "description": "Deterministic Romanian investment-tax quick estimate (capital gains, dividends, CASS) for the Declaratia Unica.",
+  "version": "1.0.0",
+  "repository": {
+    "url": "https://github.com/echo7yankee/StockTaxCalculator",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "investax-mcp",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

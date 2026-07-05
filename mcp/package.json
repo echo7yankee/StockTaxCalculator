@@ -1,0 +1,40 @@
+{
+  "name": "investax-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for InvesTax: deterministic Romanian investment-tax quick estimate (capital gains, dividends, CASS) for the Declaratia Unica.",
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "tax",
+    "romania",
+    "investing",
+    "declaratia-unica",
+    "investax"
+  ],
+  "homepage": "https://investax.app",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "investax-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "server.json"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    // This package is published to npm and run directly under Node (npx bin /
+    // `node dist/index.js`), NOT bundled, so it needs real Node ESM resolution
+    // with explicit `.js` import extensions. Override the repo-wide `bundler`
+    // resolution used by the app workspaces.
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext"
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/**/__tests__/**"]
+}
