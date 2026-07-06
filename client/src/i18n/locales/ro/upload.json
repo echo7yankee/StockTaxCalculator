@@ -96,5 +96,9 @@
   "previewWaitlistHeading": "Anunță-mă când e gata",
   "previewWaitlistBody": "Îți trimitem un email când adăugăm suport pentru cazul tău. Fără spam.",
   "previewContactYearLine": "Am nevoie de anul fiscal {{year}}.",
-  "previewContactBrokerLine": "Folosesc {{broker}} (suport în beta)."
+  "previewContactBrokerLine": "Folosesc {{broker}} (suport în beta).",
+  "previewOriginLabel": "De unde e extrasul? (opțional, ne ajută să prioritizăm)",
+  "previewOriginNone": "Alege...",
+  "previewOriginCryptoOther": "Alt exchange crypto",
+  "previewOriginBrokerOther": "Alt broker"
 }

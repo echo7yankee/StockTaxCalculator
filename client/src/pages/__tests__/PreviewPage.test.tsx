@@ -357,10 +357,10 @@ describe('PreviewPage - support verdict', () => {
     expect(analytics.previewBlocked).not.toHaveBeenCalled();
   });
 
-  it('AMBER (out-of-scope year 2022): no pay button, contact CTA, no waitlist', async () => {
+  it('AMBER (out-of-scope year 2022): no pay button, contact CTA, prior_years waitlist (PR-4)', async () => {
     // A pre-2023 year is genuinely unsupported (pre-CMP cost-method territory). It
-    // stays amber -> contact, with no waitlist (a Trading212 PDF is not a beta
-    // broker, and the prior-year waitlist retired once 2023/2024 went live).
+    // stays amber -> contact, and since PR-4 the blocked visitor can also join the
+    // prior_years list (the year is the problem, so no origin select is shown).
     sharedExports.parseTrading212AnnualStatement.mockReturnValueOnce(
       makePdfParseResult({ year: 2022 }),
     );
@@ -374,13 +374,43 @@ describe('PreviewPage - support verdict', () => {
     expect(screen.getByText(/We do not calculate 2022 yet/)).toBeInTheDocument();
     expect(screen.queryByTestId('preview-unlock-cta')).not.toBeInTheDocument();
     expect(screen.getByTestId('preview-contact-cta')).toBeInTheDocument();
-    expect(screen.queryByText("Notify me when it's ready")).not.toBeInTheDocument();
+    // PR-4: the unsupported-year block now offers the year waitlist...
+    expect(screen.getByText("Notify me when it's ready")).toBeInTheDocument();
+    // ...but not the statement-origin select (the year, not the file, is the problem).
+    expect(screen.queryByTestId('preview-origin-select')).not.toBeInTheDocument();
     expect(analytics.previewBlocked).toHaveBeenCalledTimes(1);
     expect(analytics.previewClean).not.toHaveBeenCalled();
     // Gate telemetry: blocked with the unsupported-year reason (Mihai's case).
     expect(analytics.gateBlocked).toHaveBeenCalledTimes(1);
     expect(analytics.gateBlocked).toHaveBeenCalledWith('unsupported_year');
     expect(analytics.gateEligible).not.toHaveBeenCalled();
+  });
+
+  it('AMBER (2022) capture posts to /api/subscribe with the prior_years topic + checker source', async () => {
+    sharedExports.parseTrading212AnnualStatement.mockReturnValueOnce(
+      makePdfParseResult({ year: 2022 }),
+    );
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      const user = userEvent.setup();
+      const { container } = renderPage();
+      await user.upload(findHiddenFileInput(container), makePdfFile());
+      await waitFor(() => expect(screen.getByText("Notify me when it's ready")).toBeInTheDocument());
+
+      await user.type(screen.getByRole('textbox', { name: /email/i }), 'lead@example.com');
+      await user.click(screen.getByRole('button', { name: 'Notify me' }));
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe('/api/subscribe');
+      const body = JSON.parse((init as RequestInit).body as string);
+      expect(body.topic).toBe('prior_years');
+      expect(body.source).toBe('checker:unsupported_year:trading212');
+      expect(body.email).toBe('lead@example.com');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('BENIGN warning (skipped rows on a supported broker + year): warnings shown but the gate stays OPEN', async () => {
@@ -455,6 +485,10 @@ describe('PreviewPage - support verdict', () => {
     expect(screen.getByText('This statement cannot be calculated correctly right now.')).toBeInTheDocument();
     expect(screen.queryByTestId('preview-unlock-cta')).not.toBeInTheDocument();
     expect(screen.getByTestId('preview-contact-cta')).toBeInTheDocument();
+    // PR-4: missing-history deliberately gets NO waitlist (the fix is in the
+    // user's hands: re-export with full history) and no origin select.
+    expect(screen.queryByText("Notify me when it's ready")).not.toBeInTheDocument();
+    expect(screen.queryByTestId('preview-origin-select')).not.toBeInTheDocument();
     // Gate telemetry: blocked with the missing-history reason.
     expect(analytics.gateBlocked).toHaveBeenCalledWith('missing_history');
     expect(analytics.gateEligible).not.toHaveBeenCalled();
@@ -501,6 +535,99 @@ describe('PreviewPage - PDF broker mismatch (non-Trading212 PDF)', () => {
     // Binance lead-capture off this reason).
     expect(analytics.gateBlocked).toHaveBeenCalledWith('wrong_broker');
     expect(analytics.gateEligible).not.toHaveBeenCalled();
+    // PR-4: the statement-origin select and the generic waitlist are offered
+    // (we do not know where this file came from).
+    expect(screen.getByTestId('preview-origin-select')).toBeInTheDocument();
+    expect(screen.getByText("Notify me when it's ready")).toBeInTheDocument();
+  });
+
+  it('picking a crypto origin routes the capture to the crypto_exchange list (board #6 instrumentation)', async () => {
+    sharedExports.parseTrading212AnnualStatement.mockReturnValueOnce(
+      makePdfParseResult({
+        brokerMismatch: true,
+        sellTrades: [],
+        dividends: [],
+        distributions: [],
+        warnings: ['not a T212 statement'],
+      }),
+    );
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      const user = userEvent.setup();
+      const { container } = renderPage();
+      await user.upload(findHiddenFileInput(container), makePdfFile('binance-export.pdf'));
+
+      await waitFor(() => expect(screen.getByTestId('preview-origin-select')).toBeInTheDocument());
+      await user.selectOptions(screen.getByTestId('preview-origin-select'), 'binance');
+      await user.type(screen.getByRole('textbox', { name: /email/i }), 'crypto@example.com');
+      await user.click(screen.getByRole('button', { name: 'Notify me' }));
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+      const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+      expect(body.topic).toBe('crypto_exchange');
+      expect(body.source).toBe('checker:wrong_broker:binance');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe('PreviewPage - unreadable file (parse error, PR-4)', () => {
+  it('a thrown PDF parse shows the error AND the contact + capture path, and fires gate_blocked_unreadable', async () => {
+    // The Anda class: the parse dies before producing a preview. Pre-PR-4 this
+    // rendered only a bare error box (no capture, no gate event); now the
+    // visitor gets the same blocked-state path as any other fatal reason.
+    mockExtractPdfPageTexts.mockRejectedValueOnce(new Error('bad xref'));
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.upload(findHiddenFileInput(container), makePdfFile('corrupt.pdf'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('preview-contact-cta')).toBeInTheDocument();
+    });
+    // The error box still shows, and no preview/verdict card renders.
+    expect(screen.getByText(/bad xref/)).toBeInTheDocument();
+    expect(screen.queryByTestId('preview-result')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('preview-unlock-cta')).not.toBeInTheDocument();
+    // Capture path: origin select + the generic waitlist.
+    expect(screen.getByTestId('preview-origin-select')).toBeInTheDocument();
+    expect(screen.getByText("Notify me when it's ready")).toBeInTheDocument();
+    // Telemetry: the unreadable reason now actually records (it could not fire
+    // off the old preview-only effect, because an unreadable file has no preview).
+    expect(analytics.gateBlocked).toHaveBeenCalledTimes(1);
+    expect(analytics.gateBlocked).toHaveBeenCalledWith('unreadable');
+    expect(analytics.previewBlocked).toHaveBeenCalledTimes(1);
+    expect(analytics.gateEligible).not.toHaveBeenCalled();
+  });
+
+  it('an unreadable CSV on a beta broker keeps that broker waitlist and skips the origin select', async () => {
+    sharedExports.parseIbkrCsv.mockImplementationOnce(() => {
+      throw new Error('unrecognized section');
+    });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      const user = userEvent.setup();
+      const { container } = renderPage();
+      await user.click(screen.getByRole('button', { name: /CSV Export/ }));
+      await user.click(screen.getByRole('button', { name: /Interactive Brokers/ }));
+      await user.upload(findHiddenFileInput(container), makeCsvFile('ibkr.csv'));
+
+      await waitFor(() => expect(screen.getByTestId('preview-contact-cta')).toBeInTheDocument());
+      // The broker is already known (a beta IBKR attempt): no origin select, and
+      // the capture goes to the IBKR graduation list with the reason as source.
+      expect(screen.queryByTestId('preview-origin-select')).not.toBeInTheDocument();
+      await user.type(screen.getByRole('textbox', { name: /email/i }), 'ibkr@example.com');
+      await user.click(screen.getByRole('button', { name: 'Notify me' }));
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+      const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+      expect(body.topic).toBe('broker_ibkr');
+      expect(body.source).toBe('checker:unreadable');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 

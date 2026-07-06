@@ -812,6 +812,10 @@ function subscribeTopicLine(topic: string, language: Language): string {
       'o notificare când suportul pentru extrasele Interactive Brokers (IBKR) iese din beta',
     prior_years:
       'noutăți despre regularizarea anilor trecuți (2023 și 2024 se pot calcula deja automat în InvesTax)',
+    unsupported_statement:
+      'o notificare când InvesTax poate citi extrase ca al tău (broker sau format nou)',
+    crypto_exchange:
+      'o notificare când InvesTax poate procesa extrase de la exchange-uri crypto (Binance și altele)',
   };
   const en: Record<string, string> = {
     filing_reminder: 'an email reminder when filing opens for the 2026 Declarația Unică',
@@ -819,6 +823,10 @@ function subscribeTopicLine(topic: string, language: Language): string {
     broker_ibkr: 'a heads-up when Interactive Brokers (IBKR) statement support leaves beta',
     prior_years:
       'updates on regularizing prior tax years (2023 and 2024 can already be computed automatically in InvesTax)',
+    unsupported_statement:
+      'a heads-up when InvesTax can read statements like yours (a new broker or format)',
+    crypto_exchange:
+      'a heads-up when InvesTax can process crypto exchange statements (Binance and others)',
   };
   const table = language === 'ro' ? ro : en;
   return table[topic] ?? (language === 'ro' ? 'o notificare când avem noutăți' : 'a heads-up when we have news');
