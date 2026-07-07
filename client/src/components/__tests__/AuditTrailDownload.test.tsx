@@ -3,7 +3,15 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { TaxCalculationResult, SecurityBreakdown, Transaction, PdfAuditRow } from '@shared/index';
 import AuditTrailDownload from '../AuditTrailDownload';
+import { CountryProvider } from '../../contexts/CountryContext';
 import { analytics } from '../../lib/analytics';
+
+// Control the early-filing deadline gate directly so the discount rows are
+// deterministic regardless of the wall clock (real "today" is past 15 Apr 2026).
+vi.mock('../../utils/earlyFiling', () => ({
+  isBeforeEarlyFilingDeadline: vi.fn(() => true),
+}));
+import { isBeforeEarlyFilingDeadline } from '../../utils/earlyFiling';
 
 const result: TaxCalculationResult = {
   taxYearId: '2025',
@@ -56,6 +64,7 @@ describe('AuditTrailDownload', () => {
     (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = vi.fn();
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     vi.spyOn(analytics, 'auditTrailDownloaded').mockImplementation(() => {});
+    vi.mocked(isBeforeEarlyFilingDeadline).mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -65,6 +74,7 @@ describe('AuditTrailDownload', () => {
   it('renders the card and the download button', () => {
     render(
       <AuditTrailDownload result={result} securities={securities} transactions={transactions} taxYear={2025} fileName="statement.csv" brokerLabel="Trading 212" />,
+      { wrapper: CountryProvider },
     );
     expect(screen.getByTestId('audit-trail-download')).toBeInTheDocument();
     expect(screen.getByTestId('audit-trail-download-button')).toBeInTheDocument();
@@ -73,6 +83,7 @@ describe('AuditTrailDownload', () => {
   it('downloads a UTF-8 CSV with per-trade rows + summary, and fires analytics', async () => {
     render(
       <AuditTrailDownload result={result} securities={securities} transactions={transactions} taxYear={2025} fileName="statement.csv" brokerLabel="Trading 212" />,
+      { wrapper: CountryProvider },
     );
     await clickDownload();
 
@@ -96,9 +107,24 @@ describe('AuditTrailDownload', () => {
     expect(text).toContain('Total after discount,95.00');
   });
 
+  it('omits the discount rows in the CSV once the early-filing deadline has passed', async () => {
+    vi.mocked(isBeforeEarlyFilingDeadline).mockReturnValue(false);
+    render(
+      <AuditTrailDownload result={result} securities={securities} transactions={transactions} taxYear={2025} fileName="statement.csv" brokerLabel="Trading 212" />,
+      { wrapper: CountryProvider },
+    );
+    await clickDownload();
+    const text = await lastBlob().text();
+    // The discount is forfeited, so the records CSV must not show it (matches the
+    // gated on-screen total + the D212 XML). The full tax total still reconciles.
+    expect(text).not.toContain('Total after discount');
+    expect(text).toContain('Total tax owed,100.00');
+  });
+
   it('renders per-trade rows for the PDF flow when audit rows are supplied', async () => {
     render(
       <AuditTrailDownload result={result} securities={securities} transactions={[]} pdfTrades={pdfTrades} taxYear={2025} fileName="statement.pdf" brokerLabel="Trading 212" />,
+      { wrapper: CountryProvider },
     );
     await clickDownload();
     const text = await lastBlob().text();
@@ -111,6 +137,7 @@ describe('AuditTrailDownload', () => {
   it('adds the mixed-currency net-source note when pdfNetFromOverview is set', async () => {
     render(
       <AuditTrailDownload result={result} securities={securities} transactions={[]} pdfTrades={pdfTrades} pdfNetFromOverview taxYear={2025} fileName="statement.pdf" brokerLabel="Trading 212" />,
+      { wrapper: CountryProvider },
     );
     await clickDownload();
     const text = await lastBlob().text();
@@ -121,6 +148,7 @@ describe('AuditTrailDownload', () => {
   it('falls back to the per-security section when neither transactions nor audit rows are supplied', async () => {
     render(
       <AuditTrailDownload result={result} securities={securities} transactions={[]} taxYear={2025} fileName="statement.pdf" brokerLabel="Trading 212" />,
+      { wrapper: CountryProvider },
     );
     await clickDownload();
     const text = await lastBlob().text();
