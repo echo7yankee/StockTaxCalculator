@@ -174,7 +174,10 @@ describe('calculateTaxes', () => {
       const txs = [makeTx({ id: 'd1', action: 'dividend', totalAmountOriginal: 1000, withholdingTaxOriginal: 30 })];
       const withArg = calculateTaxes(txs, romaniaTaxConfig, 2025, undefined);
       const without = calculateTaxes(txs, romaniaTaxConfig, 2025);
-      expect(withArg.taxResult).toEqual(without.taxResult);
+      // taxResult.calculatedAt is a fresh Date per call, so a whole-object
+      // deep-equal flakes when the two calls straddle a clock tick. Normalize
+      // the timestamp on both sides and compare every other (deterministic) field.
+      expect({ ...withArg.taxResult, calculatedAt: null }).toEqual({ ...without.taxResult, calculatedAt: null });
       // 10% of 1000 = 100, minus parsed 30 WHT = 70
       expect(without.taxResult.dividends.taxOwed).toBe(70);
     });

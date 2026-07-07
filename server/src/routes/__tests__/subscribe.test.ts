@@ -168,6 +168,25 @@ describe('POST /api/subscribe', () => {
     expect(sendConfirmMock.mock.calls[0][0].topic).toBe('prior_years');
   });
 
+  it.each(['unsupported_statement', 'crypto_exchange'])(
+    'accepts the gate-blocked lead-capture topic %s (backlog #24B PR-4)',
+    async (topic) => {
+      const res = await post({
+        email: 'blocked@example.com',
+        topic,
+        source: 'checker:unreadable:binance',
+      });
+
+      expect(res.status).toBe(200);
+      expect(upsertMock.mock.calls[0][0].where.email_topic).toEqual({
+        email: 'blocked@example.com',
+        topic,
+      });
+      expect(upsertMock.mock.calls[0][0].create.source).toBe('checker:unreadable:binance');
+      expect(sendConfirmMock.mock.calls[0][0].topic).toBe(topic);
+    },
+  );
+
   it('returns 400 when email is missing', async () => {
     const res = await post({ topic: 'filing_reminder' });
     expect(res.status).toBe(400);

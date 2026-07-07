@@ -8,8 +8,10 @@ import {
   sendParseAlertNotification,
   sendAnalyticsDigestNotification,
   sendErrorAlertNotification,
+  sendSubscribeWelcomeEmail,
   pickLanguage,
 } from '../email.js';
+import { SUBSCRIBE_TOPICS } from '../../lib/subscribeTopics.js';
 import { recordCaughtError } from '../../lib/errorMonitor.js';
 
 // email.ts records send failures via recordCaughtError -> recordError -> prisma.
@@ -882,5 +884,78 @@ describe('sendErrorAlertNotification', () => {
     await expect(sendErrorAlertNotification(baseParams)).resolves.toBeUndefined();
     expect(errSpy).toHaveBeenCalled();
     expect(vi.mocked(recordCaughtError)).not.toHaveBeenCalled();
+  });
+});
+
+describe('sendSubscribeWelcomeEmail - every topic has a specific line (no fallback)', () => {
+  // The welcome email describes what the subscriber signed up for via
+  // subscribeTopicLine. A topic added to SUBSCRIBE_TOPICS without its own RO+EN
+  // line silently falls back to a generic "when we have news" phrase, which
+  // under-delivers on the consent shown at capture time. This sweep fails the
+  // build the moment a topic is added without copy (added with the #24B PR-4
+  // topics unsupported_statement + crypto_exchange).
+  const originalFetch = global.fetch;
+  const originalEnv = process.env.RESEND_API_KEY;
+
+  beforeEach(() => {
+    process.env.RESEND_API_KEY = 'test_key_123';
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.RESEND_API_KEY = originalEnv;
+    vi.restoreAllMocks();
+  });
+
+  const FALLBACK = {
+    ro: 'o notificare când avem noutăți',
+    en: 'a heads-up when we have news',
+  } as const;
+
+  it.each(
+    SUBSCRIBE_TOPICS.flatMap((topic) => (['ro', 'en'] as const).map((lang) => [topic, lang] as const))
+  )('%s (%s) renders a topic-specific line', async (topic, lang) => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ id: 'email_x' }), { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendSubscribeWelcomeEmail({
+      to: 'sub@example.com',
+      unsubscribeUrl: 'https://investax.app/api/subscribe/unsubscribe?token=t',
+      topic,
+      language: lang,
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.html).not.toContain(FALLBACK[lang]);
+    expect(body.text).not.toContain(FALLBACK[lang]);
+  });
+
+  it('the two PR-4 lead-capture topics name their promise explicitly', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ id: 'email_x' }), { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendSubscribeWelcomeEmail({
+      to: 'sub@example.com',
+      unsubscribeUrl: 'https://investax.app/u?token=t',
+      topic: 'unsupported_statement',
+      language: 'ro',
+    });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).text).toContain(
+      'extrase ca al tău'
+    );
+
+    await sendSubscribeWelcomeEmail({
+      to: 'sub@example.com',
+      unsubscribeUrl: 'https://investax.app/u?token=t',
+      topic: 'crypto_exchange',
+      language: 'en',
+    });
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body as string).text).toContain(
+      'crypto exchange statements'
+    );
   });
 });
