@@ -1,65 +1,94 @@
 /**
- * Declaratia Unica (D212) v11 XML generator for the foreign-source
- * investment-income case (Romania).
+ * Declaratia Unica (D212) XML generator for the foreign-source
+ * investment-income case (Romania), income years 2023 / 2024 / 2025.
  *
  * Turns a {@link TaxCalculationResult} (the engine's output for a parsed broker
- * statement) plus its per-security {@link SecurityBreakdown}[] into a D212 v11 XML
- * string in the ANAF namespace `mfp:anaf:dgti:d212:declaratie:v11`, ready to be
- * loaded into DUKIntegrator for validation + e-filing.
+ * statement) plus its per-security {@link SecurityBreakdown}[] into a D212 XML
+ * string in the ANAF schema for the requested income year, ready to be loaded
+ * into that season's validator (DUKIntegrator / soft J) for validation +
+ * e-filing.
  *
- * The structure here is modelled field-for-field on Dragos's real,
- * ANAF-SPV-accepted April 2026 D212 filing (the 2025 Trading212 statement). A
- * session #144 spike generated this XML from the same engine output and diffed
- * it attribute-by-attribute against that accepted filing: structure was a 100%
- * match, dividends and CASS were exact, and the only value differences traced to
- * the engine's per-trade-date BNR methodology on capital gains (Codul Fiscal
- * art. 96), which is the app's current correct behavior and intentionally higher
- * than the all-annual-average simplification ANAF accepted in April 2026. See
- * `investax-docs/d212-prefill-spike-result.md`.
+ * THREE form generations are modelled, one per supported income year. ANAF
+ * publishes a distinct form package per filing season and a late/never-filed
+ * declaration for income year N is filed on the season-(N+1) form, so each year
+ * gets its own emit profile (see {@link D212_PROFILES}):
  *
- * Scope notes for this generator (the D212 pre-fill program):
- * - Inputs are guarded. A net capital-LOSS year and any non-finite/negative/
- *   out-of-range field are rejected up front (PR 2 fail-loud), so the generator
- *   never emits a silently-wrong declaration. Loss carry-forward representation
- *   (pierdere reportată) is deferred until tax-verified and engine-modelled.
- * - PER-SOURCE-COUNTRY split (PR 3). Foreign income is grouped by the security's
- *   ISIN country prefix and emitted as one `cap14` per (country, category): so a
- *   holder of US stocks plus Irish-domiciled UCITS ETFs gets a US capital-gains
- *   row and separate US + IE dividend rows. This matters because foreign
- *   withholding tax is credited PER country (Irish distributions carry 0 WHT, so
- *   they must not borrow the US dividend credit). Dragos's accepted filing lumped
- *   everything under US; this is a strict correctness enhancement over that.
- * - Country names (`den_stat`) are only emitted for countries confirmed against
- *   an accepted filing (US) or unambiguous (IE); every other country fails loud
- *   pending DUKIntegrator nomenclator confirmation (PR 5). See {@link DEN_STAT}.
- * - The declaration is assembled BOTTOM-UP: each `cap14` row is independently
- *   rounded, and the realized income-tax total is the SUM of the emitted rows, so
- *   the totals always equal the sum of the parts. The CASS bracket amount + base
- *   come from the engine (they are bracket-derived, not a row sum).
- * - The numbers carried are the engine's PER-TRADE-DATE figures (art. 96), so
- *   the generated capital-gains row and everything derived from it (income-tax
- *   total, bonificatie, dif_de_plata) is intentionally higher than a filing built
- *   on the all-annual-average rate. This is a methodology stance, not a bug.
- * - Identity (CNP/IBAN/name/phone) is passed in by the caller; in-app identity
- *   collection is PR 4.
- * - No engine math happens here. This module consumes a finished
- *   {@link TaxCalculationResult} + {@link SecurityBreakdown}[] and never touches
- *   the parser, the PDF tax calculator, or any rate logic. Per-row tax is the
- *   ANAF per-row formula `venit * rate`, which equals the engine's `taxOwed` for
- *   real engine output (where `taxOwed == netGains * rate`) and keeps every row
- *   self-consistent.
+ * - Income 2025 -> season-2026 form, namespace `mfp:anaf:dgti:d212:declaratie:v11`.
+ *   Modelled field-for-field on Dragos's real, ANAF-SPV-accepted April 2026
+ *   filing (session #144 spike: structure 100% match; dividends + CASS exact;
+ *   the only value differences were the engine's per-trade-date BNR methodology
+ *   on capital gains, which is intentional). See
+ *   `investax-docs/d212-prefill-spike-result.md`.
+ * - Income 2024 -> season-2025 form (OPANAF 7015/2024 cycle; the currently
+ *   published package is per OPANAF 1929/30.07.2025), namespace v9, XSD
+ *   `d212_20250113.xsd`, `an_r` fixed to 2025. Field set + validation formulas
+ *   read from ANAF's own `structura_D212_2025_v1.0.3_01082025.pdf`.
+ * - Income 2023 -> season-2024 form (OPANAF 6/2024), namespace v9 (the file is
+ *   named `d212_v7_20240709.xsd` but declares the v9 namespace), `an_r` fixed to
+ *   2024. Field set + formulas from `structura_declaratieUnica_2024_v1.0.0`.
+ *
+ * Both past-year XSDs are committed under `__tests__/fixtures/` and a shape test
+ * asserts every emitted attribute exists in that year's schema.
+ *
+ * Load-bearing per-year differences (all read off the official structure docs,
+ * NOT guessed):
+ * - The v9 forms have NO `den_stat` / `den_categ_venit` attributes (undeclared
+ *   attributes fail XSD validation, so they are omitted); the authoritative
+ *   country field is the 2-letter `str_stat_realiz_v` code. The v11 DEN_STAT
+ *   country-name gate therefore applies ONLY to the v11 path.
+ * - v9 date attributes are `str_data_incep` / `str_data_sf` (v11 renamed them
+ *   `str_data_inceput` / `str_data_sfarsit`).
+ * - v9 dividend rows carry `str_venit_brut` = gross and `str_venit_net_anual` =
+ *   gross (rd.3 = rd.1 - rd.2, no deductible costs on dividends); the accepted
+ *   v11 filing instead has `str_venit_net_anual="0"` + recalculat = gross.
+ * - Neither past cycle had a PF early-filing bonificatie (the OUG 107/2024 3%
+ *   was firms-only; the PF bonificatie returned only with OUG 8/2026 for 2025
+ *   incomes), so the v9 bonificatie flags (`bifa110` in 2024-season, `bifa18` in
+ *   2025-season) are 0 and the `obl*_real_bonif` attributes are omitted. A
+ *   result carrying a positive earlyFilingDiscount for a past year is rejected.
+ * - `totalPlata_A` is the CONTROL SUM: the digit sum of the filer's CNP, per
+ *   both season structure docs ("Suma de control: totalPlata_A = suma
+ *   caracterelor ce compun codul numeric personal"). This also resolved the old
+ *   v11 TODO: the unexplained `totalPlata_A="33"` in the accepted filing is
+ *   exactly that CNP digit sum, so v11 now emits the digit sum too.
+ * - `bifa_cass_real` is the CASS bracket option (1 = 6-wage, 2 = 12-wage,
+ *   3 = 24-wage base) and `cass_baza` must equal that bracket's base for the
+ *   income year's minimum wage (3.000 lei for 2023, 3.300 for 2024, 4.050 for
+ *   2025). It is DERIVED from the engine's CASS amount against TAX_YEARS (the
+ *   previous v11 code hardcoded '3', which was only correct for the golden
+ *   filing's bracket).
+ * - v9 identity is a single `nume_c` = "Nume Initiala Prenume" plus a REQUIRED
+ *   `adresa_c`; v11 splits the name and carries no address.
+ *
+ * Scope notes (unchanged from the v11-only generator):
+ * - Inputs are guarded; anything out of domain fails loud (never a silently
+ *   wrong legal declaration). Loss years and per-country net losses are
+ *   rejected pending the pierdere-reportata/compensata representation.
+ * - PER-SOURCE-COUNTRY split: one `cap14` per (country, category) from the
+ *   ISIN prefix; foreign withholding tax is credited per country.
+ * - The numbers carried are the engine's PER-TRADE-DATE figures (art. 96).
+ * - This is an ORIGINAL declaration (d_rec=0, rectif=0, bifa_conformare=0): a
+ *   never-filed past year files a late ORIGINAL on that year's form. A user who
+ *   already filed a D212 for that year needs a rectificativa, which this
+ *   generator cannot produce (it would have to merge income sections it did not
+ *   compute); the UI carries that caveat.
+ * - No engine math happens here.
  */
 
 import type { TaxCalculationResult, SecurityBreakdown } from '../types/tax.js';
+import { getTaxYearConfig, type TaxYearConfig } from '../taxRules/taxYears.js';
 
 /**
  * Filer identity for the D212 root element (user-supplied PII).
  *
  * - `cif` is the Romanian CNP (cod numeric personal), 13 digits, pattern
- *   `[1-9]\d{12}`.
+ *   `[1-9]\d{12}`. Also feeds the `totalPlata_A` control digit sum.
  * - `cont_bancar` is the refund IBAN.
  * - `nume_c` / `initiala_c` / `prenume_c` are surname / middle initial / given
  *   name; `telefon_c` is the contact phone. All are XML-escaped on emit.
+ * - `adresa_c` is the filer's address: REQUIRED by the 2023/2024 form versions
+ *   (the v11 web-form era form carries no address attribute, so it is unused
+ *   for 2025).
  */
 export interface D212Identity {
   nume_c: string;
@@ -68,12 +97,15 @@ export interface D212Identity {
   cif: string;
   cont_bancar: string;
   telefon_c: string;
+  adresa_c?: string;
 }
 
 /**
  * Romanian foreign-income category code for "transferul titlurilor de valoare"
  * (capital gains from securities). Its `den_categ_venit` label is reproduced
- * verbatim, with diacritics, from the accepted filing.
+ * verbatim, with diacritics, from the accepted filing (v11 only; the v9 schemas
+ * have no label attribute). Codes 2012/2018 are confirmed present in the
+ * `str_categ_venit` nomenclator of all three form generations.
  */
 const CATEG_CODE_CAPITAL_GAINS = '2012';
 const CATEG_LABEL_CAPITAL_GAINS =
@@ -84,7 +116,8 @@ const CATEG_CODE_DIVIDENDS = '2018';
 const CATEG_LABEL_DIVIDENDS = 'Dividende';
 
 /**
- * ISO 3166-1 alpha-2 country code -> Romanian `den_stat` name for the D212.
+ * ISO 3166-1 alpha-2 country code -> Romanian `den_stat` name for the D212
+ * (v11 ONLY; the v9 past-year schemas carry no den_stat attribute).
  *
  * Deliberately SMALL. `US` is GROUND TRUTH: the exact string from Dragos's
  * ANAF-SPV-accepted April 2026 filing. `IE` ("Irlanda") is the standard
@@ -106,18 +139,51 @@ const DEN_STAT: Record<string, string> = {
 };
 
 /**
- * The single income tax year this generator models. The v11 structure, the
- * reporting period below, and the `an_r`/category constants are all pinned to the
- * 2025 income year (filed in 2026) that the session #144 spike validated against
- * Dragos's accepted filing. Callers MUST gate the download on this year; a
- * statement from any other year has to be filed manually until the generator is
- * extended (and re-validated) for it.
+ * The income tax years this generator models, oldest first. 2025 is validated
+ * against an accepted filing; 2023/2024 are built from ANAF's published XSD +
+ * structure docs and ship behind an explicit "validate in DUKIntegrator/SPV"
+ * caveat until a generated file passes ANAF's own validator. Tax year 2022 and
+ * earlier are out of scope (pre-CMP cost-method territory, Legea 142/2022).
+ */
+export const D212_SUPPORTED_TAX_YEARS = [2023, 2024, 2025] as const;
+
+/**
+ * The latest (and spike-validated) income year. Kept as the default for
+ * {@link generateD212Xml} and for consumers that need "the current D212 year"
+ * (e.g. the quick-calc API response).
  */
 export const D212_SUPPORTED_TAX_YEAR = 2025;
 
-/** Tax-year reporting period (calendar year 2025, filed in 2026). */
-const PERIOD_START = '01.01.2025';
-const PERIOD_END = '31.12.2025';
+/** Whether {@link generateD212Xml} can produce a declaration for this income year. */
+export function isD212SupportedTaxYear(year: number): boolean {
+  return (D212_SUPPORTED_TAX_YEARS as readonly number[]).includes(year);
+}
+
+/**
+ * Statutory CASS rate (Codul Fiscal art. 170): CASS datorata = 10% x the
+ * bracket base, all supported years. Used to recover `cass_baza` from the
+ * engine's CASS amount; independent of the income-tax rates (which vary by
+ * year), so it must NOT be conflated with capitalGains.taxRate.
+ */
+const CASS_RATE = 0.1;
+
+/** One emit profile per supported income year (see the module doc). */
+interface D212YearProfile {
+  /** Income year the declaration covers. */
+  taxYear: number;
+  /** `an_r` (anul de raportare) = the filing-season year, income year + 1. */
+  anR: number;
+  /** Schema generation: drives the per-variant attribute sets below. */
+  variant: 'v9-2024' | 'v9-2025' | 'v11';
+  /** Root namespace. Both past seasons declare v9 (despite the v7 file name). */
+  xmlns: string;
+}
+
+const D212_PROFILES: Record<number, D212YearProfile> = {
+  2023: { taxYear: 2023, anR: 2024, variant: 'v9-2024', xmlns: 'mfp:anaf:dgti:d212:declaratie:v9' },
+  2024: { taxYear: 2024, anR: 2025, variant: 'v9-2025', xmlns: 'mfp:anaf:dgti:d212:declaratie:v9' },
+  2025: { taxYear: 2025, anR: 2026, variant: 'v11', xmlns: 'mfp:anaf:dgti:d212:declaratie:v11' },
+};
 
 /** Whole-lei integer, round half up (D212 money fields are integers). */
 function lei(n: number): number {
@@ -192,6 +258,8 @@ function isoCountry(isin: string): string {
 /**
  * Romanian `den_stat` name for a country code; fails loud on an unmapped country
  * (see {@link DEN_STAT}) rather than guessing a name into a legal declaration.
+ * v11 only; the v9 schemas have no den_stat attribute, so past years do not
+ * consult this table.
  */
 function denStat(code: string, isinSample: string): string {
   const name = DEN_STAT[code];
@@ -226,6 +294,46 @@ function attrs(map: Record<string, string | number>): string {
     .join('');
 }
 
+/**
+ * `totalPlata_A` control sum: the digit sum of the filer's CNP, per the ANAF
+ * structure docs of both past seasons ("Suma de control ... suma caracterelor ce
+ * compun codul numeric personal"). Requires a shape-valid CNP, or the control
+ * sum (and the declaration keyed on the CNP) would be garbage.
+ */
+function cnpDigitSum(cif: string): number {
+  if (!/^[1-9]\d{12}$/.test(cif)) {
+    throw new Error(
+      'generateD212Xml: identity.cif must be a 13-digit CNP ([1-9] then 12 digits); ' +
+        'the totalPlata_A control sum is computed from its digits.',
+    );
+  }
+  return cif.split('').reduce((sum, ch) => sum + Number(ch), 0);
+}
+
+/**
+ * Derives the CASS bracket option (`bifa_cass_real`) + `cass_baza` from the
+ * engine's CASS amount for the income year: the base recovered at the statutory
+ * 10% rate must be exactly one of the year's 6/12/24-minimum-wage plafoane
+ * (TAX_YEARS is the source of truth: 18.000/36.000/72.000 for 2023,
+ * 19.800/39.600/79.200 for 2024, 24.300/48.600/97.200 for 2025). Real engine
+ * output always lands on a bracket; anything else is corrupt input and fails
+ * loud rather than emitting a bifa/baza pair the validator would reject.
+ */
+function cassBracket(
+  amountOwed: number,
+  cfg: TaxYearConfig,
+): { bifa: '1' | '2' | '3'; baza: number } {
+  const baza = lei(amountOwed / CASS_RATE);
+  if (baza === cfg.cassThresholds.six) return { bifa: '1', baza };
+  if (baza === cfg.cassThresholds.twelve) return { bifa: '2', baza };
+  if (baza === cfg.cassThresholds.twentyFour) return { bifa: '3', baza };
+  throw new Error(
+    `generateD212Xml: healthContribution.amountOwed (${amountOwed}) does not map to a ` +
+      `${cfg.taxYear} CASS bracket (bases ${cfg.cassThresholds.six}/${cfg.cassThresholds.twelve}/` +
+      `${cfg.cassThresholds.twentyFour} at the statutory 10%). Corrupt result; file manually.`,
+  );
+}
+
 /** Per-country accumulation of foreign income (RON), from the per-security breakdown. */
 interface CountryIncome {
   code: string;
@@ -237,15 +345,16 @@ interface CountryIncome {
 }
 
 /**
- * Generates a Declaratia Unica D212 v11 XML string from an engine
+ * Generates a Declaratia Unica D212 XML string from an engine
  * {@link TaxCalculationResult}, a filer {@link D212Identity}, and the engine's
- * per-security {@link SecurityBreakdown}[].
+ * per-security {@link SecurityBreakdown}[], on the form version of the requested
+ * income year (2023 / 2024 / 2025; see the module doc and {@link D212_PROFILES}).
  *
  * The output is the foreign-source investment-income case for Romania: one
  * `cap14` row per (source country, category), capital gains code 2012 and
- * dividends code 2018, plus the `oblig_realizat` CASS + income-tax + bonificatie
- * block, all inside a `d212` root in the `mfp:anaf:dgti:d212:declaratie:v11`
- * namespace.
+ * dividends code 2018, plus the realized-obligations summary block, all inside a
+ * `d212` root in that year's namespace. It is an ORIGINAL declaration (d_rec=0):
+ * suitable for a never-filed year, NOT for correcting an already-filed one.
  *
  * Income is grouped by the security's ISIN country prefix (PR 3). The figures
  * carried are the engine's PER-TRADE-DATE numbers (Codul Fiscal art. 96), which
@@ -255,23 +364,53 @@ interface CountryIncome {
  *
  * @param result Finished engine output for the tax year.
  * @param identity Filer PII for the declaration root (XML-escaped on emit).
+ *   `adresa_c` is required for 2023/2024 (those form versions require it).
  * @param securities Per-security breakdown from the same engine run, used to
  *   attribute income to source countries.
- * @returns A D212 v11 XML document string.
- * @throws If `result` is out of domain: a non-finite or negative money field, a
- *   `capitalGains.taxRate` or `dividends.taxRate` outside (0, 1], or a net capital-LOSS year
- *   (`capitalGains.losses > 0`). Also throws if the per-security breakdown does
- *   not reconcile with the engine totals, if any source country has a net capital
- *   loss within an overall gain year (cross-country loss compensation is not yet
- *   supported), if a security's ISIN has no country prefix, or if a source
- *   country is not in the confirmed {@link DEN_STAT} table. Fails loud rather than
- *   emitting a silently-wrong or incomplete declaration.
+ * @param taxYear Income year to generate for; defaults to
+ *   {@link D212_SUPPORTED_TAX_YEAR}. Must match the result's own year.
+ * @returns A D212 XML document string on that year's form version.
+ * @throws If the year is unsupported or contradicts `result.taxYearId`; if
+ *   `result` is out of domain: a non-finite or negative money field, a
+ *   `capitalGains.taxRate` or `dividends.taxRate` outside (0, 1], a net
+ *   capital-LOSS year (`capitalGains.losses > 0`), a CASS amount that maps to no
+ *   bracket, or a positive early-filing discount for a past year (no bonificatie
+ *   existed for the 2023/2024 cycles). Also throws if the CNP is not shape-valid
+ *   (the control sum derives from it), if a past-year identity lacks `adresa_c`,
+ *   if the per-security breakdown does not reconcile with the engine totals, if
+ *   any source country has a net capital loss within an overall gain year, if a
+ *   security's ISIN has no country prefix, if there is no income to declare at
+ *   all, or (v11 only) if a source country is not in the confirmed
+ *   {@link DEN_STAT} table. Fails loud rather than emitting a silently-wrong or
+ *   incomplete declaration.
  */
 export function generateD212Xml(
   result: TaxCalculationResult,
   identity: D212Identity,
   securities: SecurityBreakdown[],
+  taxYear: number = D212_SUPPORTED_TAX_YEAR,
 ): string {
+  const profile = D212_PROFILES[taxYear];
+  if (!profile) {
+    throw new Error(
+      `generateD212Xml: income year ${taxYear} is not supported ` +
+        `(supported: ${D212_SUPPORTED_TAX_YEARS.join(', ')}). This declaration must be filed manually.`,
+    );
+  }
+  // The result must have been computed for the same income year, or the rates,
+  // CASS brackets, and form version would silently disagree with the numbers.
+  if (/^\d{4}$/.test(result.taxYearId) && Number(result.taxYearId) !== taxYear) {
+    throw new Error(
+      `generateD212Xml: result is for tax year ${result.taxYearId} but a ${taxYear} ` +
+        'declaration was requested. Refusing to mix years.',
+    );
+  }
+  const cfg = getTaxYearConfig(taxYear);
+  if (!cfg) {
+    throw new Error(`generateD212Xml: no TAX_YEARS config for ${taxYear}.`);
+  }
+  const isPastYear = profile.variant !== 'v11';
+
   // Input-domain guard. This generator emits a legal tax declaration, so it must
   // never turn a corrupt or unrepresentable result into a plausible-looking wrong
   // number. Every consumed field is validated up front; anything out of domain
@@ -288,9 +427,9 @@ export function generateD212Xml(
   );
   assertMoney(result.totals.earlyFilingDiscount, 'totals.earlyFilingDiscount');
 
-  // taxRate scales the per-row RO tax and recovers cass_baza (amountOwed / rate),
-  // so a zero or out-of-range rate would yield NaN/Infinity money. Require a sane
-  // fraction in (0, 1]. (RO is 0.10 for 2025, 0.16 for 2026.)
+  // taxRate scales the per-row RO tax, so a zero or out-of-range rate would yield
+  // NaN/Infinity money. Require a sane fraction in (0, 1]. (RO capital gains are
+  // 0.10 for 2023-2025, 0.16 for 2026.)
   if (
     !Number.isFinite(result.capitalGains.taxRate) ||
     result.capitalGains.taxRate <= 0 ||
@@ -315,11 +454,9 @@ export function generateD212Xml(
   // Loss year. The engine clamps a net capital loss to netGains=0 and reports the
   // magnitude in `losses`. A correct D212 for a loss year needs the
   // pierdere-reportată (carry-forward) representation, which the engine does not
-  // yet model and the session #144 spike never verified against an accepted
-  // filing. Refuse rather than silently drop the loss into an incomplete
-  // declaration (this is qa's DEFECT-1). Mapping `losses` to a `str_pierdere_*`
-  // field is deferred until the correct v11 field is tax-verified AND the engine
-  // tracks carry-forward.
+  // yet model and no spike ever verified against an accepted filing. Refuse
+  // rather than silently drop the loss into an incomplete declaration (this is
+  // qa's DEFECT-1).
   if (result.capitalGains.losses > 0) {
     throw new Error(
       'generateD212Xml: cannot generate a D212 for a capital-loss year ' +
@@ -328,8 +465,30 @@ export function generateD212Xml(
     );
   }
 
+  // Past-year cycles had NO PF bonificatie (see the module doc), so a positive
+  // early-filing discount can only mean the result was computed with the wrong
+  // year's config. Refuse rather than bake an unclaimable discount into the file.
+  if (isPastYear && result.totals.earlyFilingDiscount > 0) {
+    throw new Error(
+      `generateD212Xml: result carries an early-filing discount (${result.totals.earlyFilingDiscount}) ` +
+        `but no bonificatie existed for the ${taxYear} income cycle. Year/result mismatch.`,
+    );
+  }
+
+  // Identity guards. The control sum derives from the CNP; the v9 forms require
+  // an address.
+  const totalPlataControl = cnpDigitSum(identity.cif.trim());
+  const adresa = (identity.adresa_c ?? '').trim();
+  if (isPastYear && adresa.length === 0) {
+    throw new Error(
+      `generateD212Xml: the ${taxYear} form version requires the filer address (adresa_c).`,
+    );
+  }
+
   const taxRate = result.capitalGains.taxRate;
   const divTaxRate = result.dividends.taxRate;
+  const periodStart = `01.01.${taxYear}`;
+  const periodEnd = `31.12.${taxYear}`;
 
   // --- Per-country grouping (PR 3) ---
   // Group income-bearing securities by ISIN source country. Per-security amounts
@@ -397,39 +556,69 @@ export function generateD212Xml(
   const capRows: string[] = [];
   let incomeTaxFromRows = 0;
   for (const c of countries) {
-    const den = denStat(c.code, c.isinSample);
+    // v11 emits the confirmed country label; v9 has no den_stat attribute, so
+    // past years work for ANY ISIN country (the 2-letter code is authoritative).
+    const den = profile.variant === 'v11' ? denStat(c.code, c.isinSample) : '';
 
     // Capital gains (code 2012): net == recalculat == gain, RO tax == dif ==
-    // rate*gain, no foreign tax/credit on capital gains.
+    // rate*gain, no foreign tax/credit on capital gains. The v9 structure docs
+    // REQUIRE venit_brut/chelt_deduc to be absent for code 2012 (both are
+    // omitted on every variant).
     const gainLei = lei(c.gain);
     if (gainLei >= 1) {
       const gainTax = lei(c.gain * taxRate);
       incomeTaxFromRows += gainTax;
-      capRows.push(
-        '<cap14' +
-          attrs({
-            str_categ_venit: CATEG_CODE_CAPITAL_GAINS,
-            str_stat_realiz_v: c.code,
-            den_stat: den,
-            den_categ_venit: CATEG_LABEL_CAPITAL_GAINS,
-            dubla_impunere: '1',
-            str_data_inceput: PERIOD_START,
-            str_data_sfarsit: PERIOD_END,
-            str_venit_net_anual: gainLei,
-            str_venit_recalculat: gainLei,
-            str_impozit_datorat_Ro: gainTax,
-            str_dif_impozit_datorat: gainTax,
-            str_impozit_platit: 0,
-            str_credit_fiscal: 0,
-            str_pierdere_compensata: 0,
-          }) +
-          '/>',
-      );
+      if (profile.variant === 'v11') {
+        capRows.push(
+          '<cap14' +
+            attrs({
+              str_categ_venit: CATEG_CODE_CAPITAL_GAINS,
+              str_stat_realiz_v: c.code,
+              den_stat: den,
+              den_categ_venit: CATEG_LABEL_CAPITAL_GAINS,
+              dubla_impunere: '1',
+              str_data_inceput: periodStart,
+              str_data_sfarsit: periodEnd,
+              str_venit_net_anual: gainLei,
+              str_venit_recalculat: gainLei,
+              str_impozit_datorat_Ro: gainTax,
+              str_dif_impozit_datorat: gainTax,
+              str_impozit_platit: 0,
+              str_credit_fiscal: 0,
+              str_pierdere_compensata: 0,
+            }) +
+            '/>',
+        );
+      } else {
+        // v9 (2023 + 2024): renamed date attrs, no den_* labels, no pierdere
+        // attributes (str_pierdere_compensata does not even exist in the
+        // 2024-season schema; with no prior losses both are correctly absent).
+        capRows.push(
+          '<cap14' +
+            attrs({
+              str_categ_venit: CATEG_CODE_CAPITAL_GAINS,
+              str_stat_realiz_v: c.code,
+              dubla_impunere: '1',
+              str_data_incep: periodStart,
+              str_data_sf: periodEnd,
+              str_venit_net_anual: gainLei,
+              str_venit_recalculat: gainLei,
+              str_impozit_datorat_Ro: gainTax,
+              str_dif_impozit_datorat: gainTax,
+              str_impozit_platit: 0,
+              str_credit_fiscal: 0,
+            }) +
+            '/>',
+        );
+      }
     }
 
-    // Dividends (code 2018): net_anual 0, recalculat == gross, RO tax ==
-    // rate*gross, foreign WHT credited up to the RO tax due (per country: an
-    // Irish 0-WHT distribution cannot borrow another country's credit).
+    // Dividends (code 2018): RO tax == rate*gross, foreign WHT credited up to the
+    // RO tax due (per country: an Irish 0-WHT distribution cannot borrow another
+    // country's credit). Row shape differs by generation: the accepted v11 filing
+    // carries venit_net_anual="0" + recalculat=gross; the v9 structure docs
+    // instead define venit_brut=gross and venit_net_anual = rd.1 - rd.2 = gross
+    // (no deductible costs on dividends), recalculat = net (no prior losses).
     const divLei = lei(c.div);
     const divWhtLei = lei(c.wht);
     if (divLei >= 1 || divWhtLei >= 1) {
@@ -437,33 +626,66 @@ export function generateD212Xml(
       const divCredit = Math.min(divRoTax, divWhtLei);
       const divDif = divRoTax - divCredit;
       incomeTaxFromRows += divDif;
-      capRows.push(
-        '<cap14' +
-          attrs({
-            str_categ_venit: CATEG_CODE_DIVIDENDS,
-            str_stat_realiz_v: c.code,
-            den_stat: den,
-            den_categ_venit: CATEG_LABEL_DIVIDENDS,
-            dubla_impunere: '1',
-            str_data_inceput: PERIOD_START,
-            str_data_sfarsit: PERIOD_END,
-            str_venit_net_anual: 0,
-            str_venit_recalculat: divLei,
-            str_impozit_datorat_Ro: divRoTax,
-            str_dif_impozit_datorat: divDif,
-            str_impozit_platit: divWhtLei,
-            str_credit_fiscal: divCredit,
-            str_pierdere_compensata: 0,
-          }) +
-          '/>',
-      );
+      if (profile.variant === 'v11') {
+        capRows.push(
+          '<cap14' +
+            attrs({
+              str_categ_venit: CATEG_CODE_DIVIDENDS,
+              str_stat_realiz_v: c.code,
+              den_stat: den,
+              den_categ_venit: CATEG_LABEL_DIVIDENDS,
+              dubla_impunere: '1',
+              str_data_inceput: periodStart,
+              str_data_sfarsit: periodEnd,
+              str_venit_net_anual: 0,
+              str_venit_recalculat: divLei,
+              str_impozit_datorat_Ro: divRoTax,
+              str_dif_impozit_datorat: divDif,
+              str_impozit_platit: divWhtLei,
+              str_credit_fiscal: divCredit,
+              str_pierdere_compensata: 0,
+            }) +
+            '/>',
+        );
+      } else {
+        capRows.push(
+          '<cap14' +
+            attrs({
+              str_categ_venit: CATEG_CODE_DIVIDENDS,
+              str_stat_realiz_v: c.code,
+              dubla_impunere: '1',
+              str_data_incep: periodStart,
+              str_data_sf: periodEnd,
+              str_venit_brut: divLei,
+              str_venit_net_anual: divLei,
+              str_venit_recalculat: divLei,
+              str_impozit_datorat_Ro: divRoTax,
+              str_dif_impozit_datorat: divDif,
+              str_impozit_platit: divWhtLei,
+              str_credit_fiscal: divCredit,
+            }) +
+            '/>',
+        );
+      }
     }
   }
 
-  // CASS: amountOwed is the fixed bracket sum; cass_baza is the plafond that
-  // bracket sits on, recovered as amountOwed / rate (e.g. 9720 / 0.10 = 97200).
+  // A declaration with zero income rows declares nothing: bifa121 would claim a
+  // foreign-income chapter the file does not contain (a validator error) and the
+  // user would be filing an empty legal document. Refuse.
+  if (capRows.length === 0) {
+    throw new Error(
+      'generateD212Xml: no declarable income (every category rounds below 1 leu). ' +
+        'There is nothing to put in the declaration; nothing to file.',
+    );
+  }
+
+  // CASS: amountOwed is the fixed bracket sum; bifa_cass_real + cass_baza are
+  // derived from it against the income year's plafoane (see cassBracket). The
+  // engine only ever produces 0 or an exact bracket amount.
+  const cassDue = result.healthContribution.amountOwed > 0;
   const cassDatorat = lei(result.healthContribution.amountOwed);
-  const cassBaza = lei(result.healthContribution.amountOwed / taxRate);
+  const bracket = cassDue ? cassBracket(result.healthContribution.amountOwed, cfg) : null;
   // cass_ven_inv stays the engine's already-summed investment income (the figure
   // that determined the CASS bracket), NOT the sum of the rounded cap14 venituri,
   // so the base is always consistent with cass_datorat's bracket. It can differ
@@ -472,67 +694,236 @@ export function generateD212Xml(
   const cassVenInv = lei(result.healthContribution.totalNonSalaryIncome);
 
   // Income tax + totals. Income tax is the sum of the emitted cap14 rows
-  // (bottom-up); bonificatie is the engine's early-filing discount (a rate policy,
-  // congruent to the leu with the row-summed income tax for real input).
+  // (bottom-up); bonificatie is the engine's early-filing discount (v11 only; the
+  // past-year guard above enforces 0 for 2023/2024).
   const incomeTax = incomeTaxFromRows;
   const bonif = lei(result.totals.earlyFilingDiscount);
   const difDePlata = incomeTax + cassDatorat;
 
-  // TODO(PR5): confirm totalPlata_A semantics (was 33 in the real filing,
-  // meaning TBD) via DUKIntegrator validation. Set to dif_de_plata for now.
-  const totalPlataA = difDePlata;
+  if (profile.variant === 'v11') {
+    // --- v11 (income 2025, filed 2026): modelled on the accepted filing. ---
+    // d212 root: control flags + identity. Only bifa121/132/18 are set (the
+    // foreign capital-gains + dividends + CASS chapters); all other bifa flags
+    // stay "0". statut="3", nerezident="0".
+    const rootAttrs = attrs({
+      xmlns: profile.xmlns,
+      an_r: String(profile.anR),
+      luna_r: '12',
+      d_rec: '0',
+      rectif1: '0',
+      rectif2: '0',
+      bifa_conformare: '0',
+      bifa121: '1',
+      bifa132: '1',
+      bifa18: '1',
+      bifa11: '0',
+      bifa12: '0',
+      bifa13: '0',
+      bifa14: '0',
+      bifa15: '0',
+      bifa16: '0',
+      bifa17: '0',
+      bifa19: '0',
+      bifa122: '0',
+      bifa131: '0',
+      nerezident: '0',
+      statut: '3',
+      nume_c: identity.nume_c,
+      initiala_c: identity.initiala_c,
+      prenume_c: identity.prenume_c,
+      cif: identity.cif,
+      cont_bancar: identity.cont_bancar,
+      telefon_c: identity.telefon_c,
+    });
 
-  // d212 root: control flags + identity. Only bifa121/132/18 are set (the
-  // foreign capital-gains + dividends + CASS chapters); all other bifa flags
-  // stay "0". statut="3", nerezident="0".
+    // oblig_realizat: realized CASS + income tax + bonificatie + totals (v11).
+    // bifa_cass_real is bracket-derived when CASS is due; a CASS-free result
+    // keeps the accepted filing's shape with zeroed amounts ('3' + zeros, the
+    // pre-existing v11 emit; restructuring that is gated on a DUKIntegrator run).
+    const obligRealizat = attrs({
+      bifa_cass_real: bracket ? bracket.bifa : '3',
+      cass_ven_inv: cassVenInv,
+      cass_total_ven: cassVenInv,
+      cass_baza: bracket ? bracket.baza : 0,
+      cass_datorat: cassDatorat,
+      cass_anuala: cassDatorat,
+      cass_dif_plus: cassDatorat,
+      cass_plus: cassDatorat,
+      oblcass_real_difPlus_dpi: cassDatorat,
+      oblimpoz_real_total: incomeTax,
+      oblimpoz_real_dif_deplata: incomeTax,
+      impozit_venit_plus: incomeTax,
+      oblimpozit_real_bonif: bonif,
+      dif_de_plata: difDePlata,
+      totalPlata_A: totalPlataControl,
+    });
+
+    return (
+      `<?xml version="1.0" encoding="UTF-8"?>` +
+      `<d212${rootAttrs}>` +
+      `<oblig_realizat${obligRealizat}/>` +
+      capRows.join('') +
+      `</d212>`
+    );
+  }
+
+  // --- v9 (incomes 2023 + 2024): built from the published season packages. ---
+  // Shared v9 identity: single full-name field + required address; the phone is
+  // digits-only per the structure docs ("Doar caractere numerice") and optional,
+  // so a value that strips to nothing is omitted.
+  const numeFull = [identity.nume_c, identity.initiala_c, identity.prenume_c]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(' ');
+  const telefonDigits = identity.telefon_c.replace(/\D/g, '');
+
+  const identityAttrs: Record<string, string | number> = {
+    nume_c: numeFull,
+    adresa_c: adresa,
+    ...(telefonDigits ? { telefon_c: telefonDigits } : {}),
+    cif: identity.cif,
+    nerezident: '0',
+    cont_bancar: identity.cont_bancar,
+  };
+
+  if (profile.variant === 'v9-2024') {
+    // Income 2023, season-2024 form (OPANAF 6/2024, an_r fixed to 2024).
+    // Root: every required bifa from the XSD, all 0 except bifa121 (foreign
+    // income -> cap14 present) and bifa132 (CASS due). bifa110 is the
+    // bonificatie flag: 0, none existed. bifa211 is optional and omitted.
+    const rootAttrs = attrs({
+      xmlns: profile.xmlns,
+      luna_r: '12',
+      an_r: String(profile.anR),
+      rectif1: '0',
+      rectif2: '0',
+      d_rec: '0',
+      totalPlata_A: totalPlataControl,
+      bifa111: '0',
+      bifa112: '0',
+      bifa113: '0',
+      bifa121: '1',
+      bifa122: '0',
+      bifa131: '0',
+      bifa132: cassDue ? '1' : '0',
+      bifa15: '0',
+      bifa19: '0',
+      bifa110: '0',
+      bifa14: '0',
+      bifa212: '0',
+      bifa213: '0',
+      bifa221: '0',
+      bifa222: '0',
+      ...identityAttrs,
+    });
+
+    // oblig_realizat, season-2024 shape. When CASS is due the structure doc
+    // requires ALL SEVEN cass_ven_* categories present (the non-investment ones
+    // as 0) plus total/baza/datorat; the summary is oblimpoz_real_total (sum of
+    // the cap14 difs) + oblimpoz_real_deplata (= total, no indemnizatii) and the
+    // CASS mirror oblcass_real / _difPlus / _deplata (= cass_datorat, nothing
+    // withheld). oblimpoz_real_dif_deplata exists only when anticipat is
+    // declared (not our case), and this season has no dif_de_plata attribute at
+    // all (the form computes the payable total). Bonificatie attrs omitted
+    // (bifa110=0).
+    const obligRealizat = attrs({
+      ...(cassDue && bracket
+        ? {
+            bifa_cass_real: bracket.bifa,
+            cass_ven_indp: 0,
+            cass_ven_dpi: 0,
+            cass_ven_asc: 0,
+            cass_ven_cfb: 0,
+            cass_ven_inv: cassVenInv,
+            cass_ven_asp: 0,
+            cass_ven_alt: 0,
+            cass_total_ven: cassVenInv,
+            cass_baza: bracket.baza,
+            cass_datorat: cassDatorat,
+          }
+        : {}),
+      oblimpoz_real_total: incomeTax,
+      oblimpoz_real_deplata: incomeTax,
+      ...(cassDue
+        ? {
+            oblcass_real: cassDatorat,
+            oblcass_real_difPlus: cassDatorat,
+            oblcass_real_deplata: cassDatorat,
+          }
+        : {}),
+    });
+
+    return (
+      `<?xml version="1.0" encoding="UTF-8"?>` +
+      `<d212${rootAttrs}>` +
+      `<oblig_realizat${obligRealizat}/>` +
+      capRows.join('') +
+      `</d212>`
+    );
+  }
+
+  // Income 2024, season-2025 form (OPANAF 7015/2024 cycle, an_r fixed to 2025).
+  // Root: adds bifa_succesor / anulare_litA / anulare_litB / bifa_conformare
+  // (all required by the XSD, all 0 for a plain original filing). bifa18 is this
+  // season's bonificatie flag: 0, none existed for PF. bifa132 = CASS due.
   const rootAttrs = attrs({
-    xmlns: 'mfp:anaf:dgti:d212:declaratie:v11',
-    an_r: '2026',
-    luna_r: '12',
+    xmlns: profile.xmlns,
     d_rec: '0',
     rectif1: '0',
     rectif2: '0',
+    totalPlata_A: totalPlataControl,
+    luna_r: '12',
+    an_r: String(profile.anR),
+    bifa_succesor: '0',
+    anulare_litA: '0',
+    anulare_litB: '0',
     bifa_conformare: '0',
+    bifa111: '0',
+    bifa112: '0',
+    bifa113: '0',
     bifa121: '1',
-    bifa132: '1',
-    bifa18: '1',
-    bifa11: '0',
-    bifa12: '0',
-    bifa13: '0',
-    bifa14: '0',
-    bifa15: '0',
-    bifa16: '0',
-    bifa17: '0',
-    bifa19: '0',
     bifa122: '0',
     bifa131: '0',
-    nerezident: '0',
-    statut: '3',
-    nume_c: identity.nume_c,
-    initiala_c: identity.initiala_c,
-    prenume_c: identity.prenume_c,
-    cif: identity.cif,
-    cont_bancar: identity.cont_bancar,
-    telefon_c: identity.telefon_c,
+    bifa132: cassDue ? '1' : '0',
+    bifa14: '0',
+    bifa15: '0',
+    bifa18: '0',
+    ...identityAttrs,
   });
 
-  // oblig_realizat: realized CASS + income tax + bonificatie + totals (v11).
+  // oblig_realizat, season-2025 shape. The CASS block moved to the lit. c)-h)
+  // family: bifa_cass_datorat_dpi flags the section that includes investment
+  // income (its structure-doc label names "venituri din investiţii" explicitly),
+  // with six cass_ven_* categories (no cass_ven_indp this season), the bracket
+  // pair, cass_datorat and cass_dif_plus (= datorat, nothing withheld). The
+  // summary chain per the doc: oblimpoz_real_dif_deplata = total (no anticipat),
+  // impozit_venit_plus = dif_deplata, oblcass_real_difPlus_dpi = cass_dif_plus,
+  // cass_plus = that, dif_de_plata = impozit_venit_plus + cass_plus. Bonificatie
+  // attrs omitted (bifa18=0).
   const obligRealizat = attrs({
-    bifa_cass_real: '3',
-    cass_ven_inv: cassVenInv,
-    cass_total_ven: cassVenInv,
-    cass_baza: cassBaza,
-    cass_datorat: cassDatorat,
-    cass_anuala: cassDatorat,
-    cass_dif_plus: cassDatorat,
-    cass_plus: cassDatorat,
-    oblcass_real_difPlus_dpi: cassDatorat,
+    ...(cassDue && bracket
+      ? {
+          bifa_cass_datorat_ai: '0',
+          bifa_cass_datorat_dpi: '1',
+          bifa_cass_real: bracket.bifa,
+          cass_ven_dpi: 0,
+          cass_ven_asc: 0,
+          cass_ven_cfb: 0,
+          cass_ven_inv: cassVenInv,
+          cass_ven_asp: 0,
+          cass_ven_alt: 0,
+          cass_total_ven: cassVenInv,
+          cass_baza: bracket.baza,
+          cass_datorat: cassDatorat,
+          cass_dif_plus: cassDatorat,
+        }
+      : {}),
     oblimpoz_real_total: incomeTax,
     oblimpoz_real_dif_deplata: incomeTax,
+    ...(cassDue ? { oblcass_real_difPlus_dpi: cassDatorat } : {}),
     impozit_venit_plus: incomeTax,
-    oblimpozit_real_bonif: bonif,
+    ...(cassDue ? { cass_plus: cassDatorat } : {}),
     dif_de_plata: difDePlata,
-    totalPlata_A: totalPlataA,
   });
 
   return (

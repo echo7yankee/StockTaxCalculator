@@ -31,6 +31,13 @@ const lossResult: TaxCalculationResult = {
   capitalGains: { ...goodResult.capitalGains, netGains: 0, losses: 500, taxOwed: 0 },
 };
 
+// A 2023-income result (8% dividends, no bonificatie) for the past-year form path.
+const past2023Result: TaxCalculationResult = {
+  ...goodResult,
+  taxYearId: '2023',
+  dividends: { ...goodResult.dividends, taxBeforeCredit: 16, foreignTaxCredit: 16, taxRate: 0.08 },
+};
+
 async function fillValidIdentity(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText(/Surname/), 'Popescu');
   await user.type(screen.getByLabelText(/Given name/), 'Ion');
@@ -53,9 +60,56 @@ describe('D212Download', () => {
     vi.restoreAllMocks();
   });
 
-  it('does not render for a non-2025 tax year', () => {
+  it('does not render for an unsupported tax year (2022 pre-CMP, 2026 unvalidated)', () => {
     render(<D212Download result={goodResult} securities={goodSecurities} taxYear={2026} />);
     expect(screen.queryByTestId('d212-download')).not.toBeInTheDocument();
+    render(<D212Download result={goodResult} securities={goodSecurities} taxYear={2022} />);
+    expect(screen.queryByTestId('d212-download')).not.toBeInTheDocument();
+  });
+
+  it('renders for past years with the form-version note; 2025 shows no note and no address field', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(
+      <D212Download result={past2023Result} securities={goodSecurities} taxYear={2023} />,
+    );
+    expect(screen.getByTestId('d212-download')).toBeInTheDocument();
+    const note = screen.getByTestId('d212-past-year-note');
+    // Which season's form + the original-vs-rectificativa warning.
+    expect(note).toHaveTextContent('income year 2023');
+    expect(note).toHaveTextContent('2024 filing-season version');
+    expect(note).toHaveTextContent(/already filed/i);
+    await user.click(screen.getByTestId('d212-open'));
+    expect(screen.getByLabelText(/Address/)).toBeInTheDocument();
+    unmount();
+
+    render(<D212Download result={goodResult} securities={goodSecurities} taxYear={2025} />);
+    expect(screen.queryByTestId('d212-past-year-note')).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('d212-open'));
+    expect(screen.queryByLabelText(/Address/)).not.toBeInTheDocument();
+  });
+
+  it('requires the address for a past year and embeds it in the v9 XML on success', async () => {
+    const user = userEvent.setup();
+    render(<D212Download result={past2023Result} securities={goodSecurities} taxYear={2023} />);
+    await user.click(screen.getByTestId('d212-open'));
+    await fillValidIdentity(user);
+    // Address left empty: submit must be blocked with a required error.
+    await user.click(screen.getByTestId('d212-submit'));
+    expect(screen.getByText('This field is required.')).toBeInTheDocument();
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+
+    await user.type(screen.getByLabelText(/Address/), 'Str. Exemplu Nr. 1, Arad');
+    await user.click(screen.getByTestId('d212-submit'));
+    await waitFor(() => expect(screen.getByTestId('d212-success')).toBeInTheDocument());
+
+    const blob = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls[0][0] as Blob;
+    const xml = await blob.text();
+    // Season-2024 form: v9 namespace, an_r 2024, single joined name + address.
+    expect(xml).toContain('mfp:anaf:dgti:d212:declaratie:v9');
+    expect(xml).toContain('an_r="2024"');
+    expect(xml).toContain('nume_c="Popescu Ion"');
+    expect(xml).toContain('adresa_c="Str. Exemplu Nr. 1, Arad"');
+    expect(xml).not.toContain('den_stat');
   });
 
   it('renders the open CTA for 2025 and reveals the form on click', async () => {
