@@ -789,6 +789,33 @@ describe('D212 v11 XML generator', () => {
         expect(attr(xml, 'totalPlata_A')).toBe('12'); // digits of 1900101000000
       });
 
+      it('emits the normalized (trimmed) CNP, not the padded input (qa #239 finding 2)', () => {
+        const result = pastResult(2023);
+        const padded: D212Identity = { ...PAST_IDENTITY, cif: ' 1900101000000 ' };
+        const xml = generateD212Xml(result, padded, usSecuritiesFor(result), 2023);
+        expect(attr(xml, 'cif')).toBe('1900101000000');
+        expect(attr(xml, 'totalPlata_A')).toBe('12');
+      });
+
+      it('rejects RO/XS ISIN prefixes on past years too (not foreign income / not in the nomenclator)', () => {
+        // RO-source income (e.g. BVB securities via IBKR) is not "venituri din
+        // strainatate" and the D212 country nomenclator has no RO entry; XS is an
+        // eurobond prefix, not a country. The v11 DEN_STAT gate already blocks
+        // these; the v9 paths must be equally loud (qa #239 finding 1).
+        const roResult = makeResult({
+          capitalGains: { netGains: 5000, taxOwed: 500, taxRate: 0.1 },
+          taxYearId: '2023',
+        });
+        const roSecurities = [makeSecurity({ isin: 'ROTLVAACNOR1', realizedGainLoss: 5000 })];
+        expect(() => generateD212Xml(roResult, PAST_IDENTITY, roSecurities, 2023)).toThrow(
+          /cannot be declared as foreign income/i,
+        );
+        const xsSecurities = [makeSecurity({ isin: 'XS0000000009', realizedGainLoss: 5000 })];
+        expect(() => generateD212Xml(roResult, PAST_IDENTITY, xsSecurities, 2023)).toThrow(
+          /cannot be declared as foreign income/i,
+        );
+      });
+
       it('throws when the past-year identity lacks the required address', () => {
         const result = pastResult(2023);
         expect(() =>

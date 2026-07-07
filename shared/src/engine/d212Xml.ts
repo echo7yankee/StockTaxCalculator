@@ -27,7 +27,7 @@
  *   named `d212_v7_20240709.xsd` but declares the v9 namespace), `an_r` fixed to
  *   2024. Field set + formulas from `structura_declaratieUnica_2024_v1.0.0`.
  *
- * Both past-year XSDs are committed under `__tests__/fixtures/` and a shape test
+ * Both past-year XSDs are committed under `test-data/fixtures/` and a shape test
  * asserts every emitted attribute exists in that year's schema.
  *
  * Load-bearing per-year differences (all read off the official structure docs,
@@ -249,6 +249,20 @@ function isoCountry(isin: string): string {
   if (!/^[A-Z]{2}$/.test(code)) {
     throw new Error(
       `generateD212Xml: cannot determine the source country from ISIN "${isin}". ` +
+        `This statement must be filed manually.`,
+    );
+  }
+  // cap14 is the FOREIGN-income section, and the D212 country nomenclator has no
+  // RO entry (verified against both season XSDs): Romanian-source income (e.g.
+  // BVB securities via IBKR) must not be declared there at all. XS (international
+  // eurobond ISINs) and EU are ISIN prefixes without a nomenclator country. The
+  // v11 path already rejects these structurally via the DEN_STAT gate; this keeps
+  // the past-year paths equally loud instead of failing later in DUKIntegrator
+  // with a raw schema error (qa #239 finding 1).
+  if (code === 'RO' || code === 'XS' || code === 'EU') {
+    throw new Error(
+      `generateD212Xml: ISIN "${isin}" (${code}) cannot be declared as foreign income ` +
+        `in cap14${code === 'RO' ? ' (Romanian-source income is not "venituri din străinătate")' : ''}. ` +
         `This statement must be filed manually.`,
     );
   }
@@ -475,9 +489,12 @@ export function generateD212Xml(
     );
   }
 
-  // Identity guards. The control sum derives from the CNP; the v9 forms require
-  // an address.
-  const totalPlataControl = cnpDigitSum(identity.cif.trim());
+  // Identity guards. The CNP is normalized once and the normalized value is both
+  // summed for the control and emitted (a padded-but-valid cif must not pass the
+  // guard yet emit whitespace that fails CnpSType; qa #239 finding 2). The v9
+  // forms require an address.
+  const cif = identity.cif.trim();
+  const totalPlataControl = cnpDigitSum(cif);
   const adresa = (identity.adresa_c ?? '').trim();
   if (isPastYear && adresa.length === 0) {
     throw new Error(
@@ -731,7 +748,7 @@ export function generateD212Xml(
       nume_c: identity.nume_c,
       initiala_c: identity.initiala_c,
       prenume_c: identity.prenume_c,
-      cif: identity.cif,
+      cif,
       cont_bancar: identity.cont_bancar,
       telefon_c: identity.telefon_c,
     });
@@ -781,7 +798,7 @@ export function generateD212Xml(
     nume_c: numeFull,
     adresa_c: adresa,
     ...(telefonDigits ? { telefon_c: telefonDigits } : {}),
-    cif: identity.cif,
+    cif,
     nerezident: '0',
     cont_bancar: identity.cont_bancar,
   };
