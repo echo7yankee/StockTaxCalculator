@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FileDown, ShieldCheck, AlertTriangle, Check } from 'lucide-react';
+import { FileDown, ShieldCheck, AlertTriangle, Check, Info } from 'lucide-react';
 import {
   generateD212Xml,
   D212_SUPPORTED_TAX_YEAR,
+  isD212SupportedTaxYear,
   type TaxCalculationResult,
   type SecurityBreakdown,
   type D212Identity,
@@ -25,8 +26,8 @@ interface Props {
   taxYear: number;
 }
 
-/** The five validated identity fields (the middle initial is optional). */
-type FieldKey = 'nume_c' | 'prenume_c' | 'cif' | 'cont_bancar' | 'telefon_c';
+/** The validated identity fields (the middle initial is optional). */
+type FieldKey = 'nume_c' | 'prenume_c' | 'cif' | 'cont_bancar' | 'telefon_c' | 'adresa_c';
 
 const EMPTY_ERRORS: Record<FieldKey, D212FieldError | null> = {
   nume_c: null,
@@ -34,6 +35,7 @@ const EMPTY_ERRORS: Record<FieldKey, D212FieldError | null> = {
   cif: null,
   cont_bancar: null,
   telefon_c: null,
+  adresa_c: null,
 };
 
 /** Triggers a browser download of `xml` as `fileName`, then revokes the object URL. */
@@ -52,15 +54,22 @@ function downloadXml(xml: string, fileName: string): void {
 /**
  * Identity-collection form + "Download D212 (.xml)" action.
  *
- * The generated Declaratia Unica XML (engine output -> ANAF v11) is the deepest
- * moat artifact, so this only renders on the already paid-gated ResultsPage and
- * only when the parse is clean (the caller hides it behind the #24A warning
- * hard-stop). The CNP/IBAN/name/phone collected here are used to fill the XML
+ * The generated Declaratia Unica XML (engine output -> the ANAF form version of
+ * the statement's income year: 2023/2024 on the v9 season schemas, 2025 on v11)
+ * is the deepest moat artifact, so this only renders on the already paid-gated
+ * ResultsPage and only when the parse is clean (the caller hides it behind the
+ * #24A warning hard-stop). The CNP/IBAN/name/phone (+ address for past years,
+ * required by those form versions) collected here are used to fill the XML
  * ENTIRELY in the browser via {@link generateD212Xml}: nothing is sent to the
  * server or persisted. The generator fails loud on a statement it cannot
  * faithfully represent (a loss year, an unsupported source country, a breakdown
  * that does not reconcile); we catch that and tell the user to file manually
  * rather than hand them a wrong declaration.
+ *
+ * Past years (2023/2024) additionally show: which season's form the file uses +
+ * a "validate in DUKIntegrator/SPV" caveat, and an ORIGINAL-declaration warning
+ * (someone who already filed a D212 for that year needs a rectificativa, which
+ * this generator cannot produce).
  */
 export default function D212Download({ result, securities, taxYear }: Props) {
   const { t } = useTranslation(['results', 'common']);
@@ -72,15 +81,20 @@ export default function D212Download({ result, securities, taxYear }: Props) {
     cif: '',
     cont_bancar: '',
     telefon_c: '',
+    adresa_c: '',
   });
   const [errors, setErrors] = useState<Record<FieldKey, D212FieldError | null>>(EMPTY_ERRORS);
   const [genError, setGenError] = useState(false);
   const [done, setDone] = useState(false);
 
-  // The generator is pinned to a single income year (its period + v11 constants
-  // are 2025-specific). Offer the download only for that year; other years must
-  // be filed manually until the generator is extended and re-validated.
-  if (taxYear !== D212_SUPPORTED_TAX_YEAR) return null;
+  // Each supported income year has its own validated form profile (2023/2024 on
+  // the published season XSDs, 2025 on the accepted-filing v11 structure). Any
+  // other year must be filed manually until a profile is added and re-validated.
+  if (!isD212SupportedTaxYear(taxYear)) return null;
+
+  // Past-year form versions require the filer address; the 2025 (v11) form
+  // carries no address attribute, so we do not collect it there.
+  const isPastYear = taxYear !== D212_SUPPORTED_TAX_YEAR;
 
   const set = (key: keyof typeof fields, value: string) => {
     setFields((prev) => ({ ...prev, [key]: value }));
@@ -100,6 +114,7 @@ export default function D212Download({ result, securities, taxYear }: Props) {
       cif: checkCnp(fields.cif),
       cont_bancar: checkIban(fields.cont_bancar),
       telefon_c: checkPhone(fields.telefon_c),
+      adresa_c: isPastYear ? checkRequiredText(fields.adresa_c) : null,
     };
     setErrors(nextErrors);
     setGenError(false);
@@ -113,11 +128,12 @@ export default function D212Download({ result, securities, taxYear }: Props) {
       cif: fields.cif.trim(),
       cont_bancar: normalizeIban(fields.cont_bancar),
       telefon_c: fields.telefon_c.trim(),
+      ...(isPastYear ? { adresa_c: fields.adresa_c.trim() } : {}),
     };
 
     let xml: string;
     try {
-      xml = generateD212Xml(result, identity, securities);
+      xml = generateD212Xml(result, identity, securities, taxYear);
     } catch {
       // Expected fail-loud path (loss year / unsupported country / non-reconciling
       // breakdown): not a bug to report, just a "file manually" case for the user.
@@ -136,6 +152,26 @@ export default function D212Download({ result, securities, taxYear }: Props) {
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold mb-1">{t('results:d212Title')}</h3>
           <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">{t('results:d212Body')}</p>
+
+          {isPastYear && (
+            <div
+              className="flex items-start gap-2 p-3 mb-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg"
+              data-testid="d212-past-year-note"
+            >
+              <Info className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="text-sm text-amber-800 dark:text-amber-200 space-y-1">
+                <p>
+                  {t('results:d212PastYearFormNote', {
+                    taxYear,
+                    seasonYear: taxYear + 1,
+                  })}
+                </p>
+                <p className="font-medium">
+                  {t('results:d212PastYearOriginalWarning', { taxYear })}
+                </p>
+              </div>
+            </div>
+          )}
 
           {!open && (
             <button
@@ -188,6 +224,14 @@ export default function D212Download({ result, securities, taxYear }: Props) {
                       onChange={(e) => set('cont_bancar', e.target.value)} />
                   )}
                 </FormField>
+                {isPastYear && (
+                  <FormField id="d212-adresa" label={t('results:d212FieldAddress')} error={errorText(errors.adresa_c, '')} hint={t('results:d212FieldAddressHint')} required>
+                    {(p) => (
+                      <input {...p} type="text" autoComplete="street-address" maxLength={200} value={fields.adresa_c}
+                        onChange={(e) => set('adresa_c', e.target.value)} />
+                    )}
+                  </FormField>
+                )}
               </div>
 
               <p className="flex items-start gap-2 text-xs text-gray-500 dark:text-slate-400" data-testid="d212-privacy">
