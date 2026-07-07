@@ -96,5 +96,9 @@
   "previewWaitlistHeading": "Notify me when it's ready",
   "previewWaitlistBody": "We'll email you when we add support for your case. No spam.",
   "previewContactYearLine": "I need tax year {{year}}.",
-  "previewContactBrokerLine": "I use {{broker}} (support in beta)."
+  "previewContactBrokerLine": "I use {{broker}} (support in beta).",
+  "previewOriginLabel": "Where is this statement from? (optional, helps us prioritize)",
+  "previewOriginNone": "Choose...",
+  "previewOriginCryptoOther": "Another crypto exchange",
+  "previewOriginBrokerOther": "Another broker"
 }

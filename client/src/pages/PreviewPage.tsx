@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -16,10 +16,16 @@ import { isEngineSupportedTaxYear } from '@shared/taxRules/taxYears';
 import { useStatementPreview } from '../hooks/useStatementPreview';
 import { useAuth } from '../contexts/AuthContext';
 import { evaluateParseEligibility } from '../lib/parseEligibility';
+import {
+  resolveBlockedCapture,
+  shouldAskStatementOrigin,
+  STATEMENT_ORIGINS,
+  type StatementOrigin,
+} from '../lib/blockedCapture';
 import { writePendingParse } from '../lib/pendingParse';
 import { analytics } from '../lib/analytics';
 import { CSV_BROKERS, BROKERS, type BrokerId } from '../lib/brokers';
-import EmailCapture, { type SubscribeTopic } from '../components/common/EmailCapture';
+import EmailCapture from '../components/common/EmailCapture';
 import PageMeta from '../components/common/PageMeta';
 
 /**
@@ -91,10 +97,31 @@ export default function PreviewPage() {
     if (!processing) startedRef.current = false;
   }, [processing]);
 
-  // The broker this preview belongs to: the PDF tab is Trading212-only, the CSV
-  // tab carries the selected broker.
-  const previewBroker: BrokerId = preview?.fileType === 'pdf' ? 'trading212' : csvBroker;
+  // The broker this ATTEMPT belongs to: the PDF tab is Trading212-only, the CSV
+  // tab carries the selected broker. When no preview landed (an unreadable file),
+  // the active tab still tells us which path the visitor tried.
+  const previewBroker: BrokerId =
+    (preview ? preview.fileType : activeTab) === 'pdf' ? 'trading212' : csvBroker;
   const brokerMeta = BROKERS[previewBroker];
+
+  // Optional self-identified statement origin on the blocked state (PR-4). Feeds
+  // the lead-capture list choice (a crypto origin joins the crypto-interest list).
+  // Reset in the upload/clear handlers below, so a pick made for one file never
+  // leaks into the next file's capture.
+  const [statementOrigin, setStatementOrigin] = useState<StatementOrigin | null>(null);
+
+  const onDrop = (e: React.DragEvent) => {
+    setStatementOrigin(null);
+    handleDrop(e);
+  };
+  const onFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setStatementOrigin(null);
+    handleFileInput(e);
+  };
+  const onClearPreview = () => {
+    setStatementOrigin(null);
+    clearPreview();
+  };
 
   // Year support comes from the engine-supported flag (the single source of
   // truth, backlog #13). We do NOT hardcode "2025": a missing config or a year
@@ -128,12 +155,15 @@ export default function PreviewPage() {
       : resolveVerdict({ historyBlocked: !!historyBlocked, hasWarnings, yearSupported })
     : 'green';
 
-  // Fire the gate outcome once per landed preview. gate_blocked carries the
-  // block reason (as a reason-suffixed event name; see analytics.ts). We keep
-  // the legacy previewClean/previewBlocked events so existing funnel dashboards
-  // do not lose coverage while the gate metrics ramp.
+  // Fire the gate outcome once per landed parse OUTCOME: a preview (parsed) or
+  // an error (unreadable). gate_blocked carries the block reason (as a
+  // reason-suffixed event name; see analytics.ts). Keying on error too is what
+  // makes `gate_blocked_unreadable` actually record: an unreadable file never
+  // produces a preview, so the old preview-only keying skipped it.
+  // We keep the legacy previewClean/previewBlocked events so existing funnel
+  // dashboards do not lose coverage while the gate metrics ramp.
   useEffect(() => {
-    if (!preview) return;
+    if (!preview && !error) return;
     if (eligibility.eligible) {
       analytics.gateEligible();
       analytics.previewClean();
@@ -141,24 +171,29 @@ export default function PreviewPage() {
       analytics.gateBlocked(eligibility.blockReason);
       analytics.previewBlocked();
     }
-    // eligibility is derived from preview/error/csvHistoryWarning; keying on
-    // preview fires once per landed parse.
+    // eligibility is derived from preview/error/csvHistoryWarning; keying on the
+    // preview/error pair fires once per landed outcome (the hook nulls both
+    // before each new attempt, so a re-upload re-fires exactly once).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preview]);
+  }, [preview, error]);
 
-  // Which waitlist (if any) fits an unsupported case: a beta broker -> its
-  // graduation list. The prior-year `prior_years` arm is retired here now that
-  // 2023/2024 are engine-supported (a clean prior-year file goes straight to
-  // unlock; a warning/history one goes to contact, like any supported year). The
-  // /ghid notificare demand-probe page still carries that waitlist for genuinely
-  // future-gated cases. Other unsupported years offer contact only.
-  const waitlistTopic: SubscribeTopic | null = !canUnlock
-    ? previewBroker === 'ibkr'
-      ? 'broker_ibkr'
-      : previewBroker === 'revolut'
-        ? 'broker_revolut'
-        : null
+  // Which waitlist a blocked visitor can join (PR-4: every block reason except
+  // the user-actionable missing-history one gets a capture path). The mapping
+  // lives in lib/blockedCapture.ts: beta brokers keep their graduation list,
+  // unsupported years go to a year list, unreadable/mismatched/empty statements
+  // go to the statement-support list (or the crypto-interest list when the
+  // visitor self-identifies a crypto origin below).
+  const blocked = !canUnlock && (preview !== null || error !== null);
+  const blockedCapture = blocked
+    ? resolveBlockedCapture({
+        reason: eligibility.blockReason ?? 'unreadable',
+        broker: brokerMeta,
+        year: preview?.year ?? null,
+        origin: statementOrigin,
+      })
     : null;
+  const showOriginAsk =
+    blocked && shouldAskStatementOrigin(eligibility.blockReason ?? 'unreadable', brokerMeta);
 
   // The green unlock path (backlog #24B Phase 2, PR-2 + PR-3). First stash the
   // PARSED result in sessionStorage so /upload?welcome=1 can rehydrate it and run the
@@ -208,13 +243,98 @@ export default function PreviewPage() {
         fileName: preview?.fileName,
         warnings: [
           ...(preview?.warnings ?? []),
+          ...(error ? [error] : []),
           ...(historyBlocked ? [t('csvMissingHistoryWarning')] : []),
-          ...(!yearSupported ? [t('previewContactYearLine', { year: preview?.year })] : []),
+          ...(preview && !yearSupported
+            ? [t('previewContactYearLine', { year: preview.year })]
+            : []),
           ...(brokerMeta.status === 'beta' ? [t('previewContactBrokerLine', { broker: brokerMeta.label })] : []),
         ],
       },
     });
   };
+
+  // Shared blocked-state CTA block (contact + optional origin select + the
+  // waitlist capture). Rendered both under a landed-but-blocked preview and
+  // under a bare parse error (the unreadable case, which has no preview card).
+  const originLabel = (origin: StatementOrigin): string => {
+    switch (origin) {
+      case 'binance':
+        return 'Binance';
+      case 'coinbase':
+        return 'Coinbase';
+      case 'kraken':
+        return 'Kraken';
+      case 'crypto_other':
+        return t('previewOriginCryptoOther');
+      case 'etoro':
+        return 'eToro';
+      case 'broker_other':
+        return t('previewOriginBrokerOther');
+    }
+  };
+
+  const blockedCtaSection = (
+    <div className="space-y-4">
+      <div className="card">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="font-semibold text-lg">{t('previewBlockedTitle')}</h2>
+            <p className="text-sm text-gray-600 dark:text-slate-400">{t('previewBlockedBody')}</p>
+          </div>
+          <button
+            onClick={goToContact}
+            className="btn-primary flex items-center justify-center gap-2 whitespace-nowrap self-start sm:self-auto"
+            data-testid="preview-contact-cta"
+          >
+            <MessageCircle className="w-5 h-5" />
+            {t('previewBlockedCta')}
+          </button>
+        </div>
+
+        {/* Optional origin self-identification: only for statement-level blocks
+            where we cannot tell which broker/exchange the file came from. A
+            crypto pick routes the capture below to the crypto-interest list
+            (board #6 demand instrumentation, not crypto support). */}
+        {showOriginAsk && (
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-navy-600">
+            <label htmlFor="statement-origin" className="block text-sm font-medium mb-2">
+              {t('previewOriginLabel')}
+            </label>
+            <select
+              id="statement-origin"
+              className="input"
+              value={statementOrigin ?? ''}
+              onChange={(e) =>
+                setStatementOrigin(e.target.value === '' ? null : (e.target.value as StatementOrigin))
+              }
+              data-testid="preview-origin-select"
+            >
+              <option value="">{t('previewOriginNone')}</option>
+              {STATEMENT_ORIGINS.map((o) => (
+                <option key={o} value={o}>
+                  {originLabel(o)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* Every capturable block reason gets a waitlist (PR-4); missing-history
+          deliberately gets none (the fix is re-exporting with full history). */}
+      {blockedCapture && (
+        <EmailCapture
+          topic={blockedCapture.topic}
+          source={blockedCapture.source}
+          variant="broker"
+          heading={t('previewWaitlistHeading')}
+          description={t('previewWaitlistBody')}
+          headingLevel={2}
+        />
+      )}
+    </div>
+  );
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
@@ -315,7 +435,7 @@ export default function PreviewPage() {
             }`}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
-            onDrop={handleDrop}
+            onDrop={onDrop}
             onClick={() => fileInputRef.current?.click()}
           >
             {processing ? (
@@ -367,7 +487,7 @@ export default function PreviewPage() {
             type="file"
             accept={activeTab === 'pdf' ? '.pdf' : csvBroker === 'revolut' ? '.xlsx,.csv' : '.csv'}
             multiple={activeTab === 'csv'}
-            onChange={handleFileInput}
+            onChange={onFileInput}
             className="hidden"
           />
         </div>
@@ -382,6 +502,12 @@ export default function PreviewPage() {
           </div>
         </div>
       )}
+
+      {/* Unreadable file (a parse error produces no preview card): still offer
+          the contact + lead-capture path, so the visitor whose file we could
+          not read becomes a demand signal instead of a bounce (PR-4; this is
+          where a Binance/crypto statement typically lands). */}
+      {error && !preview && <div className="mt-4">{blockedCtaSection}</div>}
 
       {/* Preview (parse health only, never engine output) */}
       {preview && (
@@ -406,7 +532,7 @@ export default function PreviewPage() {
                 </div>
               </div>
               <button
-                onClick={clearPreview}
+                onClick={onClearPreview}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-navy-700 rounded-lg transition-colors"
                 aria-label={t('previewClear')}
               >
@@ -605,36 +731,7 @@ export default function PreviewPage() {
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="card">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div>
-                    <h2 className="font-semibold text-lg">{t('previewBlockedTitle')}</h2>
-                    <p className="text-sm text-gray-600 dark:text-slate-400">{t('previewBlockedBody')}</p>
-                  </div>
-                  <button
-                    onClick={goToContact}
-                    className="btn-primary flex items-center justify-center gap-2 whitespace-nowrap self-start sm:self-auto"
-                    data-testid="preview-contact-cta"
-                  >
-                    <MessageCircle className="w-5 h-5" />
-                    {t('previewBlockedCta')}
-                  </button>
-                </div>
-              </div>
-
-              {/* When a fitting waitlist exists (beta broker or prior year), offer it. */}
-              {waitlistTopic && (
-                <EmailCapture
-                  topic={waitlistTopic}
-                  source="preview-checker"
-                  variant="broker"
-                  heading={t('previewWaitlistHeading')}
-                  description={t('previewWaitlistBody')}
-                  headingLevel={2}
-                />
-              )}
-            </div>
+            blockedCtaSection
           )}
         </div>
       )}
