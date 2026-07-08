@@ -631,6 +631,49 @@ describe('PreviewPage - unreadable file (parse error, PR-4)', () => {
   });
 });
 
+describe('PreviewPage - validation-rejected file (telemetry split from unreadable)', () => {
+  it('a wrong-extension file fires gate_blocked_rejected_file, not unreadable, and keeps the capture path', async () => {
+    // The Binance-.xlsx-on-the-PDF-tab class: validation rejects the file before
+    // any parser runs. The blocked STATE (error box + capture) is identical to
+    // unreadable; only the telemetry name splits, so the unreadable histogram
+    // counts real parse crashes only.
+    // applyAccept off: the browser dialog can be bypassed (drag-drop, "All
+    // files"), and that is exactly the path validateFile guards.
+    const user = userEvent.setup({ applyAccept: false });
+    const { container } = renderPage();
+    const rejected = new File(['not a statement'], 'export.xlsx', { type: 'application/octet-stream' });
+    await user.upload(findHiddenFileInput(container), rejected);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('preview-contact-cta')).toBeInTheDocument();
+    });
+    // No parser ever ran: the rejection happened at validation.
+    expect(mockExtractPdfPageTexts).not.toHaveBeenCalled();
+    // Same capture surface as the unreadable case (qa-confirmed correct: these
+    // ARE the unsupported-statement cohort, e.g. crypto exchange exports).
+    expect(screen.getByTestId('preview-origin-select')).toBeInTheDocument();
+    expect(screen.queryByTestId('preview-unlock-cta')).not.toBeInTheDocument();
+    // The telemetry split under test.
+    expect(analytics.gateBlocked).toHaveBeenCalledTimes(1);
+    expect(analytics.gateBlocked).toHaveBeenCalledWith('rejected_file');
+    expect(analytics.previewBlocked).toHaveBeenCalledTimes(1);
+    expect(analytics.gateEligible).not.toHaveBeenCalled();
+  });
+
+  it('an over-the-size-cap file also records as rejected_file', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    const oversized = makePdfFile('huge.pdf');
+    Object.defineProperty(oversized, 'size', { value: 11 * 1024 * 1024 });
+    await user.upload(findHiddenFileInput(container), oversized);
+
+    await waitFor(() => {
+      expect(analytics.gateBlocked).toHaveBeenCalledWith('rejected_file');
+    });
+    expect(mockExtractPdfPageTexts).not.toHaveBeenCalled();
+  });
+});
+
 describe('PreviewPage - analytics', () => {
   it('fires preview_started when a parse begins', async () => {
     const user = userEvent.setup();

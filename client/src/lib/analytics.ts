@@ -64,8 +64,13 @@ export const analytics = {
   // only (no dimension column, and adding one would need a DB migration). A null
   // reason should not happen on the blocked path, but is mapped defensively so a
   // stray call still records a countable event.
+  // `rejected_file` is a telemetry-only refinement of `unreadable`: the file
+  // never reached a parser (wrong extension / over the size cap, e.g. a Binance
+  // .xlsx on the CSV tab), so it must not pollute the real parse-crash count the
+  // unreadable histogram exists to measure. Eligibility and lead-capture still
+  // treat it as `unreadable`.
   gateEligible: () => send('gate_eligible'),
-  gateBlocked: (reason: GateBlockReason | null) =>
+  gateBlocked: (reason: GateBlockReason | 'rejected_file' | null) =>
     send(reason ? `gate_blocked_${reason}` : 'gate_blocked'),
   // Distribution widget (/embed/calculator): the calculator was run inside an
   // embed on a third-party site. Beacons same-origin (the iframe origin is ours),

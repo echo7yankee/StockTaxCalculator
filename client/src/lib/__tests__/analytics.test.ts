@@ -57,6 +57,12 @@ describe('analytics (first-party emitter)', () => {
     analytics.gateBlocked('wrong_broker');
     expect((await beaconBody(beacon.mock.calls[0][1])).name).toBe('gate_blocked_wrong_broker');
 
+    // Telemetry-only refinement of 'unreadable': a pre-parse validation
+    // rejection records under its own name so parse crashes stay countable.
+    beacon.mockClear();
+    analytics.gateBlocked('rejected_file');
+    expect((await beaconBody(beacon.mock.calls[0][1])).name).toBe('gate_blocked_rejected_file');
+
     // Defensive: a null reason falls back to the bare gate_blocked event.
     beacon.mockClear();
     analytics.gateBlocked(null);
