@@ -72,6 +72,7 @@ export default function PreviewPage() {
     dragOver,
     processing,
     error,
+    errorKind,
     preview,
     selectedYear,
     csvParse,
@@ -160,6 +161,10 @@ export default function PreviewPage() {
   // reason-suffixed event name; see analytics.ts). Keying on error too is what
   // makes `gate_blocked_unreadable` actually record: an unreadable file never
   // produces a preview, so the old preview-only keying skipped it.
+  // A pre-parse validation rejection (wrong extension / over the size cap, e.g.
+  // a Binance .xlsx) records as `rejected_file` instead of `unreadable`, so the
+  // unreadable histogram counts real parse crashes only. The blocked STATE is
+  // identical either way (same capture path); only the event name splits.
   // We keep the legacy previewClean/previewBlocked events so existing funnel
   // dashboards do not lose coverage while the gate metrics ramp.
   useEffect(() => {
@@ -168,12 +173,16 @@ export default function PreviewPage() {
       analytics.gateEligible();
       analytics.previewClean();
     } else {
-      analytics.gateBlocked(eligibility.blockReason);
+      analytics.gateBlocked(
+        eligibility.blockReason === 'unreadable' && errorKind === 'validation'
+          ? 'rejected_file'
+          : eligibility.blockReason,
+      );
       analytics.previewBlocked();
     }
-    // eligibility is derived from preview/error/csvHistoryWarning; keying on the
-    // preview/error pair fires once per landed outcome (the hook nulls both
-    // before each new attempt, so a re-upload re-fires exactly once).
+    // eligibility/errorKind are derived from (or set alongside) preview/error;
+    // keying on the preview/error pair fires once per landed outcome (the hook
+    // nulls both before each new attempt, so a re-upload re-fires exactly once).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preview, error]);
 

@@ -82,6 +82,16 @@ describe('resolveBlockedCapture - statement-level blocks (unreadable / wrong_bro
       resolveBlockedCapture({ reason: 'wrong_broker', broker: T212, year: 2025, origin: null }),
     ).toEqual({ topic: 'unsupported_statement', source: 'checker:wrong_broker' });
   });
+
+  it('a beta broker WITHOUT a dedicated waitlist never rides another broker list', () => {
+    // Guards the future: before this map existed, a third beta broker fell into
+    // a binary ternary and silently joined the Revolut list. An unmapped beta
+    // broker must land on the generic statement list, attributably.
+    const futureBeta = { id: 'etoro', label: 'eToro', status: 'beta' } as unknown as typeof IBKR;
+    expect(
+      resolveBlockedCapture({ reason: 'unreadable', broker: futureBeta, year: null, origin: null }),
+    ).toEqual({ topic: 'unsupported_statement', source: 'checker:unreadable:etoro' });
+  });
 });
 
 describe('resolveBlockedCapture - source stays inside the subscribe API cap', () => {

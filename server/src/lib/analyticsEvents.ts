@@ -30,6 +30,10 @@ export const ANALYTICS_EVENTS = [
   // fallback for a null-reason call.
   'gate_eligible',
   'gate_blocked',
+  // 'rejected_file' refines 'unreadable' in telemetry only: the file never
+  // reached a parser (wrong extension / over the size cap), so real parse
+  // crashes stay countable on their own. Capture behavior is identical.
+  'gate_blocked_rejected_file',
   'gate_blocked_unreadable',
   'gate_blocked_unsupported_year',
   'gate_blocked_missing_history',
