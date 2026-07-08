@@ -6,6 +6,7 @@ import EmailCapture from '../components/common/EmailCapture';
 import { taxYearInterpVars } from '../utils/taxYearVars';
 import { analytics } from '../lib/analytics';
 import { cassBracketLabelKey } from '../utils/cassBracket';
+import { isBeforeEarlyFilingDeadline } from '../utils/earlyFiling';
 import WhatIfSimulator from '../components/calculator/WhatIfSimulator';
 import { calculateQuickTax } from '@shared/engine/quickCalculator';
 import type { QuickTaxResult } from '@shared/engine/quickCalculator';
@@ -131,9 +132,11 @@ export default function CalculatorPage() {
             <div className="border-t border-gray-200 dark:border-navy-500 pt-3">
               <Row label={t('totalTaxOwed')} amount={result.totalOwed} currency={countryConfig.currency} bold />
             </div>
-            <div className="text-sm text-green-600 dark:text-green-400">
-              {t('earlyFilingDiscount', { deadline: countryConfig.earlyFilingDeadline, amount: result.earlyFilingDiscount.toFixed(2), currency: countryConfig.currency, rate: (countryConfig.earlyFilingDiscountRate * 100).toFixed(0) })}
-            </div>
+            {result.earlyFilingDiscount > 0 && isBeforeEarlyFilingDeadline(countryConfig.earlyFilingDeadline) && (
+              <div className="text-sm text-green-600 dark:text-green-400">
+                {t('earlyFilingDiscount', { deadline: countryConfig.earlyFilingDeadline, amount: result.earlyFilingDiscount.toFixed(2), currency: countryConfig.currency, rate: (countryConfig.earlyFilingDiscountRate * 100).toFixed(0) })}
+              </div>
+            )}
           </div>
         </div>
       )}

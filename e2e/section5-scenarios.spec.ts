@@ -46,6 +46,10 @@ async function login(page: Page, email: string) {
 
 test.describe('Scenario A — Free user, manual calculator', () => {
   test('full flow: landing → calculator → results with correct values', async ({ page }) => {
+    // Freeze to before the 15 Apr early-filing deadline so the date-gated
+    // "3% discount" line renders deterministically regardless of when CI runs.
+    await page.clock.setFixedTime(new Date('2026-03-01T10:00:00'));
+
     // Step 1: Visit landing page
     await page.goto('/');
     await expect(page.locator('h1')).toBeVisible();
