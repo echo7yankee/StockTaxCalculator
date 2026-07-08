@@ -1,10 +1,15 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { CountryProvider } from '../../contexts/CountryContext';
+import { isBeforeEarlyFilingDeadline } from '../../utils/earlyFiling';
 import CalculatorPage from '../CalculatorPage';
+
+vi.mock('../../utils/earlyFiling', () => ({
+  isBeforeEarlyFilingDeadline: vi.fn(() => true),
+}));
 
 function renderCalculator() {
   return render(
@@ -19,6 +24,10 @@ function renderCalculator() {
 }
 
 describe('CalculatorPage', () => {
+  beforeEach(() => {
+    vi.mocked(isBeforeEarlyFilingDeadline).mockReturnValue(true);
+  });
+
   it('renders the title and input fields', () => {
     renderCalculator();
     expect(screen.getByText('Tax Calculator')).toBeInTheDocument();
@@ -94,7 +103,8 @@ describe('CalculatorPage', () => {
     expect(screen.getByText(/minus withholding/)).toBeInTheDocument();
   });
 
-  it('shows early filing discount information', async () => {
+  it('shows early filing discount information before the deadline', async () => {
+    vi.mocked(isBeforeEarlyFilingDeadline).mockReturnValue(true);
     const user = userEvent.setup();
     renderCalculator();
 
@@ -105,5 +115,23 @@ describe('CalculatorPage', () => {
 
     // Early filing discount = 3% of income tax
     expect(screen.getByText(/3% discount/)).toBeInTheDocument();
+  });
+
+  it('hides the early filing discount once the deadline has passed', async () => {
+    // task_a9d89e13: after the bonificatie deadline (e.g. 15 Apr 2026) the 3%
+    // early-filing discount is forfeited, so the free calculator must not
+    // dangle a "file early to save" line the visitor can no longer act on.
+    vi.mocked(isBeforeEarlyFilingDeadline).mockReturnValue(false);
+    const user = userEvent.setup();
+    renderCalculator();
+
+    const inputs = screen.getAllByPlaceholderText('0');
+    await user.type(inputs[0], '10000');
+
+    await user.click(screen.getByText('Calculate'));
+
+    // Results still render, but the discount line is gone.
+    expect(screen.getByText('Results')).toBeInTheDocument();
+    expect(screen.queryByText(/3% discount/)).not.toBeInTheDocument();
   });
 });
