@@ -26,7 +26,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string) => Promise<void>;
-  loginWithGoogle: () => void;
+  loginWithGoogle: (redirect?: string) => void;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   exportData: () => Promise<void>;
@@ -94,8 +94,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     analytics.signupCompleted();
   }, []);
 
-  const loginWithGoogle = useCallback(() => {
-    window.location.href = '/api/auth/google';
+  // Threads the post-login destination (a same-site path like /pricing) through the
+  // OAuth round-trip; the server validates it on both legs and falls back to /dashboard.
+  const loginWithGoogle = useCallback((redirect?: string) => {
+    window.location.href = redirect
+      ? `/api/auth/google?redirect=${encodeURIComponent(redirect)}`
+      : '/api/auth/google';
   }, []);
 
   const logout = useCallback(async () => {

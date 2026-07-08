@@ -30,6 +30,9 @@ export default function LoginPage() {
   const safeRedirect = redirectParam && /^\/[^/]/.test(redirectParam) ? redirectParam : null;
   const from =
     (location.state as { from?: { pathname: string } })?.from?.pathname || safeRedirect || '/dashboard';
+  // Same destination threaded through the Google OAuth round-trip (server-validated
+  // there too); the default /dashboard needs no threading, the server falls back to it.
+  const googleRedirect = from === '/dashboard' ? undefined : from;
 
   const validateEmail = useCallback((value: string) => {
     if (!value) return t('common:validation.required');
@@ -147,7 +150,7 @@ export default function LoginPage() {
         </div>
 
         <button
-          onClick={loginWithGoogle}
+          onClick={() => loginWithGoogle(googleRedirect)}
           className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 dark:border-navy-600 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-navy-700 transition-colors"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">

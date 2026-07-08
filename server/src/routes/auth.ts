@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
@@ -442,15 +442,52 @@ authRouter.post('/change-password', async (req, res) => {
   }
 });
 
+// Same-site absolute path guard for the OAuth redirect stash. Mirrors the client
+// check in LoginPage/SignupPage but is re-applied server-side on BOTH legs of the
+// round-trip: rejects protocol-relative forms ("//host", "/\host": browsers treat
+// backslash as slash), header-splitting control chars, and absurd lengths, so the
+// callback redirect can never leave CLIENT_URL.
+export function isSafeOauthRedirectPath(path: string): boolean {
+  return /^\/[^/\\]/.test(path) && !/[\r\n]/.test(path) && path.length <= 512;
+}
+
+// Stash the post-login destination (e.g. /pricing from the pre-pay parse gate) in
+// the session so it survives the Google round-trip. An invalid or absent param also
+// CLEARS any stale stash so a previous attempt's destination can't leak into an
+// unrelated login.
+export function stashOauthRedirect(req: Request) {
+  const redirect = typeof req.query.redirect === 'string' ? req.query.redirect : undefined;
+  if (redirect && isSafeOauthRedirectPath(redirect)) {
+    req.session.oauthRedirect = redirect;
+  } else {
+    delete req.session.oauthRedirect;
+  }
+}
+
+// Success handler for the Google callback: consume the stash (single-use), re-validate
+// it, and fall back to /dashboard. Requires keepSessionInfo on the authenticate call,
+// because passport 0.6+ regenerates the session on login (fixation protection) and
+// would otherwise drop the stash before this handler runs.
+export function googleCallbackSuccessHandler(req: Request, res: Response) {
+  const stashed = req.session.oauthRedirect;
+  delete req.session.oauthRedirect;
+  const target = stashed && isSafeOauthRedirectPath(stashed) ? stashed : '/dashboard';
+  res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}${target}`);
+}
+
 // Google OAuth routes (only if configured)
 if (process.env.GOOGLE_CLIENT_ID) {
-  authRouter.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+  authRouter.get('/google', (req, res, next) => {
+    stashOauthRedirect(req);
+    passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+  });
 
   authRouter.get(
     '/google/callback',
-    passport.authenticate('google', { failureRedirect: `${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=google` }),
-    (_req, res) => {
-      res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/dashboard`);
-    },
+    passport.authenticate('google', {
+      failureRedirect: `${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=google`,
+      keepSessionInfo: true,
+    }),
+    googleCallbackSuccessHandler,
   );
 }

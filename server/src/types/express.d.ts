@@ -6,3 +6,11 @@ declare global {
     interface User extends PrismaUser {}
   }
 }
+
+declare module 'express-session' {
+  interface SessionData {
+    // Post-login destination stashed across the Google OAuth round-trip
+    // (set on GET /api/auth/google, consumed by the callback handler).
+    oauthRedirect?: string;
+  }
+}

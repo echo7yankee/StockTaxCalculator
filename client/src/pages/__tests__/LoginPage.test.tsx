@@ -172,10 +172,32 @@ describe('LoginPage - submission state machine', () => {
 });
 
 describe('LoginPage - Google flow', () => {
-  it('invokes loginWithGoogle when the Continue with Google button is clicked', async () => {
+  it('invokes loginWithGoogle with no destination on a clean /login arrival', async () => {
     const user = userEvent.setup();
     renderPage();
     await user.click(screen.getByRole('button', { name: /Continue with Google/ }));
     expect(mockLoginWithGoogle).toHaveBeenCalledTimes(1);
+    expect(mockLoginWithGoogle).toHaveBeenCalledWith(undefined);
+  });
+
+  it('threads a safe ?redirect= destination through loginWithGoogle', async () => {
+    const user = userEvent.setup();
+    renderPage(['/login?redirect=/pricing']);
+    await user.click(screen.getByRole('button', { name: /Continue with Google/ }));
+    expect(mockLoginWithGoogle).toHaveBeenCalledWith('/pricing');
+  });
+
+  it('threads a protected-route intent (location.state.from) through loginWithGoogle', async () => {
+    const user = userEvent.setup();
+    renderPage([{ pathname: '/login', state: { from: { pathname: '/upload' } } }]);
+    await user.click(screen.getByRole('button', { name: /Continue with Google/ }));
+    expect(mockLoginWithGoogle).toHaveBeenCalledWith('/upload');
+  });
+
+  it('drops an unsafe ?redirect= (protocol-relative) instead of threading it', async () => {
+    const user = userEvent.setup();
+    renderPage(['/login?redirect=//evil.example']);
+    await user.click(screen.getByRole('button', { name: /Continue with Google/ }));
+    expect(mockLoginWithGoogle).toHaveBeenCalledWith(undefined);
   });
 });
