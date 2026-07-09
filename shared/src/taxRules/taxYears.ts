@@ -8,6 +8,12 @@ export interface TaxYearConfig {
   // only with OUG 8/2026, for 2025 incomes). Pair null with earlyFilingDiscountRate 0.
   earlyFilingDeadlineRo: string | null;
   earlyFilingDeadlineEn: string | null;
+  // Machine-readable (ISO yyyy-mm-dd, Europe/Bucharest) form of the early-filing
+  // deadline, or null when no bonificatie existed. The bonificatie is forfeited
+  // unless the DU is filed AND paid in full by this date inclusive (OUG 8/2026 for
+  // the 2025 cycle), so the D212 emit gates the discount on filingDate <= this date.
+  // Must stay consistent with earlyFilingDeadlineRo/En and earlyFilingDiscountRate.
+  earlyFilingDeadlineIso: string | null;
   minimumWageMonthly: number;
   cassThresholds: {
     six: number;
@@ -47,6 +53,7 @@ export const TAX_YEARS: Record<number, TaxYearConfig> = {
     filingDeadlineEn: 'May 27, 2024',
     earlyFilingDeadlineRo: null, // no bonificatie for the 2023-income cycle
     earlyFilingDeadlineEn: null,
+    earlyFilingDeadlineIso: null,
     minimumWageMonthly: 3000, // HG 1447/2022
     cassThresholds: {
       six: 18000,
@@ -67,6 +74,7 @@ export const TAX_YEARS: Record<number, TaxYearConfig> = {
     filingDeadlineEn: 'May 26, 2025',
     earlyFilingDeadlineRo: null, // no PF bonificatie for the 2024-income cycle (the OUG 107/2024 3% was firms-only)
     earlyFilingDeadlineEn: null,
+    earlyFilingDeadlineIso: null,
     minimumWageMonthly: 3300, // HG 900/2023; the Jul-2024 raise to 3.700 (HG 598/2024) does NOT anchor the plafon
     cassThresholds: {
       six: 19800,
@@ -87,6 +95,7 @@ export const TAX_YEARS: Record<number, TaxYearConfig> = {
     filingDeadlineEn: 'May 25, 2026',
     earlyFilingDeadlineRo: '15 aprilie 2026',
     earlyFilingDeadlineEn: 'April 15, 2026',
+    earlyFilingDeadlineIso: '2026-04-15', // OUG 8/2026: file + pay in full by this date inclusive to claim the 3% bonificatie
     minimumWageMonthly: 4050,
     cassThresholds: {
       six: 24300,
@@ -113,6 +122,7 @@ export const TAX_YEARS: Record<number, TaxYearConfig> = {
     filingDeadlineEn: 'May 25, 2027', // F4
     earlyFilingDeadlineRo: '15 aprilie 2027', // F4
     earlyFilingDeadlineEn: 'April 15, 2027', // F4
+    earlyFilingDeadlineIso: '2027-04-15', // F4: carried from the 2025 cycle, unverified for 2027 (dormant year)
     minimumWageMonthly: 4050, // V4: H1 2026 value (rises to 4.325 from Jul 1, HG 146/2025). F1: 4.050 anchors the annual investment plafon (best reading, flagged).
     cassThresholds: {
       // F1: 6/12/24 x 4.050, identical to 2025. Contested vs 4.325-based 25.950/51.900/103.800.

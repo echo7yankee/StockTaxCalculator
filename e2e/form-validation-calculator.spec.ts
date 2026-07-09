@@ -95,6 +95,9 @@ test.describe('Scenario J: Calculator decimal input handling', () => {
 
 test.describe('Scenario J: Calculator CASS bracket thresholds', () => {
   test.beforeEach(async ({ page }) => {
+    // Freeze to before the 15 Apr early-filing deadline so the date-gated
+    // "3% discount" line renders deterministically regardless of when CI runs.
+    await page.clock.setFixedTime(new Date('2026-03-01T10:00:00'));
     await page.goto('/calculator');
     const cookieBtn = page.getByRole('button', { name: /Got it/i });
     if (await cookieBtn.isVisible({ timeout: 1000 }).catch(() => false)) {

@@ -2,6 +2,9 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Quick Calculator', () => {
   test.beforeEach(async ({ page }) => {
+    // Freeze to before the 15 Apr early-filing deadline so the date-gated
+    // "3% discount" line renders deterministically regardless of when CI runs.
+    await page.clock.setFixedTime(new Date('2026-03-01T10:00:00'));
     await page.goto('/calculator');
   });
 

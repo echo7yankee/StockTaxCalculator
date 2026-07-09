@@ -1,6 +1,6 @@
 import { getLatestEngineSupportedConfig } from '@shared/taxRules/taxYears';
 import type { GateBlockReason } from './parseEligibility';
-import type { BrokerMeta } from './brokers';
+import type { BrokerId, BrokerMeta } from './brokers';
 import type { SubscribeTopic } from '../components/common/EmailCapture';
 
 /**
@@ -61,6 +61,14 @@ const STATEMENT_LEVEL_REASONS: ReadonlySet<GateBlockReason> = new Set([
   'empty',
 ]);
 
+/** Graduation waitlist per beta broker. Explicit so a future beta broker
+ *  without its own topic can never silently ride another broker's list (it
+ *  falls through to the generic statement-level capture instead). */
+const BETA_BROKER_TOPICS: Partial<Record<BrokerId, SubscribeTopic>> = {
+  ibkr: 'broker_ibkr',
+  revolut: 'broker_revolut',
+};
+
 export interface BlockedCaptureInput {
   reason: GateBlockReason;
   /** Best-known broker for the attempt (PDF tab -> Trading 212; CSV tab -> the
@@ -107,8 +115,12 @@ export function resolveBlockedCapture(input: BlockedCaptureInput): BlockedCaptur
   if (broker.status === 'beta') {
     // A known beta broker keeps its graduation waitlist (same list the checker
     // offered before PR-4), with the reason now carried in the source.
-    const topic: SubscribeTopic = broker.id === 'ibkr' ? 'broker_ibkr' : 'broker_revolut';
-    return { topic, source: `checker:${reason}` };
+    const topic = BETA_BROKER_TOPICS[broker.id];
+    if (topic) return { topic, source: `checker:${reason}` };
+    // A beta broker with no dedicated list yet: generic statement capture, with
+    // the broker id in the source so the row stays attributable (the origin
+    // select is not shown for beta attempts, so origin is null here).
+    return { topic: 'unsupported_statement', source: `checker:${reason}:${broker.id}` };
   }
 
   if (origin && CRYPTO_ORIGINS.has(origin)) {
