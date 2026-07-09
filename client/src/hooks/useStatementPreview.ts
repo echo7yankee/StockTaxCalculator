@@ -31,6 +31,14 @@ import type { BrokerId } from '../lib/brokers';
 
 export type FileType = 'csv' | 'pdf';
 
+/** How an attempt failed, when `error` is set. A `validation` rejection never
+ *  reached a parser (wrong extension for the tab, or over the 10MB cap); a
+ *  `parse` failure means the file was accepted but could not be read (a thrown
+ *  parser error, or a CSV with no data rows). Telemetry uses the distinction so
+ *  the gate's unreadable histogram is not polluted by pre-parse rejections;
+ *  eligibility and lead-capture treat both the same (blocked, capturable). */
+export type PreviewErrorKind = 'validation' | 'parse';
+
 /** Fields common to both statement kinds. */
 interface PreviewBase {
   fileName: string;
@@ -94,6 +102,9 @@ export interface UseStatementPreviewResult {
   dragOver: boolean;
   processing: boolean;
   error: string | null;
+  /** Whether `error` came from pre-parse validation or a failed parse; null
+   *  whenever `error` is null. */
+  errorKind: PreviewErrorKind | null;
   preview: PreviewData | null;
   selectedYear: number;
   csvParse: MergedParseResult | null;
@@ -126,6 +137,7 @@ export function useStatementPreview(options: UseStatementPreviewOptions = {}): U
   const [dragOver, setDragOver] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<PreviewErrorKind | null>(null);
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear() - 1);
   const [csvHistoryWarning, setCsvHistoryWarning] = useState(false);
@@ -205,12 +217,14 @@ export function useStatementPreview(options: UseStatementPreviewOptions = {}): U
 
   const reportCsvNoData = useCallback((file: File) => {
     setError(t('csvNoData'));
+    setErrorKind('parse');
     setProcessing(false);
     reportParseEvent({ fileType: 'csv', outcome: 'error', fileName: file.name, errorMessage: 'CSV contains no data rows' });
   }, [t]);
 
   const reportCsvError = useCallback((file: File, message: string) => {
     setError(t('failedParseCsv', { message }));
+    setErrorKind('parse');
     setProcessing(false);
     reportParseEvent({ fileType: 'csv', outcome: 'error', fileName: file.name, errorMessage: message });
   }, [t]);
@@ -323,6 +337,7 @@ export function useStatementPreview(options: UseStatementPreviewOptions = {}): U
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       setError(t('failedParsePdf', { message }));
+      setErrorKind('parse');
       setProcessing(false);
       reportParseEvent({
         fileType: 'pdf',
@@ -355,6 +370,7 @@ export function useStatementPreview(options: UseStatementPreviewOptions = {}): U
   // annual statement); CSV accepts multiple files and merges them.
   const processFiles = useCallback((files: File[]) => {
     setError(null);
+    setErrorKind(null);
     setPreview(null);
     setCsvParse(null);
     setPdfData(null);
@@ -363,13 +379,13 @@ export function useStatementPreview(options: UseStatementPreviewOptions = {}): U
     if (activeTab === 'pdf') {
       const file = files[0];
       const validationError = validateFile(file);
-      if (validationError) { setError(validationError); return; }
+      if (validationError) { setError(validationError); setErrorKind('validation'); return; }
       setProcessing(true);
       processPdf(file);
     } else {
       for (const file of files) {
         const validationError = validateFile(file);
-        if (validationError) { setError(validationError); return; }
+        if (validationError) { setError(validationError); setErrorKind('validation'); return; }
       }
       setProcessing(true);
       processCsvFiles(files, csvBroker);
@@ -391,6 +407,7 @@ export function useStatementPreview(options: UseStatementPreviewOptions = {}): U
   const handleTabChange = useCallback((tab: FileType) => {
     setActiveTab(tab);
     setError(null);
+    setErrorKind(null);
     setPreview(null);
     setCsvParse(null);
     setPdfData(null);
@@ -400,6 +417,7 @@ export function useStatementPreview(options: UseStatementPreviewOptions = {}): U
   const handleCsvBrokerChange = useCallback((broker: BrokerId) => {
     setCsvBroker(broker);
     setError(null);
+    setErrorKind(null);
     setPreview(null);
     setCsvParse(null);
     setCsvHistoryWarning(false);
@@ -410,6 +428,7 @@ export function useStatementPreview(options: UseStatementPreviewOptions = {}): U
     setCsvParse(null);
     setPdfData(null);
     setError(null);
+    setErrorKind(null);
     setCsvHistoryWarning(false);
   }, []);
 
@@ -420,6 +439,7 @@ export function useStatementPreview(options: UseStatementPreviewOptions = {}): U
     dragOver,
     processing,
     error,
+    errorKind,
     preview,
     selectedYear,
     csvParse,
