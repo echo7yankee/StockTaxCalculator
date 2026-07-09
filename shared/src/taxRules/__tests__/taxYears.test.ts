@@ -17,6 +17,7 @@ describe('TAX_YEARS config', () => {
     expect(cfg.filingDeadlineEn).toBe('May 27, 2024');
     expect(cfg.earlyFilingDeadlineRo).toBeNull();
     expect(cfg.earlyFilingDeadlineEn).toBeNull();
+    expect(cfg.earlyFilingDeadlineIso).toBeNull();
     expect(cfg.minimumWageMonthly).toBe(3000);
     expect(cfg.cassThresholds).toEqual({ six: 18000, twelve: 36000, twentyFour: 72000 });
     expect(cfg.nonResidentBrokerCapGainsRate).toBe(0.10);
@@ -36,6 +37,7 @@ describe('TAX_YEARS config', () => {
     expect(cfg.filingDeadlineEn).toBe('May 26, 2025');
     expect(cfg.earlyFilingDeadlineRo).toBeNull();
     expect(cfg.earlyFilingDeadlineEn).toBeNull();
+    expect(cfg.earlyFilingDeadlineIso).toBeNull();
     expect(cfg.minimumWageMonthly).toBe(3300);
     expect(cfg.cassThresholds).toEqual({ six: 19800, twelve: 39600, twentyFour: 79200 });
     expect(cfg.nonResidentBrokerCapGainsRate).toBe(0.10);
@@ -55,6 +57,7 @@ describe('TAX_YEARS config', () => {
     expect(cfg.filingDeadlineEn).toBe('May 25, 2026');
     expect(cfg.earlyFilingDeadlineRo).toBe('15 aprilie 2026');
     expect(cfg.earlyFilingDeadlineEn).toBe('April 15, 2026');
+    expect(cfg.earlyFilingDeadlineIso).toBe('2026-04-15');
     expect(cfg.minimumWageMonthly).toBe(4050);
     expect(cfg.cassThresholds).toEqual({ six: 24300, twelve: 48600, twentyFour: 97200 });
     expect(cfg.nonResidentBrokerCapGainsRate).toBe(0.10);
@@ -74,6 +77,7 @@ describe('TAX_YEARS config', () => {
     expect(cfg.filingDeadlineEn).toBe('May 25, 2027');
     expect(cfg.earlyFilingDeadlineRo).toBe('15 aprilie 2027');
     expect(cfg.earlyFilingDeadlineEn).toBe('April 15, 2027');
+    expect(cfg.earlyFilingDeadlineIso).toBe('2027-04-15');
     expect(cfg.minimumWageMonthly).toBe(4050);
     expect(cfg.cassThresholds).toEqual({ six: 24300, twelve: 48600, twentyFour: 97200 });
     expect(cfg.nonResidentBrokerCapGainsRate).toBe(0.16);

@@ -464,6 +464,40 @@ describe('generateAuditTrailCsv', () => {
       expect(csv).toContain('Total after discount,251.34');
     });
 
+    it('still shows the discount rows when the deadline is ahead (showEarlyFilingDiscount true)', () => {
+      const result = makeResult({ totals: { totalTaxOwed: 264.57, earlyFilingDiscount: 13.23, totalAfterDiscount: 251.34 } });
+      const csv = generateAuditTrailCsv(
+        { result, securities: [], transactions: [], taxYear: 2025, fileName: 'f', brokerLabel: 'b', showEarlyFilingDiscount: true },
+        labels,
+      );
+      expect(csv).toContain('Early discount,13.23');
+      expect(csv).toContain('Total after discount,251.34');
+    });
+
+    it('omits the discount rows once a real discount is forfeited past the deadline', () => {
+      const result = makeResult({ totals: { totalTaxOwed: 264.57, earlyFilingDiscount: 13.23, totalAfterDiscount: 251.34 } });
+      const csv = generateAuditTrailCsv(
+        { result, securities: [], transactions: [], taxYear: 2025, fileName: 'f', brokerLabel: 'b', showEarlyFilingDiscount: false },
+        labels,
+      );
+      expect(csv).not.toContain('Early discount');
+      expect(csv).not.toContain('Total after discount');
+      // The full tax total is still reported.
+      expect(csv).toContain('Total tax,264.57');
+    });
+
+    it('keeps the zero-discount rows even past the deadline (nothing to forfeit)', () => {
+      // A no-discount result (e.g. a 2023/2024 filing) has no reduction to lose, so
+      // the 0.00 rows stay for a complete reconciliation.
+      const result = makeResult({ totals: { totalTaxOwed: 220, earlyFilingDiscount: 0, totalAfterDiscount: 220 } });
+      const csv = generateAuditTrailCsv(
+        { result, securities: [], transactions: [], taxYear: 2024, fileName: 'f', brokerLabel: 'b', showEarlyFilingDiscount: false },
+        labels,
+      );
+      expect(csv).toContain('Early discount,0.00');
+      expect(csv).toContain('Total after discount,220.00');
+    });
+
     it('renders a non-round rate as a trimmed percent', () => {
       const csv = generateAuditTrailCsv(
         { result: makeResult({ capitalGains: { ...makeResult().capitalGains, taxRate: 0.16 } }), securities: [], transactions: [], taxYear: 2026, fileName: 'f', brokerLabel: 'b' },
