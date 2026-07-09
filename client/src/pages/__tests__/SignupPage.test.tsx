@@ -35,10 +35,10 @@ import SignupPage from '../SignupPage';
 
 const VALID_PASSWORD = 'TestPass2026!';
 
-function renderPage() {
+function renderPage(initialEntries: string[] = ['/signup']) {
   return render(
     <HelmetProvider>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={initialEntries}>
         <SignupPage />
       </MemoryRouter>
     </HelmetProvider>
@@ -188,10 +188,25 @@ describe('SignupPage - submission state machine', () => {
 });
 
 describe('SignupPage - Google flow', () => {
-  it('invokes loginWithGoogle when the Continue with Google button is clicked', async () => {
+  it('invokes loginWithGoogle with no destination on a clean /signup arrival', async () => {
     const user = userEvent.setup();
     renderPage();
     await user.click(screen.getByRole('button', { name: /Continue with Google/ }));
     expect(mockLoginWithGoogle).toHaveBeenCalledTimes(1);
+    expect(mockLoginWithGoogle).toHaveBeenCalledWith(undefined);
+  });
+
+  it('threads a safe ?redirect= destination through loginWithGoogle', async () => {
+    const user = userEvent.setup();
+    renderPage(['/signup?redirect=/pricing']);
+    await user.click(screen.getByRole('button', { name: /Continue with Google/ }));
+    expect(mockLoginWithGoogle).toHaveBeenCalledWith('/pricing');
+  });
+
+  it('drops an unsafe ?redirect= (protocol-relative) instead of threading it', async () => {
+    const user = userEvent.setup();
+    renderPage(['/signup?redirect=//evil.example']);
+    await user.click(screen.getByRole('button', { name: /Continue with Google/ }));
+    expect(mockLoginWithGoogle).toHaveBeenCalledWith(undefined);
   });
 });
