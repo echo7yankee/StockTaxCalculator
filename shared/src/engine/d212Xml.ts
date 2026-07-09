@@ -383,6 +383,11 @@ interface CountryIncome {
  *   attribute income to source countries.
  * @param taxYear Income year to generate for; defaults to
  *   {@link D212_SUPPORTED_TAX_YEAR}. Must match the result's own year.
+ * @param filingDate When the declaration is being filed; defaults to now. Gates
+ *   the 2025 bonificatie: the 3% early-filing discount (OUG 8/2026) is emitted
+ *   only when filingDate is on or before that year's early-filing deadline
+ *   (15 Apr 2026 inclusive), and zeroed otherwise, because a late filing forfeits
+ *   it. Has no effect on past-year (2023/2024) forms, which never had a bonificatie.
  * @returns A D212 XML document string on that year's form version.
  * @throws If the year is unsupported or contradicts `result.taxYearId`; if
  *   `result` is out of domain: a non-finite or negative money field, a
@@ -403,6 +408,7 @@ export function generateD212Xml(
   identity: D212Identity,
   securities: SecurityBreakdown[],
   taxYear: number = D212_SUPPORTED_TAX_YEAR,
+  filingDate: Date = new Date(),
 ): string {
   const profile = D212_PROFILES[taxYear];
   if (!profile) {
@@ -713,8 +719,22 @@ export function generateD212Xml(
   // Income tax + totals. Income tax is the sum of the emitted cap14 rows
   // (bottom-up); bonificatie is the engine's early-filing discount (v11 only; the
   // past-year guard above enforces 0 for 2023/2024).
+  //
+  // The bonificatie (OUG 8/2026, 3% for 2025 income) is FORFEITED unless the DU is
+  // filed and paid in full by the early-filing deadline inclusive (15 Apr 2026 for
+  // the 2025 cycle). A declaration produced after that date is a late filing and
+  // MUST declare 0, or it understates the tax and ANAF rejects/claws it back. Since
+  // that deadline has already passed, every 2025 declaration generated now is late:
+  // the discount only survives for a filingDate on or before the deadline (e.g. the
+  // golden regression fixture, Dragos's real on-time 2026-04-10 filing). The engine
+  // still reports earlyFilingDiscount for display ("what you could have saved"); the
+  // declaration reflects only what can actually be claimed. Past-year v9 paths never
+  // reach a positive discount here (guarded above; no bonificatie ever existed).
   const incomeTax = incomeTaxFromRows;
-  const bonif = lei(result.totals.earlyFilingDiscount);
+  const bonificatieOnTime =
+    cfg.earlyFilingDeadlineIso != null &&
+    filingDate.getTime() <= Date.parse(`${cfg.earlyFilingDeadlineIso}T23:59:59+03:00`);
+  const bonif = bonificatieOnTime ? lei(result.totals.earlyFilingDiscount) : 0;
   const difDePlata = incomeTax + cassDatorat;
 
   if (profile.variant === 'v11') {

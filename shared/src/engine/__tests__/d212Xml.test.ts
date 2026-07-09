@@ -127,6 +127,14 @@ function obligRealizat(xml: string): string {
   return m![0];
 }
 
+// The 2025 bonificatie (OUG 8/2026, 3%) is forfeited unless the DU is filed by
+// 15 Apr 2026 inclusive, so generateD212Xml gates it on filingDate. Dragos's real
+// filing was on-time (2026-04-10); every declaration generated after the deadline
+// (the default `new Date()` now) is late and must declare 0. These pin the two
+// clocks the emit branches on.
+const ON_TIME_2025 = new Date('2026-04-10T12:00:00+03:00'); // <= 15 Apr 2026 -> bonificatie applies
+const LATE_2025 = new Date('2026-04-16T12:00:00+03:00'); // >  15 Apr 2026 -> bonificatie forfeited
+
 describe('D212 v11 XML generator', () => {
   describe('golden regression lock (real 2025 statement -> engine -> per-country XML)', () => {
     const parsed = parseTrading212AnnualStatement(
@@ -141,7 +149,9 @@ describe('D212 v11 XML generator', () => {
       USD_ANNUAL_AVG_2025,
       usdDaily2025,
     );
-    const xml = generateD212Xml(taxResult, DUMMY_IDENTITY, securities);
+    // Pinned to Dragos's real on-time filing date so the accepted-filing bonif 563
+    // is preserved (the default `new Date()` is now past the deadline -> would be 0).
+    const xml = generateD212Xml(taxResult, DUMMY_IDENTITY, securities, 2025, ON_TIME_2025);
 
     it('declares the v11 namespace on the d212 root', () => {
       expect(xml).toContain('xmlns="mfp:anaf:dgti:d212:declaratie:v11"');
@@ -284,7 +294,7 @@ describe('D212 v11 XML generator', () => {
         healthContribution: { amountOwed: 9720, totalNonSalaryIncome: 150.49 },
         totals: { earlyFilingDiscount: 0.5 },
       });
-      const xml = generateD212Xml(result, DUMMY_IDENTITY, usSecuritiesFor(result));
+      const xml = generateD212Xml(result, DUMMY_IDENTITY, usSecuritiesFor(result), 2025, ON_TIME_2025);
 
       const cg = cap14By(xml, '2012', 'US');
       expect(attr(cg, 'str_venit_net_anual')).toBe('101'); // 100.5 -> 101
@@ -299,6 +309,47 @@ describe('D212 v11 XML generator', () => {
 
       const div = cap14By(xml, '2018', 'US');
       expect(attr(div, 'str_venit_recalculat')).toBe('51'); // 50.5 -> 51
+    });
+
+    describe('bonificatie is date-gated on filingDate (OUG 8/2026, 3% forfeited if filed late)', () => {
+      // Engine reports a 300-lei early-filing discount; whether it survives into
+      // the declaration depends entirely on when the DU is filed.
+      const withDiscount = () =>
+        makeResult({
+          capitalGains: { netGains: 100000, taxOwed: 10000 },
+          totals: { earlyFilingDiscount: 300 },
+        });
+
+      it('applies the discount when filed on or before the deadline (15 Apr 2026)', () => {
+        const xml = generateD212Xml(withDiscount(), DUMMY_IDENTITY, usSecuritiesFor(withDiscount()), 2025, ON_TIME_2025);
+        expect(attr(obligRealizat(xml), 'oblimpozit_real_bonif')).toBe('300');
+      });
+
+      it('zeroes the discount when filed after the deadline (the notificare-wave / any late filing)', () => {
+        const xml = generateD212Xml(withDiscount(), DUMMY_IDENTITY, usSecuritiesFor(withDiscount()), 2025, LATE_2025);
+        expect(attr(obligRealizat(xml), 'oblimpozit_real_bonif')).toBe('0');
+      });
+
+      it('zeroes the discount by default (filingDate omitted): the deadline has already passed, so all output now is late', () => {
+        const xml = generateD212Xml(withDiscount(), DUMMY_IDENTITY, usSecuritiesFor(withDiscount()));
+        expect(attr(obligRealizat(xml), 'oblimpozit_real_bonif')).toBe('0');
+      });
+
+      it('treats 15 Apr 2026 as inclusive and 16 Apr as too late (boundary)', () => {
+        const lastMoment = new Date('2026-04-15T23:59:59+03:00');
+        const justAfter = new Date('2026-04-16T00:00:01+03:00');
+        const onTimeXml = generateD212Xml(withDiscount(), DUMMY_IDENTITY, usSecuritiesFor(withDiscount()), 2025, lastMoment);
+        const lateXml = generateD212Xml(withDiscount(), DUMMY_IDENTITY, usSecuritiesFor(withDiscount()), 2025, justAfter);
+        expect(attr(obligRealizat(onTimeXml), 'oblimpozit_real_bonif')).toBe('300');
+        expect(attr(obligRealizat(lateXml), 'oblimpozit_real_bonif')).toBe('0');
+      });
+
+      it('does not change dif_de_plata (bonificatie is a declared line, not a payment reduction)', () => {
+        // dif_de_plata = income tax + CASS, independent of whether the bonif is claimed.
+        const onTime = generateD212Xml(withDiscount(), DUMMY_IDENTITY, usSecuritiesFor(withDiscount()), 2025, ON_TIME_2025);
+        const late = generateD212Xml(withDiscount(), DUMMY_IDENTITY, usSecuritiesFor(withDiscount()), 2025, LATE_2025);
+        expect(attr(obligRealizat(onTime), 'dif_de_plata')).toBe(attr(obligRealizat(late), 'dif_de_plata'));
+      });
     });
 
     it('caps the dividend credit at RO tax due when WHT exceeds it (credit = roTax, dif = 0)', () => {
