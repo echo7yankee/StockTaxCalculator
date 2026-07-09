@@ -12,7 +12,7 @@ import PageMeta from '../components/common/PageMeta';
 import D212Download from '../components/D212Download';
 import AuditTrailDownload from '../components/AuditTrailDownload';
 import { taxYearInterpVarsForYear } from '../utils/taxYearVars';
-import { isBeforeEarlyFilingDeadline } from '../utils/earlyFiling';
+import { isEarlyFilingDiscountAvailable } from '@shared/taxRules/taxYears';
 import { cassBracketLabelKey } from '../utils/cassBracket';
 
 export default function ResultsPage() {
@@ -136,11 +136,13 @@ export default function ResultsPage() {
   // The early-filing discount (bonificație) is only a real reduction while the
   // deadline is still ahead. Once it has passed, ANAF forfeits it, so the D212
   // XML declares the full tax (see d212Xml.ts date-gate). Gate every on-screen
-  // "after discount" surface on the same deadline check so a late/notificare-wave
-  // filer is never shown a discounted total the declaration no longer claims.
+  // "after discount" surface on the SAME per-year deadline the XML uses, keyed
+  // on the result's tax year (not the wall-clock year), so a late/notificare-wave
+  // filer, or a 2025 result reopened in a later year, is never shown a
+  // discounted total the declaration no longer claims.
   const showEarlyFilingDiscount =
     result.totals.earlyFilingDiscount > 0 &&
-    isBeforeEarlyFilingDeadline(countryConfig?.earlyFilingDeadline);
+    isEarlyFilingDiscountAvailable(taxYear);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">

@@ -4,11 +4,15 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { CountryProvider } from '../../contexts/CountryContext';
-import { isBeforeEarlyFilingDeadline } from '../../utils/earlyFiling';
+import { isEarlyFilingDiscountAvailable } from '@shared/taxRules/taxYears';
 import CalculatorPage from '../CalculatorPage';
 
-vi.mock('../../utils/earlyFiling', () => ({
-  isBeforeEarlyFilingDeadline: vi.fn(() => true),
+// Partial mock: only the deadline gate is stubbed (deterministic regardless of
+// the wall clock); the rest of the tax-year config stays real so the quick calc
+// and the current-year lookup behave as in production.
+vi.mock('@shared/taxRules/taxYears', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@shared/taxRules/taxYears')>()),
+  isEarlyFilingDiscountAvailable: vi.fn(() => true),
 }));
 
 function renderCalculator() {
@@ -25,7 +29,7 @@ function renderCalculator() {
 
 describe('CalculatorPage', () => {
   beforeEach(() => {
-    vi.mocked(isBeforeEarlyFilingDeadline).mockReturnValue(true);
+    vi.mocked(isEarlyFilingDiscountAvailable).mockReturnValue(true);
   });
 
   it('renders the title and input fields', () => {
@@ -104,7 +108,7 @@ describe('CalculatorPage', () => {
   });
 
   it('shows early filing discount information before the deadline', async () => {
-    vi.mocked(isBeforeEarlyFilingDeadline).mockReturnValue(true);
+    vi.mocked(isEarlyFilingDiscountAvailable).mockReturnValue(true);
     const user = userEvent.setup();
     renderCalculator();
 
@@ -121,7 +125,7 @@ describe('CalculatorPage', () => {
     // task_a9d89e13: after the bonificatie deadline (e.g. 15 Apr 2026) the 3%
     // early-filing discount is forfeited, so the free calculator must not
     // dangle a "file early to save" line the visitor can no longer act on.
-    vi.mocked(isBeforeEarlyFilingDeadline).mockReturnValue(false);
+    vi.mocked(isEarlyFilingDiscountAvailable).mockReturnValue(false);
     const user = userEvent.setup();
     renderCalculator();
 

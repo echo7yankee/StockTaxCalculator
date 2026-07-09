@@ -8,10 +8,12 @@ import { analytics } from '../../lib/analytics';
 
 // Control the early-filing deadline gate directly so the discount rows are
 // deterministic regardless of the wall clock (real "today" is past 15 Apr 2026).
-vi.mock('../../utils/earlyFiling', () => ({
-  isBeforeEarlyFilingDeadline: vi.fn(() => true),
+// Partial mock: only the gate is stubbed; the rest of the tax-year config stays real.
+vi.mock('@shared/taxRules/taxYears', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@shared/taxRules/taxYears')>()),
+  isEarlyFilingDiscountAvailable: vi.fn(() => true),
 }));
-import { isBeforeEarlyFilingDeadline } from '../../utils/earlyFiling';
+import { isEarlyFilingDiscountAvailable } from '@shared/taxRules/taxYears';
 
 const result: TaxCalculationResult = {
   taxYearId: '2025',
@@ -64,7 +66,7 @@ describe('AuditTrailDownload', () => {
     (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = vi.fn();
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     vi.spyOn(analytics, 'auditTrailDownloaded').mockImplementation(() => {});
-    vi.mocked(isBeforeEarlyFilingDeadline).mockReturnValue(true);
+    vi.mocked(isEarlyFilingDiscountAvailable).mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -108,7 +110,7 @@ describe('AuditTrailDownload', () => {
   });
 
   it('omits the discount rows in the CSV once the early-filing deadline has passed', async () => {
-    vi.mocked(isBeforeEarlyFilingDeadline).mockReturnValue(false);
+    vi.mocked(isEarlyFilingDiscountAvailable).mockReturnValue(false);
     render(
       <AuditTrailDownload result={result} securities={securities} transactions={transactions} taxYear={2025} fileName="statement.csv" brokerLabel="Trading 212" />,
       { wrapper: CountryProvider },

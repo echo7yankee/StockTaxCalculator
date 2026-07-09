@@ -76,7 +76,7 @@
  */
 
 import type { TaxCalculationResult, SecurityBreakdown } from '../types/tax.js';
-import { getTaxYearConfig, type TaxYearConfig } from '../taxRules/taxYears.js';
+import { getTaxYearConfig, isEarlyFilingDiscountAvailable, type TaxYearConfig } from '../taxRules/taxYears.js';
 
 /**
  * Filer identity for the D212 root element (user-supplied PII).
@@ -731,10 +731,9 @@ export function generateD212Xml(
   // declaration reflects only what can actually be claimed. Past-year v9 paths never
   // reach a positive discount here (guarded above; no bonificatie ever existed).
   const incomeTax = incomeTaxFromRows;
-  const bonificatieOnTime =
-    cfg.earlyFilingDeadlineIso != null &&
-    filingDate.getTime() <= Date.parse(`${cfg.earlyFilingDeadlineIso}T23:59:59+03:00`);
-  const bonif = bonificatieOnTime ? lei(result.totals.earlyFilingDiscount) : 0;
+  const bonif = isEarlyFilingDiscountAvailable(taxYear, filingDate)
+    ? lei(result.totals.earlyFilingDiscount)
+    : 0;
   const difDePlata = incomeTax + cassDatorat;
 
   if (profile.variant === 'v11') {

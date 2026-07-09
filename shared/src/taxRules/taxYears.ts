@@ -191,3 +191,26 @@ export function getCurrentTaxYearConfig(now: Date = new Date()): TaxYearConfig {
   // Fall back to the latest engine-supported year so user-facing copy never claims a year the engine cannot yet calculate.
   return getLatestEngineSupportedConfig();
 }
+
+/**
+ * Whether the early-filing bonificatie for the given income year can still be
+ * claimed at instant `at`: true only while `at` is on or before that year's
+ * `earlyFilingDeadlineIso`, end of day Europe/Bucharest (the deadline is
+ * inclusive; OUG 8/2026 for the 2025 cycle). False when the year has no
+ * bonificatie (`earlyFilingDeadlineIso` null: 2023/2024), when the year is not
+ * in TAX_YEARS, or when the ISO string is malformed (Date.parse NaN compares
+ * false, so corruption forfeits rather than over-claims).
+ *
+ * The single source of truth for every discount gate: the D212 emit
+ * (d212Xml.ts) zeroes the declared bonificatie with it, and the client
+ * surfaces (results/filing-guide/calculator/records exports) hide the
+ * "after discount" figures with it, so the screen can never promise a
+ * discount the declaration no longer claims. Key it on the RESULT's tax
+ * year, not the wall-clock year: a 2025 result viewed in 2027 is still
+ * gated by the 2026-04-15 deadline.
+ */
+export function isEarlyFilingDiscountAvailable(taxYear: number, at: Date = new Date()): boolean {
+  const iso = TAX_YEARS[taxYear]?.earlyFilingDeadlineIso;
+  if (iso == null) return false;
+  return at.getTime() <= Date.parse(`${iso}T23:59:59+03:00`);
+}
