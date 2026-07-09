@@ -6,6 +6,7 @@ import { useUpload } from '../contexts/UploadContext';
 import { useCountry } from '../contexts/CountryContext';
 import { analytics } from '../lib/analytics';
 import PageMeta from '../components/common/PageMeta';
+import { isBeforeEarlyFilingDeadline } from '../utils/earlyFiling';
 import { d212Sections, formatD212Summary } from '@shared/taxRules/d212Fields';
 import type { D212Field } from '@shared/taxRules/d212Fields';
 import type { TaxCalculationResult } from '@shared/types/tax';
@@ -89,7 +90,7 @@ export default function FilingGuidePage() {
           <button
             onClick={() => {
               import('../utils/pdfExport').then(({ generateTaxSummaryPdf }) => {
-                generateTaxSummaryPdf(taxResult, taxYear, sym);
+                generateTaxSummaryPdf(taxResult, taxYear, sym, isBeforeEarlyFilingDeadline(countryConfig?.earlyFilingDeadline));
                 analytics.pdfExported();
               });
             }}
@@ -143,7 +144,7 @@ export default function FilingGuidePage() {
         <h2 className="text-xl font-semibold mb-4">{t('filing:summary')}</h2>
         <div className="space-y-3">
           <TotalRow label={t('filing:totalTaxOwed')} value={`${fmt(taxResult.totals.totalTaxOwed)} ${sym}`} bold />
-          {taxResult.totals.earlyFilingDiscount > 0 && (
+          {taxResult.totals.earlyFilingDiscount > 0 && isBeforeEarlyFilingDeadline(countryConfig?.earlyFilingDeadline) && (
             <>
               <TotalRow
                 label={t('filing:earlyFilingDiscount', { rate: `${((countryConfig?.earlyFilingDiscountRate ?? 0) * 100)}` })}

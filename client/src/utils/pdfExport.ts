@@ -14,6 +14,11 @@ export function generateTaxSummaryPdf(
   taxResult: TaxCalculationResult,
   taxYear: number,
   currencySymbol: string,
+  // The early-filing discount is forfeited once its deadline passes (ANAF), so a
+  // late filer's records PDF must not show a discounted total the declaration no
+  // longer claims. The caller passes the deadline-gated decision; defaults to
+  // true so the discount still renders while the deadline is ahead.
+  showEarlyFilingDiscount = true,
 ) {
   const doc = new jsPDF();
   const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -52,7 +57,7 @@ export function generateTaxSummaryPdf(
     ['Total Tax Owed', `${fmt(taxResult.totals.totalTaxOwed)} ${sym}`],
   ];
 
-  if (taxResult.totals.earlyFilingDiscount > 0) {
+  if (taxResult.totals.earlyFilingDiscount > 0 && showEarlyFilingDiscount) {
     summaryData.push(
       ['Early Filing Discount', `-${fmt(taxResult.totals.earlyFilingDiscount)} ${sym}`],
       ['Total After Discount', `${fmt(taxResult.totals.totalAfterDiscount)} ${sym}`],

@@ -133,6 +133,14 @@ export default function ResultsPage() {
   const result = displayResult ?? taxResult;
   const sym = countryConfig?.currencySymbol ?? 'RON';
   const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // The early-filing discount (bonificație) is only a real reduction while the
+  // deadline is still ahead. Once it has passed, ANAF forfeits it, so the D212
+  // XML declares the full tax (see d212Xml.ts date-gate). Gate every on-screen
+  // "after discount" surface on the same deadline check so a late/notificare-wave
+  // filer is never shown a discounted total the declaration no longer claims.
+  const showEarlyFilingDiscount =
+    result.totals.earlyFilingDiscount > 0 &&
+    isBeforeEarlyFilingDeadline(countryConfig?.earlyFilingDeadline);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
@@ -310,7 +318,7 @@ export default function ResultsPage() {
           icon={<Percent className="w-6 h-6" />}
           label={t('results:totalTaxOwed')}
           value={`${fmt(result.totals.totalTaxOwed)} ${sym}`}
-          detail={t('results:totalTaxOwedDetail', { amount: fmt(result.totals.totalAfterDiscount), symbol: sym })}
+          detail={showEarlyFilingDiscount ? t('results:totalTaxOwedDetail', { amount: fmt(result.totals.totalAfterDiscount), symbol: sym }) : undefined}
           color="accent"
           highlight
           testId="total-tax-owed-value"
@@ -366,8 +374,8 @@ export default function ResultsPage() {
         </div>
       </div>
 
-      {/* Early filing discount — only show as an actionable CTA while the deadline is still ahead */}
-      {result.totals.earlyFilingDiscount > 0 && isBeforeEarlyFilingDeadline(countryConfig?.earlyFilingDeadline) && (
+      {/* Early filing discount: only show as an actionable CTA while the deadline is still ahead */}
+      {showEarlyFilingDiscount && (
         <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
           <p className="text-green-700 dark:text-green-400 font-medium">
             {t('results:earlyFilingSave', { amount: fmt(result.totals.earlyFilingDiscount), symbol: sym })}
@@ -483,7 +491,7 @@ function SummaryCard({ icon, label, value, detail, color, highlight, testId }: {
   icon: React.ReactNode;
   label: string;
   value: string;
-  detail: string;
+  detail?: string;
   color: string;
   highlight?: boolean;
   testId?: string;
@@ -502,7 +510,7 @@ function SummaryCard({ icon, label, value, detail, color, highlight, testId }: {
       </div>
       <p className="text-sm text-gray-500 dark:text-slate-400">{label}</p>
       <p className="text-2xl font-bold mt-1" data-testid={testId}>{value}</p>
-      <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">{detail}</p>
+      {detail && <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">{detail}</p>}
     </div>
   );
 }

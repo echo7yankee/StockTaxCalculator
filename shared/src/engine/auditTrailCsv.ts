@@ -138,6 +138,15 @@ export interface AuditTrailCsvInput {
   fileName: string;
   /** Human broker label, e.g. "Trading 212". */
   brokerLabel: string;
+  /**
+   * Whether the early-filing discount is still claimable (deadline not yet
+   * passed). When a real discount has been forfeited (`earlyFilingDiscount > 0`
+   * and this is false) the two discount summary rows are omitted, so the audit
+   * CSV reconciles to the date-gated on-screen total and the D212 XML instead of
+   * showing a reduction ANAF no longer grants. Defaults to true (show), so a
+   * no-discount result and every existing caller are unaffected.
+   */
+  showEarlyFilingDiscount?: boolean;
 }
 
 /** Cash movements that do not feed the tax calculation are left out of the detail rows. */
@@ -392,8 +401,14 @@ export function generateAuditTrailCsv(
   lines.push(row([labels.sumCassBase, money(result.healthContribution.totalNonSalaryIncome)]));
   lines.push(row([labels.sumCassAmount, money(result.healthContribution.amountOwed)]));
   lines.push(row([labels.sumTotalTax, money(result.totals.totalTaxOwed)]));
-  lines.push(row([labels.sumEarlyDiscount, money(result.totals.earlyFilingDiscount)]));
-  lines.push(row([labels.sumTotalAfterDiscount, money(result.totals.totalAfterDiscount)]));
+  // Show the discount rows unless a real discount has been forfeited past its
+  // deadline (mirrors the ResultsPage total card + records PDF gate). A zero
+  // discount always shows, so no-discount years and existing callers are intact.
+  const discountForfeited = result.totals.earlyFilingDiscount > 0 && input.showEarlyFilingDiscount === false;
+  if (!discountForfeited) {
+    lines.push(row([labels.sumEarlyDiscount, money(result.totals.earlyFilingDiscount)]));
+    lines.push(row([labels.sumTotalAfterDiscount, money(result.totals.totalAfterDiscount)]));
+  }
 
   return lines.join('\r\n');
 }

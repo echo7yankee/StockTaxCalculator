@@ -10,6 +10,8 @@ import {
 } from '@shared/index';
 import { analytics } from '../lib/analytics';
 import { buildAuditTrailCsvLabels } from '../utils/auditCsvLabels';
+import { useCountry } from '../contexts/CountryContext';
+import { isBeforeEarlyFilingDeadline } from '../utils/earlyFiling';
 
 interface Props {
   result: TaxCalculationResult;
@@ -64,11 +66,17 @@ export default function AuditTrailDownload({
   brokerLabel,
 }: Props) {
   const { t } = useTranslation(['results']);
+  const { countryConfig } = useCountry();
   const [done, setDone] = useState(false);
 
   const handleDownload = () => {
     const csv = generateAuditTrailCsv(
-      { result, securities, transactions, pdfTrades, pdfNetFromOverview, taxYear, fileName, brokerLabel },
+      {
+        result, securities, transactions, pdfTrades, pdfNetFromOverview, taxYear, fileName, brokerLabel,
+        // Forfeit the discount rows once the deadline passes, matching the on-screen
+        // total and the D212 XML so the records CSV never over-states the reduction.
+        showEarlyFilingDiscount: isBeforeEarlyFilingDeadline(countryConfig?.earlyFilingDeadline),
+      },
       buildAuditTrailCsvLabels(t),
     );
     downloadCsv(csv, `InvesTax-audit-${taxYear}.csv`);

@@ -187,6 +187,8 @@ describe('ResultsPage', () => {
       renderResults();
       expect(screen.getByText(/File early to save/)).toBeInTheDocument();
       expect(screen.getByText(/869.22/)).toBeInTheDocument();
+      // The total-card detail line shows the discounted total while the deadline is ahead
+      expect(screen.getByText(/After early filing discount: 28,104.78/)).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }
@@ -198,6 +200,22 @@ describe('ResultsPage', () => {
     try {
       renderResults();
       expect(screen.queryByText(/File early to save/)).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('hides the discounted total on the total card once the deadline has passed', () => {
+    // Past the deadline ANAF forfeits the bonificatie, so the total card must not
+    // show an "after discount" detail the D212 XML no longer claims. The full tax
+    // (totalTaxOwed) still renders as the card's headline value.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-16T12:00:00Z'));
+    try {
+      renderResults();
+      expect(screen.queryByText(/After early filing discount/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/28,104.78/)).not.toBeInTheDocument();
+      expect(screen.getByTestId('total-tax-owed-value')).toHaveTextContent('28,974.00');
     } finally {
       vi.useRealTimers();
     }
