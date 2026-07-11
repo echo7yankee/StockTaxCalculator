@@ -20,6 +20,7 @@ vi.mock('../../contexts/AuthContext', () => ({
   }),
 }));
 import type { TaxCalculationResult, SecurityBreakdown, Transaction, OpeningPosition } from '@shared/index';
+import { calculateTaxes, getTaxConfigForYear, romaniaTaxConfig } from '@shared/index';
 import type { BrokerId } from '../../lib/brokers';
 
 const mockTaxResult: TaxCalculationResult = {
@@ -69,12 +70,14 @@ const mockSecurities: SecurityBreakdown[] = [
 ];
 
 // Helper to pre-fill the upload context (runs once via ref guard)
-function SetupUpload({ children, warnings = [], broker, carriedPositions, carryForwardYear }: {
+function SetupUpload({ children, warnings = [], broker, carriedPositions, carryForwardYear, taxResult = mockTaxResult, transactions = [] }: {
   children: React.ReactNode;
   warnings?: string[];
   broker?: 'trading212' | 'ibkr';
   carriedPositions?: OpeningPosition[];
   carryForwardYear?: number | null;
+  taxResult?: TaxCalculationResult;
+  transactions?: Transaction[];
 }) {
   const { setUploadData } = useUpload();
   const didSet = useRef(false);
@@ -83,18 +86,18 @@ function SetupUpload({ children, warnings = [], broker, carriedPositions, carryF
     if (!didSet.current) {
       didSet.current = true;
       setUploadData({
-        taxResult: mockTaxResult,
+        taxResult,
         securities: mockSecurities,
         fileName: 'annual-statement-2025.pdf',
         taxYear: 2025,
-        transactions: [],
+        transactions,
         parseWarnings: warnings,
         ...(broker ? { broker } : {}),
         ...(carriedPositions ? { carriedPositions } : {}),
         ...(carryForwardYear !== undefined ? { carryForwardYear } : {}),
       });
     }
-  }, [setUploadData, warnings, broker, carriedPositions, carryForwardYear]);
+  }, [setUploadData, warnings, broker, carriedPositions, carryForwardYear, taxResult, transactions]);
 
   return <>{children}</>;
 }
@@ -105,6 +108,7 @@ function renderResults(
   broker?: 'trading212' | 'ibkr',
   carriedPositions?: OpeningPosition[],
   carryForwardYear?: number | null,
+  overrides?: { taxResult?: TaxCalculationResult; transactions?: Transaction[] },
 ) {
   if (withData) {
     return render(
@@ -117,6 +121,8 @@ function renderResults(
                 broker={broker}
                 carriedPositions={carriedPositions}
                 carryForwardYear={carryForwardYear}
+                {...(overrides?.taxResult ? { taxResult: overrides.taxResult } : {})}
+                {...(overrides?.transactions ? { transactions: overrides.transactions } : {})}
               >
                 <ResultsPage />
               </SetupUpload>
@@ -283,6 +289,71 @@ describe('ResultsPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/Failed to save/)).toBeInTheDocument();
     });
+  });
+});
+
+describe('ResultsPage dividend-credit recompute preserves carry-forward cost basis', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // Regression: the dividend-WHT-credit recompute (displayResult) must pass the
+  // carried opening positions through to the engine, exactly like the original
+  // UploadPage computation does. Otherwise a carried sell recomputes with cost
+  // basis 0 and the capital gains balloon the moment the user enters a credit,
+  // producing a wrong (over-stated) tax number on screen, in the save, and in the
+  // D212/audit exports. Entering a dividend credit must ONLY affect dividend tax.
+  const carried: OpeningPosition[] = [
+    { isin: 'US000CARRY01', ticker: 'CARRY', securityName: 'Carried Co', shares: 100, costPerShareLocal: 50 },
+  ];
+  const txns: Transaction[] = [
+    {
+      id: 's1', csvUploadId: 'u1', taxYearId: '2025', action: 'sell',
+      transactionDate: new Date('2025-06-01'), isin: 'US000CARRY01', ticker: 'CARRY',
+      securityName: 'Carried Co', shares: 100, pricePerShare: 80, priceCurrency: 'RON',
+      totalAmountOriginal: 8000, exchangeRateToLocal: 1, totalAmountLocal: 8000,
+      withholdingTaxOriginal: 0, withholdingTaxCurrency: 'RON', withholdingTaxLocal: 0,
+      brokerTransactionId: 's1',
+    },
+    {
+      id: 'd1', csvUploadId: 'u1', taxYearId: '2025', action: 'dividend',
+      transactionDate: new Date('2025-07-01'), isin: 'US000DIV0001', ticker: 'DIVCO',
+      securityName: 'Div Co', shares: 0, pricePerShare: 0, priceCurrency: 'USD',
+      totalAmountOriginal: 100, exchangeRateToLocal: 4.5, totalAmountLocal: 450,
+      withholdingTaxOriginal: 0, withholdingTaxCurrency: 'USD', withholdingTaxLocal: 0,
+      brokerTransactionId: 'd1',
+    },
+  ];
+  // Baseline computed the way UploadPage does: with the carried positions seeded,
+  // the sell's cost basis is 100 x 50 = 5000, so the gain is 8000 - 5000 = 3000
+  // and capital gains tax is 300. Without the carry-forward seed the gain would be
+  // the full 8000 proceeds and the tax 800.
+  const baseline = calculateTaxes(txns, getTaxConfigForYear(romaniaTaxConfig, 2025), 2025, undefined, carried).taxResult;
+
+  it('fixture sanity: carried cost basis yields 300 capital gains tax, not 800', () => {
+    expect(baseline.capitalGains.taxOwed).toBe(300);
+    expect(baseline.dividends.withholdingTaxPaid).toBe(0);
+  });
+
+  it('entering a dividend credit leaves capital gains unchanged (carried cost basis preserved)', async () => {
+    const user = userEvent.setup();
+    renderResults(true, [], undefined, carried, 2024, { taxResult: baseline, transactions: txns });
+
+    // Initial render shows the carried-basis numbers.
+    expect(screen.getByTestId('capital-gains-value')).toHaveTextContent('300.00');
+    expect(screen.getByTestId('total-tax-owed-value')).toHaveTextContent('345.00');
+
+    // Enter a foreign withholding credit (in USD). This triggers the recompute.
+    await user.type(screen.getByTestId('dividend-wht-input'), '10');
+
+    // The credit zeroes the dividend tax (345 -> 300 total), proving the recompute
+    // ran; capital gains MUST stay 300 (would jump to 800 if carried positions were
+    // dropped from the recompute).
+    await waitFor(() => {
+      expect(screen.getByTestId('total-tax-owed-value')).toHaveTextContent('300.00');
+    });
+    expect(screen.getByTestId('capital-gains-value')).toHaveTextContent('300.00');
+    expect(screen.getByTestId('capital-gains-value')).not.toHaveTextContent('800.00');
   });
 });
 
