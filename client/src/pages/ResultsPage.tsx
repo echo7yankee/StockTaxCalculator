@@ -69,12 +69,15 @@ export default function ResultsPage() {
   // Re-run the engine with the withholding override so the dividend tax + totals
   // reflect the credit. No override (or no transactions) returns the original
   // result unchanged, so the PDF flow and every clean parse are untouched.
+  // Carry-forward opening positions MUST be passed through (same as UploadPage's
+  // original computation), otherwise a carried sell recomputes with cost basis 0
+  // and the capital gains are over-stated the moment the user enters a credit.
   const displayResult = useMemo(() => {
     if (!taxResult) return null;
     if (whtOverrideLocal == null || !countryConfig) return taxResult;
     const cfg = getTaxConfigForYear(countryConfig, taxYear);
-    return calculateTaxes(transactions, cfg, taxYear, whtOverrideLocal).taxResult;
-  }, [taxResult, whtOverrideLocal, countryConfig, taxYear, transactions]);
+    return calculateTaxes(transactions, cfg, taxYear, whtOverrideLocal, carriedPositions).taxResult;
+  }, [taxResult, whtOverrideLocal, countryConfig, taxYear, transactions, carriedPositions]);
 
   const handleSave = useCallback(async () => {
     if (!user) {
@@ -298,6 +301,7 @@ export default function ResultsPage() {
           value={`${fmt(result.capitalGains.taxOwed)} ${sym}`}
           detail={t('results:capitalGainsTaxDetail', { netGains: fmt(result.capitalGains.netGains), rate: result.capitalGains.taxRate * 100 })}
           color="green"
+          testId="capital-gains-value"
         />
         <SummaryCard
           icon={<DollarSign className="w-6 h-6" />}
