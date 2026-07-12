@@ -5,6 +5,7 @@ import {
   getTaxYearConfig,
   getCurrentTaxYearConfig,
   isEngineSupportedTaxYear,
+  isEarlyFilingDiscountAvailable,
 } from '../taxYears.js';
 
 describe('TAX_YEARS config', () => {
@@ -197,6 +198,50 @@ describe('getCurrentTaxYearConfig', () => {
     expect(getCurrentTaxYearConfig(new Date(Date.UTC(2024, 2, 15)))).toBe(TAX_YEARS[2023]);
     expect(getCurrentTaxYear(new Date(Date.UTC(2025, 2, 15)))).toBe(2024);
     expect(getCurrentTaxYearConfig(new Date(Date.UTC(2025, 2, 15)))).toBe(TAX_YEARS[2024]);
+  });
+});
+
+describe('isEarlyFilingDiscountAvailable', () => {
+  // The single source of truth for every bonificatie gate: the D212 emit
+  // (d212Xml.ts) and all client "after discount" surfaces key on this same
+  // predicate, per result tax year. Boundary semantics must match the OUG 8/2026
+  // rule the emit was built on: deadline INCLUSIVE, end of day Europe/Bucharest.
+
+  it('is true strictly before and on the 2025 deadline day (Bucharest end of day, inclusive)', () => {
+    expect(isEarlyFilingDiscountAvailable(2025, new Date('2026-01-02T00:00:00+02:00'))).toBe(true);
+    expect(isEarlyFilingDiscountAvailable(2025, new Date('2026-04-10T12:00:00+03:00'))).toBe(true); // the real on-time filing date
+    // Last in-window instant: 15 Apr 2026 23:59:59 Bucharest (EEST, +03:00).
+    expect(isEarlyFilingDiscountAvailable(2025, new Date('2026-04-15T23:59:59+03:00'))).toBe(true);
+  });
+
+  it('is false from Bucharest midnight after the 2025 deadline (even while still Apr 15 further west)', () => {
+    expect(isEarlyFilingDiscountAvailable(2025, new Date('2026-04-16T00:00:00+03:00'))).toBe(false);
+    // 22:00 UTC on Apr 15 is already 01:00 Apr 16 in Bucharest: the gate follows
+    // the Romanian deadline, not the viewer's local calendar day.
+    expect(isEarlyFilingDiscountAvailable(2025, new Date('2026-04-15T22:00:01Z'))).toBe(false);
+    expect(isEarlyFilingDiscountAvailable(2025, new Date('2027-03-01T12:00:00Z'))).toBe(false);
+  });
+
+  it('keys on the RESULT year, not the wall-clock year: a 2025 result stays forfeited in early 2027', () => {
+    // The retired client helper compared against "April 15 of the CURRENT year",
+    // so a 2025 result reopened between Jan 1 and Apr 15 2027 wrongly showed the
+    // discount while the D212 XML declared 0. The per-year gate closes that.
+    expect(isEarlyFilingDiscountAvailable(2025, new Date('2027-02-01T12:00:00+02:00'))).toBe(false);
+  });
+
+  it('is false for years with no bonificatie (2023/2024: earlyFilingDeadlineIso null) at any instant', () => {
+    expect(isEarlyFilingDiscountAvailable(2023, new Date('2024-01-15T12:00:00+02:00'))).toBe(false);
+    expect(isEarlyFilingDiscountAvailable(2024, new Date('2025-01-15T12:00:00+02:00'))).toBe(false);
+  });
+
+  it('is false for years not in TAX_YEARS (fails conservative: forfeit, never over-claim)', () => {
+    expect(isEarlyFilingDiscountAvailable(2022, new Date('2023-01-15T12:00:00+02:00'))).toBe(false);
+    expect(isEarlyFilingDiscountAvailable(2099, new Date('2099-01-15T12:00:00+02:00'))).toBe(false);
+  });
+
+  it('follows the dormant 2026 entry (F4-flagged 2027-04-15 deadline) so the gate needs no touch at the #13 flip', () => {
+    expect(isEarlyFilingDiscountAvailable(2026, new Date('2027-03-01T12:00:00+02:00'))).toBe(true);
+    expect(isEarlyFilingDiscountAvailable(2026, new Date('2027-04-16T00:00:00+03:00'))).toBe(false);
   });
 });
 
