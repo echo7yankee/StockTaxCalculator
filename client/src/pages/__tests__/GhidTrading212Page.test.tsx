@@ -34,3 +34,21 @@ describe('GhidTrading212Page - crawlable conversion CTAs', () => {
     expect(screen.getByRole('link', { name: /Toate ghidurile/ })).toHaveAttribute('href', '/ghid/');
   });
 });
+
+describe('GhidTrading212Page - worked example uses per-transaction (art. 96) BNR conversion', () => {
+  // Audit fix: the worked example must convert each buy/sell leg at its own BNR
+  // date (art. 96, matching the engine since PR #150), NOT the USD gain at a single
+  // sale-date rate. Pin the corrected numbers so a refactor cannot silently drift
+  // them back to the disclaimed aggregate method.
+  it('states the per-leg conversion method and shows the RON gain, not the USD-gain shortcut', () => {
+    renderPage();
+    expect(screen.getByText(/metoda per-tranzacție/)).toBeInTheDocument();
+    expect(screen.getByText(/Câștig în RON: 7\.676,94 − 7\.079,99 = 596,95 RON/)).toBeInTheDocument();
+  });
+
+  it('shows the corrected capital-gains tax total (59,70 RON), not the aggregate-method 116,32 RON', () => {
+    renderPage();
+    expect(screen.getByText(/Total de plată ANAF:/)).toHaveTextContent(/59,70 RON/);
+    expect(screen.queryByText(/116,32 RON/)).not.toBeInTheDocument();
+  });
+});

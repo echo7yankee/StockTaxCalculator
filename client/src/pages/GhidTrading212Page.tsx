@@ -241,16 +241,28 @@ export default function GhidTrading212Page() {
           <li>Cost mediu ponderat AAPL: (10×180 + 5×200) / 15 = 186,67 USD per acțiune.</li>
           <li>Vânzare brută: 8 × 220 = 1.760 USD.</li>
           <li>Cost al celor 8 acțiuni vândute: 8 × 186,67 = 1.493,33 USD.</li>
-          <li><strong>Câștig brut: 266,67 USD.</strong></li>
+          <li><strong>Câștig brut în USD: 266,67 USD.</strong></li>
         </ul>
 
         <p className="mt-4">
-          Conversie în RON la cursul BNR din data tranzacției. 5 octombrie 2025 a fost duminică, deci se folosește
-          cursul de la următoarea zi lucrătoare, 6 octombrie 2025. Conform BNR, cursul oficial din 6 octombrie 2025 a
-          fost 4,3619 RON/USD: 266,67 × 4,3619 ≈ 1.163,19 RON. Treci la rubrica de transfer titluri.
+          Conversia în RON se face pe metoda per-tranzacție (Codul Fiscal art. 96): fiecare cumpărare se convertește la
+          cursul BNR din ziua ei, iar vânzarea la cursul din ziua vânzării. Câștigul în RON este diferența dintre
+          încasarea în RON și costul în RON, nu câștigul în USD înmulțit cu un singur curs.
+        </p>
+        <ul className="list-disc list-outside pl-6 space-y-1 mt-3 text-sm">
+          <li>Cumpărare 15 ianuarie (10 AAPL, 1.800 USD), curs BNR 4,8266: 1.800 × 4,8266 = 8.687,88 RON.</li>
+          <li>Cumpărare 20 martie (5 AAPL, 1.000 USD), curs BNR 4,5871: 1.000 × 4,5871 = 4.587,10 RON.</li>
+          <li>Cost total în RON al celor 15 acțiuni: 13.274,98 RON; costul celor 8 acțiuni vândute (8/15 din total) = 7.079,99 RON.</li>
+          <li>Vânzare 5 octombrie (duminică, se folosește cursul de luni 6 octombrie), curs BNR 4,3619: 1.760 × 4,3619 = 7.676,94 RON.</li>
+          <li><strong>Câștig în RON: 7.676,94 − 7.079,99 = 596,95 RON.</strong></li>
+        </ul>
+        <p className="mt-2 text-sm text-gray-500 dark:text-slate-400 italic">
+          Câștigul în RON (596,95) este mai mic decât câștigul în USD înmulțit cu cursul de la vânzare (266,67 × 4,3619 =
+          1.163,19), fiindcă dolarul s-a depreciat față de leu între cumpărare și vânzare, iar acea diferență de curs
+          face parte din calcul.
         </p>
         <p className="mt-2">
-          Impozit pe câștig: 1.163,19 × 10% = <strong>116,32 RON</strong>.
+          Impozit pe câștig: 596,95 × 10% = <strong>59,70 RON</strong>.
         </p>
 
         <p className="mt-4 font-medium">Pentru dividende:</p>
@@ -266,11 +278,11 @@ export default function GhidTrading212Page() {
           Treci 53,65 RON la rubrica dividende din străinătate, cu 5,36 RON reținere străină.
         </p>
         <p className="mt-2">
-          Verificare CASS: total venituri non-salariale = 1.163,19 + 53,65 = 1.216,84 RON. Sub pragul de 6 salarii
+          Verificare CASS: total venituri non-salariale = 596,95 + 53,65 = 650,60 RON. Sub pragul de 6 salarii
           minime (24.300 RON pentru 2025). Nu datorezi CASS.
         </p>
         <p className="mt-4 p-3 bg-accent/10 rounded-lg font-medium">
-          Total de plată ANAF: <strong>116,32 RON</strong> impozit pe câștig.
+          Total de plată ANAF: <strong>59,70 RON</strong> impozit pe câștig.
         </p>
       </Section>
 

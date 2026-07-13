@@ -113,3 +113,21 @@ describe('GhidCassPage - CASS calculator widget', () => {
     expect(ghidCalculatorUsed).not.toHaveBeenCalled();
   });
 });
+
+describe('GhidCassPage - bracket labels match the standard RO convention', () => {
+  // Audit fix: the body examples mislabeled the brackets (primul prag = 6x/24.300/
+  // 2.430, al doilea = 12x/48.600/4.860, al treilea = 24x/97.200/9.720), which
+  // contradicted the FAQ. Pin the corrected labels so the 2.430 example is never
+  // relabeled "al doilea" again.
+  it('labels the 24.300-base / 2.430 example as "primul prag", not "al doilea"', () => {
+    renderPage();
+    expect(screen.getByText(/Exemplul 2: primul prag/)).toBeInTheDocument();
+    expect(screen.queryByText(/Exemplul 2: pragul al doilea/)).not.toBeInTheDocument();
+    expect(screen.getByText(/deci în primul prag\. Baza de calcul = 24\.300 RON/)).toBeInTheDocument();
+  });
+
+  it('labels the 48.600-base / 4.860 example as "al doilea prag"', () => {
+    renderPage();
+    expect(screen.getByText(/deci al doilea prag\. Baza de calcul = 48\.600 RON/)).toBeInTheDocument();
+  });
+});

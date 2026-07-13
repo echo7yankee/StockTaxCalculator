@@ -64,6 +64,22 @@ describe('GhidRevolutPage - beta posture', () => {
   });
 });
 
+describe('GhidRevolutPage - worked example uses per-transaction (art. 96) BNR conversion', () => {
+  // Audit fix: convert each leg at its own BNR date (art. 96), not the USD gain at
+  // one sale-date rate. Pin the corrected numbers against drift.
+  it('states the per-leg method and shows the RON gain', () => {
+    renderPage();
+    expect(screen.getByText(/metoda per-tranzacție/)).toBeInTheDocument();
+    expect(screen.getByText(/Câștig în RON: 32\.826,00 − 32\.081,77 = 744,23 RON/)).toBeInTheDocument();
+  });
+
+  it('shows the corrected capital-gains tax total (74,42 RON), not the aggregate-method 284,49 RON', () => {
+    renderPage();
+    expect(screen.getByText(/Total de plată ANAF:/)).toHaveTextContent(/74,42 RON/);
+    expect(screen.queryByText(/284,49 RON/)).not.toBeInTheDocument();
+  });
+});
+
 describe('GhidRevolutPage - broker beta waitlist', () => {
   it('renders the broker_revolut beta-graduation email capture with the export solicitation', () => {
     renderPage();

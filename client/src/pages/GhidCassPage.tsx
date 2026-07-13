@@ -180,7 +180,7 @@ export default function GhidCassPage() {
           </p>
         </Example>
 
-        <Example title="Exemplul 2: pragul al doilea">
+        <Example title="Exemplul 2: primul prag">
           <ul className="list-disc list-outside pl-6 space-y-1 mt-2">
             <li>Câștig net Trading212: 28.000 RON</li>
             <li>Dividende: 4.000 RON</li>
@@ -188,7 +188,7 @@ export default function GhidCassPage() {
             <li>Chirii: 0</li>
           </ul>
           <p className="mt-3">
-            Total: 33.500 RON. Între 24.300 și 48.600 RON, deci în pragul al doilea. Baza de calcul = 24.300 RON.
+            Total: 33.500 RON. Între 24.300 și 48.600 RON, deci în primul prag. Baza de calcul = 24.300 RON.
             <strong> CASS de plată: 10% × 24.300 = 2.430 RON.</strong>
           </p>
           <p className="mt-2 text-sm">
@@ -204,7 +204,7 @@ export default function GhidCassPage() {
             <li>Chirii (regim impunere reală, venit net): 36.000 RON</li>
           </ul>
           <p className="mt-3">
-            Total: 51.000 RON. Între 48.600 și 97.200 RON, deci pragul al treilea. Baza de calcul = 48.600 RON.
+            Total: 51.000 RON. Între 48.600 și 97.200 RON, deci al doilea prag. Baza de calcul = 48.600 RON.
             <strong> CASS de plată: 10% × 48.600 = 4.860 RON.</strong>
           </p>
         </Example>
@@ -218,8 +218,8 @@ export default function GhidCassPage() {
           <p className="mt-3">
             Câștigul net anual pe broker este negativ, deci nu plătești impozit pe câștig (10%). Partea de titluri
             intră în baza CASS cu 0, fiindcă o pierdere netă nu se scade din dividende sau dobânzi. Dividendele intră
-            însă cu suma lor: 30.000 RON. Total relevant pentru CASS: 30.000 RON. Între 24.300 și 48.600, deci pragul
-            al doilea.
+            însă cu suma lor: 30.000 RON. Total relevant pentru CASS: 30.000 RON. Între 24.300 și 48.600, deci primul
+            prag.
             <strong> CASS de plată: 2.430 RON.</strong>
           </p>
           <p className="mt-2 text-sm italic">
