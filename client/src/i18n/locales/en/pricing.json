@@ -37,6 +37,7 @@
   },
   "notificare": {
     "heading": "Got a compliance notice (notificare de conformare) from ANAF?",
+    "yearsBadge": "2023 · 2024 · 2025: one payment, not per year",
     "body": "If ANAF asked you to declare investment income from past years, InvesTax computes 2023, 2024 and 2025 each on that year's rules (dividends are 8% for 2023 and 2024, with each year's own CASS brackets) and gives you the values to carry into your amended return.",
     "anchor": "An accountant typically charges a few hundred lei per year (around 400-600 lei for a return with investment income). A single InvesTax payment gives you 365 days of access to every supported year, 2023 through 2025.",
     "guardrail": "InvesTax is a software tool, not personalized tax advice: we don't assess your letter and don't promise any outcome with ANAF.",

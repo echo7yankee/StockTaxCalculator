@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { ArrowLeft, AlertTriangle, Calculator, FileSearch, FileText, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Calculator, FileSearch, FileText, ShieldAlert, Clock, Send } from 'lucide-react';
 import {
   GHID_NOTIFICARE_FAQS as FAQS,
   GHID_NOTIFICARE_ARTICLE_SCHEMA as articleSchema,
@@ -46,6 +46,90 @@ export default function GhidNotificareAnafPage() {
           de notificări de conformare. Ce înseamnă scrisoarea, ce termene ai și cum corectezi anii 2023 și 2024.
         </p>
       </header>
+
+      {/* Productized offer hero (P3, distribution-diagnosis + opportunity #2).
+          Offer-first framing above the fold for a panicked notificare recipient;
+          the SEO/educational guide content stays below unchanged. Deliberately NO
+          new URL: a second page for this same query would cannibalize this page's
+          own target, and new SEO URLs are parked while indexation is stuck
+          (backlog #9). The already-indexed guide URL is upgraded in place. Every
+          tax claim here (30 de zile, 8% dividende 2023/2024 vs 10% 2025, o plată
+          pentru toți anii 2023-2025, 400-600 lei/an la contabil) is reused
+          verbatim from the verified copy below, so the tax-fact gate is vacuous. */}
+      <section className="mb-10 p-6 sm:p-8 bg-gradient-to-br from-accent/10 to-accent/5 dark:from-accent/20 dark:to-accent/5 border border-accent/20 rounded-2xl">
+        <div className="flex items-center gap-2 text-sm font-medium text-accent dark:text-accent-light mb-3">
+          <Clock className="w-4 h-4 flex-shrink-0" />
+          Ai 30 de zile de la primire ca să te corectezi singur
+        </div>
+        <h2 className="text-2xl sm:text-3xl font-bold leading-tight mb-3">
+          Regularizează 2023-2025 și răspunde la notificare, fără contabil
+        </h2>
+        <p className="text-sm text-gray-700 dark:text-slate-300 mb-6 leading-relaxed">
+          InvesTax reconstituie calculul pe regulile fiecărui an vizat (dividende 8% pentru 2023 și 2024, 10% pentru
+          2025, cu plafoanele CASS ale anului respectiv) și îți dă valorile de trecut în declarație. Corectarea
+          voluntară, în fereastra de 30 de zile, costă mai puțin decât sumele stabilite de ANAF prin decizie.
+        </p>
+
+        <ol className="grid gap-4 sm:grid-cols-3 mb-6">
+          <li className="flex flex-col gap-2">
+            <span className="inline-flex items-center gap-2 text-sm font-semibold">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-accent text-white text-xs flex-shrink-0">
+                1
+              </span>
+              <FileSearch className="w-4 h-4 text-accent dark:text-accent-light flex-shrink-0" />
+              Verifici extrasul
+            </span>
+            <span className="text-xs text-gray-600 dark:text-slate-400 leading-relaxed">
+              Gratuit, fără cont: vezi în câteva secunde dacă îți citim corect tranzacțiile și dividendele.
+            </span>
+          </li>
+          <li className="flex flex-col gap-2">
+            <span className="inline-flex items-center gap-2 text-sm font-semibold">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-accent text-white text-xs flex-shrink-0">
+                2
+              </span>
+              <FileText className="w-4 h-4 text-accent dark:text-accent-light flex-shrink-0" />
+              Primești valorile pe an
+            </span>
+            <span className="text-xs text-gray-600 dark:text-slate-400 leading-relaxed">
+              Încarci extrasul și primești calculul pentru fiecare an, 2023-2025, gata de trecut în declarație.
+            </span>
+          </li>
+          <li className="flex flex-col gap-2">
+            <span className="inline-flex items-center gap-2 text-sm font-semibold">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-accent text-white text-xs flex-shrink-0">
+                3
+              </span>
+              <Send className="w-4 h-4 text-accent dark:text-accent-light flex-shrink-0" />
+              Depui și răspunzi ANAF
+            </span>
+            <span className="text-xs text-gray-600 dark:text-slate-400 leading-relaxed">
+              Depui declarația (inițială sau rectificativă) și răspunzi la notificare în termenul de 30 de zile.
+            </span>
+          </li>
+        </ol>
+
+        <div className="p-3 rounded-lg bg-white/60 dark:bg-slate-900/30 border border-accent/10 text-sm text-gray-700 dark:text-slate-300 mb-6 leading-relaxed">
+          <strong>O singură plată acoperă toți anii suportați, 2023-2025</strong>, nu per an. La contabil, o declarație
+          cu venituri din investiții costă orientativ 400-600 lei pentru fiecare an.
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <Link to="/verifica-extras" className="btn-primary inline-flex items-center gap-2">
+            <FileSearch className="w-4 h-4" />
+            Verifică extrasul gratuit
+          </Link>
+          <Link to="/pricing/" className="btn-secondary inline-flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Vezi prețul
+          </Link>
+        </div>
+
+        <p className="text-xs text-gray-500 dark:text-slate-400 mt-4 leading-relaxed">
+          InvesTax este un instrument software, nu consultanță fiscală: nu depunem în locul tău și nu îți evaluăm
+          scrisoarea.
+        </p>
+      </section>
 
       <section className="mb-10 p-5 bg-accent/5 dark:bg-accent/10 border-l-4 border-accent rounded-r-xl">
         <h2 className="text-lg font-semibold mb-2">TL;DR</h2>
