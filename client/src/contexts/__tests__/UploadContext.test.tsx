@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { UploadProvider, useUpload } from '../UploadContext';
+import { getCurrentTaxYearConfig, isEngineSupportedTaxYear } from '@shared/taxRules/taxYears';
 import type { TaxCalculationResult, SecurityBreakdown } from '@shared/index';
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -8,6 +9,10 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 );
 
 describe('UploadContext', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('provides default state', () => {
     const { result } = renderHook(() => useUpload(), { wrapper });
     expect(result.current.parseResult).toBeNull();
@@ -15,7 +20,28 @@ describe('UploadContext', () => {
     expect(result.current.taxResult).toBeNull();
     expect(result.current.securities).toEqual([]);
     expect(result.current.fileName).toBe('');
-    expect(result.current.taxYear).toBe(new Date().getFullYear() - 1);
+    // Defaults to the app's filing-window-aware, engine-supported year, not a
+    // naive getFullYear()-1. Asserted against an independent import of the same
+    // source of truth (the source under test consumes it too, so the real
+    // regression guard is the frozen-clock dormant-year case below).
+    expect(result.current.taxYear).toBe(getCurrentTaxYearConfig().taxYear);
+    // The default must always be a year the engine can actually calculate.
+    expect(isEngineSupportedTaxYear(result.current.taxYear)).toBe(true);
+  });
+
+  it('default tax year is never a dormant year at the Jan rollover', () => {
+    // Freeze the clock to Jan 15, 2027. getCurrentTaxYear() would return 2026
+    // here, which is a DORMANT year (engineSupported: false) that would block
+    // the default upload flow. getCurrentTaxYearConfig() falls back to the
+    // latest engine-supported year (2025), so the default stays computable.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2027-01-15T12:00:00Z'));
+
+    const { result } = renderHook(() => useUpload(), { wrapper });
+
+    expect(result.current.taxYear).not.toBe(2026);
+    expect(result.current.taxYear).toBe(2025);
+    expect(isEngineSupportedTaxYear(result.current.taxYear)).toBe(true);
   });
 
   it('setUploadData merges partial state', () => {
@@ -72,7 +98,7 @@ describe('UploadContext', () => {
     });
 
     expect(result.current.fileName).toBe('');
-    expect(result.current.taxYear).toBe(new Date().getFullYear() - 1);
+    expect(result.current.taxYear).toBe(getCurrentTaxYearConfig().taxYear);
   });
 
   it('throws when useUpload is called outside provider', () => {
