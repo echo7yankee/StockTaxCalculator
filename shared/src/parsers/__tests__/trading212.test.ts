@@ -162,4 +162,39 @@ describe('parseTrading212Csv', () => {
     expect(tx.totalAmountOriginal).toBe(1505);
     expect(tx.brokerTransactionId).toBe('tx-001');
   });
+
+  // T212's "Total" column is in the ACCOUNT base currency while priceCurrency is
+  // the instrument's; totalAmountOriginal must be stored in priceCurrency so the
+  // downstream per-currency BNR conversion applies the matching rate.
+  describe('foreign-currency Total -> instrument currency', () => {
+    it('divides the account-currency Total by the exchange rate to get the instrument amount', () => {
+      // EUR account holding a USD stock: Total = shares*price*rate = 10*185.50*0.92
+      // = 1706.60 EUR, but the instrument amount is 1855 USD.
+      const result = parseTrading212Csv([
+        makeRow({ 'No. of shares': '10', 'Price / share': '185.50', 'Exchange rate': '0.92', Total: '1706.60' }),
+      ]);
+      expect(result.transactions[0].priceCurrency).toBe('USD');
+      expect(result.transactions[0].totalAmountOriginal).toBeCloseTo(1855, 2);
+    });
+
+    it('leaves a same-currency account (exchange rate 1) byte-identical', () => {
+      const result = parseTrading212Csv([
+        makeRow({ 'No. of shares': '10', 'Price / share': '150.50', 'Exchange rate': '1', Total: '1505.00' }),
+      ]);
+      expect(result.transactions[0].totalAmountOriginal).toBe(1505);
+    });
+
+    it('converts a foreign dividend Total (shares = 0, so shares*price cannot)', () => {
+      // Dividend gross 2.21 EUR = 2.402 USD @ 0.92; WHT stays raw (already USD).
+      const result = parseTrading212Csv([
+        makeRow({
+          Action: 'Dividend (Ordinary)', 'No. of shares': '0', 'Price / share': '0.24',
+          'Exchange rate': '0.92', Total: '2.21', 'Withholding tax': '0.33',
+        }),
+      ]);
+      expect(result.transactions[0].action).toBe('dividend');
+      expect(result.transactions[0].totalAmountOriginal).toBeCloseTo(2.402, 2);
+      expect(result.transactions[0].withholdingTaxOriginal).toBeCloseTo(0.33, 2);
+    });
+  });
 });
