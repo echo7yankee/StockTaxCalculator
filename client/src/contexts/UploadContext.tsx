@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import type { Transaction, TaxCalculationResult, SecurityBreakdown, PdfAuditRow, ParseResult, OpeningPosition } from '@shared/index';
+import { getCurrentTaxYearConfig } from '@shared/taxRules/taxYears';
 import type { BrokerId } from '../lib/brokers';
 
 interface UploadState {
@@ -29,31 +30,43 @@ interface UploadContextType extends UploadState {
   clearUpload: () => void;
 }
 
-const defaultState: UploadState = {
-  parseResult: null,
-  parseWarnings: [],
-  transactions: [],
-  taxResult: null,
-  securities: [],
-  auditRows: [],
-  pdfNetFromOverview: false,
-  fileName: '',
-  taxYear: new Date().getFullYear() - 1,
-  broker: 'trading212',
-  carriedPositions: [],
-  carryForwardYear: null,
-};
+// Built fresh on each provider mount / clearUpload so the default tax year is
+// evaluated against the current clock, not frozen at module-load time. The
+// default uses getCurrentTaxYearConfig().taxYear (the same filing-window-aware,
+// engine-supported source the rest of the app reads: Footer, CalculatorPage,
+// prerender) rather than a naive getFullYear()-1. That matters at the Jan
+// rollover: bare getFullYear()-1 (and even getCurrentTaxYear()) would return a
+// dormant year that isEngineSupportedTaxYear() reports false, blocking the
+// default upload flow until the user re-picked a supported year.
+// getCurrentTaxYearConfig() falls back to the latest engine-supported year, so
+// the default can never be a dormant year.
+function createDefaultState(): UploadState {
+  return {
+    parseResult: null,
+    parseWarnings: [],
+    transactions: [],
+    taxResult: null,
+    securities: [],
+    auditRows: [],
+    pdfNetFromOverview: false,
+    fileName: '',
+    taxYear: getCurrentTaxYearConfig().taxYear,
+    broker: 'trading212',
+    carriedPositions: [],
+    carryForwardYear: null,
+  };
+}
 
 const UploadContext = createContext<UploadContextType | undefined>(undefined);
 
 export function UploadProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<UploadState>(defaultState);
+  const [state, setState] = useState<UploadState>(createDefaultState);
 
   const setUploadData = (data: Partial<UploadState>) => {
     setState(prev => ({ ...prev, ...data }));
   };
 
-  const clearUpload = () => setState(defaultState);
+  const clearUpload = () => setState(createDefaultState());
 
   return (
     <UploadContext.Provider value={{ ...state, setUploadData, clearUpload }}>
