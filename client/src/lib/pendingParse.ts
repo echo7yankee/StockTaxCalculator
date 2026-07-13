@@ -32,6 +32,14 @@ import type { BrokerId } from './brokers';
 
 const STORAGE_KEY = 'investax.pendingParse';
 
+/** A tiny gate-only marker (backlog #24B audit fix). PreviewPage writes it on a green
+ *  unlock ONLY when the full parse stash was skipped (oversized parse / storage throw),
+ *  so the pricing parse-gate still opens and the buyer can reach checkout. It carries
+ *  no parse payload (post-pay rehydration falls back to re-upload), only the fact that
+ *  an eligible parse ran this session. A few bytes, so it fits under any quota the
+ *  multi-MB blob would exceed. */
+const VERIFIED_MARKER_KEY = 'investax.parseVerified';
+
 /** Schema version tag. Bump when the stored shape changes; a read of a mismatched
  *  version returns null so the caller falls back to a clean re-upload rather than
  *  feeding a stale shape to the engine. */
@@ -147,7 +155,39 @@ export function readPendingParse(): PendingParse | null {
  * Section 5). The gate reorders the funnel; it never force-grants access.
  */
 export function hasEligiblePendingParse(): boolean {
-  return readPendingParse() !== null;
+  if (readPendingParse() !== null) return true;
+  // Fallback gate signal: the full stash may have been SKIPPED (oversized parse or a
+  // storage throw) even though the buyer DID run a green, eligible parse. The tiny
+  // marker keeps the purchase path open in that case. Without it, an oversized parse
+  // writes nothing, /pricing bounces the buyer back to the checker, the re-parse
+  // fails the same write, and checkout becomes unreachable (audit fix: the gate must
+  // never remove the ability to buy).
+  return readParseVerifiedMarker();
+}
+
+/** True when the tiny gate marker is set this session. Fails closed (false) on any
+ *  storage error, exactly like the full-parse read. */
+function readParseVerifiedMarker(): boolean {
+  if (!hasSessionStorage()) return false;
+  try {
+    return window.sessionStorage.getItem(VERIFIED_MARKER_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** Record that an eligible parse ran this session WITHOUT persisting the full blob.
+ *  PreviewPage calls this only when `writePendingParse` returned false, so the pricing
+ *  gate stays open when the stash was skipped. Best-effort: if even this tiny write
+ *  throws, storage is unusable and the gate read fails closed anyway (pre-existing
+ *  behavior for a fully broken sessionStorage). */
+export function markParseVerified(): void {
+  if (!hasSessionStorage()) return;
+  try {
+    window.sessionStorage.setItem(VERIFIED_MARKER_KEY, '1');
+  } catch {
+    // Nothing to do; a fully unusable sessionStorage was already un-gateable.
+  }
 }
 
 /** Remove the persisted pending parse. Called after a SUCCESSFUL rehydrated engine
@@ -156,6 +196,7 @@ export function clearPendingParse(): void {
   if (!hasSessionStorage()) return;
   try {
     window.sessionStorage.removeItem(STORAGE_KEY);
+    window.sessionStorage.removeItem(VERIFIED_MARKER_KEY);
   } catch {
     // Nothing to do; a failed clear only means a stale key, which the version tag
     // and shape checks already defend against on the next read.

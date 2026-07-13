@@ -590,6 +590,11 @@ export default function UploadPage() {
     if (preview && !isEngineSupportedTaxYear(yearForCalc)) return;
 
     if (preview?.fileType === 'pdf' && pdfData) {
+      // Defense-in-depth for the rate guard (the disabled Calculate button is the
+      // primary gate): never run the engine with a non-positive conversion rate, which
+      // would zero out every RON figure. Only relevant when conversion is needed.
+      const needsConversion = pdfData.overview.currency !== countryConfig.currency;
+      if (needsConversion && !(exchangeRate > 0)) return;
       const { rate, dailyRates } = resolvePdfRates(pdfData, exchangeRate, pdfDailyRates);
       finalizePdf(pdfData, preview.fileName, rate, dailyRates);
     } else if (preview?.fileType === 'csv') {
@@ -711,6 +716,15 @@ export default function UploadPage() {
   // deficit, the carried cost basis is real (not missing), so we drop the block
   // and show a positive note instead. Partial / no coverage keeps the hard-stop.
   const historyBlocks = csvHistoryWarning && !carryForwardCoversHistory;
+
+  // PDF exchange-rate guard. When the account currency differs from the tax currency
+  // the engine needs a positive conversion rate; clearing the rate input sets it to 0
+  // (parseFloat('') || 0), which would run the engine with rate 0 and yield an
+  // all-zero RON result. Block Calculate until a real rate is entered.
+  const pdfNeedsRate =
+    preview?.fileType === 'pdf' && !!countryConfig && !!preview.currency &&
+    preview.currency !== countryConfig.currency;
+  const pdfRateInvalid = pdfNeedsRate && !(exchangeRate > 0);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
@@ -1127,8 +1141,8 @@ export default function UploadPage() {
               </div>
               <button
                 onClick={handleCalculate}
-                disabled={csvRateLoading || historyBlocks || !calcYearSupported}
-                className={`flex items-center justify-center gap-2 text-lg px-6 py-3 w-full sm:w-auto ${historyBlocks || !calcYearSupported ? 'btn-secondary opacity-50 cursor-not-allowed' : 'btn-primary'}`}
+                disabled={csvRateLoading || historyBlocks || !calcYearSupported || pdfRateInvalid}
+                className={`flex items-center justify-center gap-2 text-lg px-6 py-3 w-full sm:w-auto ${historyBlocks || !calcYearSupported || pdfRateInvalid ? 'btn-secondary opacity-50 cursor-not-allowed' : 'btn-primary'}`}
               >
                 {csvRateLoading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -1141,6 +1155,11 @@ export default function UploadPage() {
             {!calcYearSupported && calcYear != null && (
               <p className="text-sm text-red-600 dark:text-red-400 mt-3" data-testid="year-unsupported-note">
                 {t('yearUnsupportedNote', { year: calcYear })}
+              </p>
+            )}
+            {pdfRateInvalid && (
+              <p className="text-sm text-red-600 dark:text-red-400 mt-3" data-testid="rate-required-note">
+                {t('rateRequiredNote')}
               </p>
             )}
             {countryConfig && (

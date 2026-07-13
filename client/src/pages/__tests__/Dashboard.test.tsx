@@ -233,6 +233,56 @@ describe('Dashboard', () => {
     expect(payload.taxResult.dividends.taxBeforeCredit).toBe(80); // 1000 * 0.08, not 100
   });
 
+  it('resets live-upload-only state (warnings/audit/overview-net/broker) when loading a saved calc', async () => {
+    // Regression: handleRowClick partial-merged the context and left a prior live
+    // upload's parseWarnings / auditRows / pdfNetFromOverview / broker in place, so a
+    // warned upload could leak its hard-stop + wrong broker into the saved view.
+    const user = userEvent.setup();
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([{ ...mockTaxYears[0], broker: 'ibkr' }]), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: 'ty1',
+            year: 2025,
+            calculation: {
+              totalDividendsGross: 0,
+              dividendTaxOwed: 0,
+              totalWithholdingTax: 0,
+              totalCapitalGains: 0,
+              netCapitalGains: 0,
+              totalCapitalLosses: 0,
+              capitalGainsTax: 0,
+              totalNonSalaryIncome: 0,
+              cassThresholdHit: 'none',
+              cassOwed: 0,
+              totalTaxOwed: 0,
+              earlyFilingDiscount: 0,
+              calculatedAt: '2025-04-01T10:00:00Z',
+              securities: [],
+            },
+          }),
+          { status: 200 },
+        ),
+      );
+
+    renderDashboard();
+    await waitFor(() => expect(screen.getByText('annual-statement-2025.pdf')).toBeInTheDocument());
+    await user.click(screen.getByText('annual-statement-2025.pdf'));
+
+    await waitFor(() => expect(mockSetUploadData).toHaveBeenCalled());
+    const payload = mockSetUploadData.mock.calls.at(-1)?.[0];
+    expect(payload.parseWarnings).toEqual([]);
+    expect(payload.auditRows).toEqual([]);
+    expect(payload.pdfNetFromOverview).toBe(false);
+    // Broker comes from the saved row, not a hardcoded default.
+    expect(payload.broker).toBe('ibkr');
+    // No applied dividend credit carries into a saved calc.
+    expect(payload.correctedTaxResult).toBeNull();
+  });
+
   it('renders quick action links', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify([]), { status: 200 })

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, TrendingUp, DollarSign, Heart, Percent, FileText, Save, Check, ClipboardList, LogIn, AlertTriangle, MessageCircle, Coins } from 'lucide-react';
@@ -18,7 +18,7 @@ import { cassBracketLabelKey } from '../utils/cassBracket';
 export default function ResultsPage() {
   const { t, i18n } = useTranslation(['results', 'common']);
   const navigate = useNavigate();
-  const { taxResult, securities, fileName, taxYear, transactions, auditRows, pdfNetFromOverview, parseWarnings, broker, carriedPositions, carryForwardYear } = useUpload();
+  const { taxResult, correctedTaxResult, securities, fileName, taxYear, transactions, auditRows, pdfNetFromOverview, parseWarnings, broker, carriedPositions, carryForwardYear, setUploadData } = useUpload();
   const hasWarnings = parseWarnings.length > 0;
   // Beta brokers (parser built to the broker's published format without a real
   // account to validate against) must always carry a verify-before-filing caveat,
@@ -78,6 +78,18 @@ export default function ResultsPage() {
     const cfg = getTaxConfigForYear(countryConfig, taxYear);
     return calculateTaxes(transactions, cfg, taxYear, whtOverrideLocal, carriedPositions).taxResult;
   }, [taxResult, whtOverrideLocal, countryConfig, taxYear, transactions, carriedPositions]);
+
+  // Persist the withholding-corrected result to context so the Filing Guide (and any
+  // other downstream surface) shows the SAME credit-adjusted dividend tax + total the
+  // user sees here, never the over-stated un-credited figure. Null when no credit is
+  // applied, so the clean parse / PDF flow is untouched and consumers fall back to
+  // `taxResult`. Guarded on a real change to avoid a setState loop.
+  useEffect(() => {
+    const corrected = whtOverrideLocal != null && displayResult !== taxResult ? displayResult : null;
+    if (corrected !== correctedTaxResult) {
+      setUploadData({ correctedTaxResult: corrected });
+    }
+  }, [whtOverrideLocal, displayResult, taxResult, correctedTaxResult, setUploadData]);
 
   const handleSave = useCallback(async () => {
     if (!user) {

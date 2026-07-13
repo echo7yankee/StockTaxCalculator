@@ -9,6 +9,7 @@ import { getTaxConfigForYear } from '@shared/index';
 import PageMeta from '../components/common/PageMeta';
 import { Skeleton, SkeletonRow } from '../components/common/Skeleton';
 import type { TaxCalculationResult, SecurityBreakdown } from '@shared/types/tax';
+import type { BrokerId } from '../lib/brokers';
 
 interface SavedTaxYear {
   id: string;
@@ -147,10 +148,20 @@ export default function Dashboard() {
 
       setUploadData({
         taxResult,
+        // A saved calc has no applied dividend credit, so drop any corrected result
+        // left in context from a live upload earlier in the same session.
+        correctedTaxResult: null,
         securities,
         taxYear: data.year,
         fileName: data.csvUploads?.[0]?.filename ?? '',
         transactions: [],
+        // Loading a saved calc is a full context swap: reset the live-upload-only
+        // state so a prior warned/unreliable upload never leaks its hard-stop banner,
+        // PDF audit rows, overview-net honesty note, or broker into the saved view.
+        parseWarnings: [],
+        auditRows: [],
+        pdfNetFromOverview: false,
+        broker: (ty.broker as BrokerId) || 'trading212',
         // Saved calcs do not persist carry-forward metadata (no transactions or
         // opening positions in the payload), so clear any carried positions left
         // in context from a live upload in the same session. Surfacing carried
