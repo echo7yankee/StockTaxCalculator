@@ -1,7 +1,22 @@
 import { test, expect } from '@playwright/test';
 
+// MANUAL-ONLY GUARD (no automated comparison gate exists today).
+// -------------------------------------------------------------
+// Nothing in CI actually COMPARES against these strict-0-tolerance baselines:
+//   - The per-PR E2E job (.github/workflows/ci.yml) sets SKIP_VISUAL=1 and
+//     playwright.config.ts testIgnores this spec, so it never runs on a PR.
+//   - .github/workflows/visual-baselines.yml only REGENERATES baselines
+//     (`--update-snapshots`); it never asserts a diff.
+//   - audit-weekly's verify:prod path skips visual too.
+// So this spec is a MANUAL check: run it locally (or dispatch
+// visual-baselines.yml to regenerate) when you intentionally want to diff.
+// It is NOT an active regression gate - do not assume a copy/layout change is
+// caught here. Wiring an automated visual gate (and picking where it lives so
+// it does not flake unrelated PRs on sub-pixel text drift) is a follow-up
+// decision for Dragos, tracked in the PR that added this note.
+//
 // Visual regression: pixel-exact screenshot comparison for the stable marketing
-// pages in both Romanian and English locales. 6 pages × 2 locales = 12 snapshots.
+// pages in both Romanian and English locales. 6 pages x 2 locales = 12 snapshots.
 //
 // Part of PR-C of the launch-verification tooling
 // (09-backlog-and-discipline.md Section 8.1 item #15).
