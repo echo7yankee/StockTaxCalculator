@@ -61,6 +61,13 @@ export function parseTrading212Csv(rows: RawCsvRow[]): ParseResult {
   const transactions: Transaction[] = [];
   const skipped: SkippedRow[] = [];
   const warnings: string[] = [];
+  // Interest rows ("Interest on cash") are real, taxable income (venituri din
+  // dobanzi) that InvesTax does not compute. Left as a plain transaction they
+  // would contribute nothing to income/CASS/securities AND produce no warning,
+  // silently under-reporting the declaration. Route them to `skipped` (so the
+  // user sees them listed) and count them for ONE clear warning below, mirroring
+  // the IBKR parser's interest-out-of-scope warning so the #24A hard-stop fires.
+  let interestRowCount = 0;
 
   if (rows.length === 0) {
     warnings.push('CSV file is empty or has no data rows.');
@@ -84,6 +91,16 @@ export function parseTrading212Csv(rows: RawCsvRow[]): ParseResult {
 
     if (action === 'deposit' || action === 'withdrawal') {
       skipped.push({ rowIndex: i + 2, reason: 'Deposits/withdrawals are not taxable', rawAction });
+      continue;
+    }
+
+    if (action === 'interest') {
+      interestRowCount++;
+      skipped.push({
+        rowIndex: i + 2,
+        reason: 'Interest income is not calculated by InvesTax and must be declared separately',
+        rawAction,
+      });
       continue;
     }
 
@@ -128,6 +145,12 @@ export function parseTrading212Csv(rows: RawCsvRow[]): ParseResult {
     };
 
     transactions.push(transaction);
+  }
+
+  if (interestRowCount > 0) {
+    warnings.push(
+      `Detected ${interestRowCount} interest-income row(s) (e.g. "Interest on cash"). InvesTax does not calculate interest income; it is taxable (venituri din dobanzi) and must be declared separately.`
+    );
   }
 
   if (transactions.length === 0 && skipped.length === 0) {

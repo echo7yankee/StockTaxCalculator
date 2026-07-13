@@ -44,7 +44,6 @@ describe('parseTrading212Csv', () => {
       ['Stop sell', 'sell'],
       ['Dividend (Ordinary)', 'dividend'],
       ['Dividend (Dividend)', 'dividend'],
-      ['Interest on cash', 'interest'],
     ])('maps "%s" to "%s"', (raw, expected) => {
       const result = parseTrading212Csv([makeRow({ Action: raw })]);
       expect(result.transactions[0].action).toBe(expected);
@@ -65,6 +64,48 @@ describe('parseTrading212Csv', () => {
     expect(result.transactions).toHaveLength(0);
     expect(result.skipped).toHaveLength(2);
     expect(result.skipped[0].reason).toContain('not taxable');
+  });
+
+  describe('interest income', () => {
+    it('does not emit an interest transaction (interest is out of scope)', () => {
+      const result = parseTrading212Csv([makeRow({ Action: 'Interest on cash' })]);
+      expect(result.transactions).toHaveLength(0);
+    });
+
+    it('routes an interest row to skipped with a declare-separately reason', () => {
+      const result = parseTrading212Csv([makeRow({ Action: 'Interest on cash' })]);
+      expect(result.skipped).toHaveLength(1);
+      expect(result.skipped[0].reason).toContain('Interest income is not calculated');
+    });
+
+    it('fires a warning when an interest row is present', () => {
+      const result = parseTrading212Csv([makeRow({ Action: 'Interest on cash' })]);
+      expect(result.warnings.some(w => w.includes('interest-income row'))).toBe(true);
+    });
+
+    it('counts multiple interest rows in the one warning', () => {
+      const result = parseTrading212Csv([
+        makeRow({ Action: 'Interest on cash' }),
+        makeRow({ Action: 'Interest on cash' }),
+      ]);
+      expect(result.warnings.some(w => w.includes('Detected 2 interest-income row'))).toBe(true);
+    });
+
+    it('also matches interest via the lowercase fallback', () => {
+      const result = parseTrading212Csv([makeRow({ Action: 'Accrued interest' })]);
+      expect(result.transactions).toHaveLength(0);
+      expect(result.warnings.some(w => w.includes('interest-income row'))).toBe(true);
+    });
+
+    it('does NOT fire the interest warning for a normal buy/sell/dividend CSV', () => {
+      const result = parseTrading212Csv([
+        makeRow({ Action: 'Market buy' }),
+        makeRow({ Action: 'Market sell' }),
+        makeRow({ Action: 'Dividend (Ordinary)' }),
+      ]);
+      expect(result.transactions).toHaveLength(3);
+      expect(result.warnings.some(w => w.includes('interest-income row'))).toBe(false);
+    });
   });
 
   it('skips unknown actions', () => {
