@@ -26,11 +26,12 @@ describe('GhidNotificareAnafPage - crawlable nav and CTAs', () => {
     renderPage();
     // Primary free entry: the engine-free pre-paywall parse checker (the funnel
     // the other broker ghid pages already use). Lets a notificare recipient
-    // confirm we read their statement before paying.
-    expect(screen.getByRole('link', { name: /Verifică extrasul gratuit/ })).toHaveAttribute(
-      'href',
-      '/verifica-extras'
-    );
+    // confirm we read their statement before paying. The "Verifică extrasul
+    // gratuit" CTA now appears twice (offer hero + mid-page box); both must route
+    // to the free checker.
+    const freeCheckCtas = screen.getAllByRole('link', { name: /Verifică extrasul gratuit/ });
+    expect(freeCheckCtas.length).toBeGreaterThanOrEqual(2);
+    freeCheckCtas.forEach((cta) => expect(cta).toHaveAttribute('href', '/verifica-extras'));
     // Paid conversion + manual estimator stay available (two-tier framing, never free-only).
     expect(screen.getByRole('link', { name: /Încarcă extrasul \(2023-2025\)/ })).toHaveAttribute('href', '/pricing/');
     expect(screen.getByRole('link', { name: /Calculator gratuit \(manual\)/ })).toHaveAttribute('href', '/calculator/');
@@ -56,6 +57,39 @@ describe('GhidNotificareAnafPage - crawlable nav and CTAs', () => {
     renderPage();
     const hrefs = screen.getAllByRole('link').map((a) => a.getAttribute('href'));
     expect(hrefs).not.toContain('/ghid/notificare-anaf-venituri-strainatate/');
+  });
+});
+
+describe('GhidNotificareAnafPage - productized offer hero (P3)', () => {
+  it('leads with an offer-first hero: the 30-day window and a regularizare headline', () => {
+    const { container } = renderPage();
+    const text = container.textContent ?? '';
+    expect(
+      screen.getByRole('heading', { name: /Regularizează 2023-2025 și răspunde la notificare/ })
+    ).toBeInTheDocument();
+    // The panic-state urgency cue that frames the whole offer.
+    expect(text).toContain('Ai 30 de zile de la primire ca să te corectezi singur');
+  });
+
+  it('states the one-payment-all-years offer against the per-year accountant anchor', () => {
+    const { container } = renderPage();
+    const text = container.textContent ?? '';
+    expect(text).toContain('O singură plată acoperă toți anii suportați, 2023-2025');
+    expect(text).toContain('400-600 lei');
+  });
+
+  it('carries the hero CTAs: free statement check (primary) + pricing (secondary)', () => {
+    renderPage();
+    // Free check is asserted in the funnel test (now getAllByRole). Here we pin
+    // that the hero adds a pricing route so the offer has a paid conversion path.
+    const pricingCta = screen.getByRole('link', { name: /Vezi prețul/ });
+    expect(pricingCta).toHaveAttribute('href', '/pricing/');
+  });
+
+  it('keeps the not-personalized-advice guardrail inside the offer hero', () => {
+    const { container } = renderPage();
+    const text = container.textContent ?? '';
+    expect(text).toContain('nu depunem în locul tău și nu îți evaluăm');
   });
 });
 

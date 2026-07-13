@@ -283,6 +283,9 @@ export default function PricingPage() {
           <BellRing className="w-8 h-8 text-accent dark:text-accent-light flex-shrink-0 mt-1" />
           <div>
             <h2 className="text-xl font-bold mb-2">{t('notificare.heading')}</h2>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 mb-3 rounded-full bg-accent/15 text-accent-hover dark:text-accent-light text-xs font-semibold">
+              {t('notificare.yearsBadge')}
+            </span>
             <p className="text-sm text-gray-700 dark:text-slate-300 mb-3 leading-relaxed">
               {t('notificare.body')}
             </p>

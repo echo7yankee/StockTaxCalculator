@@ -37,6 +37,7 @@
   },
   "notificare": {
     "heading": "Ai primit o notificare de conformare de la ANAF?",
+    "yearsBadge": "2023 · 2024 · 2025: o singură plată, nu per an",
     "body": "Dacă ANAF ți-a cerut să declari venituri din investiții din anii trecuți, InvesTax calculează anii 2023, 2024 și 2025 pe regulile fiecărui an (dividende 8% pentru 2023 și 2024, plafoanele CASS ale anului respectiv) și îți dă valorile de trecut în declarația rectificativă.",
     "anchor": "Un contabil cere de obicei câteva sute de lei pentru fiecare an (orientativ 400-600 lei pentru o declarație cu venituri din investiții). O singură plată InvesTax îți dă acces 365 de zile la toți anii suportați, de la 2023 la 2025.",
     "guardrail": "InvesTax este un instrument software, nu consultanță fiscală personalizată: nu îți evaluăm scrisoarea și nu promitem un rezultat în relația cu ANAF.",
