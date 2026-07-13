@@ -33,6 +33,10 @@ async function postToResend(body: ResendSendBody): Promise<void> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
+    // Bound the request so a hung Resend connection cannot stall an awaited path
+    // (password reset, subscribe confirm/welcome) up to undici's ~5-min default,
+    // or stall the broadcast CLI mid-list. Mirrors bnrRates' AbortSignal.timeout.
+    signal: AbortSignal.timeout(10000),
   });
 
   if (!response.ok) {
@@ -737,6 +741,11 @@ async function sendErrorAlertViaResend(adminTo: string, subject: string, body: s
       html: `<pre style="font-family:ui-monospace,monospace;font-size:13px;line-height:1.5;white-space:pre-wrap;">${escapeHtml(body)}</pre>`,
       text: body,
     } satisfies ResendSendBody),
+    // Bound the alert POST too: a hung connection here would otherwise stall the
+    // crash-exit path (the process handlers await recordError). A timeout throws
+    // an AbortError that the public sendErrorAlertNotification swallows locally,
+    // so it never feeds back through recordError (the loop-break stays intact).
+    signal: AbortSignal.timeout(10000),
   });
 
   if (!response.ok) {

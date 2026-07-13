@@ -1,5 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { parseRatesXml, getAverageRate, getRateForDate, getAllRatesForYear, clearCache } from '../bnrRates.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import {
+  parseRatesXml,
+  getAverageRate,
+  getRateForDate,
+  getAllRatesForYear,
+  clearCache,
+  setNowProviderForTesting,
+} from '../bnrRates.js';
 
 const SAMPLE_XML = `<?xml version="1.0" encoding="utf-8"?>
 <DataSet>
@@ -297,5 +304,92 @@ describe('year-boundary BNR fallback (backlog #6)', () => {
 
     const rate = await getRateForDate(2025, '2025-01-08', 'USD');
     expect(rate).toBe(4.601); // same-year rate, unaffected by the prior-year seed
+  });
+});
+
+// A single in-year fixture for the current-year cache/guard tests: one exact
+// date so getRateForDate short-circuits on the exact match and never triggers a
+// prior-year boundary probe (keeping the fetch-count assertions clean).
+const XML_2026 = `<?xml version="1.0" encoding="utf-8"?>
+<DataSet>
+  <Body>
+    <Cube date="2026-06-15"><Rate currency="USD">4.7000</Rate></Cube>
+  </Body>
+</DataSet>`;
+
+describe('cache TTL: the in-progress year is not permanently cached (audit fix)', () => {
+  beforeEach(() => {
+    clearCache();
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    setNowProviderForTesting(null); // restore the real clock
+  });
+
+  it('caches a completed PAST year once, even long after the TTL window elapses', async () => {
+    let now = Date.UTC(2026, 5, 15); // 2026-06-15: 2025 is a completed past year
+    setNowProviderForTesting(() => now);
+    const mockFetch = mockFetchByYear({ 2025: SAMPLE_XML });
+
+    const r1 = await getRateForDate(2025, '2025-01-03', 'USD');
+    now += 60 * 60 * 1000; // +1h, far beyond the 15-min current-year TTL
+    const r2 = await getRateForDate(2025, '2025-01-03', 'USD');
+
+    expect(r1).toBe(4.589);
+    expect(r2).toBe(4.589);
+    // A past year's XML is final, so it is cached permanently: one fetch total.
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('serves the current year from cache within the TTL but RE-FETCHES after it', async () => {
+    let now = Date.UTC(2026, 5, 15); // pin "now" inside the in-progress year 2026
+    setNowProviderForTesting(() => now);
+    const mockFetch = mockFetchByYear({ 2026: XML_2026 });
+
+    await getRateForDate(2026, '2026-06-15', 'USD'); // fetch #1, snapshot cached
+    now += 5 * 60 * 1000; // +5 min, within the TTL
+    await getRateForDate(2026, '2026-06-15', 'USD'); // served from cache
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    now += 20 * 60 * 1000; // +25 min total, past the 15-min TTL
+    await getRateForDate(2026, '2026-06-15', 'USD'); // re-fetch #2
+    // The partial in-progress-year snapshot is refreshed instead of being served
+    // stale forever, which is the bug a long-lived pm2 process used to hit.
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('getAverageRate completed-year guard (audit fix)', () => {
+  beforeEach(() => {
+    clearCache();
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    setNowProviderForTesting(null);
+  });
+
+  it('refuses a partial annual average for the current, incomplete year', async () => {
+    setNowProviderForTesting(() => Date.UTC(2026, 5, 15)); // mid-2026
+    const mockFetch = mockFetchByYear({ 2026: XML_2026 });
+
+    await expect(getAverageRate(2026, 'USD')).rejects.toThrow(/not available|not complete/i);
+    // The guard trips before any network call: no partial-year snapshot is fetched.
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('refuses a future year the same way (year has not elapsed)', async () => {
+    setNowProviderForTesting(() => Date.UTC(2026, 5, 15));
+    await expect(getAverageRate(2030, 'USD')).rejects.toThrow(/not complete|not available/i);
+  });
+
+  it('still returns the annual average for a fully-elapsed year', async () => {
+    setNowProviderForTesting(() => Date.UTC(2026, 5, 15)); // 2025 is complete
+    mockFetchByYear({ 2025: MULTI_MONTH_XML });
+
+    const avg = await getAverageRate(2025, 'USD');
+    // Monthly-of-monthly on the fully-elapsed year is unchanged: (4.00 + 5.00)/2.
+    expect(avg).toBe(4.5);
   });
 });
