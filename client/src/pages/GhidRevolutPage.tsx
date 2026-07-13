@@ -337,15 +337,23 @@ export default function GhidRevolutPage() {
           <li>Cost mediu ponderat VOO: (20×450 + 10×470) / 30 = 456,67 USD per acțiune.</li>
           <li>Vânzare brută: 15 × 500 = 7.500 USD.</li>
           <li>Cost al celor 15 acțiuni vândute: 15 × 456,67 = 6.850 USD.</li>
-          <li><strong>Câștig brut: 650 USD.</strong></li>
+          <li><strong>Câștig brut în USD: 650 USD.</strong></li>
         </ul>
 
         <p className="mt-4">
-          Conversie la cursul BNR din data tranzacției. Conform BNR, cursul oficial din 14 noiembrie 2025 a fost
-          4,3768 RON/USD: 650 × 4,3768 ≈ 2.844,92 RON. Treci la rubrica de transfer titluri.
+          Conversia în RON se face pe metoda per-tranzacție (Codul Fiscal art. 96): fiecare cumpărare se convertește la
+          cursul BNR din ziua ei, iar vânzarea la cursul din ziua vânzării. Câștigul în RON este diferența dintre
+          încasarea în RON și costul în RON, nu câștigul în USD înmulțit cu un singur curs.
         </p>
+        <ul className="list-disc list-outside pl-6 space-y-1 mt-3 text-sm">
+          <li>Cumpărare 10 februarie (20 VOO, 9.000 USD), curs BNR 4,8173: 9.000 × 4,8173 = 43.355,70 RON.</li>
+          <li>Cumpărare 5 iunie (10 VOO, 4.700 USD), curs BNR 4,4272: 4.700 × 4,4272 = 20.807,84 RON.</li>
+          <li>Cost total în RON al celor 30 acțiuni: 64.163,54 RON; costul celor 15 acțiuni vândute (15/30 din total) = 32.081,77 RON.</li>
+          <li>Vânzare 14 noiembrie, curs BNR 4,3768: 7.500 × 4,3768 = 32.826,00 RON.</li>
+          <li><strong>Câștig în RON: 32.826,00 − 32.081,77 = 744,23 RON.</strong></li>
+        </ul>
         <p className="mt-2">
-          Impozit pe câștig: 2.844,92 × 10% = <strong>284,49 RON</strong>.
+          Impozit pe câștig: 744,23 × 10% = <strong>74,42 RON</strong>.
         </p>
 
         <p className="mt-4 font-medium">Pentru dividende:</p>
@@ -361,12 +369,12 @@ export default function GhidRevolutPage() {
           Treci 80,47 RON la dividende din străinătate, cu 8,05 RON reținere străină.
         </p>
         <p className="mt-2">
-          Verificare CASS: total venituri non-salariale din Revolut = 2.844,92 + 80,47 = 2.925,39 RON. Mult sub
+          Verificare CASS: total venituri non-salariale din Revolut = 744,23 + 80,47 = 824,70 RON. Mult sub
           pragul de 24.300 RON pentru 2025. Dacă nu ai alte venituri non-salariale care să te ducă peste prag, nu
           datorezi CASS.
         </p>
         <p className="mt-4 p-3 bg-accent/10 rounded-lg font-medium">
-          Total de plată ANAF: <strong>284,49 RON</strong> impozit pe câștig.
+          Total de plată ANAF: <strong>74,42 RON</strong> impozit pe câștig.
         </p>
       </Section>
 

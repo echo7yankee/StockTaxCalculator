@@ -21,7 +21,7 @@ export const GHID_REVOLUT_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Convertesc cifrele la cursul Revolut sau la cursul BNR?',
-    a: 'BNR. ANAF folosește exclusiv cursul BNR oficial din ziua tranzacției. Cursul de schimb intern al Revolut nu se aplică pentru declarație.',
+    a: 'BNR, niciodată cursul intern Revolut. Regula de curs diferă însă pe tip de venit: pentru câștigurile din vânzări de acțiuni se folosește cursul BNR din ziua fiecărei tranzacții (Codul Fiscal art. 96), iar pentru dividende și dobânzi se folosește cursul mediu anual BNR pentru anul venitului (Codul Fiscal art. 131 alin. 6).',
   },
   {
     q: 'Ce fac cu fracționarele Revolut?',

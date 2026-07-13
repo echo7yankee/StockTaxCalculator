@@ -95,7 +95,7 @@ export const DIVIDEND_COUNTRIES: DividendCountry[] = [
     name: 'Spania',
     standardRate: '19%',
     treatyRate: '5% (tratat)',
-    stillOwesRo: '0 (credit complet)',
+    stillOwesRo: '0 la rata standard de 19%; 5% la rata de tratat',
     detail:
       'Brokerii aplică de regulă rata domestică spaniolă de 19% la sursă. Rata redusă de 5% din tratatul cu România se obține doar printr-o cerere de recuperare conform procedurii Hacienda. Cu 19% reținut, creditul fiscal este limitat la 10% din brut, deci nu mai plătești nimic în RO (dar pierzi diferența peste 10% dacă nu faci recuperarea). Dacă obții rata de tratat de 5%, vei datora diferența de 5% în România.',
   },
@@ -131,7 +131,7 @@ export const DIVIDEND_COUNTRIES: DividendCountry[] = [
     name: 'Italia',
     standardRate: '26%',
     treatyRate: '5% (tratat)',
-    stillOwesRo: '0 (credit complet)',
+    stillOwesRo: '0 la rata standard de 26%; 5% la rata de tratat',
     detail:
       'Italia reține 26% la sursă. Rata din tratatul cu România este doar 5%, dar se obține printr-o cerere de recuperare; brokerul aplică de obicei cei 26%. Cu 26% reținut, creditul fiscal este limitat la 10% din brut, deci nu mai plătești nimic în RO. Atenție: dacă obții rata de tratat de 5%, vei datora diferența de 5% în România.',
   },
@@ -167,7 +167,7 @@ export const DIVIDEND_COUNTRIES: DividendCountry[] = [
     name: 'Finlanda',
     standardRate: '30%',
     treatyRate: '5% (tratat)',
-    stillOwesRo: '0 (credit complet)',
+    stillOwesRo: '0 la rata standard de 30%; 5% la rata de tratat',
     detail:
       'Finlanda reține 30% pe dividendele plătite persoanelor fizice non-rezidente. Rata din tratatul cu România este 5%, dar se obține prin cerere de recuperare; brokerul aplică de obicei cota mare. Cu 30% reținut, creditul fiscal este limitat la 10% din brut, deci nu mai plătești nimic în RO. Dacă obții rata de tratat de 5%, vei datora diferența de 5% în România.',
   },
@@ -176,7 +176,7 @@ export const DIVIDEND_COUNTRIES: DividendCountry[] = [
     name: 'Austria',
     standardRate: '27,5%',
     treatyRate: '5% (tratat)',
-    stillOwesRo: '0 (credit complet)',
+    stillOwesRo: '0 la rata standard de 27,5%; 5% la rata de tratat',
     detail:
       'Austria reține 27,5% pe dividendele plătite persoanelor fizice. Rata din tratatul cu România este 5%, obținută prin cerere de recuperare; brokerul aplică de obicei cei 27,5%. Cu reținerea peste 10%, creditul fiscal este limitat la 10% din brut și nu mai plătești nimic în RO. Dacă obții rata de tratat de 5%, vei datora diferența de 5% în România.',
   },
