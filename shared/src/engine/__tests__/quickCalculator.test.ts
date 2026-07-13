@@ -94,6 +94,27 @@ describe('calculateQuickTax - CASS bracket selection', () => {
     expect(r.healthContribution).toBe(2430);
   });
 
+  it('clamps a capital LOSS out of the CASS base (a loss does not offset dividends)', () => {
+    // Dividends 30000 with a 10000 capital LOSS. The loss must NOT drag the CASS
+    // base down to 20000 (which would wrongly show no CASS). ANAF and the
+    // authoritative engine clamp net capital gains to >= 0 for the CASS base, so
+    // the base is 30000 -> 6x bracket -> 2430 CASS.
+    const r = calculateQuickTax(
+      input({ dividends: 30000, capitalGains: -10000 }),
+      romaniaTaxConfig,
+    );
+    expect(r.bracketLabel).toBe('6x');
+    expect(r.healthContribution).toBe(2430);
+    // The loss still yields zero capital-gains tax (not negative).
+    expect(r.capitalGainsTax).toBe(0);
+  });
+
+  it('a capital loss alone (no other income) keeps the CASS base at zero', () => {
+    const r = calculateQuickTax(input({ capitalGains: -50000 }), romaniaTaxConfig);
+    expect(r.healthContribution).toBe(0);
+    expect(r.bracketLabel).toBe('none');
+  });
+
   it('uses gross dividends (NOT WHT-credited) for the CASS base', () => {
     // Even if WHT credit zeroes dividend tax, the gross 25000 dividend still counts toward CASS.
     const r = calculateQuickTax(
