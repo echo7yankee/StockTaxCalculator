@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { applyBnrRates } from '../bnrEnrichment.js';
 import { calculateTaxes } from '../taxCalculator.js';
 import { romaniaTaxConfig } from '../../taxRules/romania.js';
-import type { Transaction } from '../../types/transaction.js';
+import { parseTrading212Csv } from '../../parsers/trading212.js';
+import type { Transaction, RawCsvRow } from '../../types/transaction.js';
 
 function makeTx(overrides: Partial<Transaction> = {}): Transaction {
   return {
@@ -545,5 +546,64 @@ describe('integration: multi-currency batch feeding calculateTaxes', () => {
     expect(taxResult.capitalGains.totalProceeds).toBe(4550 + 3480); // 8030
     expect(taxResult.capitalGains.netGains).toBe(2325 + 1200); // 3525
     expect(taxResult.capitalGains.taxOwed).toBe(352.5); // 10% of 3525
+  });
+});
+
+// ----------------------------------------------------------------------------
+// Regression: T212 CSV account-currency "Total" must not be converted at the
+// instrument-currency BNR rate.
+//
+// End-to-end (raw CSV rows -> parseTrading212Csv -> applyBnrRates ->
+// calculateTaxes) because the bug lived in the seam between the parser (which
+// stored the account-currency "Total") and the engine (which converts at the
+// priceCurrency rate). A unit test on either side alone missed it.
+// ----------------------------------------------------------------------------
+
+describe('regression: T212 CSV foreign-currency proceeds (account-currency Total)', () => {
+  // EUR-account statement of a USD stock. T212 reports "Total" in EUR
+  // (Total = shares * price * exchangeRate) while priceCurrency is USD.
+  // USD daily BNR: buy 2025-03-15 = 4.45, sell 2025-06-15 = 4.55.
+  const daily: Record<string, number> = { '2025-03-15': 4.45, '2025-06-15': 4.55 };
+
+  function makeRawRow(overrides: Partial<RawCsvRow>): RawCsvRow {
+    return {
+      Action: 'Market buy',
+      Time: '2025-03-15T10:00:00Z',
+      ISIN: 'US0378331005',
+      Ticker: 'AAPL',
+      Name: 'Apple Inc.',
+      'No. of shares': '10',
+      'Price / share': '100',
+      'Currency (Price / share)': 'USD',
+      'Exchange rate': '0.90',
+      Total: '900.00',
+      'Withholding tax': '0',
+      'Currency (Withholding tax)': 'USD',
+      ID: 'b1',
+      ...overrides,
+    } as RawCsvRow;
+  }
+
+  it('converts the USD amount at the USD rate, not the EUR Total at the USD rate', () => {
+    const rows = [
+      // Buy 10 @ $100 -> 1000 USD (EUR Total 900 @ 0.90) on 2025-03-15
+      makeRawRow({}),
+      // Sell 10 @ $120 -> 1200 USD (EUR Total 1080 @ 0.90) on 2025-06-15
+      makeRawRow({
+        Action: 'Market sell', Time: '2025-06-15T10:00:00Z',
+        'Price / share': '120', Total: '1080.00', ID: 's1',
+      }),
+    ];
+    const parsed = parseTrading212Csv(rows);
+    const enriched = applyBnrRates(parsed.transactions, usd(4.50, daily), 'RON');
+    const { taxResult } = calculateTaxes(enriched, romaniaTaxConfig, 2025);
+
+    // Correct: cost 1000 USD * 4.45 = 4450; proceeds 1200 USD * 4.55 = 5460;
+    // net gain 1010 RON. The pre-fix code used the EUR Totals (900/1080) against
+    // the USD rate -> cost 4005, proceeds 4914, net 909 (~10% understated).
+    expect(taxResult.capitalGains.totalCostBasis).toBeCloseTo(4450, 2);
+    expect(taxResult.capitalGains.totalProceeds).toBeCloseTo(5460, 2);
+    expect(taxResult.capitalGains.netGains).toBeCloseTo(1010, 2);
+    expect(taxResult.capitalGains.taxOwed).toBeCloseTo(101, 2);
   });
 });

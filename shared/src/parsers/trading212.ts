@@ -119,6 +119,17 @@ export function parseTrading212Csv(rows: RawCsvRow[]): ParseResult {
     const priceCurrency = parseCurrency(row['Currency (Price / share)'] ?? 'USD');
     const exchangeRate = parseNumber(row['Exchange rate']) || 1;
     const total = parseNumber(row['Total']) || parseNumber(row['Total (EUR)']);
+    // T212's "Total" column is in the ACCOUNT base currency, while pricePerShare
+    // and priceCurrency describe the INSTRUMENT. Since Total = shares * price *
+    // exchangeRate, the exchange rate is account-per-instrument, so dividing by it
+    // recovers the amount in the instrument currency. We store totalAmountOriginal
+    // in priceCurrency (every parser does) so applyBnrRates converts it at the
+    // matching per-date instrument BNR rate. Without this, an EUR-account statement
+    // of USD stocks converted the EUR "Total" at the USD rate -> wrong RON (and
+    // under-declared whenever account/instrument < 1). A same-currency account has
+    // exchangeRate 1 (parseNumber(...) || 1 also guards blank/zero), so those
+    // statements stay byte-identical to the previous behaviour.
+    const totalInPriceCurrency = Math.abs(total) / exchangeRate;
     const withholdingTax = parseNumber(row['Withholding tax']);
     const withholdingTaxCurrency = parseCurrency(row['Currency (Withholding tax)'] ?? row['Currency (Price / share)'] ?? 'USD');
     const brokerTransactionId = (row['ID'] ?? row['Id'] ?? '').trim();
@@ -135,7 +146,7 @@ export function parseTrading212Csv(rows: RawCsvRow[]): ParseResult {
       shares: Math.abs(shares),
       pricePerShare,
       priceCurrency,
-      totalAmountOriginal: Math.abs(total),
+      totalAmountOriginal: totalInPriceCurrency,
       exchangeRateToLocal: exchangeRate,
       totalAmountLocal: 0, // calculated later with BNR rates
       withholdingTaxOriginal: Math.abs(withholdingTax),
