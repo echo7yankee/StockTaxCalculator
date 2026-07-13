@@ -211,8 +211,26 @@ Modes:
 Topics:    ${SUBSCRIBE_TOPICS.join(', ')}
 Templates: ${BROADCAST_TEMPLATES.map((t) => t.name).join(', ')}`;
 
+// Load .env deterministically relative to THIS file, not the cwd. The npm
+// workspace runner launches `-w server` scripts with cwd = server/, but pm2 and
+// an operator running the broadcast from the repo root resolve a different cwd;
+// a bare `dotenv/config` off the cwd made the two diverge. On the box that meant
+// a missing RESEND_API_KEY (postToResend then reports "sent" while sending
+// nothing) and a missing CLIENT_URL (localhost unsubscribe links in a real mass
+// send). Load the repo-root .env first (canonical on the box) then the
+// server-local .env as a dev fallback; dotenv never overrides an already-set
+// key, so root wins. Mirrors analytics-digest.ts.
+async function loadEnv(): Promise<void> {
+  const dotenv = await import('dotenv');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, resolve } = await import('node:path');
+  const here = dirname(fileURLToPath(import.meta.url)); // server/dist/scripts
+  dotenv.config({ path: resolve(here, '../../../.env') }); // repo-root .env
+  dotenv.config({ path: resolve(here, '../../.env') }); // server/.env (dev fallback)
+}
+
 async function main(): Promise<void> {
-  await import('dotenv/config');
+  await loadEnv();
 
   let opts: BroadcastOptions;
   try {

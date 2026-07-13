@@ -49,15 +49,39 @@ export function isJunkError(message: string): boolean {
   return JUNK_PATTERNS.some((re) => re.test(message));
 }
 
+// Mask secret-shaped tokens. Shared by normalizeMessage (the stored + emailed
+// error message) and scrubText (the stored sample stack), so a leaked key is
+// masked wherever it lands, not just in the stack. Covers:
+//   - Stripe API keys        sk_/pk_/rk_/kk_ + _live_/_test_ + body
+//   - Resend API keys        re_...
+//   - Stripe webhook secret  whsec_...
+//   - JWTs                   three base64url segments, anchored on the eyJ header
+//     every JWT carries (base64url of `{"`), so version strings like 1.2.3 and
+//     dotted filenames like index.min.js are NOT eaten.
+// MUST run before the digit pass in each caller: otherwise the digit pass rewrites
+// the numeric runs inside a key (sk_live_51...28053...) and only the full literal
+// disappears while the recognizable prefix + body survive (the leak this fixes).
+function maskSecrets(s: string): string {
+  return s
+    .replace(/\b[sprk]k_(live|test)_[A-Za-z0-9]+\b/g, '<key>')
+    .replace(/\bre_[A-Za-z0-9]+\b/g, '<key>')
+    .replace(/\bwhsec_[A-Za-z0-9]+\b/g, '<key>')
+    .replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, '<key>');
+}
+
 // Normalize a message so the same error carrying different ids/numbers groups
-// under one fingerprint, and so we never store raw emails/ids/urls/values. Order
-// matters: mask emails + urls + uuids + hex before the generic digit pass,
-// otherwise the digit pass would chew the digits inside them first.
+// under one fingerprint, and so we never store raw emails/ids/urls/values/keys.
+// Order matters: mask emails + urls + uuids + secret keys before the generic
+// digit pass, otherwise the digit pass would chew the digits inside them first
+// (which is exactly how a Stripe key used to survive here in mangled-but-legible
+// form and reach the stored message + alert email).
 export function normalizeMessage(message: string): string {
-  return message
-    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '<email>')
-    .replace(/https?:\/\/[^\s"')]+/gi, '<url>')
-    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '<uuid>')
+  return maskSecrets(
+    message
+      .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '<email>')
+      .replace(/https?:\/\/[^\s"')]+/gi, '<url>')
+      .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '<uuid>')
+  )
     .replace(/\b[0-9a-f]{16,}\b/gi, '<hex>')
     .replace(/\d+/g, '<n>')
     .replace(/\s+/g, ' ')
@@ -88,17 +112,20 @@ export function scrubStack(stack?: string): string | undefined {
 // do NOT blanket-mask every \d+ -> <n>; we only mask runs of 9+ digits (CNP 13 /
 // IBAN clusters / 16-digit cards) so that :1:48213-style line:col survive.
 //
-// Order matters, same as normalizeMessage: mask emails + urls + uuids + Stripe
+// Order matters, same as normalizeMessage: mask emails + urls + uuids + secret
 // keys + hex BEFORE the >=9-digit pass, otherwise the digit pass would chew the
 // digits inside them first. The leading ? strip drops a URL query string while
 // stopping at the first colon ([^\s:)]) so a trailing :line:col is kept intact.
+// Secret masking is shared with normalizeMessage via maskSecrets so the message
+// and the stack are scrubbed to the same standard.
 function scrubText(s: string): string {
-  return s
-    .replace(/\?[^\s:)]*/g, '')
-    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '<email>')
-    .replace(/https?:\/\/[^\s"')]+/gi, '<url>')
-    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '<uuid>')
-    .replace(/\b[sprk]k_(live|test)_[A-Za-z0-9]+\b/g, '<key>')
+  return maskSecrets(
+    s
+      .replace(/\?[^\s:)]*/g, '')
+      .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '<email>')
+      .replace(/https?:\/\/[^\s"')]+/gi, '<url>')
+      .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '<uuid>')
+  )
     .replace(/\b[0-9a-f]{16,}\b/gi, '<hex>')
     .replace(/\d{9,}/g, '<n>');
 }

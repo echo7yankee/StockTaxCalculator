@@ -11,7 +11,45 @@ export interface BnrYearRates {
   rates: BnrRate[];
 }
 
-const cache = new Map<string, BnrYearRates>();
+interface CacheEntry {
+  data: BnrYearRates;
+  /** Epoch ms (from nowProvider) when this entry was fetched. */
+  fetchedAt: number;
+}
+
+const cache = new Map<string, CacheEntry>();
+
+// The in-progress (current) year's BNR XML keeps growing as BNR publishes each
+// business day, so a snapshot taken mid-year is partial. A long-lived pm2
+// process must not serve that partial snapshot forever, or getRateForDate (the
+// on-or-before scan) and getAverageRate would silently return stale/incomplete
+// data. Completed PAST years are final and cached permanently; the current (and
+// any future) year gets this short TTL so it is periodically re-fetched.
+const CURRENT_YEAR_TTL_MS = 15 * 60 * 1000; // 15 minutes
+
+// Injectable clock so the cache-freshness and completed-year logic is testable
+// without touching the wall clock. Production uses Date.now(); tests pin it.
+let nowProvider: () => number = () => Date.now();
+
+/**
+ * Test-only seam: pin the internal clock (epoch ms) so the current-year TTL and
+ * the completed-year guard can be exercised deterministically. Pass null to
+ * restore the real clock. Not used in production code.
+ */
+export function setNowProviderForTesting(fn: (() => number) | null): void {
+  nowProvider = fn ?? (() => Date.now());
+}
+
+function currentYear(): number {
+  return new Date(nowProvider()).getUTCFullYear();
+}
+
+// A cached entry is fresh if it is a completed past year (final XML, cache
+// forever) or a current/future year fetched within the TTL window.
+function isCacheEntryFresh(year: number, fetchedAt: number): boolean {
+  if (year < currentYear()) return true;
+  return nowProvider() - fetchedAt < CURRENT_YEAR_TTL_MS;
+}
 
 function buildUrl(year: number): string {
   return `https://www.bnr.ro/files/xml/years/nbrfxrates${year}.xml`;
@@ -59,8 +97,9 @@ export function parseRatesXml(xml: string, currency: string): BnrRate[] {
 
 export async function fetchBnrRatesForYear(year: number, currency: string = 'USD'): Promise<BnrYearRates> {
   const cacheKey = `${year}-${currency}`;
-  if (cache.has(cacheKey)) {
-    return cache.get(cacheKey)!;
+  const cached = cache.get(cacheKey);
+  if (cached && isCacheEntryFresh(year, cached.fetchedAt)) {
+    return cached.data;
   }
 
   const url = buildUrl(year);
@@ -81,11 +120,24 @@ export async function fetchBnrRatesForYear(year: number, currency: string = 'USD
   }
 
   const result: BnrYearRates = { year, rates };
-  cache.set(cacheKey, result);
+  cache.set(cacheKey, { data: result, fetchedAt: nowProvider() });
   return result;
 }
 
 export async function getAverageRate(year: number, currency: string = 'USD'): Promise<number> {
+  // Completed-year guard: the "curs mediu anual" (art. 131 alin. 6) is the mean
+  // of the 12 MONTHLY averages of a fully-elapsed year. For the current (or a
+  // future) year, BNR has not published a full 12-month series yet, so
+  // averaging whatever months exist so far would return a partial-year figure
+  // dressed up as the authoritative annual rate. Refuse it rather than mislead.
+  if (year >= currentYear()) {
+    throw new Error(
+      `Annual average for ${year} is not available: the year is not complete. ` +
+        `The BNR "curs mediu anual" (art. 131) requires a fully-elapsed year; ` +
+        `request it once ${year} has ended.`
+    );
+  }
+
   const { rates } = await fetchBnrRatesForYear(year, currency);
   // BNR's official "curs mediu anual", the rate art. 131 alin. (6) requires for
   // converting foreign-source dividends, is the arithmetic mean of the 12 MONTHLY
