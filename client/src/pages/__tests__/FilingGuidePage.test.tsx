@@ -19,32 +19,39 @@ const withDiscount: TaxCalculationResult = {
   calculatedAt: new Date('2025-03-01'),
 };
 
-function Setup({ children }: { children: React.ReactNode }) {
+interface SetupOpts {
+  taxResult?: TaxCalculationResult;
+  correctedTaxResult?: TaxCalculationResult | null;
+  warnings?: string[];
+}
+
+function Setup({ children, opts }: { children: React.ReactNode; opts: SetupOpts }) {
   const { setUploadData } = useUpload();
   const didSet = useRef(false);
   useEffect(() => {
     if (!didSet.current) {
       didSet.current = true;
       setUploadData({
-        taxResult: withDiscount,
+        taxResult: opts.taxResult ?? withDiscount,
+        correctedTaxResult: opts.correctedTaxResult ?? null,
         securities: [],
         fileName: 'statement-2025.pdf',
         taxYear: 2025,
         transactions: [],
-        parseWarnings: [],
+        parseWarnings: opts.warnings ?? [],
       });
     }
-  }, [setUploadData]);
+  }, [setUploadData, opts.taxResult, opts.correctedTaxResult, opts.warnings]);
   return <>{children}</>;
 }
 
-function renderPage() {
+function renderPage(opts: SetupOpts = {}) {
   return render(
     <HelmetProvider>
       <MemoryRouter>
         <CountryProvider>
           <UploadProvider>
-            <Setup>
+            <Setup opts={opts}>
               <FilingGuidePage />
             </Setup>
           </UploadProvider>
@@ -75,5 +82,56 @@ describe('FilingGuidePage early-filing discount totals', () => {
     expect(screen.queryByText(/Early Filing Discount/)).not.toBeInTheDocument();
     // The full tax total is still shown.
     expect(screen.getByText(/Total Tax Owed/)).toBeInTheDocument();
+  });
+});
+
+describe('FilingGuidePage parse-warning hard-stop (#24A)', () => {
+  it('shows the D212 copy-paste values + PDF export when the parse is clean', () => {
+    renderPage({ warnings: [] });
+    // No hard-stop banner, and the copy/export affordances are present.
+    expect(screen.queryByTestId('filing-parse-warning-banner')).not.toBeInTheDocument();
+    expect(screen.getByText('Download PDF')).toBeInTheDocument();
+    expect(screen.getByText('Copy All')).toBeInTheDocument();
+    // A D212 field value renders (net annual gain = 1,000.00).
+    expect(screen.getByText(/1,000.00/)).toBeInTheDocument();
+  });
+
+  it('hard-stops (red banner) and hides the D212 values + PDF export when the parse is warned', () => {
+    renderPage({ warnings: ['Sum of trades does not match the statement total'] });
+    // The same red parse-warning banner as ResultsPage, with the contact CTA.
+    const banner = screen.getByTestId('filing-parse-warning-banner');
+    expect(banner).toBeInTheDocument();
+    expect(banner).toHaveAttribute('role', 'alert');
+    expect(screen.getByTestId('filing-parse-warning-contact-cta')).toBeInTheDocument();
+    expect(screen.getByText(/Sum of trades does not match/)).toBeInTheDocument();
+    // The copy-paste D212 values + PDF export must NOT be reachable on a warned parse.
+    expect(screen.queryByText('Download PDF')).not.toBeInTheDocument();
+    expect(screen.queryByText('Copy All')).not.toBeInTheDocument();
+    expect(screen.queryByText(/1,000.00/)).not.toBeInTheDocument();
+  });
+});
+
+describe('FilingGuidePage withholding-corrected result (money-path agreement)', () => {
+  it('reflects the credit-corrected dividend tax + total, not the un-credited taxResult', () => {
+    // Un-credited: dividend difference-to-pay 66.00, total 999.99.
+    const uncorrected: TaxCalculationResult = {
+      ...withDiscount,
+      dividends: { grossTotal: 660, taxBeforeCredit: 66, withholdingTaxPaid: 0, foreignTaxCredit: 0, taxOwed: 66, taxRate: 0.1 },
+      totals: { totalTaxOwed: 999.99, earlyFilingDiscount: 0, totalAfterDiscount: 999.99 },
+    };
+    // After the user applied a foreign credit on Results (persisted to context):
+    // dividend difference-to-pay drops to 42.42 and the total to 1,234.56.
+    const corrected: TaxCalculationResult = {
+      ...uncorrected,
+      dividends: { grossTotal: 660, taxBeforeCredit: 66, withholdingTaxPaid: 23.58, foreignTaxCredit: 23.58, taxOwed: 42.42, taxRate: 0.1 },
+      totals: { totalTaxOwed: 1234.56, earlyFilingDiscount: 0, totalAfterDiscount: 1234.56 },
+    };
+    renderPage({ taxResult: uncorrected, correctedTaxResult: corrected });
+
+    // The corrected dividend difference-to-pay + total are shown.
+    expect(screen.getByText(/42.42/)).toBeInTheDocument();
+    expect(screen.getByText(/1,234.56/)).toBeInTheDocument();
+    // The over-stated un-credited total must NOT leak into the D212 guide.
+    expect(screen.queryByText(/999.99/)).not.toBeInTheDocument();
   });
 });

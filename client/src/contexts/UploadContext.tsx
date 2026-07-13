@@ -8,6 +8,12 @@ interface UploadState {
   parseWarnings: string[];
   transactions: Transaction[];
   taxResult: TaxCalculationResult | null;
+  /** The withholding-credit-corrected result the user sees on Results after entering a
+   *  foreign dividend credit. Written back from ResultsPage so downstream surfaces (the
+   *  Filing Guide's D212 copy-paste values + PDF export) show the SAME credited dividend
+   *  tax + total, never the un-credited `taxResult`. Null when no credit is applied, so
+   *  the clean parse / PDF flow is untouched and consumers fall back to `taxResult`. */
+  correctedTaxResult: TaxCalculationResult | null;
   securities: SecurityBreakdown[];
   /** Per-trade audit rows from the PDF engine; empty for the CSV flow (its `transactions` drive the audit). */
   auditRows: PdfAuditRow[];
@@ -46,6 +52,7 @@ function createDefaultState(): UploadState {
     parseWarnings: [],
     transactions: [],
     taxResult: null,
+    correctedTaxResult: null,
     securities: [],
     auditRows: [],
     pdfNetFromOverview: false,

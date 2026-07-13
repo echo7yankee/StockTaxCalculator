@@ -74,7 +74,7 @@ vi.mock('papaparse', () => ({
 
 import PreviewPage from '../PreviewPage';
 import { analytics } from '../../lib/analytics';
-import { readPendingParse } from '../../lib/pendingParse';
+import { readPendingParse, hasEligiblePendingParse } from '../../lib/pendingParse';
 
 function renderPage(initialPath = '/verifica-extras') {
   return render(
@@ -303,6 +303,45 @@ describe('PreviewPage - support verdict', () => {
     // lets the Buy click proceed into checkout.
     expect(mockNavigate).toHaveBeenCalledWith('/pricing');
     expect(readPendingParse()).not.toBeNull();
+  });
+
+  it('GREEN (failed stash write): keeps the purchase gate open via the tiny marker so checkout stays reachable', async () => {
+    // Regression for the CRITICAL dead-end: an oversized parse (or a storage throw)
+    // makes writePendingParse skip the full blob. Without a fallback the /pricing gate
+    // bounces the buyer back to the checker forever. Simulate a quota failure on the
+    // large blob while the tiny gate marker still writes.
+    mockUseAuth.mockReturnValue({ user: { id: 'u1', email: 'a@example.com', plan: 'free' } });
+    const realSetItem = Storage.prototype.setItem;
+    // Restored in the finally so the spy never leaks into the next test (the suite's
+    // beforeEach uses clearAllMocks, which does not restore spy implementations).
+    const setItemSpy = vi.spyOn(window.sessionStorage, 'setItem').mockImplementation(function (
+      this: Storage,
+      key: string,
+      value: string,
+    ) {
+      // Fail the full parse blob (as an oversized write would) but let the tiny gate
+      // marker persist, so the fallback path is what keeps the gate open.
+      if (key === 'investax.pendingParse') throw new DOMException('QuotaExceededError');
+      realSetItem.call(this, key, value);
+    });
+
+    try {
+      const user = userEvent.setup();
+      const { container } = renderPage();
+      await user.upload(findHiddenFileInput(container), makePdfFile('annual-statement-2025.pdf'));
+
+      await waitFor(() => expect(screen.getByTestId('preview-unlock-cta')).toBeInTheDocument());
+      await user.click(screen.getByTestId('preview-unlock-cta'));
+
+      // The full stash was skipped (oversized), so rehydration would re-upload...
+      expect(readPendingParse()).toBeNull();
+      // ...but the gate marker keeps the purchase path open, and the buyer still routes
+      // to pricing to buy rather than being trapped back at the checker.
+      expect(hasEligiblePendingParse()).toBe(true);
+      expect(mockNavigate).toHaveBeenCalledWith('/pricing');
+    } finally {
+      setItemSpy.mockRestore();
+    }
   });
 
   it('GREEN (paid): unlock persists the parse and routes straight to /upload?welcome=1 (PR-3)', async () => {

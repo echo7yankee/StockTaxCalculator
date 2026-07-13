@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import Layout from './components/layout/Layout';
+import SessionReset from './components/SessionReset';
 import { analytics } from './lib/analytics';
 
 const Landing = lazy(() => import('./pages/Landing'));
@@ -47,6 +48,9 @@ export default function App() {
 
   return (
     <Suspense fallback={null}>
+      {/* Clears the upload context + pending parse on any logged-in -> logged-out
+          transition, so a shared machine never leaks the prior user's tax data. */}
+      <SessionReset />
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Landing />} />

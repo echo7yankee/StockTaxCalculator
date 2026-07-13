@@ -30,6 +30,7 @@
   "taxYear": "An fiscal",
   "calculateTaxes": "Calculeaz\u0103 impozitele",
   "yearUnsupportedNote": "Nu calcul\u0103m \u00eenc\u0103 anul fiscal {{year}}. Pentru acest an, depune Declara\u021bia Unic\u0103 manual, folosind formularul aferent anului respectiv.",
+  "rateRequiredNote": "Introdu un curs valutar valid (mai mare dec\u00e2t 0) \u00eenainte de calcul.",
   "usingTaxRules": "Se folosesc regulile fiscale {{country}} (cot\u0103 {{rate}}% pe c\u00e2\u0219tiguri de capital)",
   "fetchingBnrRates": "Se preiau cursurile BNR...",
   "bnrRateFallback": "Nu s-au putut ob\u021bine cursurile BNR. Se folosesc cursurile brokerului",

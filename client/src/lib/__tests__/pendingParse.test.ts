@@ -4,6 +4,8 @@ import {
   writePendingParse,
   readPendingParse,
   clearPendingParse,
+  hasEligiblePendingParse,
+  markParseVerified,
   type PendingParse,
 } from '../pendingParse';
 
@@ -135,6 +137,29 @@ describe('pendingParse - clear', () => {
   it('is a no-op when nothing is stored', () => {
     expect(() => clearPendingParse()).not.toThrow();
     expect(readPendingParse()).toBeNull();
+  });
+});
+
+describe('pendingParse - gate marker (failed-write fallback)', () => {
+  it('keeps the checkout gate open after a skipped full write (oversized parse)', () => {
+    // Simulate the size-guard skip: the full blob is too big to persist.
+    const pending = makeCsvPending();
+    (pending as { csv: MergedParseResult }).csv.warnings = ['x'.repeat(2 * 1024 * 1024 + 10)];
+    expect(writePendingParse(pending)).toBe(false);
+    // Without the marker the gate would be closed (no stash), trapping the buyer.
+    expect(hasEligiblePendingParse()).toBe(false);
+    // The tiny marker is a few bytes, so it persists where the blob could not, and
+    // it opens the gate so checkout stays reachable.
+    markParseVerified();
+    expect(readPendingParse()).toBeNull();
+    expect(hasEligiblePendingParse()).toBe(true);
+  });
+
+  it('clearPendingParse removes the gate marker too', () => {
+    markParseVerified();
+    expect(hasEligiblePendingParse()).toBe(true);
+    clearPendingParse();
+    expect(hasEligiblePendingParse()).toBe(false);
   });
 });
 

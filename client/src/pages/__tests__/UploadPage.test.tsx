@@ -590,6 +590,33 @@ describe('UploadPage - Calculate Taxes flow', () => {
     expect(sharedExports.calculateTaxesFromPdf).not.toHaveBeenCalled();
   });
 
+  it('blocks Calculate when the PDF exchange rate is cleared to 0 (would zero out the RON result)', async () => {
+    // Regression: clearing the rate input set exchangeRate to 0 and the Calculate
+    // button had no rate>0 guard, so finalizePdf ran the engine at rate 0 -> an
+    // all-zero RON result. Keep the BNR fetch from repopulating the rate so we can
+    // clear it deterministically.
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('no network'));
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await user.upload(findHiddenFileInput(container), makePdfFile());
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeInTheDocument(),
+    );
+    // The USD -> RON rate input is present and Calculate is enabled at the default rate.
+    const rateInput = screen.getByRole('spinbutton');
+    expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeEnabled();
+
+    // Clearing the rate sets it to 0: Calculate disables, the note shows, engine never runs.
+    await user.clear(rateInput);
+    expect(screen.getByTestId('rate-required-note')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Calculate Taxes/ })).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: /Calculate Taxes/ }));
+    expect(sharedExports.calculateTaxesFromPdf).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalledWith('/results');
+  });
+
   it('passes the per-date daily BNR map to the engine for a single-currency PDF (backlog #21)', async () => {
     const dailyMap = { '2025-06-01': 4.7, '2025-07-15': 4.3 };
     vi.spyOn(globalThis, 'fetch').mockImplementation(() =>

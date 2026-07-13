@@ -22,7 +22,7 @@ import {
   STATEMENT_ORIGINS,
   type StatementOrigin,
 } from '../lib/blockedCapture';
-import { writePendingParse } from '../lib/pendingParse';
+import { writePendingParse, markParseVerified } from '../lib/pendingParse';
 import { analytics } from '../lib/analytics';
 import { CSV_BROKERS, BROKERS, type BrokerId } from '../lib/brokers';
 import EmailCapture from '../components/common/EmailCapture';
@@ -221,10 +221,11 @@ export default function PreviewPage() {
   //    across the same-tab auth + Stripe round-trip (sessionStorage).
   const goToUnlock = () => {
     if (canUnlock && preview) {
+      let stashed = false;
       if (preview.fileType === 'pdf' && pdfData) {
-        writePendingParse({ fileType: 'pdf', fileName: preview.fileName, pdf: pdfData });
+        stashed = writePendingParse({ fileType: 'pdf', fileName: preview.fileName, pdf: pdfData });
       } else if (preview.fileType === 'csv' && csvParse) {
-        writePendingParse({
+        stashed = writePendingParse({
           fileType: 'csv',
           fileName: preview.fileName,
           broker: csvBroker,
@@ -232,6 +233,12 @@ export default function PreviewPage() {
           csv: csvParse,
         });
       }
+      // If the full stash was skipped (oversized parse / storage throw) the buyer must
+      // still be able to buy: record a tiny gate marker so the pricing parse-gate stays
+      // open. Otherwise an oversized parse writes nothing, /pricing bounces the buyer
+      // back to the checker, the re-parse fails the same write, and checkout is never
+      // reachable. The full stash (when it succeeds) already opens the gate on its own.
+      if (!stashed) markParseVerified();
     }
     if (user?.plan === 'paid') {
       navigate('/upload?welcome=1');

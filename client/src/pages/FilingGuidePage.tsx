@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Copy, CheckCircle, ClipboardList, Download, Info } from 'lucide-react';
+import { ArrowLeft, Copy, CheckCircle, ClipboardList, Download, Info, AlertTriangle, MessageCircle } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
 import { useCountry } from '../contexts/CountryContext';
 import { analytics } from '../lib/analytics';
@@ -14,9 +14,9 @@ import type { TaxCalculationResult } from '@shared/types/tax';
 // Romania-specific filing context — steps are now i18n-driven
 
 export default function FilingGuidePage() {
-  const { t } = useTranslation(['filing', 'common', 'd212']);
+  const { t } = useTranslation(['filing', 'common', 'd212', 'results']);
   const navigate = useNavigate();
-  const { taxResult, taxYear } = useUpload();
+  const { taxResult, correctedTaxResult, taxYear, parseWarnings, fileName } = useUpload();
   const { countryConfig } = useCountry();
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [allCopied, setAllCopied] = useState(false);
@@ -44,19 +44,84 @@ export default function FilingGuidePage() {
     );
   }
 
+  // #24A parse-warning hard-stop (mirrors ResultsPage): a warned/unreliable parse
+  // must never expose the copy-paste D212 field values or the PDF export from this
+  // surface, which is reachable via the Dashboard quick-action and the /filing-guide
+  // URL independently of Results. Show the same red banner and suppress everything
+  // downstream of it.
+  const hasWarnings = parseWarnings.length > 0;
+  if (hasWarnings) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <PageMeta titleKey="filingGuideTitle" descriptionKey="filingGuideDesc" robots="noindex, follow" />
+        <button
+          onClick={() => navigate('/results')}
+          className="flex items-center gap-1 text-sm text-gray-500 dark:text-slate-400 hover:text-accent dark:hover:text-accent-light mb-4 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" /> {t('common:backToResults')}
+        </button>
+        <div
+          className="p-5 bg-red-50 dark:bg-red-900/20 border-2 border-red-400 dark:border-red-600 rounded-xl"
+          role="alert"
+          data-testid="filing-parse-warning-banner"
+        >
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-6 h-6 text-red-500 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-red-700 dark:text-red-400 text-base mb-2">
+                {t('results:parseWarningTitle')}
+              </h3>
+              <p className="text-sm text-red-600 dark:text-red-400 mb-3">
+                {t('results:parseWarningBody')}
+              </p>
+              <p className="text-xs font-medium text-red-700 dark:text-red-400 mb-1">
+                {t('results:parseWarningListIntro')}
+              </p>
+              <ul className="text-xs text-red-600 dark:text-red-400 mb-4 list-disc pl-5 space-y-1">
+                {parseWarnings.map((w, i) => (
+                  <li key={i}>{w}</li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={() => navigate('/contact', {
+                  state: {
+                    topic: 'support',
+                    subject: 'parseWarning',
+                    fileName,
+                    warnings: parseWarnings,
+                  },
+                })}
+                className="btn-primary inline-flex items-center gap-2"
+                data-testid="filing-parse-warning-contact-cta"
+              >
+                <MessageCircle className="w-4 h-4" />
+                {t('results:parseWarningCta')}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const isRomania = (countryConfig?.code ?? 'RO') === 'RO';
   const sym = countryConfig?.currencySymbol ?? 'RON';
   const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Use the withholding-corrected result when the user applied a foreign dividend
+  // credit on Results (persisted to context), so the D212 copy-paste values + PDF
+  // export match Results exactly and never over-state the dividend tax + total.
+  const result = correctedTaxResult ?? taxResult;
 
   const copyValue = async (field: D212Field) => {
-    const value = fmt(field.getValue(taxResult));
+    const value = fmt(field.getValue(result));
     await navigator.clipboard.writeText(value);
     setCopiedId(field.id);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
   const copyAll = async () => {
-    const text = formatD212Summary(taxResult);
+    const text = formatD212Summary(result);
     await navigator.clipboard.writeText(text);
     setAllCopied(true);
     setTimeout(() => setAllCopied(false), 2000);
@@ -90,7 +155,7 @@ export default function FilingGuidePage() {
           <button
             onClick={() => {
               import('../utils/pdfExport').then(({ generateTaxSummaryPdf }) => {
-                generateTaxSummaryPdf(taxResult, taxYear, sym, isEarlyFilingDiscountAvailable(taxYear));
+                generateTaxSummaryPdf(result, taxYear, sym, isEarlyFilingDiscountAvailable(taxYear));
                 analytics.pdfExported();
               });
             }}
@@ -129,7 +194,7 @@ export default function FilingGuidePage() {
             sectionId={section.id}
             sectionLabel={section.fields[0]?.section ?? ''}
             fields={section.fields}
-            taxResult={taxResult}
+            taxResult={result}
             sym={sym}
             fmt={fmt}
             copiedId={copiedId}
@@ -143,17 +208,17 @@ export default function FilingGuidePage() {
       <div className="card mt-6">
         <h2 className="text-xl font-semibold mb-4">{t('filing:summary')}</h2>
         <div className="space-y-3">
-          <TotalRow label={t('filing:totalTaxOwed')} value={`${fmt(taxResult.totals.totalTaxOwed)} ${sym}`} bold />
-          {taxResult.totals.earlyFilingDiscount > 0 && isEarlyFilingDiscountAvailable(taxYear) && (
+          <TotalRow label={t('filing:totalTaxOwed')} value={`${fmt(result.totals.totalTaxOwed)} ${sym}`} bold />
+          {result.totals.earlyFilingDiscount > 0 && isEarlyFilingDiscountAvailable(taxYear) && (
             <>
               <TotalRow
                 label={t('filing:earlyFilingDiscount', { rate: `${((countryConfig?.earlyFilingDiscountRate ?? 0) * 100)}` })}
-                value={`-${fmt(taxResult.totals.earlyFilingDiscount)} ${sym}`}
+                value={`-${fmt(result.totals.earlyFilingDiscount)} ${sym}`}
                 className="text-green-600 dark:text-green-400"
               />
               <TotalRow
                 label={t('filing:totalAfterDiscount')}
-                value={`${fmt(taxResult.totals.totalAfterDiscount)} ${sym}`}
+                value={`${fmt(result.totals.totalAfterDiscount)} ${sym}`}
                 bold
                 className="text-accent dark:text-accent-light"
               />

@@ -30,6 +30,7 @@
   "taxYear": "Tax Year",
   "calculateTaxes": "Calculate Taxes",
   "yearUnsupportedNote": "We don't calculate tax year {{year}} yet. For this year, file your Declaratia Unica manually using that year's form.",
+  "rateRequiredNote": "Enter a valid exchange rate (greater than 0) before calculating.",
   "usingTaxRules": "Using {{country}} tax rules ({{rate}}% capital gains rate)",
   "fetchingBnrRates": "Fetching BNR rates...",
   "bnrRateFallback": "Could not fetch BNR rates. Using broker rates as fallback.",
