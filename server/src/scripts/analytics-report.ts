@@ -238,8 +238,20 @@ Windows:
   --since YYYY-MM-DD   since the given date (inclusive)
   --all                no time filter`;
 
+// Load .env deterministically relative to THIS file, not the cwd (root .env
+// canonical on the box, cwd = server/ under `npm -w server`). Mirrors
+// analytics-digest.ts; read-only report, but resolve env the same everywhere.
+async function loadEnv(): Promise<void> {
+  const dotenv = await import('dotenv');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, resolve } = await import('node:path');
+  const here = dirname(fileURLToPath(import.meta.url)); // server/dist/scripts
+  dotenv.config({ path: resolve(here, '../../../.env') }); // repo-root .env
+  dotenv.config({ path: resolve(here, '../../.env') }); // server/.env (dev fallback)
+}
+
 async function main(): Promise<void> {
-  await import('dotenv/config');
+  await loadEnv();
 
   let opts: ReportOptions;
   try {

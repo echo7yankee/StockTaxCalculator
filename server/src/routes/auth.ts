@@ -92,27 +92,29 @@ authRouter.post('/signup', signupLimiter, async (req, res, next) => {
     const { email, password, name } = parsed.data;
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Check existing user
+    // Reject signup for ANY existing email, including a Google-only account
+    // (googleId set, passwordHash null). Letting an unauthenticated signup write a
+    // password onto an existing account by email alone, with no proof the caller
+    // owns that email, is an account-takeover vector: an attacker submits the
+    // victim's email + a chosen password, the row gets that password hash, and the
+    // attacker is auto-logged-in as the victim. Uniform 409 for every existing
+    // account also removes the takeover-enabling 201-vs-409 signal.
+    //
+    // The legitimate account-linking direction is SECURE and stays in passport.ts:
+    // Google OAuth (which has verified email ownership) links to an existing email
+    // account. A Google user who wants email/password logs in with Google first,
+    // then adds a password from an authenticated session.
     const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
-    if (existing?.passwordHash) {
+    if (existing) {
       res.status(409).json({ error: 'An account with this email already exists', fields: { email: 'An account with this email already exists' } });
       return;
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    let user;
-    if (existing) {
-      // Google-only user adding a password (account linking)
-      user = await prisma.user.update({
-        where: { id: existing.id },
-        data: { passwordHash, name: existing.name || name || null },
-      });
-    } else {
-      user = await prisma.user.create({
-        data: { email: normalizedEmail, name: name || null, passwordHash, plan: 'free' },
-      });
-    }
+    const user = await prisma.user.create({
+      data: { email: normalizedEmail, name: name || null, passwordHash, plan: 'free' },
+    });
 
     // Auto-login after signup
     req.login(user, (err) => {

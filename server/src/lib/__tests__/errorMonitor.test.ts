@@ -93,6 +93,37 @@ describe('normalizeMessage', () => {
       "Cannot read properties of undefined (reading 'plan')"
     );
   });
+
+  // Regression for the audit leak: a secret embedded in a MESSAGE (not just a
+  // stack) used to survive here in mangled-but-legible form, because the generic
+  // \d+ pass rewrote only the numeric runs inside the key. maskSecrets must run
+  // FIRST, so the whole token collapses to <key> and neither the prefix nor the
+  // body reaches the stored message + alert email.
+  it('fully masks a Stripe secret key (not just the numeric runs inside it)', () => {
+    const out = normalizeMessage('payout using sk_live_51HxAbCdEfGh28053zZ failed');
+    expect(out).toBe('payout using <key> failed');
+    expect(out).not.toContain('sk_live_');
+    expect(out).not.toContain('HxAbCdEfGh');
+  });
+
+  it('masks Resend keys, Stripe webhook secrets and JWTs in a message', () => {
+    expect(normalizeMessage('Resend rejected key re_AbCd1234EfGh5678')).toBe(
+      'Resend rejected key <key>'
+    );
+    expect(normalizeMessage('bad signature whsec_9aB8cD7eF6g5H4i3J2k1')).toBe(
+      'bad signature <key>'
+    );
+    const jwt =
+      'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U';
+    const out = normalizeMessage(`invalid token ${jwt} rejected`);
+    expect(out).toBe('invalid token <key> rejected');
+    expect(out).not.toContain('eyJ');
+  });
+
+  it('does NOT mask dotted version strings or filenames as JWTs', () => {
+    expect(normalizeMessage('crash in module 1.2.3')).toBe('crash in module <n>.<n>.<n>');
+    expect(normalizeMessage('failed loading index.min.js')).toBe('failed loading index.min.js');
+  });
 });
 
 describe('topFrame', () => {
@@ -136,6 +167,24 @@ describe('scrubStack', () => {
     expect(scrubStack('pk_test_abc123XYZ')!).toContain('<key>');
     expect(scrubStack('rk_live_DEADBEEF99')!).toContain('<key>');
     expect(scrubStack('pk_live_AbCdEfGhIjK')!).toContain('<key>');
+  });
+
+  it('masks Resend keys, Stripe webhook secrets and JWTs in a stack (audit fix)', () => {
+    const re = scrubStack('Error: Resend key re_AbCd1234EfGh5678\n    at s (/app/x.js:1:2)')!;
+    expect(re).not.toContain('re_AbCd1234EfGh5678');
+    expect(re).toContain('<key>');
+
+    const wh = scrubStack('Error: bad whsec_9aB8cD7eF6g5H4i3J2k1\n    at s (/app/x.js:3:4)')!;
+    expect(wh).not.toContain('whsec_9aB8cD7eF6g5H4i3J2k1');
+    expect(wh).toContain('<key>');
+
+    const jwt =
+      'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U';
+    const j = scrubStack(`Error: token ${jwt}\n    at t (/app/x.js:5:6)`)!;
+    expect(j).not.toContain('eyJ');
+    expect(j).toContain('<key>');
+    // The frame's line:col must survive the masking (grouping stability).
+    expect(j).toContain(':5:6');
   });
 
   it('masks a 13-digit CNP', () => {
@@ -315,7 +364,12 @@ describe('recordError -> new-fingerprint alert', () => {
     const arg = sendErrorAlertNotificationMock.mock.calls[0][0];
     expect(arg.message).not.toContain('dragos@example.com');
     expect(arg.message).toContain('<email>');
-    expect(arg.message).not.toContain('sk_live_51HxAbCdEfGh28053zZ');
+    // Assert the key is FULLY masked in the message, not merely that the exact
+    // literal is absent: the old assertion passed even though the digit pass left
+    // sk_live_<n>HxAbCdEfGh<n>zZ behind (the audit's partial-retention leak).
+    expect(arg.message).toContain('<key>');
+    expect(arg.message).not.toContain('sk_live_');
+    expect(arg.message).not.toContain('HxAbCdEfGh');
     expect(arg.sampleStack).not.toContain('sk_live_51HxAbCdEfGh28053zZ');
     expect(arg.sampleStack).toContain('<key>');
   });

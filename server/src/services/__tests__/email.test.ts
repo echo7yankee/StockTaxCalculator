@@ -114,6 +114,18 @@ describe('sendPasswordResetEmail', () => {
     ).rejects.toThrow(/Resend API 429/);
   });
 
+  it('bounds the Resend request with an AbortSignal timeout (audit fix)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendPasswordResetEmail({ to: 'user@example.com', resetUrl: RESET_URL, language: 'ro' });
+
+    const init = fetchMock.mock.calls[0][1];
+    // A hung Resend connection must not stall the awaited path up to undici's
+    // ~5-min default; the request carries an abort signal that fires on timeout.
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
   it('silently skips and does NOT call fetch when RESEND_API_KEY is unset', async () => {
     delete process.env.RESEND_API_KEY;
     const fetchMock = vi.fn();
@@ -834,6 +846,17 @@ describe('sendErrorAlertNotification', () => {
     const body2 = JSON.parse(fetchMock.mock.calls[0][1].body as string);
     expect(body2.text).toContain('payout to <email> failed');
     expect(body2.text).toContain('<key>');
+  });
+
+  it('bounds the alert Resend request with an AbortSignal timeout (audit fix)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendErrorAlertNotification(baseParams);
+    const init = fetchMock.mock.calls[0][1];
+    // A hung alert POST would otherwise stall the crash-exit path (the process
+    // handlers await recordError before exiting); the signal caps it.
+    expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('handles a missing context and a missing sample stack', async () => {

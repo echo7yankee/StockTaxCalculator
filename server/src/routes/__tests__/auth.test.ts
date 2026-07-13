@@ -190,21 +190,30 @@ describe('POST /api/auth/signup', () => {
     expect(sendWelcomeEmailMock.mock.calls[0][0].to).toBe(`${PREFIX}welcome@test.invalid`);
   });
 
-  it('links a password to an existing Google-only account without creating a duplicate', async () => {
+  it('does NOT let signup write a password onto an existing Google-only account (account-takeover guard)', async () => {
+    // A Google-only account (googleId set, passwordHash null) must not be linkable
+    // via unauthenticated signup: an attacker who knows the victim's email could
+    // otherwise set a password on it and be auto-logged-in as the victim. Signup
+    // rejects the existing email with 409, leaves passwordHash null, and issues no
+    // session. The secure linking direction (Google OAuth -> existing email) is in
+    // passport.ts and unaffected.
     const existing = await seedUser({ email: `${PREFIX}google@test.invalid`, googleId: 'g-signup-1', name: 'Existing Name' });
     expect(existing.passwordHash).toBeNull();
 
     const res = await post('/api/auth/signup', {
       email: `${PREFIX}google@test.invalid`,
-      password: 'ValidPass123',
-      name: 'Ignored Name',
+      password: 'AttackerPass123',
+      name: 'Attacker Name',
     });
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(409);
+    expect((await res.json()).fields.email).toMatch(/already exists/i);
+    // No session cookie: the caller was NOT logged in as the victim.
+    expect(extractCookie(res)).toBe('');
 
-    const updated = await prisma.user.findUnique({ where: { email: `${PREFIX}google@test.invalid` } });
-    expect(updated?.id).toBe(existing.id);
-    expect(updated?.passwordHash).toBeTruthy();
-    expect(updated?.name).toBe('Existing Name');
+    const after = await prisma.user.findUnique({ where: { email: `${PREFIX}google@test.invalid` } });
+    expect(after?.id).toBe(existing.id);
+    expect(after?.passwordHash).toBeNull(); // no password was written
+    expect(after?.name).toBe('Existing Name'); // untouched
   });
 
   it('rejects signup when an account with a password already exists (409)', async () => {

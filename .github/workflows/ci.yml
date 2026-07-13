@@ -3,11 +3,15 @@ name: CI
 # Pre-merge verification on every PR to main and every push to main:
 #   1. `verify` job (always required): lint + unit tests + full build (~2 min).
 #   2. `e2e` job (depends on verify): Playwright E2E across all spec files
-#      (~3-5 min). Skips automatically if `verify` fails — no point burning
-#      runner minutes on broken PRs. Payment-flow specs auto-skip when
-#      STRIPE_WEBHOOK_SECRET is absent (it always is in CI), so signature
-#      validation and idempotency suites execute as a smoke check of the
-#      surrounding flow only.
+#      (~3-5 min). Skips automatically if `verify` fails - no point burning
+#      runner minutes on broken PRs. The e2e job's `env:` block SETS synthetic
+#      STRIPE_WEBHOOK_SECRET + STRIPE_SECRET_KEY, so the payment-flow specs
+#      (signature validation + idempotency) DO run here against those
+#      placeholder credentials. Do NOT remove those env vars thinking they are
+#      unused: deleting them makes the payment suites skip. Likewise the e2e
+#      job sets dummy GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET so passport
+#      registers the Google OAuth routes and the route-registration specs
+#      (302-to-Google + callback-not-404) actually assert instead of skipping.
 #
 # History: E2E was deliberately deferred per 09-backlog-and-discipline.md
 # Section 8.1 item #16 to keep `verify` runs under 3 min. After Stripe Phase 1
@@ -132,7 +136,24 @@ jobs:
       # dedicated workflow (.github/workflows/visual-baselines.yml) and would
       # block unrelated PRs whenever copy/i18n drift moves text widths a few
       # pixels. playwright.config.ts honors this via testIgnore.
+      #
+      # NOTE: visual-baselines.yml only REGENERATES baselines (--update-snapshots);
+      # it never COMPARES. So with SKIP_VISUAL=1 here, no automated gate ever
+      # asserts the strict-0-tolerance visual baselines. Visual regression is
+      # currently MANUAL-ONLY. See the header of e2e/visual-regression.spec.ts.
       SKIP_VISUAL: "1"
+      # Dummy Google OAuth credentials so server/src/config/passport.ts registers
+      # the Google OAuth strategy + routes (it guards registration on both
+      # GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET being set). Without these the
+      # route-registration specs in e2e/api-endpoints.spec.ts short-circuit via
+      # test.skip on a 404 and a regression that 404s /api/auth/google would pass
+      # CI green. The values are obviously fake: they only make passport mount the
+      # routes so the 302-to-Google + callback-not-404 assertions run. The OAuth
+      # consent round-trip stays untestable (no real Google app), which is fine:
+      # route registration + the initial 302 redirect are what these specs check.
+      # NEITHER is a real secret.
+      GOOGLE_CLIENT_ID: "ci-dummy-google-client-id"
+      GOOGLE_CLIENT_SECRET: "ci-dummy-google-secret"
       # Synthetic Stripe credentials so e2e/payment-flow-stripe.spec.ts can
       # exercise the paid-user + valid-signature + idempotency suites in CI.
       # Both the spawned server (via dotenv non-override) and the test read
