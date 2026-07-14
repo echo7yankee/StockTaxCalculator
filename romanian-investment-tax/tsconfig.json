@@ -1,0 +1,19 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    // Published to npm and imported as a real Node ESM library (not bundled),
+    // so it needs Node ESM resolution with explicit `.js` import extensions and
+    // emitted declaration files. Overrides the repo-wide `bundler` resolution
+    // used by the app workspaces (same rationale as mcp/tsconfig.json).
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "declaration": true,
+    // No source maps: `files` publishes dist only (no src), so maps would dangle.
+    "declarationMap": false,
+    "sourceMap": false
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/**/__tests__/**"]
+}

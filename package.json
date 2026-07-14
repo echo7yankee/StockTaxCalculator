@@ -7,13 +7,14 @@
     "shared",
     "client",
     "server",
-    "mcp"
+    "mcp",
+    "romanian-investment-tax"
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev -w client\" \"npm run dev -w server\"",
-    "build": "npm run build -w shared && npm run build -w client && npm run build -w server && npm run build -w mcp",
-    "test": "npm run test -w shared && npm run test -w client && npm run test -w server && npm run test -w mcp",
-    "test:coverage": "npm run test:coverage -w shared && npm run test:coverage -w client && npm run test:coverage -w server && npm run test:coverage -w mcp",
+    "build": "npm run build -w shared && npm run build -w client && npm run build -w server && npm run build -w mcp && npm run build -w romanian-investment-tax",
+    "test": "npm run test -w shared && npm run test -w client && npm run test -w server && npm run test -w mcp && npm run test -w romanian-investment-tax",
+    "test:coverage": "npm run test:coverage -w shared && npm run test:coverage -w client && npm run test:coverage -w server && npm run test:coverage -w mcp && npm run test:coverage -w romanian-investment-tax",
     "lint": "eslint .",
     "stylelint": "stylelint \"client/src/**/*.css\"",
     "verify": "tsx scripts/verify.ts",

@@ -1,0 +1,44 @@
+{
+  "name": "romanian-investment-tax",
+  "version": "1.0.0",
+  "description": "Deterministic, zero-dependency estimate of Romanian personal investment tax (capital gains, dividends, CASS health contribution) for the Declarația Unică (D212). Tax year 2025.",
+  "keywords": [
+    "romania",
+    "tax",
+    "capital-gains",
+    "dividends",
+    "cass",
+    "declaratia-unica",
+    "d212",
+    "investing",
+    "impozit",
+    "investax"
+  ],
+  "homepage": "https://investax.app",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}
