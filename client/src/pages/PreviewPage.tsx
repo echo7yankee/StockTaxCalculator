@@ -444,7 +444,10 @@ export default function PreviewPage() {
       {!preview && (
         <div className="card">
           <div
-            className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors cursor-pointer ${
+            role="button"
+            tabIndex={0}
+            aria-label={t('uploadZoneAria')}
+            className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 dark:focus-visible:ring-offset-navy-800 ${
               dragOver
                 ? 'border-accent bg-accent/5'
                 : 'border-gray-300 dark:border-navy-500 hover:border-accent dark:hover:border-accent'
@@ -453,6 +456,12 @@ export default function PreviewPage() {
             onDragLeave={() => setDragOver(false)}
             onDrop={onDrop}
             onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
           >
             {processing ? (
               <>
