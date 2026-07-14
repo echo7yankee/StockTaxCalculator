@@ -52,6 +52,7 @@
   "tabPdfRecommended": "Recommended",
   "tabCsv": "CSV Export",
   "tabCsvAdvanced": "Advanced",
+  "uploadZoneAria": "File upload area: press Enter or Space to browse, or drop a file here",
   "pdfDropHere": "Drop your PDF statement here",
   "pdfOrClick": "or click to browse",
   "pdfHint": "Upload your Trading212 annual statement (.pdf)",

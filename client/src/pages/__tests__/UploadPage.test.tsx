@@ -327,6 +327,29 @@ function findHiddenFileInput(container: HTMLElement): HTMLInputElement {
   return input;
 }
 
+describe('UploadPage - drop-zone keyboard accessibility (WCAG 2.1.1 / 4.1.2)', () => {
+  it('exposes the drop-zone as a focusable button that opens the file picker on Enter and Space', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+
+    // The drop-zone is a button with an accessible name, not a bare clickable div.
+    const dropzone = screen.getByRole('button', { name: /upload area/i });
+    expect(dropzone).toHaveAttribute('tabindex', '0');
+
+    // It can take keyboard focus.
+    dropzone.focus();
+    expect(dropzone).toHaveFocus();
+
+    // Activating it via keyboard opens the visually hidden file picker, exactly
+    // like a mouse click does: the only path a keyboard-only user has.
+    const clickSpy = vi.spyOn(findHiddenFileInput(container), 'click').mockImplementation(() => {});
+    await user.keyboard('{Enter}');
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    await user.keyboard(' ');
+    expect(clickSpy).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('UploadPage - PDF upload happy path', () => {
   it('renders the file-info card with parsed sells/dividends/distributions after a PDF upload', async () => {
     const user = userEvent.setup();

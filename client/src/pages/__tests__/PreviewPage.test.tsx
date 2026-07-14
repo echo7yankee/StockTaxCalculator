@@ -158,6 +158,27 @@ beforeEach(() => {
   );
 });
 
+describe('PreviewPage - drop-zone keyboard accessibility (WCAG 2.1.1 / 4.1.2)', () => {
+  it('exposes the drop-zone as a focusable button that opens the file picker on Enter and Space', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+
+    // The free checker's drop-zone is a button with an accessible name, so a
+    // keyboard-only visitor can reach the top of the funnel at all.
+    const dropzone = screen.getByRole('button', { name: /upload area/i });
+    expect(dropzone).toHaveAttribute('tabindex', '0');
+
+    dropzone.focus();
+    expect(dropzone).toHaveFocus();
+
+    const clickSpy = vi.spyOn(findHiddenFileInput(container), 'click').mockImplementation(() => {});
+    await user.keyboard('{Enter}');
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    await user.keyboard(' ');
+    expect(clickSpy).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('PreviewPage - public access (no paywall)', () => {
   it('renders the checker for an anonymous visitor (no auth gate, no redirect)', () => {
     renderPage();
