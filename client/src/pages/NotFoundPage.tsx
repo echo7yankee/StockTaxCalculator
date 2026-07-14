@@ -8,7 +8,7 @@ export default function NotFoundPage() {
 
   return (
     <>
-      <PageMeta titleKey="notFoundTitle" descriptionKey="notFoundDesc" />
+      <PageMeta titleKey="notFoundTitle" descriptionKey="notFoundDesc" robots="noindex, follow" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="text-center">
           <p className="text-7xl font-bold text-accent dark:text-accent-light mb-4">404</p>

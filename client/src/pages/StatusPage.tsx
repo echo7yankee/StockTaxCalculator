@@ -182,7 +182,7 @@ export default function StatusPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
-      <PageMeta titleKey="statusTitle" descriptionKey="statusDesc" />
+      <PageMeta titleKey="statusTitle" descriptionKey="statusDesc" robots="noindex, follow" />
       <h1 className="text-3xl font-bold mb-2">Project Status</h1>
       <p className="text-gray-600 dark:text-slate-400 mb-8">
         Everything that&apos;s built, what&apos;s working, and what&apos;s next.
