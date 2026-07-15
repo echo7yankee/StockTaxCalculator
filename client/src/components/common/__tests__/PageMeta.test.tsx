@@ -29,6 +29,21 @@ describe('PageMeta descriptionVars', () => {
     expect(meta).toContain('Termen 25 mai 2026');
     expect(meta).not.toContain('{{');
   });
+
+  it('year-scopes the English landing meta (both taxYear and filingDeadline slots exist)', async () => {
+    await i18n.changeLanguage('en');
+    try {
+      const meta = renderMeta({ taxYear: 2025, filingDeadline: 'May 25, 2026' })?.meta.toString() ?? '';
+      // The EN landingDesc must carry the year-scoping the RO one does (was a
+      // silent SEO gap: the slot was missing, so descriptionVars had nothing
+      // to fill and the snippet dropped the tax year entirely).
+      expect(meta).toContain('tax year 2025');
+      expect(meta).toContain('May 25, 2026');
+      expect(meta).not.toContain('{{');
+    } finally {
+      await i18n.changeLanguage('ro');
+    }
+  });
 });
 
 describe('PageMeta robots directive', () => {
