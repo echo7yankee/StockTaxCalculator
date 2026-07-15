@@ -7,7 +7,7 @@ import { useCountry } from '../contexts/CountryContext';
 import { analytics } from '../lib/analytics';
 import PageMeta from '../components/common/PageMeta';
 import { isEarlyFilingDiscountAvailable } from '@shared/taxRules/taxYears';
-import { d212Sections, formatD212Summary } from '@shared/taxRules/d212Fields';
+import { d212Sections, formatD212Summary, formatD212Value } from '@shared/taxRules/d212Fields';
 import type { D212Field } from '@shared/taxRules/d212Fields';
 import type { TaxCalculationResult } from '@shared/types/tax';
 
@@ -107,7 +107,9 @@ export default function FilingGuidePage() {
 
   const isRomania = (countryConfig?.code ?? 'RO') === 'RO';
   const sym = countryConfig?.currencySymbol ?? 'RON';
-  const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // D212 field values (shown AND copied into ANAF SPV) are whole lei with no
+  // separators, so what the user sees equals what they paste. See formatD212Value.
+  const fmt = formatD212Value;
   // Use the withholding-corrected result when the user applied a foreign dividend
   // credit on Results (persisted to context), so the D212 copy-paste values + PDF
   // export match Results exactly and never over-state the dividend tax + total.

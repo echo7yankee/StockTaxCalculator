@@ -92,8 +92,8 @@ describe('FilingGuidePage parse-warning hard-stop (#24A)', () => {
     expect(screen.queryByTestId('filing-parse-warning-banner')).not.toBeInTheDocument();
     expect(screen.getByText('Download PDF')).toBeInTheDocument();
     expect(screen.getByText('Copy All')).toBeInTheDocument();
-    // A D212 field value renders (net annual gain = 1,000.00).
-    expect(screen.getByText(/1,000.00/)).toBeInTheDocument();
+    // A D212 field value renders in whole lei (net annual gain = 1000, not 1,000.00).
+    expect(screen.getByText('1000')).toBeInTheDocument();
   });
 
   it('hard-stops (red banner) and hides the D212 values + PDF export when the parse is warned', () => {
@@ -107,20 +107,20 @@ describe('FilingGuidePage parse-warning hard-stop (#24A)', () => {
     // The copy-paste D212 values + PDF export must NOT be reachable on a warned parse.
     expect(screen.queryByText('Download PDF')).not.toBeInTheDocument();
     expect(screen.queryByText('Copy All')).not.toBeInTheDocument();
-    expect(screen.queryByText(/1,000.00/)).not.toBeInTheDocument();
+    expect(screen.queryByText('1000')).not.toBeInTheDocument();
   });
 });
 
 describe('FilingGuidePage withholding-corrected result (money-path agreement)', () => {
   it('reflects the credit-corrected dividend tax + total, not the un-credited taxResult', () => {
-    // Un-credited: dividend difference-to-pay 66.00, total 999.99.
+    // Un-credited: dividend difference-to-pay 66, total 888.88 (rounds to a unique 889).
     const uncorrected: TaxCalculationResult = {
       ...withDiscount,
       dividends: { grossTotal: 660, taxBeforeCredit: 66, withholdingTaxPaid: 0, foreignTaxCredit: 0, taxOwed: 66, taxRate: 0.1 },
-      totals: { totalTaxOwed: 999.99, earlyFilingDiscount: 0, totalAfterDiscount: 999.99 },
+      totals: { totalTaxOwed: 888.88, earlyFilingDiscount: 0, totalAfterDiscount: 888.88 },
     };
     // After the user applied a foreign credit on Results (persisted to context):
-    // dividend difference-to-pay drops to 42.42 and the total to 1,234.56.
+    // dividend difference-to-pay drops to 42.42 (-> 42) and the total to 1234.56 (-> 1235).
     const corrected: TaxCalculationResult = {
       ...uncorrected,
       dividends: { grossTotal: 660, taxBeforeCredit: 66, withholdingTaxPaid: 23.58, foreignTaxCredit: 23.58, taxOwed: 42.42, taxRate: 0.1 },
@@ -128,10 +128,12 @@ describe('FilingGuidePage withholding-corrected result (money-path agreement)', 
     };
     renderPage({ taxResult: uncorrected, correctedTaxResult: corrected });
 
-    // The corrected dividend difference-to-pay + total are shown.
-    expect(screen.getByText(/42.42/)).toBeInTheDocument();
-    expect(screen.getByText(/1,234.56/)).toBeInTheDocument();
-    // The over-stated un-credited total must NOT leak into the D212 guide.
-    expect(screen.queryByText(/999.99/)).not.toBeInTheDocument();
+    // The corrected dividend difference-to-pay + total are shown, whole-lei rounded.
+    // The field value is its own text node ("42"); the total row combines with the
+    // currency symbol into one node ("1235 RON"), so match it with a regex.
+    expect(screen.getByText('42')).toBeInTheDocument();
+    expect(screen.getByText(/1235/)).toBeInTheDocument();
+    // The over-stated un-credited total (888.88 -> 889) must NOT leak into the D212 guide.
+    expect(screen.queryByText(/889/)).not.toBeInTheDocument();
   });
 });
