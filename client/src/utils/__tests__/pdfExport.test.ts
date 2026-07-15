@@ -71,3 +71,37 @@ describe('generateTaxSummaryPdf early-filing discount gating', () => {
     expect(summaryLabels()).toContain('Total After Discount');
   });
 });
+
+describe('generateTaxSummaryPdf D212 Field Reference (ANAF SPV whole-lei values)', () => {
+  beforeEach(() => {
+    autoTableCalls.length = 0;
+  });
+
+  // The D212 Field Reference tables are the 3-column ones ([roLabel, enLabel, value]);
+  // the personal-records tables above are 2-column and keep 2-decimal precision.
+  function d212ReferenceValues(): string[] {
+    return autoTableCalls
+      .flatMap((c) => c.body ?? [])
+      .filter((row) => (row as string[]).length === 3)
+      .map((row) => String((row as string[])[2]));
+  }
+
+  it('renders every D212 reference value as whole lei: rounded, no separator, no decimals', () => {
+    const nonRound: TaxCalculationResult = {
+      ...withDiscount,
+      // 28,500.69 is the founder per-date engine figure; the SPV-reference cell must
+      // read "28501 RON", never "28,500.69 RON" (comma = decimal in RO) or with .69.
+      capitalGains: { totalProceeds: 28_500.69, totalCostBasis: 12_345.67, netGains: 16_155.02, losses: 0, taxRate: 0.1, taxOwed: 1_615.5 },
+    };
+    generateTaxSummaryPdf(nonRound, 2025, 'RON');
+    const values = d212ReferenceValues();
+
+    expect(values).toContain('28501 RON');   // proceeds, rounded up
+    expect(values).toContain('12346 RON');    // cost basis, rounded up
+    // Not a single reference value carries a thousands separator or a decimal point.
+    for (const v of values) {
+      expect(v).not.toMatch(/\d,\d/);
+      expect(v).not.toMatch(/\.\d/);
+    }
+  });
+});

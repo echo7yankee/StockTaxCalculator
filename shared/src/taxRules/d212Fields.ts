@@ -159,8 +159,19 @@ export function getAllD212Fields(): D212Field[] {
   return d212Sections.flatMap((s) => s.fields);
 }
 
+// ANAF's Declarația Unică (D212) amount fields are entered in WHOLE LEI, with no
+// decimals and no thousands separator ("fără zecimale, doar suma întreagă"). This is
+// the value the user pastes into an SPV form field, so it must be an unambiguous plain
+// integer. A grouping separator is dangerous (Romanian reads "," as the decimal point,
+// so "28,053.00" is ambiguous), whereas a bare integer parses identically in any locale.
+// Rounded arithmetically, the ANAF convention. This is display/copy only, not the engine number.
+export function formatD212Value(n: number): string {
+  // Math.round(-0.5) === -0, which stringifies to "0" (never "-0").
+  return String(Math.round(n));
+}
+
 export function formatD212Summary(result: TaxCalculationResult): string {
-  const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmt = formatD212Value;
   const lines: string[] = ['D212 Declarația Unică: Field Values', ''];
 
   for (const section of d212Sections) {

@@ -3,6 +3,7 @@ import {
   d212Sections,
   getAllD212Fields,
   formatD212Summary,
+  formatD212Value,
   type D212Field,
 } from '../d212Fields.js';
 import type { TaxCalculationResult } from '../../types/tax.js';
@@ -210,14 +211,28 @@ describe('formatD212Summary', () => {
     expect(out).toContain('Contribuția de asigurări sociale de sănătate');
   });
 
-  it('formats each field as "roLabel: value RON" with 2 decimals', () => {
+  it('formats each field as "roLabel: value RON" in whole lei with no separators', () => {
     const out = formatD212Summary(makeResult());
-    expect(out).toContain('Venit brut: 100,000.00 RON');
-    expect(out).toContain('Cheltuieli deductibile: 80,000.00 RON');
-    expect(out).toContain('Câștig net anual: 20,000.00 RON');
-    expect(out).toContain('Impozit pe venit datorat în România: 2,000.00 RON');
-    expect(out).toContain('Venit brut: 1,500.00 RON');
-    expect(out).toContain('Impozit pe venit plătit în străinătate: 225.00 RON');
+    expect(out).toContain('Venit brut: 100000 RON');
+    expect(out).toContain('Cheltuieli deductibile: 80000 RON');
+    expect(out).toContain('Câștig net anual: 20000 RON');
+    expect(out).toContain('Impozit pe venit datorat în România: 2000 RON');
+    expect(out).toContain('Venit brut: 1500 RON');
+    expect(out).toContain('Impozit pe venit plătit în străinătate: 225 RON');
+  });
+
+  it('rounds to whole lei and never emits a thousands separator or decimals (ANAF SPV format)', () => {
+    // 28,500.69 is the founder engine figure; the pasted SPV value must be "28501",
+    // not "28,500.69" (comma = decimal in RO) and not "28500.69" (SPV takes whole lei).
+    const out = formatD212Summary(
+      makeResult({
+        capitalGains: { totalProceeds: 28_500.69, totalCostBasis: 0, netGains: 28_500.69, losses: 0, taxRate: 0.1, taxOwed: 2_850.07 },
+      }),
+    );
+    expect(out).toContain('Venit brut: 28501 RON');
+    expect(out).toContain('Impozit pe venit datorat în România: 2850 RON');
+    expect(out).not.toMatch(/\d,\d/);   // no thousands separator anywhere
+    expect(out).not.toContain('28500.69');
   });
 
   it('includes the english label in parentheses under each field', () => {
@@ -229,13 +244,13 @@ describe('formatD212Summary', () => {
 
   it('appends the total tax owed at the bottom', () => {
     const out = formatD212Summary(makeResult());
-    expect(out).toContain('Total tax owed: 2,000.00 RON');
+    expect(out).toContain('Total tax owed: 2000 RON');
   });
 
   it('appends the early-filing discount + total after discount only when discount > 0', () => {
     const withDiscount = formatD212Summary(makeResult());
-    expect(withDiscount).toContain('Early filing discount: -60.00 RON');
-    expect(withDiscount).toContain('Total after discount: 1,940.00 RON');
+    expect(withDiscount).toContain('Early filing discount: -60 RON');
+    expect(withDiscount).toContain('Total after discount: 1940 RON');
 
     const noDiscount = formatD212Summary(
       makeResult({
@@ -244,5 +259,25 @@ describe('formatD212Summary', () => {
     );
     expect(noDiscount).not.toContain('Early filing discount');
     expect(noDiscount).not.toContain('Total after discount');
+  });
+});
+
+describe('formatD212Value (ANAF SPV whole-lei format)', () => {
+  it('returns a bare integer: no thousands separator, no decimals', () => {
+    expect(formatD212Value(28_053)).toBe('28053');
+    expect(formatD212Value(1_234_567)).toBe('1234567');
+    expect(formatD212Value(0)).toBe('0');
+  });
+
+  it('rounds to the nearest whole leu (ANAF arithmetic rounding)', () => {
+    expect(formatD212Value(28_500.69)).toBe('28501');
+    expect(formatD212Value(1_234.56)).toBe('1235');
+    expect(formatD212Value(1_234.49)).toBe('1234');
+    expect(formatD212Value(0.5)).toBe('1');
+  });
+
+  it('handles negatives without a "-0" artifact', () => {
+    expect(formatD212Value(-75.2)).toBe('-75');
+    expect(formatD212Value(-0.2)).toBe('0');
   });
 });

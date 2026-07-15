@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { TaxCalculationResult } from '@shared/types/tax';
-import { d212Sections } from '@shared/taxRules/d212Fields';
+import { d212Sections, formatD212Value } from '@shared/taxRules/d212Fields';
 
 // jspdf-autotable extends jsPDF instances with lastAutoTable at runtime
 type DocWithAutoTable = jsPDF & { lastAutoTable: { finalY: number } };
@@ -148,10 +148,13 @@ export function generateTaxSummaryPdf(
       y = 20;
     }
 
+    // The D212 Field Reference is the copy-into-SPV surface, so its values are whole
+    // lei with no separators (ANAF convention), unlike the personal-records tables
+    // above which keep 2-decimal precision.
     const rows = section.fields.map((field) => [
       field.roLabel,
       field.enLabel,
-      `${fmt(field.getValue(taxResult))} RON`,
+      `${formatD212Value(field.getValue(taxResult))} RON`,
     ]);
 
     doc.setFontSize(10);
