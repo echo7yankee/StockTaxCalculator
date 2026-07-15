@@ -120,6 +120,46 @@ describe('anonymizeBrokerRows: IBKR', () => {
     expect(JSON.stringify(rows)).toContain('APPLE INC');
   });
 
+  it('scrubs a real account number even when it equals a naive placeholder value (no self-mapping)', () => {
+    // The account is literally U0000001, the value a naive counter would hand
+    // out as the FIRST placeholder, making the "scrub" a no-op leak. The
+    // collision-proofing must map it to some OTHER placeholder instead.
+    const input: string[][] = [
+      ['Account Information', 'Data', 'Name', 'Ion Popescu'],
+      ['Account Information', 'Data', 'Account', 'U0000001'],
+      ['Account Information', 'Data', 'Base Currency', 'USD'],
+    ];
+    const { rows } = anonymizeBrokerRows(input, 'ibkr');
+    const accountRow = rows.find((r) => r[0] === 'Account Information' && r[2] === 'Account')!;
+    expect(accountRow[3]).not.toBe('U0000001');
+    expect(accountRow[3]).toMatch(/^U\d{7}$/);
+    expect(JSON.stringify(rows)).not.toContain('U0000001');
+  });
+
+  it('routes a non-U account-field value through the map, not a hardcoded U0000001', () => {
+    const input = ibkrSampleRows(); // U1234567 is the first-seen account -> U0000001
+    input.push(['Account Information', 'Data', 'Accounts', 'LEGACY-ACCT']);
+    const { rows } = anonymizeBrokerRows(input, 'ibkr');
+    const acctRow = rows.find((r) => r[0] === 'Account Information' && r[2] === 'Accounts')!;
+    // The legacy identifier must get its OWN distinct placeholder, not collide
+    // with the first real account's U0000001.
+    expect(acctRow[3]).not.toBe('U0000001');
+    expect(acctRow[3]).toMatch(/^U\d{7}$/);
+  });
+
+  it('scrubs phone numbers in free-text cells (international and RO 10-digit)', () => {
+    const input = ibkrSampleRows();
+    input.push(['Notes/Legal Notes', 'Data', 'Call us at +40 721 234 567 or 0755123456']);
+    const { rows, replacements } = anonymizeBrokerRows(input, 'ibkr');
+    const note = rows[rows.length - 1][2];
+    expect(note).not.toContain('+40 721 234 567');
+    expect(note).not.toContain('0755123456');
+    expect(note).toContain('[removed-phone]');
+    expect(replacements.phones).toBe(2);
+    // The ISIN's embedded digits must NOT be mistaken for a phone number.
+    expect(JSON.stringify(rows)).toContain('US0378331005');
+  });
+
   it('does not touch a bare "U" ticker (Unity) or ISINs with the global account-ID rule', () => {
     const input = ibkrSampleRows();
     input.push(['Trades', 'Data', 'Order', 'Stocks', 'USD', 'U', '2025-04-01, 10:00:00', '5', '20', '20', '-100', '0', '100', '0', '0', 'O']);
@@ -176,6 +216,14 @@ describe('anonymizeBrokerRows: Revolut', () => {
     // The preamble IBAN is wholesale-scrubbed to "[removed]" (not counted here);
     // only the table-cell IBAN goes through the targeted sweep.
     expect(replacements.ibans).toBe(1);
+  });
+
+  it('scrubs a phone number in a Revolut table cell via the defensive sweep', () => {
+    const input = revolutSampleRows();
+    input.push(['2025-09-01T10:00:00.000Z', 'Transfer', 'Call +40712345678', '', '', '-$5', 'USD', '1.08']);
+    const { rows, replacements } = anonymizeBrokerRows(input, 'revolut');
+    expect(rows[rows.length - 1][2]).toBe('Call [removed-phone]');
+    expect(replacements.phones).toBe(1);
   });
 
   it('throws on a file with no recognizable Account Statement header', () => {
