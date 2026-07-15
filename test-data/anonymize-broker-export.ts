@@ -43,12 +43,26 @@
  * - IBAN-shaped strings (2 letters + 2 digits + 11 or more alphanumerics) ->
  *   "[removed-iban]". ISINs are 12 characters total and can NOT match this
  *   (the pattern needs 15+), so instrument identifiers are never touched.
+ * - Phone numbers -> "[removed-phone]": an international `+<country>` number, or
+ *   a Romanian 10-digit 0-prefixed number (each allowing space/dot/dash/paren
+ *   separators). These only ever appear in free-text cells (notes,
+ *   descriptions); the financial columns the parser reads (amounts, quantities,
+ *   prices, dates, FX rates) never take this shape, and the round-trip tests
+ *   pin that they are left byte-identical.
  *   The sweep can in principle over-match an exotic broker reference code;
  *   that is the right direction (over-scrub beats a PII leak) and the printed
  *   counts make any unexpected replacement visible for manual review.
  *
  * NEVER touched: tickers, ISINs, instrument names, quantities, prices,
  * amounts, currencies, dates, FX rates, section/header rows, subtotal rows.
+ *
+ * WHAT THIS CANNOT DETECT: a person's NAME embedded in a free-text cell (a
+ * transaction description, a memo, a counterparty field). There is no reliable
+ * pattern for that, so it is deliberately NOT auto-scrubbed; the CLI prints an
+ * explicit reminder and the runbook's manual grep step is the backstop. The
+ * account placeholders (`U0000001`, ...) are also guaranteed never to collide
+ * with a real account number present in the file, so a real account can never
+ * survive as its own placeholder.
  *
  * The customer's original file and any pre-anonymization conversion never get
  * committed. Manual re-inspection of the output is mandatory before commit
@@ -70,6 +84,8 @@ export interface BrokerAnonymizeResult {
     preambleCells: number;
     emails: number;
     ibans: number;
+    /** Phone-shaped strings replaced by the defensive sweep. */
+    phones: number;
   };
 }
 
@@ -83,6 +99,15 @@ const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 /** IBAN: 2-letter country + 2 check digits + 11..30 alphanumerics (15+ chars
  *  total). An ISIN is 12 chars total, below the minimum, so it never matches. */
 const IBAN_RE = /\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b/g;
+
+/** Phone numbers in free-text cells. Two clearly-phone shapes only, to avoid
+ *  scrubbing financial data: an international `+<country>` number, or a Romanian
+ *  10-digit 0-prefixed number, each allowing space/dot/dash/paren separators.
+ *  Broker amounts/quantities/prices/dates never carry a leading `+` nor the RO
+ *  10-digit 0-prefixed shape, so the round-trip parse is unaffected (pinned by
+ *  the round-trip tests). ISIN digits (`US0378331005`) have no word boundary
+ *  before their leading digit, so they never match the RO branch. */
+const PHONE_RE = /(?:\+\d[\d\s().-]{6,}\d)|(?:\b0\d(?:[\s.-]?\d){8}\b)/g;
 
 /** IBKR `Account Information` field names whose values are personal data. */
 const IBKR_PII_NAME_FIELD_RE = /^name$/i;
@@ -98,12 +123,35 @@ export function anonymizeBrokerRows(rows: string[][], broker: BrokerKind): Broke
     preambleCells: 0,
     emails: 0,
     ibans: 0,
+    phones: 0,
   };
 
+  // Pre-scan every cell for real IBKR account numbers so generated placeholders
+  // can skip them. Without this, the k-th placeholder `U000000k` can equal a
+  // real account number present in the file; if it equals that account's OWN
+  // number, the "anonymization" is a no-op and the real number leaks verbatim.
+  // Gets likelier with more accounts (the counter climbs into real-number
+  // ranges), which is the ">N-account collision" failure mode.
+  const realAccountIds = new Set<string>();
+  if (broker === 'ibkr') {
+    for (const row of rows) {
+      for (const cell of row ?? []) {
+        const matches = (cell ?? '').match(IBKR_ACCOUNT_ID_RE);
+        if (matches) for (const m of matches) realAccountIds.add(m);
+      }
+    }
+  }
+
   const accountIdMap = new Map<string, string>();
+  let accountCounter = 0;
   function accountPlaceholder(originalId: string): string {
     if (!accountIdMap.has(originalId)) {
-      accountIdMap.set(originalId, `U${String(accountIdMap.size + 1).padStart(7, '0')}`);
+      let candidate: string;
+      do {
+        accountCounter += 1;
+        candidate = `U${String(accountCounter).padStart(7, '0')}`;
+      } while (realAccountIds.has(candidate));
+      accountIdMap.set(originalId, candidate);
     }
     return accountIdMap.get(originalId)!;
   }
@@ -136,6 +184,10 @@ export function anonymizeBrokerRows(rows: string[][], broker: BrokerKind): Broke
     out = out.replace(IBAN_RE, () => {
       replacements.ibans += 1;
       return '[removed-iban]';
+    });
+    out = out.replace(PHONE_RE, () => {
+      replacements.phones += 1;
+      return '[removed-phone]';
     });
     if (broker === 'ibkr') {
       out = out.replace(IBKR_ACCOUNT_ID_RE, (id) => {
@@ -179,11 +231,14 @@ export function anonymizeBrokerRows(rows: string[][], broker: BrokerKind): Broke
         if (IBKR_PII_ACCOUNT_FIELD_RE.test(fieldName)) {
           // Usually `U<digits>` (covered by the global map, which keeps the
           // placeholder consistent with other occurrences); anything else in an
-          // account field is still an identifier, so scrub it too.
+          // account field is still an identifier, so scrub it too. Route it
+          // through the same map (keyed by the raw value) rather than a
+          // hardcoded `U0000001`, which would collide with the first real
+          // account's placeholder.
           const swept = sweepCell(value);
           if (swept !== value) return swept;
           replacements.accountInfoValues += 1;
-          return 'U0000001';
+          return accountPlaceholder(value);
         }
         if (IBKR_PII_CONTACT_FIELD_RE.test(fieldName)) {
           replacements.accountInfoValues += 1;
@@ -245,11 +300,14 @@ async function main() {
   console.log(`  Preamble cells scrubbed: ${replacements.preambleCells}`);
   console.log(`  Emails removed: ${replacements.emails}`);
   console.log(`  IBAN-shaped strings removed: ${replacements.ibans}`);
+  console.log(`  Phone-shaped strings removed: ${replacements.phones}`);
   if (brokerArg === 'ibkr' && replacements.accountIds === 0 && replacements.accountInfoValues === 0) {
     console.log('  WARNING: nothing was scrubbed. Either the file was pre-trimmed or it carries');
     console.log('  PII in a shape these rules do not know. Inspect it manually before committing.');
   }
   console.log('Next: manual re-inspection is MANDATORY before commit.');
+  console.log('  A person NAME inside a free-text cell (description / memo / counterparty) is');
+  console.log('  NOT auto-detected by these rules. Grep the output for the customer name yourself.');
   console.log('See docs/broker-sample-intake-runbook.md (grep for the name / account number).');
 }
 
