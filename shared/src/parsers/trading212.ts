@@ -32,6 +32,36 @@ function parseNumber(value: string | undefined): number {
   return parseFloat(value.replace(/,/g, '')) || 0;
 }
 
+// T212 suffixes the row-total column with the ACCOUNT base currency, which
+// varies per user: "Total (EUR)" on a EUR account, "Total (USD)" on a USD one,
+// while some exports emit a bare "Total". Matching only the first two (as we did
+// until this fix) meant any other base currency read 0 -> zeroed proceeds ->
+// under-declared tax with no warning. The pattern is anchored, so sibling
+// columns like "Charge amount (EUR)" cannot match.
+const TOTAL_COLUMN_PATTERN = /^total(\s*\(.+\))?$/i;
+
+function isBareTotal(key: string): boolean {
+  return key.trim().toLowerCase() === 'total';
+}
+
+// Returns the row total plus whether a total column existed at all. The two are
+// distinct: an absent column is a parse failure we must warn about, while a
+// present column holding 0 is a legitimate zero.
+function resolveTotal(row: RawCsvRow): { value: number; columnFound: boolean } {
+  const totalKeys = Object.keys(row).filter((key) => TOTAL_COLUMN_PATTERN.test(key.trim()));
+  if (totalKeys.length === 0) return { value: 0, columnFound: false };
+
+  // Bare "Total" keeps precedence over a suffixed variant, and the first
+  // non-zero value wins, so the previous `row['Total'] || row['Total (EUR)']`
+  // behaviour is preserved exactly for the shapes it already handled.
+  const orderedKeys = [...totalKeys.filter(isBareTotal), ...totalKeys.filter((key) => !isBareTotal(key))];
+  for (const key of orderedKeys) {
+    const parsed = parseNumber(row[key]);
+    if (parsed) return { value: parsed, columnFound: true };
+  }
+  return { value: 0, columnFound: true };
+}
+
 function parseAction(raw: string): TransactionAction | null {
   const trimmed = raw.trim();
   if (ACTION_MAP[trimmed]) return ACTION_MAP[trimmed];
@@ -68,6 +98,9 @@ export function parseTrading212Csv(rows: RawCsvRow[]): ParseResult {
   // user sees them listed) and count them for ONE clear warning below, mirroring
   // the IBKR parser's interest-out-of-scope warning so the #24A hard-stop fires.
   let interestRowCount = 0;
+  // Counted like interest rows so an unreadable total fails loud through the
+  // #24A hard-stop instead of silently zeroing a row's proceeds.
+  let missingTotalRowCount = 0;
 
   if (rows.length === 0) {
     warnings.push('CSV file is empty or has no data rows.');
@@ -118,7 +151,8 @@ export function parseTrading212Csv(rows: RawCsvRow[]): ParseResult {
     const pricePerShare = parseNumber(row['Price / share']);
     const priceCurrency = parseCurrency(row['Currency (Price / share)'] ?? 'USD');
     const exchangeRate = parseNumber(row['Exchange rate']) || 1;
-    const total = parseNumber(row['Total']) || parseNumber(row['Total (EUR)']);
+    const { value: total, columnFound: totalColumnFound } = resolveTotal(row);
+    if (!totalColumnFound) missingTotalRowCount++;
     // T212's "Total" column is in the ACCOUNT base currency, while pricePerShare
     // and priceCurrency describe the INSTRUMENT. Since Total = shares * price *
     // exchangeRate, the exchange rate is account-per-instrument, so dividing by it
@@ -161,6 +195,12 @@ export function parseTrading212Csv(rows: RawCsvRow[]): ParseResult {
   if (interestRowCount > 0) {
     warnings.push(
       `Detected ${interestRowCount} interest-income row(s) (e.g. "Interest on cash"). InvesTax does not calculate interest income; it is taxable (venituri din dobanzi) and must be declared separately.`
+    );
+  }
+
+  if (missingTotalRowCount > 0) {
+    warnings.push(
+      `Could not find a total column on ${missingTotalRowCount} row(s). Trading212 names it "Total" or "Total (<currency>)" after your account's base currency. Without it the amounts on those rows read as zero, which would under-report your declaration.`
     );
   }
 
