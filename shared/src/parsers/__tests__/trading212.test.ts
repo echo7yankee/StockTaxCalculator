@@ -234,6 +234,17 @@ describe('parseTrading212Csv', () => {
       expect(result.warnings.some(w => w.includes('Could not find a total column on 1 row'))).toBe(true);
     });
 
+    // The suffix is constrained to an ISO 4217 code so an unrecognised variant
+    // fails loud rather than being read as a total we never validated.
+    it.each(['Total (gross)', 'Total (net amount)', 'Currency (Total)'])(
+      'does not read "%s" as the row total, and warns instead',
+      (columnName) => {
+        const result = parseTrading212Csv([withTotalColumn(columnName, '9999.00')]);
+        expect(result.transactions[0].totalAmountOriginal).toBe(0);
+        expect(result.warnings.some(w => w.includes('Could not find a total column'))).toBe(true);
+      }
+    );
+
     it('does not mistake a sibling currency-suffixed column for the total', () => {
       const row = withTotalColumn(null) as Record<string, string>;
       row['Charge amount (EUR)'] = '250.00';

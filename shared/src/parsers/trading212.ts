@@ -36,9 +36,12 @@ function parseNumber(value: string | undefined): number {
 // varies per user: "Total (EUR)" on a EUR account, "Total (USD)" on a USD one,
 // while some exports emit a bare "Total". Matching only the first two (as we did
 // until this fix) meant any other base currency read 0 -> zeroed proceeds ->
-// under-declared tax with no warning. The pattern is anchored, so sibling
-// columns like "Charge amount (EUR)" cannot match.
-const TOTAL_COLUMN_PATTERN = /^total(\s*\(.+\))?$/i;
+// under-declared tax with no warning. The suffix is constrained to an ISO 4217
+// code (all are three letters) and the whole pattern is anchored, so sibling
+// columns ("Charge amount (EUR)", "Currency (Total)") and any non-currency
+// variant fail to match and fall through to the loud warning below rather than
+// being read as a total we did not actually recognise.
+const TOTAL_COLUMN_PATTERN = /^total(\s*\([A-Z]{3}\))?$/i;
 
 function isBareTotal(key: string): boolean {
   return key.trim().toLowerCase() === 'total';
