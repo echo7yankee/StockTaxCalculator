@@ -197,4 +197,86 @@ describe('parseTrading212Csv', () => {
       expect(result.transactions[0].withholdingTaxOriginal).toBeCloseTo(0.33, 2);
     });
   });
+
+  // T212 names the row-total column after the ACCOUNT base currency, which
+  // varies per user. Reading only "Total"/"Total (EUR)" zeroed the proceeds of
+  // every other base currency (USD accounts included) with no warning.
+  describe('total column naming (account base currency)', () => {
+    function withTotalColumn(columnName: string | null, value?: string): RawCsvRow {
+      const row = makeRow() as Record<string, string>;
+      delete row.Total;
+      if (columnName) row[columnName] = value ?? '1505.00';
+      return row as RawCsvRow;
+    }
+
+    it.each(['Total (USD)', 'Total (GBP)', 'Total (RON)', 'Total (EUR)'])(
+      'reads the row total from a "%s" column',
+      (columnName) => {
+        const result = parseTrading212Csv([withTotalColumn(columnName)]);
+        expect(result.transactions[0].totalAmountOriginal).toBe(1505);
+      }
+    );
+
+    it('still reads a bare "Total" column', () => {
+      const result = parseTrading212Csv([makeRow()]);
+      expect(result.transactions[0].totalAmountOriginal).toBe(1505);
+    });
+
+    it('lets a bare "Total" win over a suffixed variant when both are present', () => {
+      const row = makeRow({ Total: '1505.00' }) as Record<string, string>;
+      row['Total (EUR)'] = '999.00';
+      const result = parseTrading212Csv([row as RawCsvRow]);
+      expect(result.transactions[0].totalAmountOriginal).toBe(1505);
+    });
+
+    it('warns instead of silently zeroing when no total column exists', () => {
+      const result = parseTrading212Csv([withTotalColumn(null)]);
+      expect(result.warnings.some(w => w.includes('Could not find a total column on 1 row'))).toBe(true);
+    });
+
+    // The suffix is constrained to an ISO 4217 code so an unrecognised variant
+    // fails loud rather than being read as a total we never validated.
+    it.each(['Total (gross)', 'Total (net amount)', 'Currency (Total)'])(
+      'does not read "%s" as the row total, and warns instead',
+      (columnName) => {
+        const result = parseTrading212Csv([withTotalColumn(columnName, '9999.00')]);
+        expect(result.transactions[0].totalAmountOriginal).toBe(0);
+        expect(result.warnings.some(w => w.includes('Could not find a total column'))).toBe(true);
+      }
+    );
+
+    it('does not mistake a sibling currency-suffixed column for the total', () => {
+      const row = withTotalColumn(null) as Record<string, string>;
+      row['Charge amount (EUR)'] = '250.00';
+      const result = parseTrading212Csv([row as RawCsvRow]);
+      expect(result.transactions[0].totalAmountOriginal).toBe(0);
+      expect(result.warnings.some(w => w.includes('Could not find a total column'))).toBe(true);
+    });
+
+    it('counts every total-less row in the one warning', () => {
+      const result = parseTrading212Csv([withTotalColumn(null), withTotalColumn(null)]);
+      expect(result.warnings.some(w => w.includes('Could not find a total column on 2 row'))).toBe(true);
+    });
+
+    it('treats a present-but-zero total as a real zero, not a missing column', () => {
+      const result = parseTrading212Csv([withTotalColumn('Total (USD)', '0')]);
+      expect(result.transactions[0].totalAmountOriginal).toBe(0);
+      expect(result.warnings.some(w => w.includes('Could not find a total column'))).toBe(false);
+    });
+
+    it('does NOT fire the missing-total warning for a normal export', () => {
+      const result = parseTrading212Csv([makeRow({ Action: 'Market buy' }), makeRow({ Action: 'Market sell' })]);
+      expect(result.warnings.some(w => w.includes('Could not find a total column'))).toBe(false);
+    });
+
+    it('divides a suffixed foreign-currency total by the exchange rate like the bare column', () => {
+      // USD account holding a EUR stock: the suffix must not change the math.
+      const row = withTotalColumn('Total (USD)', '1706.60') as Record<string, string>;
+      row['No. of shares'] = '10';
+      row['Price / share'] = '185.50';
+      row['Exchange rate'] = '0.92';
+      const result = parseTrading212Csv([row as RawCsvRow]);
+      expect(result.transactions[0].totalAmountOriginal).toBeCloseTo(1855, 2);
+    });
+  });
 });
