@@ -279,4 +279,104 @@ describe('parseTrading212Csv', () => {
       expect(result.transactions[0].totalAmountOriginal).toBeCloseTo(1855, 2);
     });
   });
+
+  // A present column holding a value we cannot read was the failure one layer
+  // below the missing-column case above: the pre-fix parseNumber silently
+  // returned 0, or silently mis-read an EU-decimal value.
+  describe('unreadable numeric values', () => {
+    const unreadable = (w: string) => w.includes('Could not read');
+
+    it('warns instead of silently mis-reading an EU-decimal value', () => {
+      // Pre-fix: the comma was stripped as if it were a thousands separator, so
+      // "1.505,00" read as 1.505 -> a 1000x under-statement with no signal.
+      const result = parseTrading212Csv([makeRow({ Total: '1.505,00' })]);
+      expect(result.warnings.some(unreadable)).toBe(true);
+      expect(result.transactions[0].totalAmountOriginal).not.toBeCloseTo(1.505, 3);
+    });
+
+    it('warns instead of silently over-reading a comma-decimal value', () => {
+      // Pre-fix: "1505,00" -> "150500" -> a 100x over-statement.
+      const result = parseTrading212Csv([makeRow({ Total: '1505,00' })]);
+      expect(result.warnings.some(unreadable)).toBe(true);
+      expect(result.transactions[0].totalAmountOriginal).not.toBe(150500);
+    });
+
+    it('warns instead of silently zeroing a currency-symbol value', () => {
+      const result = parseTrading212Csv([makeRow({ Total: '$1505.00' })]);
+      expect(result.warnings.some(unreadable)).toBe(true);
+    });
+
+    it('treats an overflowing exponent as unreadable rather than letting Infinity through', () => {
+      const result = parseTrading212Csv([makeRow({ Total: '9e999' })]);
+      expect(result.warnings.some(unreadable)).toBe(true);
+      expect(Number.isFinite(result.transactions[0].totalAmountOriginal)).toBe(true);
+    });
+
+    it('aggregates every unreadable value into ONE warning carrying examples', () => {
+      const result = parseTrading212Csv([
+        makeRow({ 'No. of shares': 'abc' }),
+        makeRow({ 'Price / share': '$150.50' }),
+      ]);
+      const warnings = result.warnings.filter(unreadable);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain('Could not read 2 numeric value(s)');
+      expect(warnings[0]).toContain('No. of shares: "abc"');
+      expect(warnings[0]).toContain('Price / share: "$150.50"');
+    });
+
+    // The false-positive guard that matters most: Trading212 writes an empty
+    // cell or the literal "Not available" for a base-currency row's exchange
+    // rate (no conversion happened). Both OSS parsers we calibrated against
+    // carry the same sentinel. Warning on it would fire on every same-currency
+    // row and hard-stop a perfectly correct file.
+    it.each(['Not available', 'not available', ''])(
+      'treats an "%s" exchange rate as absent, not unreadable',
+      (value) => {
+        const result = parseTrading212Csv([makeRow({ 'Exchange rate': value })]);
+        expect(result.warnings.some(unreadable)).toBe(false);
+        expect(result.transactions[0].exchangeRateToLocal).toBe(1);
+      }
+    );
+
+    it('treats an empty withholding tax as absent, not unreadable', () => {
+      const result = parseTrading212Csv([
+        makeRow({ Action: 'Dividend (Ordinary)', 'Withholding tax': '' }),
+      ]);
+      expect(result.warnings.some(unreadable)).toBe(false);
+      expect(result.transactions[0].withholdingTaxOriginal).toBe(0);
+    });
+
+    it('does NOT warn for a normal export', () => {
+      const result = parseTrading212Csv([
+        makeRow({ Action: 'Market buy' }),
+        makeRow({ Action: 'Market sell' }),
+      ]);
+      expect(result.warnings.some(unreadable)).toBe(false);
+    });
+
+    it('reads fractional shares and plain decimals without warning', () => {
+      const result = parseTrading212Csv([makeRow({ 'No. of shares': '0.0000001' })]);
+      expect(result.warnings.some(unreadable)).toBe(false);
+      expect(result.transactions[0].shares).toBeCloseTo(0.0000001, 10);
+    });
+
+    it('reads a negative value without warning', () => {
+      const result = parseTrading212Csv([makeRow({ Action: 'Market sell', Total: '-1505.00' })]);
+      expect(result.warnings.some(unreadable)).toBe(false);
+      expect(result.transactions[0].totalAmountOriginal).toBeCloseTo(1505, 2);
+    });
+
+    // Grouping is accepted purely to preserve the pre-fix reading; we have no
+    // evidence Trading212 emits it. "1,505" stays genuinely ambiguous (grouped
+    // 1505 vs EU-decimal 1.505) and keeps the pre-fix grouped reading.
+    it.each([
+      ['1,505.00', 1505],
+      ['1,505', 1505],
+      ['1505.00', 1505],
+    ])('reads "%s" as %d without warning, as the pre-fix parser did', (total, expected) => {
+      const result = parseTrading212Csv([makeRow({ Total: total })]);
+      expect(result.warnings.some(unreadable)).toBe(false);
+      expect(result.transactions[0].totalAmountOriginal).toBeCloseTo(expected, 2);
+    });
+  });
 });

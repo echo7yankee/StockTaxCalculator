@@ -27,9 +27,52 @@ function parseCurrency(value: string): Currency {
   return CURRENCY_MAP[upper] ?? 'USD';
 }
 
-function parseNumber(value: string | undefined): number {
-  if (!value || value.trim() === '') return 0;
-  return parseFloat(value.replace(/,/g, '')) || 0;
+// Trading212 emits plain decimal values ("1505.00"): no thousands separator, no
+// currency symbol. The two maintained OSS parsers that compute real tax returns
+// off this format (KapJI/capital-gains-calculator, tacgomes/investir) both hand
+// the raw cell straight to Python's Decimal(), which RAISES on a separator or a
+// symbol, and both special-case "" / "Not available" as the absent sentinel.
+// Two independent implementations agreeing is the evidence this grammar is
+// calibrated to the real export rather than, as the pre-fix version was, to a
+// guess carried since the initial commit.
+//
+// Grouping ("1,505.00") is still accepted. We have no evidence Trading212 emits
+// it, but reading it was the pre-fix behaviour, so accepting it costs nothing
+// while rejecting it could hard-stop a file that parses correctly today. A comma
+// that is NOT in a grouping position ("1505,00", or the EU-decimal "1.505,00")
+// matches nothing here and fails loud below instead of being silently mis-read.
+// "1,505" stays ambiguous (grouped 1505 or EU-decimal 1.505) and keeps the
+// pre-fix grouped reading; only a real localized export could settle it.
+const NUMERIC_PATTERN = /^[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][+-]?\d+)?$/;
+
+// Trading212 leaves the exchange rate empty, or writes the literal "Not
+// available", when a row needed no conversion (the instrument trades in the
+// account's base currency). Both are a legitimate ABSENT, not a broken value:
+// callers already default them (the exchange rate to 1), and treating them as
+// unreadable would fire the warning below on every same-currency row and
+// hard-stop a perfectly correct file. Both OSS parsers above carry the same
+// sentinel set.
+const ABSENT_NUMERIC_VALUES = new Set(['', 'not available']);
+
+type NumericCell =
+  | { kind: 'value'; value: number }
+  | { kind: 'absent' }
+  | { kind: 'unreadable' };
+
+// Splits what the pre-fix parseNumber collapsed into a bare 0: a legitimately
+// absent value, and a value we genuinely cannot read. The caller defaults the
+// former and warns about the latter.
+function classifyNumber(value: string | undefined): NumericCell {
+  if (value === undefined) return { kind: 'absent' };
+  const trimmed = value.trim();
+  if (ABSENT_NUMERIC_VALUES.has(trimmed.toLowerCase())) return { kind: 'absent' };
+  if (!NUMERIC_PATTERN.test(trimmed)) return { kind: 'unreadable' };
+  const parsed = parseFloat(trimmed.replace(/,/g, ''));
+  // The grammar admits an exponent, so an overflowing "9e999" would reach
+  // parseFloat as Infinity and poison the engine as a number. Treat it as
+  // unreadable rather than let a non-finite value through.
+  if (!Number.isFinite(parsed)) return { kind: 'unreadable' };
+  return { kind: 'value', value: parsed };
 }
 
 // T212 suffixes the row-total column with the ACCOUNT base currency, which
@@ -50,7 +93,7 @@ function isBareTotal(key: string): boolean {
 // Returns the row total plus whether a total column existed at all. The two are
 // distinct: an absent column is a parse failure we must warn about, while a
 // present column holding 0 is a legitimate zero.
-function resolveTotal(row: RawCsvRow): { value: number; columnFound: boolean } {
+function resolveTotal(row: RawCsvRow, readNumber: (column: string) => number): { value: number; columnFound: boolean } {
   const totalKeys = Object.keys(row).filter((key) => TOTAL_COLUMN_PATTERN.test(key.trim()));
   if (totalKeys.length === 0) return { value: 0, columnFound: false };
 
@@ -59,7 +102,7 @@ function resolveTotal(row: RawCsvRow): { value: number; columnFound: boolean } {
   // behaviour is preserved exactly for the shapes it already handled.
   const orderedKeys = [...totalKeys.filter(isBareTotal), ...totalKeys.filter((key) => !isBareTotal(key))];
   for (const key of orderedKeys) {
-    const parsed = parseNumber(row[key]);
+    const parsed = readNumber(key);
     if (parsed) return { value: parsed, columnFound: true };
   }
   return { value: 0, columnFound: true };
@@ -104,6 +147,12 @@ export function parseTrading212Csv(rows: RawCsvRow[]): ParseResult {
   // Counted like interest rows so an unreadable total fails loud through the
   // #24A hard-stop instead of silently zeroing a row's proceeds.
   let missingTotalRowCount = 0;
+  // A present column holding a value we cannot read is the same failure one
+  // layer down: the pre-fix parseNumber turned "$1505.00" into 0 and the
+  // EU-decimal "1.505,00" into 1.505, both silently. Counted across the file for
+  // ONE warning, with a few unique examples so the user can find the cell.
+  let unreadableValueCount = 0;
+  const unreadableExamples = new Set<string>();
 
   if (rows.length === 0) {
     warnings.push('CSV file is empty or has no data rows.');
@@ -147,14 +196,29 @@ export function parseTrading212Csv(rows: RawCsvRow[]): ParseResult {
       continue;
     }
 
+    // Reads one numeric cell, recording anything unreadable for the warning
+    // below. An unreadable value still yields 0 (the pre-fix number), so this
+    // adds the missing SIGNAL without changing any amount we already computed.
+    const readNumber = (column: string): number => {
+      const cell = classifyNumber(row[column]);
+      if (cell.kind === 'unreadable') {
+        unreadableValueCount++;
+        if (unreadableExamples.size < 3) {
+          unreadableExamples.add(`${column}: "${(row[column] ?? '').trim()}"`);
+        }
+        return 0;
+      }
+      return cell.kind === 'value' ? cell.value : 0;
+    };
+
     const isin = (row['ISIN'] ?? '').trim();
     const ticker = (row['Ticker'] ?? '').trim();
     const securityName = (row['Name'] ?? '').trim();
-    const shares = parseNumber(row['No. of shares']);
-    const pricePerShare = parseNumber(row['Price / share']);
+    const shares = readNumber('No. of shares');
+    const pricePerShare = readNumber('Price / share');
     const priceCurrency = parseCurrency(row['Currency (Price / share)'] ?? 'USD');
-    const exchangeRate = parseNumber(row['Exchange rate']) || 1;
-    const { value: total, columnFound: totalColumnFound } = resolveTotal(row);
+    const exchangeRate = readNumber('Exchange rate') || 1;
+    const { value: total, columnFound: totalColumnFound } = resolveTotal(row, readNumber);
     if (!totalColumnFound) missingTotalRowCount++;
     // T212's "Total" column is in the ACCOUNT base currency, while pricePerShare
     // and priceCurrency describe the INSTRUMENT. Since Total = shares * price *
@@ -164,10 +228,10 @@ export function parseTrading212Csv(rows: RawCsvRow[]): ParseResult {
     // matching per-date instrument BNR rate. Without this, an EUR-account statement
     // of USD stocks converted the EUR "Total" at the USD rate -> wrong RON (and
     // under-declared whenever account/instrument < 1). A same-currency account has
-    // exchangeRate 1 (parseNumber(...) || 1 also guards blank/zero), so those
+    // exchangeRate 1 (readNumber(...) || 1 also guards blank/absent), so those
     // statements stay byte-identical to the previous behaviour.
     const totalInPriceCurrency = Math.abs(total) / exchangeRate;
-    const withholdingTax = parseNumber(row['Withholding tax']);
+    const withholdingTax = readNumber('Withholding tax');
     const withholdingTaxCurrency = parseCurrency(row['Currency (Withholding tax)'] ?? row['Currency (Price / share)'] ?? 'USD');
     const brokerTransactionId = (row['ID'] ?? row['Id'] ?? '').trim();
 
@@ -204,6 +268,12 @@ export function parseTrading212Csv(rows: RawCsvRow[]): ParseResult {
   if (missingTotalRowCount > 0) {
     warnings.push(
       `Could not find a total column on ${missingTotalRowCount} row(s). Trading212 names it "Total" or "Total (<currency>)" after your account's base currency. Without it the amounts on those rows read as zero, which would under-report your declaration.`
+    );
+  }
+
+  if (unreadableValueCount > 0) {
+    warnings.push(
+      `Could not read ${unreadableValueCount} numeric value(s) in this file (e.g. ${[...unreadableExamples].join(', ')}). Trading212 exports plain numbers such as "1505.00". A value we cannot read falls back to a default (zero, or a 1:1 exchange rate), which would misstate your declaration.`
     );
   }
 
