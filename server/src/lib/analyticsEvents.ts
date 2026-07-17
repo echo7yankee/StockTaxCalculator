@@ -39,6 +39,7 @@ export const ANALYTICS_EVENTS = [
   'gate_blocked_missing_history',
   'gate_blocked_wrong_broker',
   'gate_blocked_empty',
+  'gate_blocked_unreliable_amounts',
   'embed_calculator_used',
   'ghid_calculator_used',
 ] as const;

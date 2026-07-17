@@ -16,6 +16,12 @@ import type { SubscribeTopic } from '../components/common/EmailCapture';
  *  - `missing_history` -> NO capture. The fix is in the user's hands (re-export
  *    with full history); a "we'll email you when we support it" list would tell
  *    them to wait for us, which is the wrong action.
+ *  - `unreliable_amounts` -> NO capture either. The file IS a supported broker on
+ *    a supported year, but a cell we could not read (or a missing Total column)
+ *    would understate the number. A waitlist is the wrong framing (we already
+ *    "support" it); we want the visitor to contact us so we can inspect the
+ *    export and fix the parser. The always-present contact CTA (pre-filled with
+ *    the warning + file name) is exactly that channel.
  *  - `unsupported_year` -> a year list. A year AFTER the latest engine-supported
  *    one (e.g. a 2026 YTD statement today) joins `filing_reminder`, whose
  *    welcome copy is exactly "when filing opens for 2026 income". Anything
@@ -102,7 +108,10 @@ export function shouldAskStatementOrigin(reason: GateBlockReason, broker: Broker
 export function resolveBlockedCapture(input: BlockedCaptureInput): BlockedCapture | null {
   const { reason, broker, year, origin } = input;
 
-  if (reason === 'missing_history') return null;
+  // Contact-only (no waitlist): the user re-exports with full history, or reaches
+  // out so we can inspect a supported-broker file whose amounts we flagged as
+  // unreliable. Neither is a "wait for us to add support" case.
+  if (reason === 'missing_history' || reason === 'unreliable_amounts') return null;
 
   if (reason === 'unsupported_year') {
     const latestSupported = getLatestEngineSupportedConfig().taxYear;
