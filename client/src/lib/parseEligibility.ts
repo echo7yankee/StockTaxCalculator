@@ -18,8 +18,10 @@ import type { PreviewData } from '../hooks/useStatementPreview';
  *    / not a valid statement). BLOCK -> `unreadable`.
  *  - FATAL WARNING: the file was read, but we cannot produce a CORRECT number.
  *    The fatal set is exactly: an unsupported tax year, a CSV missing-history
- *    hard-stop, a PDF broker-mismatch, and an empty result (zero sells AND zero
- *    dividends AND zero distributions). BLOCK -> the matching reason.
+ *    hard-stop, a PDF broker-mismatch, an empty result (zero sells AND zero
+ *    dividends AND zero distributions), and a parser warning that the amounts
+ *    themselves are wrong (a missing Total column or an unreadable numeric cell,
+ *    both of which understate the declaration). BLOCK -> the matching reason.
  *  - BENIGN WARNING: the file was read on a supported broker + year and the only
  *    warnings are informational (skipped rows, duplicates removed, splits
  *    applied, mixed-currency notes). ALLOW. This is the deliberate refinement
@@ -35,7 +37,8 @@ export type GateBlockReason =
   | 'unsupported_year'
   | 'missing_history'
   | 'wrong_broker'
-  | 'empty';
+  | 'empty'
+  | 'unreliable_amounts';
 
 export interface ParseEligibility {
   eligible: boolean;
@@ -57,6 +60,39 @@ export interface ParseEligibilityInput {
  *  i.e. nothing to tax (the Florin-style zero-everything parse). */
 function isEmptyResult(preview: PreviewData): boolean {
   return preview.sells === 0 && preview.dividends === 0 && preview.distributions === 0;
+}
+
+/**
+ * Substrings that mark a parser warning as reporting a WRONG amount, not merely
+ * an informational note. A file can parse into a full preview (right broker,
+ * right year, non-empty) yet still carry one of these: a cell whose value we
+ * could not read, or a Total column we could not find. Both silently default the
+ * affected amount (to 0 or a 1:1 rate), which UNDER-reports the declaration. The
+ * moat promise is a correct number, so these must close the pre-pay gate rather
+ * than let the buyer pay and then hit the #24A hard-stop (the Mihai paid-then-
+ * blocked shape). Sourced from the two Trading212-CSV warnings in
+ * shared/src/parsers/trading212.ts (missing-total, PR #263; unreadable-value,
+ * PR #264); they are broker-agnostic markers, so an equivalent warning from
+ * another parser is caught too.
+ *
+ * FRAGILITY: this couples the client gate to parser PROSE. It is the deliberate,
+ * scoped fix for backlog #24B (SUGGESTIONS S3); the durable version is
+ * structured warning codes emitted by the parsers (SUGGESTIONS S6). The
+ * integration test in parseEligibility.test.ts runs the real parser through this
+ * predicate, so a prose change that breaks the match fails a test rather than
+ * silently re-opening the gate. Match on lower-cased warnings so casing drift
+ * does not matter.
+ */
+const UNRELIABLE_AMOUNT_WARNING_MARKERS = [
+  'find a total column',
+  'numeric value(s) in this file',
+] as const;
+
+function hasUnreliableAmountWarning(warnings: string[]): boolean {
+  return warnings.some((w) => {
+    const lower = w.toLowerCase();
+    return UNRELIABLE_AMOUNT_WARNING_MARKERS.some((marker) => lower.includes(marker));
+  });
 }
 
 /**
@@ -97,6 +133,14 @@ export function evaluateParseEligibility(input: ParseEligibilityInput): ParseEli
   // FATAL: nothing to tax (zero sells / dividends / distributions).
   if (isEmptyResult(preview)) {
     return { eligible: false, blockReason: 'empty' };
+  }
+
+  // FATAL: the file parsed into a full preview but a parser warning says an
+  // amount is wrong (unreadable cell / missing Total column), so the number
+  // would under-report. Checked last: the structural reasons above are more
+  // specific (an empty or wrong-year file is not merely "amounts unreliable").
+  if (hasUnreliableAmountWarning(preview.warnings)) {
+    return { eligible: false, blockReason: 'unreliable_amounts' };
   }
 
   // ELIGIBLE: read cleanly on a supported broker + year with a non-empty result.

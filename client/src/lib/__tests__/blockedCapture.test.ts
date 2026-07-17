@@ -16,10 +16,22 @@ const T212 = BROKERS.trading212;
 const IBKR = BROKERS.ibkr;
 const REVOLUT = BROKERS.revolut;
 
-describe('resolveBlockedCapture - missing_history (user-actionable, no list)', () => {
-  it('returns null: the fix is re-exporting with full history, not waiting for us', () => {
+describe('resolveBlockedCapture - contact-only reasons (no waitlist)', () => {
+  it('missing_history returns null: re-export with full history, do not wait for us', () => {
     expect(
       resolveBlockedCapture({ reason: 'missing_history', broker: T212, year: 2025, origin: null }),
+    ).toBeNull();
+  });
+
+  it('unreliable_amounts returns null: contact us to inspect a flagged supported file', () => {
+    // A supported broker + year whose amounts we flagged as wrong. A waitlist is
+    // the wrong framing (we already support it); the always-present contact CTA
+    // is the right channel. A stray crypto origin must not conjure a waitlist.
+    expect(
+      resolveBlockedCapture({ reason: 'unreliable_amounts', broker: T212, year: 2025, origin: null }),
+    ).toBeNull();
+    expect(
+      resolveBlockedCapture({ reason: 'unreliable_amounts', broker: T212, year: 2025, origin: 'binance' }),
     ).toBeNull();
   });
 });
@@ -96,7 +108,7 @@ describe('resolveBlockedCapture - statement-level blocks (unreadable / wrong_bro
 
 describe('resolveBlockedCapture - source stays inside the subscribe API cap', () => {
   it('every reachable source string is <= 60 chars (the zod source limit)', () => {
-    const reasons = ['unreadable', 'unsupported_year', 'missing_history', 'wrong_broker', 'empty'] as const;
+    const reasons = ['unreadable', 'unsupported_year', 'missing_history', 'wrong_broker', 'empty', 'unreliable_amounts'] as const;
     const brokers = [T212, IBKR, REVOLUT];
     const origins = [null, ...STATEMENT_ORIGINS];
     for (const reason of reasons) {
@@ -120,6 +132,10 @@ describe('shouldAskStatementOrigin', () => {
   it('does not ask when the year or history is the problem (origin is known)', () => {
     expect(shouldAskStatementOrigin('unsupported_year', T212)).toBe(false);
     expect(shouldAskStatementOrigin('missing_history', T212)).toBe(false);
+  });
+
+  it('does not ask on unreliable_amounts (the broker is already known)', () => {
+    expect(shouldAskStatementOrigin('unreliable_amounts', T212)).toBe(false);
   });
 
   it('does not ask on a beta broker attempt (the broker is already named)', () => {
