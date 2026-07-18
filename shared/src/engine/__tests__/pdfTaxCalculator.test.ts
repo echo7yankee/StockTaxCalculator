@@ -57,6 +57,7 @@ function makePdfData(overrides: Partial<PdfParseResult> = {}): PdfParseResult {
     distributions: overrides.distributions ?? [],
     year: overrides.year ?? 2025,
     warnings: overrides.warnings ?? [],
+    structuredWarnings: overrides.structuredWarnings ?? [],
   };
 }
 

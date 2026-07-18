@@ -16,6 +16,8 @@
  *   - Page 6: Glossary
  */
 
+import { createWarningSink, type ParserWarning } from './parserWarnings.js';
+
 /**
  * Multilingual keyword map: each key maps to all known translations.
  * Trading 212 localizes PDF labels based on user language settings.
@@ -107,6 +109,8 @@ export interface PdfParseResult {
   distributions: PdfDividend[];
   year: number;
   warnings: string[];
+  /** The same warnings with stable codes + severity (SUGGESTIONS S6). */
+  structuredWarnings: ParserWarning[];
   /**
    * True when the PDF has none of the recognizable Trading212 markers (no
    * detectable year header, no sell-trades / dividend / distribution section,
@@ -430,7 +434,8 @@ function detectYear(text: string): { year: number; fallback: boolean } {
  */
 export function parseTrading212AnnualStatement(pageTexts: string[]): PdfParseResult {
   const fullText = pageTexts.join('\n');
-  const warnings: string[] = [];
+  const sink = createWarningSink();
+  const { warnings, structuredWarnings } = sink;
 
   const { year, fallback: yearFallback } = detectYear(fullText);
   const overview = parseOverview(pageTexts[0] ?? fullText);
@@ -461,24 +466,28 @@ export function parseTrading212AnnualStatement(pageTexts: string[]): PdfParseRes
     distributions.length === 0;
 
   if (brokerMismatch) {
-    warnings.push(
+    sink.push(
+      't212pdf_broker_mismatch',
       'This does not look like a Trading 212 statement (no recognizable sections found). If it is an Interactive Brokers statement, upload its CSV Activity Statement instead.'
     );
   } else {
     if (yearFallback) {
-      warnings.push(`Could not detect year from PDF. Defaulting to ${year}.`);
+      sink.push('t212pdf_year_not_detected', `Could not detect year from PDF. Defaulting to ${year}.`);
     }
     if (sellTrades.length === 0) {
       if (matchesAny(fullText, KEYWORDS.sellTrades)) {
-        warnings.push('Sell trades section found but no rows could be parsed. The PDF format may differ from expected.');
+        sink.push(
+          't212pdf_sell_section_unparsed',
+          'Sell trades section found but no rows could be parsed. The PDF format may differ from expected.'
+        );
       } else {
-        warnings.push('No sell trades section found in the PDF.');
+        sink.push('t212pdf_sell_section_missing', 'No sell trades section found in the PDF.');
       }
     }
   }
 
   if (dividends.length === 0 && matchesAny(fullText, KEYWORDS.dividendOverview)) {
-    warnings.push('Dividend section found but no rows could be parsed.');
+    sink.push('t212pdf_dividend_section_unparsed', 'Dividend section found but no rows could be parsed.');
   }
 
   // CFD-only or Crypto-only statement detection. InvesTax only computes tax for
@@ -486,7 +495,8 @@ export function parseTrading212AnnualStatement(pageTexts: string[]): PdfParseRes
   // contains CFD or Crypto sections, the numbers we produce would be meaningless.
   if (!matchesAny(fullText, KEYWORDS.investAccount)) {
     if (matchesAny(fullText, KEYWORDS.cfdAccount) || matchesAny(fullText, KEYWORDS.cryptoAccount)) {
-      warnings.push(
+      sink.push(
+        't212pdf_no_invest_account',
         'No Invest account section found in this PDF. InvesTax only calculates tax for Trading 212 Invest accounts. Please upload your Invest account annual statement.'
       );
     }
@@ -502,7 +512,8 @@ export function parseTrading212AnnualStatement(pageTexts: string[]): PdfParseRes
     const parsedTotal = sellTrades.reduce((s, t) => s + t.totalResult, 0);
     const diff = Math.abs(parsedTotal - overview.closedResult);
     if (diff > 1) {
-      warnings.push(
+      sink.push(
+        't212pdf_sell_total_mismatch',
         `Parsed sell-trade per-row sum (${parsedTotal.toFixed(2)}) differs from overview (${overview.closedResult.toFixed(2)}). Engine will pick the most reliable source based on transaction currency consistency.`
       );
     }
@@ -514,11 +525,12 @@ export function parseTrading212AnnualStatement(pageTexts: string[]): PdfParseRes
     const parsedGross = [...dividends, ...distributions].reduce((s, d) => s + d.grossAmountUsd, 0);
     const diff = Math.abs(parsedGross - overview.grossDividends);
     if (diff > 1) {
-      warnings.push(
+      sink.push(
+        't212pdf_dividend_gross_mismatch',
         `Parsed dividend gross (${parsedGross.toFixed(2)}) differs from overview gross dividends (${overview.grossDividends.toFixed(2)}). Some rows may not have been parsed.`
       );
     }
   }
 
-  return { overview, sellTrades, dividends, distributions, year, warnings, brokerMismatch };
+  return { overview, sellTrades, dividends, distributions, year, warnings, structuredWarnings, brokerMismatch };
 }

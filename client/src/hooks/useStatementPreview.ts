@@ -9,7 +9,7 @@ import {
   applyKnownStockSplits,
   parseTrading212AnnualStatement,
 } from '@shared/index';
-import type { RawCsvRow, MergedParseResult, PdfParseResult, AppliedSplit } from '@shared/index';
+import type { RawCsvRow, MergedParseResult, PdfParseResult, AppliedSplit, ParserWarning } from '@shared/index';
 import { extractPdfPageTexts } from '../utils/pdfExtractor';
 import { reportParseEvent } from '../lib/parseMonitor';
 import type { BrokerId } from '../lib/brokers';
@@ -43,6 +43,14 @@ export type PreviewErrorKind = 'validation' | 'parse';
 interface PreviewBase {
   fileName: string;
   warnings: string[];
+  /** The same parser warnings carrying a stable code + severity (SUGGESTIONS
+   *  S6). The pre-pay gate reads THIS to decide whether a file would under-state
+   *  the declaration; `warnings` remains the display channel. Empty for the
+   *  hook-synthesized entries that have no parser origin (the CSV
+   *  missing-history flag, which the gate consumes as its own input).
+   *  Optional so a hand-built or previously-persisted preview stays valid; the
+   *  gate falls back to its legacy prose markers when it is absent. */
+  structuredWarnings?: ParserWarning[];
   year: number;
   sells: number;
   dividends: number;
@@ -190,6 +198,7 @@ export function useStatementPreview(options: UseStatementPreviewOptions = {}): U
       totalRows: parsed.transactions.length,
       skipped: parsed.skipped.length,
       warnings,
+      structuredWarnings: parsed.structuredWarnings ?? [],
       year: years[0] ?? new Date().getFullYear() - 1,
       years,
       sourceFileCount: parsed.sourceFileCount,
@@ -279,14 +288,20 @@ export function useStatementPreview(options: UseStatementPreviewOptions = {}): U
         // Trading212 CSV carries no split events, so repair cost basis for any
         // position held across a known forward split. Revolut and IBKR report
         // their own splits, so they must not consume the table (double-count).
-        const { transactions, appliedSplits, warnings } =
+        const { transactions, appliedSplits, warnings, structuredWarnings } =
           broker === 'trading212'
             ? applyKnownStockSplits(merged.transactions)
-            : { transactions: merged.transactions, appliedSplits: [] as AppliedSplit[], warnings: [] as string[] };
+            : {
+                transactions: merged.transactions,
+                appliedSplits: [] as AppliedSplit[],
+                warnings: [] as string[],
+                structuredWarnings: [] as ParserWarning[],
+              };
         const adjusted: MergedParseResult = {
           ...merged,
           transactions,
           warnings: [...merged.warnings, ...warnings],
+          structuredWarnings: [...merged.structuredWarnings, ...structuredWarnings],
         };
         setCsvParse(adjusted);
         buildCsvPreview(files, adjusted, appliedSplits);
@@ -311,6 +326,7 @@ export function useStatementPreview(options: UseStatementPreviewOptions = {}): U
         dividends: parsed.dividends.length,
         distributions: parsed.distributions.length,
         warnings: parsed.warnings,
+        structuredWarnings: parsed.structuredWarnings ?? [],
         year: parsed.year,
         closedResult: parsed.overview.closedResult,
         currency: parsed.overview.currency,

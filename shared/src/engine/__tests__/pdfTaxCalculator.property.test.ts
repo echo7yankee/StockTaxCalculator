@@ -64,6 +64,7 @@ const pdfDataArb: fc.Arbitrary<PdfParseResult> = fc.record({
   distributions: fc.array(dividendArb, { minLength: 0, maxLength: 5 }),
   year: fc.integer({ min: 2020, max: 2030 }),
   warnings: fc.constant([]),
+  structuredWarnings: fc.constant([]),
 });
 
 const exchangeRateArb = fc.double({
@@ -116,6 +117,7 @@ describe('pdfTaxCalculator property tests', () => {
           distributions: [],
           year: 2025,
           warnings: [],
+          structuredWarnings: [],
         };
         const r = calculateTaxesFromPdf(data, romaniaTaxConfig, rate);
         expect(r.taxResult.capitalGains.netGains).toBe(0);
@@ -226,6 +228,7 @@ describe('pdfTaxCalculator property tests', () => {
           distributions: [],
           year: 2025,
           warnings: [],
+          structuredWarnings: [],
         };
         const r = calculateTaxesFromPdf(data, romaniaTaxConfig, rate);
         const perRowSum = trades.reduce((s, t) => s + t.totalResult, 0);
@@ -268,6 +271,7 @@ describe('pdfTaxCalculator property tests', () => {
           distributions: [],
           year: 2025,
           warnings: [],
+          structuredWarnings: [],
         };
         const r = calculateTaxesFromPdf(data, romaniaTaxConfig, rate);
         const expectedClosed = overview.closedResult * rate;
@@ -312,6 +316,7 @@ describe('pdfTaxCalculator property tests', () => {
             distributions: [],
             year: 2025,
             warnings: [],
+            structuredWarnings: [],
           };
           const r = calculateTaxesFromPdf(data, romaniaTaxConfig, 1);
           expect(r.warnings.some(w => w.toLowerCase().includes('sign mismatch'))).toBe(true);

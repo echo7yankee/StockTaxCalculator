@@ -21,6 +21,7 @@ function makePdfPending(overrides: Partial<PdfParseResult> = {}): PendingParse {
     distributions: [],
     year: 2025,
     warnings: [],
+    structuredWarnings: [],
     brokerMismatch: false,
     ...overrides,
   } as PdfParseResult;
@@ -34,6 +35,7 @@ function makeCsvPending(): PendingParse {
     ] as unknown as MergedParseResult['transactions'],
     skipped: [],
     warnings: [],
+    structuredWarnings: [],
     sourceFileCount: 1,
     duplicatesRemoved: 0,
   } as MergedParseResult;

@@ -1,4 +1,5 @@
 import type { Transaction, TransactionAction, Currency, RawCsvRow } from '../types/transaction.js';
+import { createWarningSink, type ParserWarning } from './parserWarnings.js';
 
 const ACTION_MAP: Record<string, TransactionAction> = {
   'Market buy': 'buy',
@@ -125,6 +126,14 @@ export interface ParseResult {
   transactions: Transaction[];
   skipped: SkippedRow[];
   warnings: string[];
+  /**
+   * The same warnings as `warnings`, in the same order, each carrying a stable
+   * code and a severity (SUGGESTIONS S6). Consumers that need to REASON about a
+   * warning -- above all the pre-pay gate, which must know whether a file would
+   * under-state the declaration -- read this instead of matching on prose.
+   * `warnings` stays the display channel.
+   */
+  structuredWarnings: ParserWarning[];
 }
 
 export interface SkippedRow {
@@ -136,7 +145,8 @@ export interface SkippedRow {
 export function parseTrading212Csv(rows: RawCsvRow[]): ParseResult {
   const transactions: Transaction[] = [];
   const skipped: SkippedRow[] = [];
-  const warnings: string[] = [];
+  const sink = createWarningSink();
+  const { warnings, structuredWarnings } = sink;
   // Interest rows ("Interest on cash") are real, taxable income (venituri din
   // dobanzi) that InvesTax does not compute. Left as a plain transaction they
   // would contribute nothing to income/CASS/securities AND produce no warning,
@@ -155,13 +165,16 @@ export function parseTrading212Csv(rows: RawCsvRow[]): ParseResult {
   const unreadableExamples = new Set<string>();
 
   if (rows.length === 0) {
-    warnings.push('CSV file is empty or has no data rows.');
-    return { transactions, skipped, warnings };
+    sink.push('t212_csv_empty', 'CSV file is empty or has no data rows.');
+    return { transactions, skipped, warnings, structuredWarnings };
   }
 
   const firstRow = rows[0];
   if (!('Action' in firstRow)) {
-    warnings.push('Missing "Action" column. This may not be a Trading212 CSV export.');
+    sink.push(
+      't212_missing_action_column',
+      'Missing "Action" column. This may not be a Trading212 CSV export.'
+    );
   }
 
   for (let i = 0; i < rows.length; i++) {
@@ -260,26 +273,29 @@ export function parseTrading212Csv(rows: RawCsvRow[]): ParseResult {
   }
 
   if (interestRowCount > 0) {
-    warnings.push(
+    sink.push(
+      't212_interest_income_out_of_scope',
       `Detected ${interestRowCount} interest-income row(s) (e.g. "Interest on cash"). InvesTax does not calculate interest income; it is taxable (venituri din dobanzi) and must be declared separately.`
     );
   }
 
   if (missingTotalRowCount > 0) {
-    warnings.push(
+    sink.push(
+      't212_missing_total_column',
       `Could not find a total column on ${missingTotalRowCount} row(s). Trading212 names it "Total" or "Total (<currency>)" after your account's base currency. Without it the amounts on those rows read as zero, which would under-report your declaration.`
     );
   }
 
   if (unreadableValueCount > 0) {
-    warnings.push(
+    sink.push(
+      't212_unreadable_numeric_value',
       `Could not read ${unreadableValueCount} numeric value(s) in this file (e.g. ${[...unreadableExamples].join(', ')}). Trading212 exports plain numbers such as "1505.00". A value we cannot read falls back to a default (zero, or a 1:1 exchange rate), which would misstate your declaration.`
     );
   }
 
   if (transactions.length === 0 && skipped.length === 0) {
-    warnings.push('No transactions could be parsed from this file.');
+    sink.push('t212_no_transactions_parsed', 'No transactions could be parsed from this file.');
   }
 
-  return { transactions, skipped, warnings };
+  return { transactions, skipped, warnings, structuredWarnings };
 }

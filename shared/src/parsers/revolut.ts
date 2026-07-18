@@ -1,5 +1,6 @@
 import type { Transaction, TransactionAction, Currency } from '../types/transaction.js';
 import type { ParseResult, SkippedRow } from './trading212.js';
+import { createWarningSink } from './parserWarnings.js';
 
 /**
  * Revolut Invest "Account Statement" parser.
@@ -136,11 +137,12 @@ function detectCurrencyFromSymbol(value: string | undefined): Currency | undefin
 export function parseRevolutStatement(rows: string[][]): ParseResult {
   const transactions: Transaction[] = [];
   const skipped: SkippedRow[] = [];
-  const warnings: string[] = [];
+  const sink = createWarningSink();
+  const { warnings, structuredWarnings } = sink;
 
   if (!rows || rows.length === 0) {
-    warnings.push('File is empty or has no data rows.');
-    return { transactions, skipped, warnings };
+    sink.push('revolut_file_empty', 'File is empty or has no data rows.');
+    return { transactions, skipped, warnings, structuredWarnings };
   }
 
   // Find the header row (tolerant of leading blank/title rows an xlsx export may
@@ -163,10 +165,11 @@ export function parseRevolutStatement(rows: string[][]): ParseResult {
   }
 
   if (headerIdx === -1) {
-    warnings.push(
+    sink.push(
+      'revolut_not_an_account_statement',
       'This does not look like a Revolut Account Statement (no Date / Type / Total Amount columns found). Export it via Invest > More > Documents > Stocks > Account Statement > Excel.'
     );
-    return { transactions, skipped, warnings };
+    return { transactions, skipped, warnings, structuredWarnings };
   }
 
   const colIndex = (...names: string[]): number => {
@@ -243,7 +246,8 @@ export function parseRevolutStatement(rows: string[][]): ParseResult {
       // share drops proportionally). A negative quantity would be a reverse split,
       // which we do not model, so warn instead of guessing.
       if (quantity <= 0) {
-        warnings.push(
+        sink.push(
+          'revolut_reverse_split_unapplied',
           `Stock split for "${cell(row, tickerIdx) || 'an unknown security'}" on row ${rowNumber} could not be applied automatically. Check this position before filing.`
         );
         continue;
@@ -305,20 +309,22 @@ export function parseRevolutStatement(rows: string[][]): ParseResult {
   }
 
   if (unsupportedCurrencies.size > 0) {
-    warnings.push(
+    sink.push(
+      'revolut_unsupported_currencies_skipped',
       `Unsupported currencies found (${[...unsupportedCurrencies].join(', ')}). InvesTax supports USD, EUR, GBP and RON; those rows were skipped.`
     );
   }
   if (unknownTypes.size > 0) {
-    warnings.push(
+    sink.push(
+      'revolut_unrecognised_types_skipped',
       `Unrecognised transaction types found (${[...unknownTypes].join(', ')}). Those rows were skipped; check them before filing.`
     );
   }
   if (transactions.length === 0 && skipped.length === 0) {
-    warnings.push('No transactions could be parsed from this file.');
+    sink.push('revolut_no_transactions_parsed', 'No transactions could be parsed from this file.');
   }
 
-  return { transactions, skipped, warnings };
+  return { transactions, skipped, warnings, structuredWarnings };
 }
 
 function makeTransaction(args: {

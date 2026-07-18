@@ -156,6 +156,7 @@ function makePdfParseResult(overrides: Partial<PdfParseResult> = {}): PdfParseRe
     dividends: [{ ticker: 'AAPL' }] as unknown as PdfParseResult['dividends'],
     distributions: [],
     warnings: [],
+    structuredWarnings: [],
   } as PdfParseResult;
   return { ...base, ...overrides };
 }
@@ -200,6 +201,7 @@ function makeCsvParseResult(overrides: Partial<ParseResult> = {}): ParseResult {
     transactions,
     skipped: [],
     warnings: [],
+    structuredWarnings: [],
   } as ParseResult;
   return { ...base, ...overrides };
 }
@@ -545,6 +547,7 @@ describe('UploadPage - Calculate Taxes flow', () => {
       taxResult: { totals: { totalTaxOwed: 1234 } },
       securities: [{ ticker: 'AAPL' }],
       warnings: [],
+      structuredWarnings: [],
     });
     const user = userEvent.setup();
     const { container } = renderPage();
@@ -577,6 +580,7 @@ describe('UploadPage - Calculate Taxes flow', () => {
       taxResult: { totals: { totalTaxOwed: 500 } },
       securities: [],
       warnings: [],
+      structuredWarnings: [],
     });
     const user = userEvent.setup();
     const { container } = renderPage();
@@ -1717,6 +1721,7 @@ describe('UploadPage - post-pay rehydration (backlog #24B Phase 2)', () => {
       taxResult: { totals: { totalTaxOwed: 28053 } },
       securities: [{ ticker: 'AAPL' }],
       warnings: [],
+      structuredWarnings: [],
     });
     writePendingParse(makePdfPending());
     searchParamsValue = new URLSearchParams('welcome=1');
@@ -1845,6 +1850,7 @@ describe('UploadPage - post-pay rehydration (backlog #24B Phase 2)', () => {
       taxResult: { totals: { totalTaxOwed: 28053 } },
       securities: [],
       warnings: [],
+      structuredWarnings: [],
     });
     writePendingParse(makePdfPending());
     searchParamsValue = new URLSearchParams('welcome=1');
@@ -1891,6 +1897,7 @@ describe('UploadPage - post-pay rehydration (backlog #24B Phase 2)', () => {
       taxResult: { totals: { totalTaxOwed: 28053 } },
       securities: [],
       warnings: [],
+      structuredWarnings: [],
     });
     writePendingParse(makePdfPending());
     searchParamsValue = new URLSearchParams('welcome=1');

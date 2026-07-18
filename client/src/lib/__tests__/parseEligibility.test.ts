@@ -4,7 +4,13 @@ import {
   type ParseEligibilityInput,
 } from '../parseEligibility';
 import type { CsvPreviewData, PdfPreviewData } from '../../hooks/useStatementPreview';
-import { parseTrading212Csv, type AppliedSplit, type RawCsvRow } from '@shared/index';
+import {
+  parseTrading212Csv,
+  parseIbkrCsv,
+  type AppliedSplit,
+  type RawCsvRow,
+  type ParserWarning,
+} from '@shared/index';
 
 /**
  * Unit coverage for the pre-pay parse eligibility predicate (backlog #24B Phase
@@ -296,7 +302,15 @@ describe('evaluateParseEligibility', () => {
     function previewFromRows(rows: RawCsvRow[]): CsvPreviewData {
       const parsed = parseTrading212Csv(rows);
       const sells = parsed.transactions.filter((t) => t.action === 'sell').length;
-      return csvPreview({ warnings: parsed.warnings, sells, dividends: 0, distributions: 0 });
+      return csvPreview({
+        warnings: parsed.warnings,
+        // Feed the parser's OWN severities through, so these pins exercise the
+        // structured path the gate actually takes in the app (SUGGESTIONS S6).
+        structuredWarnings: parsed.structuredWarnings,
+        sells,
+        dividends: 0,
+        distributions: 0,
+      });
     }
 
     it('blocks a real parse that emits the missing-total warning', () => {
@@ -316,6 +330,140 @@ describe('evaluateParseEligibility', () => {
 
     it('keeps a real clean parse eligible (no false positive from the pin)', () => {
       const preview = previewFromRows([cleanSell]);
+      const result = evaluateParseEligibility(input({ preview }));
+      expect(result).toEqual({ eligible: true, blockReason: null });
+    });
+  });
+
+  /**
+   * SUGGESTIONS S6 phase A: the gate now decides off the parser's own
+   * `severity`, not off two hardcoded Trading212 sentences. That is what closes
+   * S8 -- a warning from ANY parser that drops or defaults a taxable amount now
+   * blocks payment, whatever its prose says.
+   */
+  describe('structured warning severity (S6)', () => {
+    const fatalWarning: ParserWarning = {
+      code: 'ibkr_unreadable_row_date',
+      severity: 'fatal',
+      message: 'Could not read the date "not-a-date" in the Dividends section; that row was skipped.',
+    };
+    const infoWarning: ParserWarning = {
+      code: 'ibkr_non_stock_positions_skipped',
+      severity: 'info',
+      message: 'Skipped non-stock positions (Forex).',
+    };
+
+    it('blocks on a fatal warning whose prose the legacy markers never matched', () => {
+      // Proves the point: this message contains neither legacy substring.
+      expect(fatalWarning.message.toLowerCase()).not.toContain('find a total column');
+      expect(fatalWarning.message.toLowerCase()).not.toContain('numeric value(s) in this file');
+
+      const result = evaluateParseEligibility(
+        input({
+          preview: csvPreview({
+            warnings: [fatalWarning.message],
+            structuredWarnings: [fatalWarning],
+          }),
+        }),
+      );
+      expect(result).toEqual({ eligible: false, blockReason: 'unreliable_amounts' });
+    });
+
+    it('keeps the gate open when every structured warning is informational', () => {
+      const result = evaluateParseEligibility(
+        input({
+          preview: csvPreview({
+            warnings: [infoWarning.message],
+            structuredWarnings: [infoWarning],
+          }),
+        }),
+      );
+      expect(result).toEqual({ eligible: true, blockReason: null });
+    });
+
+    it('blocks when a fatal warning sits among informational ones', () => {
+      const result = evaluateParseEligibility(
+        input({
+          preview: csvPreview({
+            warnings: [infoWarning.message, fatalWarning.message],
+            structuredWarnings: [infoWarning, fatalWarning],
+          }),
+        }),
+      );
+      expect(result).toEqual({ eligible: false, blockReason: 'unreliable_amounts' });
+    });
+
+    it('trusts severity over prose: an info warning that LOOKS fatal stays eligible', () => {
+      // A parser could legitimately mention a total column in a benign note. The
+      // severity is the parser's own call, so it wins over the legacy substring.
+      const result = evaluateParseEligibility(
+        input({
+          preview: csvPreview({
+            warnings: ['We could not find a total column header, but read the amounts fine.'],
+            structuredWarnings: [
+              {
+                code: 't212_missing_action_column',
+                severity: 'info',
+                message: 'We could not find a total column header, but read the amounts fine.',
+              },
+            ],
+          }),
+        }),
+      );
+      expect(result).toEqual({ eligible: true, blockReason: null });
+    });
+
+    it('falls back to the legacy prose markers when no structured warnings exist', () => {
+      // A preview persisted before S6 shipped, or a hand-built one. It must keep
+      // behaving exactly as it did under PR #265 rather than silently opening.
+      const result = evaluateParseEligibility(
+        input({
+          preview: csvPreview({
+            warnings: ['Could not find a total column on 2 row(s).'],
+            structuredWarnings: [],
+          }),
+        }),
+      );
+      expect(result).toEqual({ eligible: false, blockReason: 'unreliable_amounts' });
+    });
+  });
+
+  /**
+   * The S8 case end-to-end, through the REAL IBKR parser: a dividend row whose
+   * date we cannot read is dropped, so the declaration under-reports. Before this
+   * change the gate opened and the buyer paid for a number missing that income.
+   */
+  describe('S8 regression: IBKR under-reporting closes the gate', () => {
+    function ibkrPreview(rows: string[][]): CsvPreviewData {
+      const parsed = parseIbkrCsv(rows);
+      return csvPreview({
+        warnings: parsed.warnings,
+        structuredWarnings: parsed.structuredWarnings,
+        // A real statement also has readable rows; the preview counts below stand
+        // in for those so the gate is not short-circuited by the `empty` reason.
+        sells: 2,
+        dividends: 1,
+        distributions: 0,
+      });
+    }
+
+    it('blocks a real IBKR parse that dropped an income row it could not date', () => {
+      const preview = ibkrPreview([
+        ['Dividends', 'Header', 'Currency', 'Date', 'Description', 'Amount'],
+        ['Dividends', 'Data', 'USD', 'not-a-date', 'AAPL (US0378331005) Cash Dividend', '5'],
+      ]);
+      // Sanity: the real parser really did warn (guards a silent no-op pin).
+      expect(preview.warnings.length).toBeGreaterThan(0);
+
+      const result = evaluateParseEligibility(input({ preview }));
+      expect(result).toEqual({ eligible: false, blockReason: 'unreliable_amounts' });
+    });
+
+    it('keeps a real IBKR parse with only benign warnings eligible', () => {
+      const preview = ibkrPreview([
+        ['Trades', 'Header', 'DataDiscriminator', 'Asset Category', 'Currency', 'Symbol', 'Date/Time', 'Quantity', 'T. Price', 'Proceeds'],
+        ['Trades', 'Data', 'Order', 'Forex', 'USD', 'EUR.USD', '2025-03-04, 10:00:00', '1000', '1.08', '-1080'],
+      ]);
       const result = evaluateParseEligibility(input({ preview }));
       expect(result).toEqual({ eligible: true, blockReason: null });
     });

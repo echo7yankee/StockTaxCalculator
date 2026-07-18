@@ -1,5 +1,6 @@
 import type { Transaction } from '../types/transaction.js';
 import { KNOWN_STOCK_SPLITS, type StockSplit } from '../data/stockSplits.js';
+import { createWarningSink, type ParserWarning } from './parserWarnings.js';
 
 export interface AppliedSplit {
   /** Label from the splits table, e.g. "NVDA 10:1 (Jun 2024)". */
@@ -17,6 +18,8 @@ export interface StockSplitResult {
   appliedSplits: AppliedSplit[];
   /** Reverse / un-applicable splits, fed to the parse-warning hard-stop. */
   warnings: string[];
+  /** The same warnings with stable codes + severity (SUGGESTIONS S6). */
+  structuredWarnings: ParserWarning[];
 }
 
 const EPSILON = 0.0001;
@@ -45,7 +48,8 @@ export function applyKnownStockSplits(
 ): StockSplitResult {
   const result: Transaction[] = [...transactions];
   const appliedSplits: AppliedSplit[] = [];
-  const warnings: string[] = [];
+  const sink = createWarningSink();
+  const { warnings, structuredWarnings } = sink;
 
   // Apply chronologically so an earlier split's injected shares are counted when
   // a later split on the same security is evaluated (e.g. TSLA 5:1 then 3:1).
@@ -76,7 +80,8 @@ export function applyKnownStockSplits(
     if (held <= EPSILON || !template) continue;
 
     if (split.ratio < 1) {
-      warnings.push(
+      sink.push(
+        'splits_reverse_split_unapplied',
         `Reverse stock split for ${split.ticker} on ${split.effectiveDate} could not be applied automatically. Verify this position before filing.`,
       );
       continue;
@@ -106,7 +111,7 @@ export function applyKnownStockSplits(
     });
   }
 
-  return { transactions: result, appliedSplits, warnings };
+  return { transactions: result, appliedSplits, warnings, structuredWarnings };
 }
 
 /** Match by ISIN when the transaction has one (precise, stable across splits);
