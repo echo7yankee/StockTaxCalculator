@@ -63,35 +63,44 @@ function isEmptyResult(preview: PreviewData): boolean {
 }
 
 /**
- * Substrings that mark a parser warning as reporting a WRONG amount, not merely
- * an informational note. A file can parse into a full preview (right broker,
- * right year, non-empty) yet still carry one of these: a cell whose value we
- * could not read, or a Total column we could not find. Both silently default the
- * affected amount (to 0 or a 1:1 rate), which UNDER-reports the declaration. The
- * moat promise is a correct number, so these must close the pre-pay gate rather
- * than let the buyer pay and then hit the #24A hard-stop (the Mihai paid-then-
- * blocked shape). Sourced from the two Trading212-CSV warnings in
- * shared/src/parsers/trading212.ts (missing-total, PR #263; unreadable-value,
- * PR #264); they are broker-agnostic markers, so an equivalent warning from
- * another parser is caught too.
+ * Legacy prose markers for a warning that reports a WRONG amount, kept ONLY as a
+ * fallback for a preview that carries no structured warnings (a hand-built
+ * fixture, or a persisted preview from before SUGGESTIONS S6 shipped).
  *
- * FRAGILITY: this couples the client gate to parser PROSE. It is the deliberate,
- * scoped fix for backlog #24B (SUGGESTIONS S3); the durable version is
- * structured warning codes emitted by the parsers (SUGGESTIONS S6). The
- * integration test in parseEligibility.test.ts runs the real parser through this
- * predicate, so a prose change that breaks the match fails a test rather than
- * silently re-opening the gate. Match on lower-cased warnings so casing drift
- * does not matter.
+ * The primary path is now the parser's own `severity` (see below). These two
+ * substrings are the Trading212-CSV warnings that PR #265 originally matched:
+ * missing-total (PR #263) and unreadable-value (PR #264).
  */
-const UNRELIABLE_AMOUNT_WARNING_MARKERS = [
+const LEGACY_UNRELIABLE_AMOUNT_MARKERS = [
   'find a total column',
   'numeric value(s) in this file',
 ] as const;
 
-function hasUnreliableAmountWarning(warnings: string[]): boolean {
-  return warnings.some((w) => {
+/**
+ * True when the parse produced a number that would UNDER-state the declaration.
+ *
+ * A file can parse into a full preview (right broker, right year, non-empty) and
+ * still be dangerous: a cell we could not read, a Total column we could not find,
+ * an income row whose date we could not parse. Each silently defaults or drops an
+ * amount, so the buyer would pay and then hit the #24A hard-stop -- the Mihai
+ * paid-then-blocked shape. The moat promise is a correct number, so these close
+ * the pre-pay gate.
+ *
+ * Which warnings qualify is the PARSER's call, declared as `severity: 'fatal'` in
+ * shared/src/parsers/parserWarnings.ts. That is the S6 fix for what used to be a
+ * prose substring match: the previous version only ever caught the two Trading212
+ * sentences that happened to exist, so IBKR's "could not read the date ...; that
+ * row was skipped" dropped real income while the gate stayed open (SUGGESTIONS
+ * S8). Severity is exhaustive over the code union, so a NEW warning cannot
+ * default to harmless without someone choosing that in the severity table.
+ */
+function hasUnreliableAmountWarning(preview: PreviewData): boolean {
+  if (preview.structuredWarnings?.length) {
+    return preview.structuredWarnings.some((w) => w.severity === 'fatal');
+  }
+  return preview.warnings.some((w) => {
     const lower = w.toLowerCase();
-    return UNRELIABLE_AMOUNT_WARNING_MARKERS.some((marker) => lower.includes(marker));
+    return LEGACY_UNRELIABLE_AMOUNT_MARKERS.some((marker) => lower.includes(marker));
   });
 }
 
@@ -135,11 +144,11 @@ export function evaluateParseEligibility(input: ParseEligibilityInput): ParseEli
     return { eligible: false, blockReason: 'empty' };
   }
 
-  // FATAL: the file parsed into a full preview but a parser warning says an
-  // amount is wrong (unreadable cell / missing Total column), so the number
-  // would under-report. Checked last: the structural reasons above are more
-  // specific (an empty or wrong-year file is not merely "amounts unreliable").
-  if (hasUnreliableAmountWarning(preview.warnings)) {
+  // FATAL: the file parsed into a full preview but a parser marked a warning
+  // 'fatal', i.e. an amount was dropped or defaulted, so the number would
+  // under-report. Checked last: the structural reasons above are more specific
+  // (an empty or wrong-year file is not merely "amounts unreliable").
+  if (hasUnreliableAmountWarning(preview)) {
     return { eligible: false, blockReason: 'unreliable_amounts' };
   }
 

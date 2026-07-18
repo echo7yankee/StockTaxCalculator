@@ -5,6 +5,12 @@ export type { CountryTaxConfig, HealthContributionBracket } from './types/countr
 export { getCountryConfig, getSupportedCountries, romaniaTaxConfig, buildRomaniaTaxConfig, getTaxConfigForYear, isEngineSupportedTaxYear } from './taxRules/index.js';
 export { parseTrading212Csv } from './parsers/trading212.js';
 export type { ParseResult, SkippedRow } from './parsers/trading212.js';
+export { WARNING_SEVERITY, createWarningSink, hasFatalWarning } from './parsers/parserWarnings.js';
+export type {
+  ParserWarning,
+  ParserWarningCode,
+  ParserWarningSeverity,
+} from './parsers/parserWarnings.js';
 export { parseIbkrCsv } from './parsers/ibkr.js';
 export { parseRevolutStatement } from './parsers/revolut.js';
 export { mergeParseResults } from './parsers/mergeParseResults.js';

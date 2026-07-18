@@ -90,6 +90,7 @@ describe('PDF engine dispatches rates by year', () => {
     distributions: [],
     year: 2026,
     warnings: [],
+    structuredWarnings: [],
   };
 
   it('applies 10% to capital gains and dividends under the 2025 config', () => {
@@ -160,6 +161,7 @@ describe('engine applies the prior-year rates (2023/2024) after the flip', () =>
     distributions: [],
     year: 2024,
     warnings: [],
+    structuredWarnings: [],
   };
 
   it('2023: cap gains 10%, dividends 8% (the OG 16/2022 delta vs 2025)', () => {

@@ -118,6 +118,7 @@ function makePdfParseResult(overrides: Partial<PdfParseResult> = {}): PdfParseRe
     dividends: [{ ticker: 'AAPL' }] as unknown as PdfParseResult['dividends'],
     distributions: [],
     warnings: [],
+    structuredWarnings: [],
   } as PdfParseResult;
   return { ...base, ...overrides };
 }

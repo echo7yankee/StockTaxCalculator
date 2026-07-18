@@ -1,5 +1,6 @@
 import type { Transaction, TransactionAction, Currency } from '../types/transaction.js';
 import type { ParseResult, SkippedRow } from './trading212.js';
+import { createWarningSink } from './parserWarnings.js';
 
 /**
  * Interactive Brokers (IBKR) Activity Statement CSV parser.
@@ -174,11 +175,12 @@ function buildColumnMap(headerRow: string[]): Record<string, number> {
 export function parseIbkrCsv(rows: string[][]): ParseResult {
   const transactions: Transaction[] = [];
   const skipped: SkippedRow[] = [];
-  const warnings: string[] = [];
+  const sink = createWarningSink();
+  const { warnings, structuredWarnings } = sink;
 
   if (!rows || rows.length === 0) {
-    warnings.push('CSV file is empty or has no data rows.');
-    return { transactions, skipped, warnings };
+    sink.push('ibkr_csv_empty', 'CSV file is empty or has no data rows.');
+    return { transactions, skipped, warnings, structuredWarnings };
   }
 
   // Per-section header column maps, populated as we encounter each "Header" row.
@@ -320,7 +322,8 @@ export function parseIbkrCsv(rows: string[][]): ParseResult {
       if (!date) {
         // A valid-currency row with an unparseable date is real income we must
         // not drop silently: warn so the #24A hard-stop catches it.
-        warnings.push(
+        sink.push(
+          'ibkr_unreadable_row_date',
           `Could not read the date "${get('Date')}" in the ${section} section; that row was skipped. Please report this so we can support your statement's date format.`
         );
         continue;
@@ -364,7 +367,10 @@ export function parseIbkrCsv(rows: string[][]): ParseResult {
           if (/interest/i.test(description)) {
             interestWithholdingCount++;
           } else {
-            warnings.push(`Could not identify the security for a withholding-tax row dated ${get('Date')}; tax credit not applied.`);
+            sink.push(
+              'ibkr_withholding_security_unidentified',
+              `Could not identify the security for a withholding-tax row dated ${get('Date')}; tax credit not applied.`
+            );
           }
           continue;
         }
@@ -399,31 +405,40 @@ export function parseIbkrCsv(rows: string[][]): ParseResult {
     if (match) {
       match.withholdingTaxOriginal += total;
     } else {
-      warnings.push(`Withholding tax of ${total} for "${key}" (${year}) has no matching dividend and was not applied.`);
+      sink.push(
+        'ibkr_withholding_no_matching_dividend',
+        `Withholding tax of ${total} for "${key}" (${year}) has no matching dividend and was not applied.`
+      );
     }
   }
   transactions.push(...tradeRows, ...dividends);
 
   if (skippedCategories.size > 0) {
-    warnings.push(
+    sink.push(
+      'ibkr_non_stock_positions_skipped',
       `Skipped non-stock positions (${[...skippedCategories].join(', ')}). InvesTax currently supports stocks and ETFs only.`
     );
   }
   if (unsupportedCurrencies.size > 0) {
-    warnings.push(
+    sink.push(
+      'ibkr_unsupported_currencies_skipped',
       `Unsupported currencies found (${[...unsupportedCurrencies].join(', ')}). InvesTax supports USD, EUR, GBP and RON; those rows were skipped.`
     );
   }
   if (interestWithholdingCount > 0) {
-    warnings.push(
+    sink.push(
+      'ibkr_interest_withholding_skipped',
       `Skipped ${interestWithholdingCount} withholding-tax row(s) on interest income (not on a dividend). InvesTax currently calculates dividends and capital gains only, not interest income.`
     );
   }
   if (!recognisedSection) {
-    warnings.push('This does not look like an IBKR Activity Statement (no Trades, Dividends or Withholding Tax section found).');
+    sink.push(
+      'ibkr_not_an_activity_statement',
+      'This does not look like an IBKR Activity Statement (no Trades, Dividends or Withholding Tax section found).'
+    );
   } else if (transactions.length === 0 && skipped.length === 0) {
-    warnings.push('No transactions could be parsed from this file.');
+    sink.push('ibkr_no_transactions_parsed', 'No transactions could be parsed from this file.');
   }
 
-  return { transactions, skipped, warnings };
+  return { transactions, skipped, warnings, structuredWarnings };
 }

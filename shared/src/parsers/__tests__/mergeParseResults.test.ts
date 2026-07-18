@@ -32,7 +32,7 @@ function result(
   warnings: string[] = [],
   skipped: SkippedRow[] = [],
 ): ParseResult {
-  return { transactions, skipped, warnings };
+  return { transactions, skipped, warnings, structuredWarnings: [] };
 }
 
 describe('mergeParseResults', () => {

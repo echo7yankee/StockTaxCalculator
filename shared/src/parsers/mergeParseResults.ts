@@ -1,5 +1,6 @@
 import type { Transaction } from '../types/transaction.js';
 import type { ParseResult, SkippedRow } from './trading212.js';
+import type { ParserWarning } from './parserWarnings.js';
 
 /**
  * Merge several broker-CSV `ParseResult`s into one (backlog #1, multi-file CSV).
@@ -63,6 +64,7 @@ export function mergeParseResults(results: ParseResult[]): MergedParseResult {
   const transactions: Transaction[] = [];
   const skipped: SkippedRow[] = [];
   const warnings: string[] = [];
+  const structuredWarnings: ParserWarning[] = [];
   const seen = new Set<string>();
   let duplicatesRemoved = 0;
 
@@ -77,8 +79,17 @@ export function mergeParseResults(results: ParseResult[]): MergedParseResult {
       transactions.push(t);
     }
     skipped.push(...result.skipped);
+    // Each channel dedupes on the message independently, so the prose channel
+    // behaves exactly as it did before structured warnings existed -- including
+    // for a `ParseResult` assembled by hand with no structured warnings, whose
+    // prose must still survive the merge.
     for (const w of result.warnings) {
       if (!warnings.includes(w)) warnings.push(w);
+    }
+    for (const w of result.structuredWarnings ?? []) {
+      if (!structuredWarnings.some((existing) => existing.message === w.message)) {
+        structuredWarnings.push(w);
+      }
     }
   }
 
@@ -86,6 +97,7 @@ export function mergeParseResults(results: ParseResult[]): MergedParseResult {
     transactions,
     skipped,
     warnings,
+    structuredWarnings,
     sourceFileCount: results.length,
     duplicatesRemoved,
   };
