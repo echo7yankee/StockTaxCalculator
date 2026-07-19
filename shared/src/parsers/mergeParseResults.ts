@@ -79,15 +79,23 @@ export function mergeParseResults(results: ParseResult[]): MergedParseResult {
       transactions.push(t);
     }
     skipped.push(...result.skipped);
-    // Each channel dedupes on the message independently, so the prose channel
-    // behaves exactly as it did before structured warnings existed -- including
-    // for a `ParseResult` assembled by hand with no structured warnings, whose
-    // prose must still survive the merge.
+    // The channels dedupe independently. Prose dedupes on the message, exactly
+    // as it did before structured warnings existed -- including for a
+    // `ParseResult` assembled by hand with no structured warnings, whose prose
+    // must still survive the merge. Structured warnings dedupe on CODE +
+    // message (SUGGESTIONS S13): three prose templates are byte-identical
+    // across parsers (e.g. the IBKR/Revolut unsupported-currency warning), and
+    // a message-only key would keep whichever broker's entry merged first and
+    // silently drop the other CODE -- so if the two codes ever carried
+    // different severities, a cross-broker merge could mask the fatal one. The
+    // prose channel may therefore say a shared sentence once while the
+    // structured channel keeps one entry per broker, which is the point:
+    // consumers reason over codes/severities, users read prose.
     for (const w of result.warnings) {
       if (!warnings.includes(w)) warnings.push(w);
     }
     for (const w of result.structuredWarnings ?? []) {
-      if (!structuredWarnings.some((existing) => existing.message === w.message)) {
+      if (!structuredWarnings.some((existing) => existing.code === w.code && existing.message === w.message)) {
         structuredWarnings.push(w);
       }
     }

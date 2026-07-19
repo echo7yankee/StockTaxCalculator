@@ -284,4 +284,68 @@ describe('mergeParseResults carries structured warnings', () => {
     expect(merged.warnings).toEqual(['legacy note']);
     expect(merged.structuredWarnings).toEqual([]);
   });
+
+  it('survives a result whose structuredWarnings field is genuinely ABSENT (S13 pin)', () => {
+    // The type requires the field, but a preview persisted before S6 shipped
+    // rehydrates as a plain JS object without it. The `?? []` guard must hold
+    // for undefined, not just an explicit empty array.
+    const legacy = {
+      transactions: [],
+      skipped: [],
+      warnings: ['legacy note'],
+    } as unknown as Parameters<typeof mergeParseResults>[0][number];
+    const fresh = parseTrading212Csv([t212Row({ Total: 'nonsense' })]);
+
+    const merged = mergeParseResults([legacy, fresh]);
+
+    expect(merged.warnings).toContain('legacy note');
+    expect(hasFatalWarning(merged.structuredWarnings)).toBe(true);
+  });
+
+  it('keeps BOTH broker codes when two parsers share one prose string (S13)', () => {
+    // The IBKR and Revolut unsupported-currency warnings are byte-identical
+    // prose with different codes. A message-only dedupe kept only the
+    // first-merged broker's entry; the key is now code + message, so a future
+    // single-sided severity change cannot be masked by a cross-broker merge.
+    const ibkr = parseIbkrCsv([
+      ['Trades', 'Header', 'DataDiscriminator', 'Asset Category', 'Currency', 'Symbol', 'Date/Time', 'Quantity', 'T. Price', 'Proceeds', 'Comm/Fee'],
+      ['Trades', 'Data', 'Order', 'Stocks', 'CHF', 'NESN', '2025-03-04, 10:00:00', '-10', '100', '1000', '-1'],
+    ]);
+    const revolut = parseRevolutStatement([
+      ['Date', 'Ticker', 'Type', 'Quantity', 'Price per share', 'Total Amount', 'Currency', 'FX Rate'],
+      ['2025-03-05T10:00:00.000Z', 'NESN', 'SELL - MARKET', '2', '100', '200', 'CHF', '1'],
+    ]);
+
+    const ibkrEntry = ibkr.structuredWarnings.find((w) => w.code === 'ibkr_unsupported_currencies_skipped');
+    const revolutEntry = revolut.structuredWarnings.find((w) => w.code === 'revolut_unsupported_currencies_skipped');
+    // Sanity: the premise (shared prose, distinct codes) really holds.
+    expect(ibkrEntry).toBeDefined();
+    expect(revolutEntry).toBeDefined();
+    expect(ibkrEntry!.message).toBe(revolutEntry!.message);
+
+    const merged = mergeParseResults([ibkr, revolut]);
+
+    // Prose says the shared sentence once; structured keeps one entry per code.
+    expect(merged.warnings.filter((w) => w === ibkrEntry!.message)).toHaveLength(1);
+    const mergedCodes = merged.structuredWarnings.map((w) => w.code);
+    expect(mergedCodes).toContain('ibkr_unsupported_currencies_skipped');
+    expect(mergedCodes).toContain('revolut_unsupported_currencies_skipped');
+  });
+
+  it('still dedupes a true duplicate (same code AND message) across files (S13)', () => {
+    const a = parseIbkrCsv([
+      ['Trades', 'Header', 'DataDiscriminator', 'Asset Category', 'Currency', 'Symbol', 'Date/Time', 'Quantity', 'T. Price', 'Proceeds', 'Comm/Fee'],
+      ['Trades', 'Data', 'Order', 'Stocks', 'CHF', 'NESN', '2025-03-04, 10:00:00', '-10', '100', '1000', '-1'],
+    ]);
+    const b = parseIbkrCsv([
+      ['Trades', 'Header', 'DataDiscriminator', 'Asset Category', 'Currency', 'Symbol', 'Date/Time', 'Quantity', 'T. Price', 'Proceeds', 'Comm/Fee'],
+      ['Trades', 'Data', 'Order', 'Stocks', 'CHF', 'NOVN', '2025-04-04, 10:00:00', '-5', '80', '400', '-1'],
+    ]);
+
+    const merged = mergeParseResults([a, b]);
+
+    expect(
+      merged.structuredWarnings.filter((w) => w.code === 'ibkr_unsupported_currencies_skipped'),
+    ).toHaveLength(1);
+  });
 });
