@@ -7,6 +7,7 @@ import type { CsvPreviewData, PdfPreviewData } from '../../hooks/useStatementPre
 import {
   parseTrading212Csv,
   parseIbkrCsv,
+  parseRevolutStatement,
   type AppliedSplit,
   type RawCsvRow,
   type ParserWarning,
@@ -463,6 +464,86 @@ describe('evaluateParseEligibility', () => {
       const preview = ibkrPreview([
         ['Trades', 'Header', 'DataDiscriminator', 'Asset Category', 'Currency', 'Symbol', 'Date/Time', 'Quantity', 'T. Price', 'Proceeds'],
         ['Trades', 'Data', 'Order', 'Forex', 'USD', 'EUR.USD', '2025-03-04, 10:00:00', '1000', '1.08', '-1080'],
+      ]);
+      const result = evaluateParseEligibility(input({ preview }));
+      expect(result).toEqual({ eligible: true, blockReason: null });
+    });
+  });
+
+  /**
+   * SUGGESTIONS S10 end-to-end, through the REAL parsers: rows dropped whole
+   * (an unsupported currency, a never-seen Revolut type) are real taxable
+   * income silently removed, so the gate must close. Before this change these
+   * warnings were 'info' and the pay CTA stayed open -- the same
+   * paid-then-blocked shape S8 closed for unreadable dates.
+   */
+  describe('S10: whole-row drops close the gate', () => {
+    function ibkrPreview(rows: string[][]): CsvPreviewData {
+      const parsed = parseIbkrCsv(rows);
+      return csvPreview({
+        warnings: parsed.warnings,
+        structuredWarnings: parsed.structuredWarnings,
+        // A real statement also has readable rows; these counts stand in for
+        // them so the gate is not short-circuited by the `empty` reason.
+        sells: 2,
+        dividends: 1,
+        distributions: 0,
+      });
+    }
+
+    function revolutPreview(rows: string[][]): CsvPreviewData {
+      const parsed = parseRevolutStatement(rows);
+      const sells = parsed.transactions.filter((t) => t.action === 'sell').length;
+      return csvPreview({
+        warnings: parsed.warnings,
+        structuredWarnings: parsed.structuredWarnings,
+        sells: Math.max(sells, 1),
+        dividends: 0,
+        distributions: 0,
+      });
+    }
+
+    it('blocks a real IBKR parse that dropped a CHF sell row', () => {
+      const preview = ibkrPreview([
+        ['Trades', 'Header', 'DataDiscriminator', 'Asset Category', 'Currency', 'Symbol', 'Date/Time', 'Quantity', 'T. Price', 'Proceeds', 'Comm/Fee'],
+        ['Trades', 'Data', 'Order', 'Stocks', 'CHF', 'NESN', '2025-03-04, 10:00:00', '-10', '100', '1000', '-1'],
+      ]);
+      // Sanity: the real parser really did warn (guards a silent no-op pin).
+      expect(preview.warnings.length).toBeGreaterThan(0);
+
+      const result = evaluateParseEligibility(input({ preview }));
+      expect(result).toEqual({ eligible: false, blockReason: 'unreliable_amounts' });
+    });
+
+    it('blocks a real Revolut parse that dropped an unsupported-currency row', () => {
+      const preview = revolutPreview([
+        ['Date', 'Ticker', 'Type', 'Quantity', 'Price per share', 'Total Amount', 'Currency', 'FX Rate'],
+        ['2025-03-04T10:00:00.000Z', 'MSFT', 'SELL - MARKET', '1', '$100', '$100', 'USD', '1'],
+        ['2025-03-05T10:00:00.000Z', 'NESN', 'SELL - MARKET', '2', '100', '200', 'CHF', '1'],
+      ]);
+      expect(preview.warnings.length).toBeGreaterThan(0);
+
+      const result = evaluateParseEligibility(input({ preview }));
+      expect(result).toEqual({ eligible: false, blockReason: 'unreliable_amounts' });
+    });
+
+    it('blocks a real Revolut parse that dropped a never-seen transaction type', () => {
+      const preview = revolutPreview([
+        ['Date', 'Ticker', 'Type', 'Quantity', 'Price per share', 'Total Amount', 'Currency', 'FX Rate'],
+        ['2025-03-04T10:00:00.000Z', 'MSFT', 'SELL - MARKET', '1', '$100', '$100', 'USD', '1'],
+        ['2025-03-06T10:00:00.000Z', 'MSFT', 'SPINOFF', '1', '', '$50', 'USD', '1'],
+      ]);
+      expect(preview.warnings.length).toBeGreaterThan(0);
+
+      const result = evaluateParseEligibility(input({ preview }));
+      expect(result).toEqual({ eligible: false, blockReason: 'unreliable_amounts' });
+    });
+
+    it('keeps a real Revolut parse with only known non-taxable skips eligible', () => {
+      const preview = revolutPreview([
+        ['Date', 'Ticker', 'Type', 'Quantity', 'Price per share', 'Total Amount', 'Currency', 'FX Rate'],
+        ['2025-03-04T10:00:00.000Z', 'MSFT', 'SELL - MARKET', '1', '$100', '$100', 'USD', '1'],
+        ['2025-03-05T10:00:00.000Z', '', 'CASH TOP-UP', '', '', '$500', 'USD', '1'],
       ]);
       const result = evaluateParseEligibility(input({ preview }));
       expect(result).toEqual({ eligible: true, blockReason: null });
