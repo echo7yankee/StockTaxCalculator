@@ -40,6 +40,12 @@ const EXPECTED_FATAL_CODES: ParserWarningCode[] = [
   't212_missing_total_column',
   't212_unreadable_numeric_value',
   'ibkr_unreadable_row_date',
+  // S10 (2026-07-19): whole-row drops are under-statement, same failure mode
+  // as an unreadable row date. The IBKR/Revolut unsupported-currency pair
+  // shares one prose string and MUST stay severity-symmetric (see S13).
+  'ibkr_unsupported_currencies_skipped',
+  'revolut_unsupported_currencies_skipped',
+  'revolut_unrecognised_types_skipped',
 ];
 
 describe('parser warning severity table', () => {
@@ -163,6 +169,58 @@ describe('real parsers emit structured warnings', () => {
     expect(r.transactions.filter((t) => t.action === 'dividend')).toHaveLength(0);
     expect(r.structuredWarnings.map((w) => w.code)).toContain('ibkr_unreadable_row_date');
     expect(hasFatalWarning(r.structuredWarnings)).toBe(true);
+  });
+
+  /**
+   * SUGGESTIONS S10: rows in a currency outside USD/EUR/GBP/RON are dropped
+   * whole. If one is a sell or a dividend, that is real taxable income silently
+   * removed -- the identical failure mode to an unreadable row date, so it must
+   * close the pre-pay gate the same way.
+   */
+  it('IBKR: an unsupported-currency trade row is dropped and fatal (S10)', () => {
+    const r = parseIbkrCsv([
+      ['Trades', 'Header', 'DataDiscriminator', 'Asset Category', 'Currency', 'Symbol', 'Date/Time', 'Quantity', 'T. Price', 'Proceeds', 'Comm/Fee'],
+      ['Trades', 'Data', 'Order', 'Stocks', 'CHF', 'NESN', '2025-03-04, 10:00:00', '-10', '100', '1000', '-1'],
+    ]);
+
+    // The sell really is dropped: this is under-reporting, not a cosmetic note.
+    expect(r.transactions).toHaveLength(0);
+    expect(r.structuredWarnings.map((w) => w.code)).toContain('ibkr_unsupported_currencies_skipped');
+    expect(hasFatalWarning(r.structuredWarnings)).toBe(true);
+  });
+
+  it('Revolut: an unsupported-currency row is dropped and fatal (S10)', () => {
+    const r = parseRevolutStatement([
+      ['Date', 'Ticker', 'Type', 'Quantity', 'Price per share', 'Total Amount', 'Currency', 'FX Rate'],
+      ['2025-03-04T10:00:00.000Z', 'NESN', 'SELL - MARKET', '2', '100', '200', 'CHF', '1'],
+    ]);
+
+    expect(r.transactions).toHaveLength(0);
+    expect(r.structuredWarnings.map((w) => w.code)).toContain('revolut_unsupported_currencies_skipped');
+    expect(hasFatalWarning(r.structuredWarnings)).toBe(true);
+  });
+
+  it('Revolut: a never-seen transaction type is dropped and fatal (S10)', () => {
+    const r = parseRevolutStatement([
+      ['Date', 'Ticker', 'Type', 'Quantity', 'Price per share', 'Total Amount', 'Currency', 'FX Rate'],
+      ['2025-03-04T10:00:00.000Z', 'MSFT', 'SPINOFF', '1', '', '$50', 'USD', '1'],
+    ]);
+
+    expect(r.transactions).toHaveLength(0);
+    expect(r.structuredWarnings.map((w) => w.code)).toContain('revolut_unrecognised_types_skipped');
+    expect(hasFatalWarning(r.structuredWarnings)).toBe(true);
+  });
+
+  it('Revolut: known non-taxable types stay silent, not fatal (ignore != unknown)', () => {
+    const r = parseRevolutStatement([
+      ['Date', 'Ticker', 'Type', 'Quantity', 'Price per share', 'Total Amount', 'Currency', 'FX Rate'],
+      ['2025-03-04T10:00:00.000Z', 'MSFT', 'SELL - MARKET', '1', '$100', '$100', 'USD', '1'],
+      ['2025-03-05T10:00:00.000Z', '', 'CASH TOP-UP', '', '', '$500', 'USD', '1'],
+      ['2025-03-06T10:00:00.000Z', '', 'CUSTODY FEE', '', '', '$1', 'USD', '1'],
+    ]);
+
+    expect(r.transactions).toHaveLength(1);
+    expect(r.structuredWarnings).toEqual([]);
   });
 
   it('IBKR: an empty file warns without being fatal', () => {

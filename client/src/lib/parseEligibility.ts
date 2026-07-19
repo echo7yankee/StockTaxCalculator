@@ -19,9 +19,11 @@ import type { PreviewData } from '../hooks/useStatementPreview';
  *  - FATAL WARNING: the file was read, but we cannot produce a CORRECT number.
  *    The fatal set is exactly: an unsupported tax year, a CSV missing-history
  *    hard-stop, a PDF broker-mismatch, an empty result (zero sells AND zero
- *    dividends AND zero distributions), and a parser warning that the amounts
- *    themselves are wrong (a missing Total column or an unreadable numeric cell,
- *    both of which understate the declaration). BLOCK -> the matching reason.
+ *    dividends AND zero distributions), and any parser warning declared
+ *    `severity: 'fatal'` in shared/src/parsers/parserWarnings.ts (an amount was
+ *    dropped or defaulted, so the declaration would under-state; the severity
+ *    table there is the single source of truth for which warnings qualify).
+ *    BLOCK -> the matching reason.
  *  - BENIGN WARNING: the file was read on a supported broker + year and the only
  *    warnings are informational (skipped rows, duplicates removed, splits
  *    applied, mixed-currency notes). ALLOW. This is the deliberate refinement

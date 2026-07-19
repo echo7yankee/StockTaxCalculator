@@ -30,10 +30,11 @@
  * pre-pay gate already documented for its fatal set. A warning that makes the
  * user OVER-state (an unapplied withholding-tax credit, say) is wrong too, but
  * it fails in the safe direction and is disclosed in the warning text, so it
- * does not close the gate. See `investax-docs/SUGGESTIONS.md` S10 for the list
- * of currently-'info' codes that arguably drop taxable rows and are queued for
- * a deliberate classification review, rather than being reclassified inside a
- * refactor.
+ * does not close the gate. The S10 classification review (SUGGESTIONS.md,
+ * resolved 2026-07-19) applied that criterion to every remaining 'info' code:
+ * whole-row drops (unsupported currencies, unrecognised Revolut types) are
+ * 'fatal'; the withholding-credit drops stay 'info' (safe direction); the
+ * structural notes stay 'info' (other gate reasons cover them).
  *
  * ADDITIVE BY CONSTRUCTION: `warnings: string[]` keeps the exact same strings in
  * the exact same order. Nothing that renders or reports prose today changes.
@@ -101,11 +102,16 @@ export interface ParserWarning {
  * severity here is a compile error, which is the point -- a new warning cannot
  * silently default to "harmless" and slip past the pre-pay gate.
  *
- * Only three codes are 'fatal' today, and each one drops or defaults a real
- * taxable amount while still producing an otherwise-usable preview:
- *  - `t212_missing_total_column`      -> row proceeds read as zero (PR #263)
- *  - `t212_unreadable_numeric_value`  -> cell falls back to 0 or a 1:1 rate (PR #264)
- *  - `ibkr_unreadable_row_date`       -> a real income row is skipped (S8, this PR)
+ * Six codes are 'fatal' today, and each one drops or defaults a real taxable
+ * amount while still producing an otherwise-usable preview:
+ *  - `t212_missing_total_column`             -> row proceeds read as zero (PR #263)
+ *  - `t212_unreadable_numeric_value`         -> cell falls back to 0 or a 1:1 rate (PR #264)
+ *  - `ibkr_unreadable_row_date`              -> a real income row is skipped (S8, PR #266)
+ *  - `ibkr_unsupported_currencies_skipped`   -> whole rows dropped; a CHF/CAD sell or
+ *  - `revolut_unsupported_currencies_skipped`   dividend is real income removed (S10)
+ *  - `revolut_unrecognised_types_skipped`    -> rows of a type we have never seen are
+ *                                               dropped; an unknown type can be income
+ *                                               (e.g. a merger cash-out) (S10)
  */
 export const WARNING_SEVERITY: Record<ParserWarningCode, ParserWarningSeverity> = {
   // Trading212 CSV
@@ -141,7 +147,10 @@ export const WARNING_SEVERITY: Record<ParserWarningCode, ParserWarningSeverity> 
   ibkr_withholding_security_unidentified: 'info',
   ibkr_withholding_no_matching_dividend: 'info',
   ibkr_non_stock_positions_skipped: 'info',
-  ibkr_unsupported_currencies_skipped: 'info',
+  // Whole rows outside USD/EUR/GBP/RON are dropped; if one is a sell or a
+  // dividend, real taxable income is silently removed (S10, same failure mode
+  // as `ibkr_unreadable_row_date`).
+  ibkr_unsupported_currencies_skipped: 'fatal',
   ibkr_interest_withholding_skipped: 'info',
   ibkr_not_an_activity_statement: 'info',
   ibkr_no_transactions_parsed: 'info',
@@ -150,8 +159,15 @@ export const WARNING_SEVERITY: Record<ParserWarningCode, ParserWarningSeverity> 
   revolut_file_empty: 'info',
   revolut_not_an_account_statement: 'info',
   revolut_reverse_split_unapplied: 'info',
-  revolut_unsupported_currencies_skipped: 'info',
-  revolut_unrecognised_types_skipped: 'info',
+  // Same whole-row drop as the IBKR twin above (identical prose, so the two
+  // MUST share a severity or a cross-broker merge dedupe could mask the fatal
+  // one -- see SUGGESTIONS S13).
+  revolut_unsupported_currencies_skipped: 'fatal',
+  // 'unknown' is what classifyType returns AFTER the known non-taxable types
+  // (top-ups, withdrawals, fees, transfers) matched 'ignore': a genuinely
+  // never-seen type, which can be real income (a merger cash-out, say). The
+  // warning itself says "check them before filing" (S10).
+  revolut_unrecognised_types_skipped: 'fatal',
   revolut_no_transactions_parsed: 'info',
 
   // Known stock splits
