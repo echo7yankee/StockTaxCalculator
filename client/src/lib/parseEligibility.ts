@@ -66,8 +66,9 @@ function isEmptyResult(preview: PreviewData): boolean {
 
 /**
  * Legacy prose markers for a warning that reports a WRONG amount, kept ONLY as a
- * fallback for a preview that carries no structured warnings (a hand-built
- * fixture, or a persisted preview from before SUGGESTIONS S6 shipped).
+ * fallback for prose warnings that have no structured twin (a hand-built
+ * fixture, or a persisted preview from before SUGGESTIONS S6 shipped -- possibly
+ * merged alongside fresh results that DO carry structured warnings, see S13).
  *
  * The primary path is now the parser's own `severity` (see below). These two
  * substrings are the Trading212-CSV warnings that PR #265 originally matched:
@@ -97,10 +98,21 @@ const LEGACY_UNRELIABLE_AMOUNT_MARKERS = [
  * default to harmless without someone choosing that in the severity table.
  */
 function hasUnreliableAmountWarning(preview: PreviewData): boolean {
-  if (preview.structuredWarnings?.length) {
-    return preview.structuredWarnings.some((w) => w.severity === 'fatal');
+  const structured = preview.structuredWarnings ?? [];
+  if (structured.some((w) => w.severity === 'fatal')) {
+    return true;
   }
+  // Prose fallback, applied PER WARNING rather than per preview (SUGGESTIONS
+  // S13): after a multi-file merge, `warnings` can carry prose from a sibling
+  // result that had no structured channel (a persisted pre-S6 preview merged
+  // with a fresh one). A preview-level either/or would let that sibling's fatal
+  // prose through whenever ANY other file contributed a structured warning. So
+  // each prose warning WITH a structured twin defers to that twin's severity
+  // (already consulted above -- the parser's call wins over its own wording),
+  // and only twinless prose falls back to the legacy markers.
+  const structuredMessages = new Set(structured.map((w) => w.message));
   return preview.warnings.some((w) => {
+    if (structuredMessages.has(w)) return false;
     const lower = w.toLowerCase();
     return LEGACY_UNRELIABLE_AMOUNT_MARKERS.some((marker) => lower.includes(marker));
   });

@@ -8,6 +8,7 @@ import {
   parseTrading212Csv,
   parseIbkrCsv,
   parseRevolutStatement,
+  mergeParseResults,
   type AppliedSplit,
   type RawCsvRow,
   type ParserWarning,
@@ -412,6 +413,56 @@ describe('evaluateParseEligibility', () => {
         }),
       );
       expect(result).toEqual({ eligible: true, blockReason: null });
+    });
+
+    it('blocks fatal prose from a merged sibling with NO structured twin (S13)', () => {
+      // qa's PR #266 repro: a prose-only result (a preview persisted before S6
+      // shipped) merged with a fresh result that DOES carry structured
+      // warnings. The old preview-level either/or took the structured path and
+      // never consulted the sibling's fatal prose -> ALLOW where PR #265 gave
+      // BLOCK. The fallback is now per warning: twinless prose still hits the
+      // legacy markers even when structured warnings exist alongside it.
+      const result = evaluateParseEligibility(
+        input({
+          preview: csvPreview({
+            warnings: [
+              infoWarning.message,
+              'Could not find a total column on 2 row(s).',
+            ],
+            structuredWarnings: [infoWarning],
+          }),
+        }),
+      );
+      expect(result).toEqual({ eligible: false, blockReason: 'unreliable_amounts' });
+    });
+
+    it('blocks the S13 shape through the real merge (integration pin)', () => {
+      // Same scenario end-to-end: mergeParseResults over a hand-built
+      // prose-only fatal result + a real parse whose only warning is info.
+      const legacyProseOnly = {
+        transactions: [],
+        skipped: [],
+        warnings: ['Could not find a total column on 2 row(s).'],
+      } as unknown as Parameters<typeof mergeParseResults>[0][number];
+      const freshWithInfo = parseIbkrCsv([
+        ['Trades', 'Header', 'DataDiscriminator', 'Asset Category', 'Currency', 'Symbol', 'Date/Time', 'Quantity', 'T. Price', 'Proceeds'],
+        ['Trades', 'Data', 'Order', 'Forex', 'USD', 'EUR.USD', '2025-03-04, 10:00:00', '1000', '1.08', '-1080'],
+      ]);
+      const merged = mergeParseResults([legacyProseOnly, freshWithInfo]);
+      // Sanity: the merge really produced the mixed shape (structured info
+      // present, fatal prose twinless).
+      expect(merged.structuredWarnings.length).toBeGreaterThan(0);
+      expect(merged.structuredWarnings.every((w) => w.severity === 'info')).toBe(true);
+
+      const result = evaluateParseEligibility(
+        input({
+          preview: csvPreview({
+            warnings: merged.warnings,
+            structuredWarnings: merged.structuredWarnings,
+          }),
+        }),
+      );
+      expect(result).toEqual({ eligible: false, blockReason: 'unreliable_amounts' });
     });
 
     it('falls back to the legacy prose markers when no structured warnings exist', () => {
