@@ -43,7 +43,7 @@ function Setup({ children, opts }: { children: React.ReactNode; opts: SetupOpts 
         parseStructuredWarnings: opts.structuredWarnings ?? [],
       });
     }
-  }, [setUploadData, opts.taxResult, opts.correctedTaxResult, opts.warnings]);
+  }, [setUploadData, opts.taxResult, opts.correctedTaxResult, opts.warnings, opts.structuredWarnings]);
   return <>{children}</>;
 }
 
