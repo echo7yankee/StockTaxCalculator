@@ -6,7 +6,7 @@ import { useEffect, useRef } from 'react';
 import { UploadProvider, useUpload } from '../../contexts/UploadContext';
 import { CountryProvider } from '../../contexts/CountryContext';
 import FilingGuidePage from '../FilingGuidePage';
-import type { TaxCalculationResult } from '@shared/index';
+import type { TaxCalculationResult, ParserWarning } from '@shared/index';
 
 // A gain-year result carrying an early-filing discount, so the totals block has
 // something to gate on.
@@ -23,6 +23,7 @@ interface SetupOpts {
   taxResult?: TaxCalculationResult;
   correctedTaxResult?: TaxCalculationResult | null;
   warnings?: string[];
+  structuredWarnings?: ParserWarning[];
 }
 
 function Setup({ children, opts }: { children: React.ReactNode; opts: SetupOpts }) {
@@ -39,6 +40,7 @@ function Setup({ children, opts }: { children: React.ReactNode; opts: SetupOpts 
         taxYear: 2025,
         transactions: [],
         parseWarnings: opts.warnings ?? [],
+        parseStructuredWarnings: opts.structuredWarnings ?? [],
       });
     }
   }, [setUploadData, opts.taxResult, opts.correctedTaxResult, opts.warnings]);
@@ -85,29 +87,64 @@ describe('FilingGuidePage early-filing discount totals', () => {
   });
 });
 
-describe('FilingGuidePage parse-warning hard-stop (#24A)', () => {
+describe('FilingGuidePage parse-warning hard-stop (#24A, S11-aligned)', () => {
+  // Blocking = the shared hasBlockingParseWarning predicate: fatal structured
+  // severity, a legacy fatal-prose marker, or an engine #24C refusal.
+  const engineSignMismatch =
+    'Sign mismatch between per-row sell trades (-226.80 USD) and overview closed result (3273.75 USD). The PDF may have a multi-account layout the parser misread.';
+  const fatalStructured: ParserWarning = {
+    code: 't212_missing_total_column',
+    severity: 'fatal',
+    message: 'Could not find a total column on 2 row(s). Trading212 names it "Total" or "Total (<currency>)" after your account\'s base currency. Without it the amounts on those rows read as zero, which would under-report your declaration.',
+  };
+  const infoStructured: ParserWarning = {
+    code: 't212_interest_income_out_of_scope',
+    severity: 'info',
+    message: 'Detected 2 interest-income row(s) (e.g. "Interest on cash"). InvesTax does not calculate interest income; it is taxable (venituri din dobanzi) and must be declared separately.',
+  };
+
   it('shows the D212 copy-paste values + PDF export when the parse is clean', () => {
     renderPage({ warnings: [] });
-    // No hard-stop banner, and the copy/export affordances are present.
+    // No hard-stop banner, no info notice, and the copy/export affordances are present.
     expect(screen.queryByTestId('filing-parse-warning-banner')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('filing-parse-info-notice')).not.toBeInTheDocument();
     expect(screen.getByText('Download PDF')).toBeInTheDocument();
     expect(screen.getByText('Copy All')).toBeInTheDocument();
     // A D212 field value renders in whole lei (net annual gain = 1000, not 1,000.00).
     expect(screen.getByText('1000')).toBeInTheDocument();
   });
 
-  it('hard-stops (red banner) and hides the D212 values + PDF export when the parse is warned', () => {
-    renderPage({ warnings: ['Sum of trades does not match the statement total'] });
+  it('hard-stops (red banner) and hides the D212 values + PDF export on an engine refusal', () => {
+    renderPage({ warnings: [engineSignMismatch] });
     // The same red parse-warning banner as ResultsPage, with the contact CTA.
     const banner = screen.getByTestId('filing-parse-warning-banner');
     expect(banner).toBeInTheDocument();
     expect(banner).toHaveAttribute('role', 'alert');
     expect(screen.getByTestId('filing-parse-warning-contact-cta')).toBeInTheDocument();
-    expect(screen.getByText(/Sum of trades does not match/)).toBeInTheDocument();
-    // The copy-paste D212 values + PDF export must NOT be reachable on a warned parse.
+    expect(screen.getByText(/Sign mismatch between per-row/)).toBeInTheDocument();
+    // The copy-paste D212 values + PDF export must NOT be reachable on a blocked parse.
     expect(screen.queryByText('Download PDF')).not.toBeInTheDocument();
     expect(screen.queryByText('Copy All')).not.toBeInTheDocument();
     expect(screen.queryByText('1000')).not.toBeInTheDocument();
+  });
+
+  it('hard-stops on a fatal structured warning', () => {
+    renderPage({ warnings: [fatalStructured.message], structuredWarnings: [fatalStructured] });
+    expect(screen.getByTestId('filing-parse-warning-banner')).toBeInTheDocument();
+    expect(screen.queryByText('Download PDF')).not.toBeInTheDocument();
+    expect(screen.queryByText('1000')).not.toBeInTheDocument();
+  });
+
+  it('keeps the D212 values + PDF export on an info-only warning, with the notice visible (S11)', () => {
+    renderPage({ warnings: [infoStructured.message], structuredWarnings: [infoStructured] });
+    // No red hard-stop; the paid output stays reachable.
+    expect(screen.queryByTestId('filing-parse-warning-banner')).not.toBeInTheDocument();
+    expect(screen.getByText('Download PDF')).toBeInTheDocument();
+    expect(screen.getByText('Copy All')).toBeInTheDocument();
+    expect(screen.getByText('1000')).toBeInTheDocument();
+    // The warning stays visible as a non-blocking note (never silent).
+    expect(screen.getByTestId('filing-parse-info-notice')).toBeInTheDocument();
+    expect(screen.getByText(infoStructured.message)).toBeInTheDocument();
   });
 });
 

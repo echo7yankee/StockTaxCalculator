@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   evaluateParseEligibility,
+  hasBlockingParseWarning,
   type ParseEligibilityInput,
 } from '../parseEligibility';
 import type { CsvPreviewData, PdfPreviewData } from '../../hooks/useStatementPreview';
@@ -13,6 +14,8 @@ import {
   type RawCsvRow,
   type ParserWarning,
 } from '@shared/index';
+import { WARNING_SEVERITY, type ParserWarningCode } from '@shared/parsers/parserWarnings';
+import enParserWarnings from '../../i18n/locales/en/parserWarnings.json';
 
 /**
  * Unit coverage for the pre-pay parse eligibility predicate (backlog #24B Phase
@@ -649,5 +652,106 @@ describe('evaluateParseEligibility', () => {
       const result = evaluateParseEligibility(input({ preview }));
       expect(result).toEqual({ eligible: true, blockReason: null });
     });
+  });
+});
+
+/**
+ * SUGGESTIONS S11: the shared blocking predicate, exported so the post-pay #24A
+ * hard-stop (ResultsPage / FilingGuidePage) keys off the SAME notion as the
+ * pre-pay gate. The gate's own behavior is pinned above through
+ * evaluateParseEligibility; this block pins the predicate's contract directly,
+ * including the engine #24C refusal markers the gate can never reach (the free
+ * checker does not run the engine).
+ */
+describe('hasBlockingParseWarning (S11 shared predicate)', () => {
+  const fatalWarning: ParserWarning = {
+    code: 'ibkr_unreadable_row_date',
+    severity: 'fatal',
+    message: 'Could not read the date "not-a-date" in the Dividends section; that row was skipped.',
+  };
+  const infoWarning: ParserWarning = {
+    code: 't212_interest_income_out_of_scope',
+    severity: 'info',
+    message: 'This export contains interest income; declare it separately.',
+  };
+
+  it('returns false with no warnings at all', () => {
+    expect(hasBlockingParseWarning([], [])).toBe(false);
+  });
+
+  it('blocks on a fatal structured warning', () => {
+    expect(hasBlockingParseWarning([fatalWarning.message], [fatalWarning])).toBe(true);
+  });
+
+  it('does NOT block when every structured warning is informational (the S11 fix)', () => {
+    expect(hasBlockingParseWarning([infoWarning.message], [infoWarning])).toBe(false);
+  });
+
+  it('blocks twinless prose matching a legacy T212 marker (pre-S6 persisted state)', () => {
+    expect(hasBlockingParseWarning(['Could not find a total column on 2 row(s).'], [])).toBe(true);
+  });
+
+  it('blocks the engine #24C sign-mismatch refusal (always twinless prose)', () => {
+    expect(
+      hasBlockingParseWarning(
+        [
+          infoWarning.message,
+          'Sign mismatch between per-row sell trades (-226.80 USD) and overview closed result (3273.75 USD). The PDF may have a multi-account layout the parser misread.',
+        ],
+        [infoWarning],
+      ),
+    ).toBe(true);
+  });
+
+  it('blocks the engine #24C magnitude-mismatch refusal (always twinless prose)', () => {
+    expect(
+      hasBlockingParseWarning(
+        [
+          'Magnitude mismatch (>10x) between per-row sell trades (10.00 USD) and overview closed result (3273.75 USD). The PDF may have a multi-account layout the parser misread.',
+        ],
+        [],
+      ),
+    ).toBe(true);
+  });
+
+  it('defers to the structured twin over prose wording (the #266 severity-wins design)', () => {
+    // Prose that LOOKS like a legacy marker but whose structured twin says info.
+    const lookalike: ParserWarning = {
+      code: 't212_missing_action_column',
+      severity: 'info',
+      message: 'We could not find a total column header, but read the amounts fine.',
+    };
+    expect(hasBlockingParseWarning([lookalike.message], [lookalike])).toBe(false);
+  });
+
+  it('does NOT block twinless prose that matches no marker (benign unknown note)', () => {
+    expect(hasBlockingParseWarning(['Some benign note from an old preview.'], [])).toBe(false);
+  });
+
+  it('no info-severity warning template contains ANY blocking prose marker', () => {
+    // Sweep every code's template (the EN parserWarnings locale mirrors each
+    // parser's prose exactly, with key-parity over the whole code union pinned
+    // by the S6 phase B tests). An info template containing a blocking marker
+    // would only matter for TWINLESS prose (a twin defers to its severity),
+    // but pre-S6 persisted prose is exactly that shape, so a future template
+    // edit that introduces a marker must fail loudly here.
+    const blockingMarkers = [
+      'find a total column',
+      'numeric value(s) in this file',
+      'sign mismatch between per-row',
+      'magnitude mismatch (>10x)',
+    ];
+    const infoCodes = (Object.keys(WARNING_SEVERITY) as ParserWarningCode[]).filter(
+      (code) => WARNING_SEVERITY[code] === 'info',
+    );
+    expect(infoCodes.length).toBeGreaterThan(0);
+    for (const code of infoCodes) {
+      const template = (enParserWarnings as Record<string, string>)[code];
+      expect(template, `missing EN template for ${code}`).toBeTruthy();
+      const lower = template.toLowerCase();
+      for (const marker of blockingMarkers) {
+        expect(lower, `info template ${code} contains blocking marker "${marker}"`).not.toContain(marker);
+      }
+    }
   });
 });

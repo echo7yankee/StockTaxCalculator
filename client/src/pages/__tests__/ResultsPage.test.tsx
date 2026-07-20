@@ -19,7 +19,7 @@ vi.mock('../../contexts/AuthContext', () => ({
     logout: vi.fn(),
   }),
 }));
-import type { TaxCalculationResult, SecurityBreakdown, Transaction, OpeningPosition } from '@shared/index';
+import type { TaxCalculationResult, SecurityBreakdown, Transaction, OpeningPosition, ParserWarning } from '@shared/index';
 import { calculateTaxes, getTaxConfigForYear, romaniaTaxConfig } from '@shared/index';
 import type { BrokerId } from '../../lib/brokers';
 
@@ -70,9 +70,10 @@ const mockSecurities: SecurityBreakdown[] = [
 ];
 
 // Helper to pre-fill the upload context (runs once via ref guard)
-function SetupUpload({ children, warnings = [], broker, carriedPositions, carryForwardYear, taxResult = mockTaxResult, transactions = [] }: {
+function SetupUpload({ children, warnings = [], structuredWarnings = [], broker, carriedPositions, carryForwardYear, taxResult = mockTaxResult, transactions = [] }: {
   children: React.ReactNode;
   warnings?: string[];
+  structuredWarnings?: ParserWarning[];
   broker?: 'trading212' | 'ibkr';
   carriedPositions?: OpeningPosition[];
   carryForwardYear?: number | null;
@@ -92,12 +93,13 @@ function SetupUpload({ children, warnings = [], broker, carriedPositions, carryF
         taxYear: 2025,
         transactions,
         parseWarnings: warnings,
+        parseStructuredWarnings: structuredWarnings,
         ...(broker ? { broker } : {}),
         ...(carriedPositions ? { carriedPositions } : {}),
         ...(carryForwardYear !== undefined ? { carryForwardYear } : {}),
       });
     }
-  }, [setUploadData, warnings, broker, carriedPositions, carryForwardYear, taxResult, transactions]);
+  }, [setUploadData, warnings, structuredWarnings, broker, carriedPositions, carryForwardYear, taxResult, transactions]);
 
   return <>{children}</>;
 }
@@ -108,7 +110,7 @@ function renderResults(
   broker?: 'trading212' | 'ibkr',
   carriedPositions?: OpeningPosition[],
   carryForwardYear?: number | null,
-  overrides?: { taxResult?: TaxCalculationResult; transactions?: Transaction[] },
+  overrides?: { taxResult?: TaxCalculationResult; transactions?: Transaction[]; structuredWarnings?: ParserWarning[] },
 ) {
   if (withData) {
     return render(
@@ -118,6 +120,7 @@ function renderResults(
             <UploadProvider>
               <SetupUpload
                 warnings={warnings}
+                structuredWarnings={overrides?.structuredWarnings}
                 broker={broker}
                 carriedPositions={carriedPositions}
                 carryForwardYear={carryForwardYear}
@@ -357,6 +360,23 @@ describe('ResultsPage dividend-credit recompute preserves carry-forward cost bas
   });
 });
 
+// S11: the hard-stop keys off hasBlockingParseWarning, the SAME predicate as the
+// pre-pay gate. Blocking = fatal structured severity, a legacy fatal-prose
+// marker, or an engine #24C refusal (always twinless prose). Info-severity
+// warnings render as a non-blocking note and never hide the paid output.
+const engineSignMismatch =
+  'Sign mismatch between per-row sell trades (-226.80 USD) and overview closed result (3273.75 USD). The PDF may have a multi-account layout the parser misread.';
+const fatalStructured: ParserWarning = {
+  code: 'ibkr_unreadable_row_date',
+  severity: 'fatal',
+  message: 'Could not read the date "bogus" in the Dividends section; that row was skipped.',
+};
+const infoStructured: ParserWarning = {
+  code: 't212_interest_income_out_of_scope',
+  severity: 'info',
+  message: 'Detected 2 interest-income row(s) (e.g. "Interest on cash"). InvesTax does not calculate interest income; it is taxable (venituri din dobanzi) and must be declared separately.',
+};
+
 describe('ResultsPage parser warning hard-stop', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -365,18 +385,28 @@ describe('ResultsPage parser warning hard-stop', () => {
   it('hides the warning banner and shows the filing guide CTA when warnings is empty', () => {
     renderResults(true, []);
     expect(screen.queryByTestId('parse-warning-banner')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('parse-info-notice')).not.toBeInTheDocument();
     expect(screen.getByTestId('filing-guide-cta')).toBeInTheDocument();
   });
 
-  it('shows the warning banner and hides the filing guide CTA when warnings exist', () => {
-    renderResults(true, ['Per-row sells (-226.80 RON) vs overview closedResult (3273.75 RON) mismatch']);
+  it('shows the warning banner and hides the filing guide CTA on an engine #24C refusal', () => {
+    renderResults(true, [engineSignMismatch]);
     expect(screen.getByTestId('parse-warning-banner')).toBeInTheDocument();
     expect(screen.queryByTestId('filing-guide-cta')).not.toBeInTheDocument();
   });
 
+  it('shows the warning banner and hides the filing guide CTA on a fatal structured warning', () => {
+    renderResults(true, [fatalStructured.message], undefined, undefined, undefined, {
+      structuredWarnings: [fatalStructured],
+    });
+    expect(screen.getByTestId('parse-warning-banner')).toBeInTheDocument();
+    expect(screen.queryByTestId('filing-guide-cta')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('d212-download')).not.toBeInTheDocument();
+  });
+
   it('renders each individual warning string in the banner list', () => {
     const warnings = [
-      'Per-row vs overview mismatch',
+      engineSignMismatch,
       'Currency-code column missing on page 1',
     ];
     renderResults(true, warnings);
@@ -384,8 +414,8 @@ describe('ResultsPage parser warning hard-stop', () => {
     expect(screen.getByText(warnings[1])).toBeInTheDocument();
   });
 
-  it('still renders the four summary cards when warnings exist (numbers visible alongside the banner)', () => {
-    renderResults(true, ['some warning']);
+  it('still renders the four summary cards when blocked (numbers visible alongside the banner)', () => {
+    renderResults(true, [engineSignMismatch]);
     expect(screen.getByText('Capital Gains Tax')).toBeInTheDocument();
     expect(screen.getByText('Dividend Tax')).toBeInTheDocument();
     expect(screen.getByText('Health Contribution (CASS)')).toBeInTheDocument();
@@ -394,7 +424,7 @@ describe('ResultsPage parser warning hard-stop', () => {
 
   it('Contact-me CTA in the banner navigates to /contact', async () => {
     const user = userEvent.setup();
-    renderResults(true, ['warning']);
+    renderResults(true, [engineSignMismatch]);
     const cta = screen.getByTestId('parse-warning-contact-cta');
     expect(cta).toBeInTheDocument();
     await user.click(cta);
@@ -413,9 +443,60 @@ describe('ResultsPage parser warning hard-stop', () => {
     expect(d212.compareDocumentPosition(perSecurity) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('hides the D212 download section when warnings exist (same hard-stop as the filing CTA)', () => {
-    renderResults(true, ['Per-row vs overview mismatch']);
+  it('hides the D212 download section when blocked (same hard-stop as the filing CTA)', () => {
+    renderResults(true, [engineSignMismatch]);
     expect(screen.queryByTestId('d212-download')).not.toBeInTheDocument();
+  });
+
+  it('legacy fatal prose with no structured channel still blocks (pre-S6 persisted state)', () => {
+    renderResults(true, ['Could not find a total column on 2 row(s).']);
+    expect(screen.getByTestId('parse-warning-banner')).toBeInTheDocument();
+    expect(screen.queryByTestId('d212-download')).not.toBeInTheDocument();
+  });
+});
+
+describe('ResultsPage info-severity warnings do NOT hard-stop (S11)', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('renders the info notice instead of the red banner and keeps the D212 + filing CTA', () => {
+    // The exact Mihai-shaped repro from SUGGESTIONS S11: a file whose ONLY
+    // warning is the benign interest note passed the pre-pay gate, was paid
+    // for, and then had its declaration hidden by the old any-warning stop.
+    renderResults(true, [infoStructured.message], undefined, undefined, undefined, {
+      structuredWarnings: [infoStructured],
+    });
+    expect(screen.queryByTestId('parse-warning-banner')).not.toBeInTheDocument();
+    const notice = screen.getByTestId('parse-info-notice');
+    expect(notice).toBeInTheDocument();
+    expect(notice).not.toHaveAttribute('role', 'alert');
+    // The paid output stays reachable: D212, audit trail, filing CTA.
+    expect(screen.getByTestId('d212-download')).toBeInTheDocument();
+    expect(screen.getByTestId('filing-guide-cta')).toBeInTheDocument();
+  });
+
+  it('lists the warning text inside the info notice (a warning is never silent)', () => {
+    renderResults(true, [infoStructured.message], undefined, undefined, undefined, {
+      structuredWarnings: [infoStructured],
+    });
+    expect(screen.getByText(infoStructured.message)).toBeInTheDocument();
+  });
+
+  it('a fatal warning alongside info ones still blocks (severity wins, not count)', () => {
+    renderResults(true, [infoStructured.message, fatalStructured.message], undefined, undefined, undefined, {
+      structuredWarnings: [infoStructured, fatalStructured],
+    });
+    expect(screen.getByTestId('parse-warning-banner')).toBeInTheDocument();
+    expect(screen.queryByTestId('parse-info-notice')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('d212-download')).not.toBeInTheDocument();
+  });
+
+  it('twinless non-marker prose renders as info, not a block (unknown benign note)', () => {
+    renderResults(true, ['Some benign note from an old preview.']);
+    expect(screen.queryByTestId('parse-warning-banner')).not.toBeInTheDocument();
+    expect(screen.getByTestId('parse-info-notice')).toBeInTheDocument();
+    expect(screen.getByTestId('d212-download')).toBeInTheDocument();
   });
 });
 
@@ -442,12 +523,31 @@ describe('ResultsPage beta-broker caveat', () => {
     expect(screen.queryByTestId('beta-broker-caveat')).not.toBeInTheDocument();
   });
 
-  it('shows both the beta caveat and the warning hard-stop when a beta parse has warnings', () => {
-    renderResults(true, ['Withholding tax has no matching dividend'], 'ibkr');
+  it('shows both the beta caveat and the warning hard-stop when a beta parse has a fatal warning', () => {
+    const fatal: ParserWarning = {
+      code: 'ibkr_unreadable_row_date',
+      severity: 'fatal',
+      message: 'Could not read the date "bogus" in the Dividends section; that row was skipped.',
+    };
+    renderResults(true, [fatal.message], 'ibkr', undefined, undefined, { structuredWarnings: [fatal] });
     expect(screen.getByTestId('beta-broker-caveat')).toBeInTheDocument();
     expect(screen.getByTestId('parse-warning-banner')).toBeInTheDocument();
-    // Hard-stop still hides the filing CTA when warnings exist.
+    // Hard-stop still hides the filing CTA on a blocking warning.
     expect(screen.queryByTestId('filing-guide-cta')).not.toBeInTheDocument();
+  });
+
+  it('shows the beta caveat WITHOUT the hard-stop on an info-severity beta warning (S11)', () => {
+    const info: ParserWarning = {
+      code: 'ibkr_withholding_no_matching_dividend',
+      severity: 'info',
+      message: 'Withholding tax of 1.20 USD for "MSFT" (2025) has no matching dividend and was not applied.',
+    };
+    renderResults(true, [info.message], 'ibkr', undefined, undefined, { structuredWarnings: [info] });
+    expect(screen.getByTestId('beta-broker-caveat')).toBeInTheDocument();
+    expect(screen.queryByTestId('parse-warning-banner')).not.toBeInTheDocument();
+    expect(screen.getByTestId('parse-info-notice')).toBeInTheDocument();
+    // The safe-direction warning must not hide what the customer paid for.
+    expect(screen.getByTestId('filing-guide-cta')).toBeInTheDocument();
   });
 });
 

@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Copy, CheckCircle, ClipboardList, Download, Info, AlertTriangle, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Copy, CheckCircle, ClipboardList, Download, Info } from 'lucide-react';
 import { useUpload } from '../contexts/UploadContext';
 import { useCountry } from '../contexts/CountryContext';
 import { analytics } from '../lib/analytics';
-import { localizeParserWarnings } from '../lib/parserWarningText';
+import { hasBlockingParseWarning } from '../lib/parseEligibility';
 import PageMeta from '../components/common/PageMeta';
+import ParseWarningsNotice from '../components/ParseWarningsNotice';
 import { isEarlyFilingDiscountAvailable } from '@shared/taxRules/taxYears';
 import { d212Sections, formatD212Summary, formatD212Value } from '@shared/taxRules/d212Fields';
 import type { D212Field } from '@shared/taxRules/d212Fields';
@@ -45,13 +46,15 @@ export default function FilingGuidePage() {
     );
   }
 
-  // #24A parse-warning hard-stop (mirrors ResultsPage): a warned/unreliable parse
-  // must never expose the copy-paste D212 field values or the PDF export from this
-  // surface, which is reachable via the Dashboard quick-action and the /filing-guide
-  // URL independently of Results. Show the same red banner and suppress everything
-  // downstream of it.
-  const hasWarnings = parseWarnings.length > 0;
-  if (hasWarnings) {
+  // #24A parse-warning hard-stop, aligned with the pre-pay gate (SUGGESTIONS
+  // S11) and shared with ResultsPage via hasBlockingParseWarning: only a
+  // BLOCKING warning (fatal severity, a legacy fatal-prose marker, or an
+  // engine #24C refusal) suppresses the copy-paste D212 field values and the
+  // PDF export on this surface, which is reachable via the Dashboard
+  // quick-action and the /filing-guide URL independently of Results.
+  // Info-severity warnings render as a non-blocking note below instead.
+  const hasBlockingWarnings = hasBlockingParseWarning(parseWarnings, parseStructuredWarnings);
+  if (hasBlockingWarnings) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12">
         <PageMeta titleKey="filingGuideTitle" descriptionKey="filingGuideDesc" robots="noindex, follow" />
@@ -61,47 +64,13 @@ export default function FilingGuidePage() {
         >
           <ArrowLeft className="w-4 h-4" /> {t('common:backToResults')}
         </button>
-        <div
-          className="p-5 bg-red-50 dark:bg-red-900/20 border-2 border-red-400 dark:border-red-600 rounded-xl"
-          role="alert"
-          data-testid="filing-parse-warning-banner"
-        >
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-6 h-6 text-red-500 shrink-0 mt-0.5" />
-            <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-red-700 dark:text-red-400 text-base mb-2">
-                {t('results:parseWarningTitle')}
-              </h3>
-              <p className="text-sm text-red-600 dark:text-red-400 mb-3">
-                {t('results:parseWarningBody')}
-              </p>
-              <p className="text-xs font-medium text-red-700 dark:text-red-400 mb-1">
-                {t('results:parseWarningListIntro')}
-              </p>
-              <ul className="text-xs text-red-600 dark:text-red-400 mb-4 list-disc pl-5 space-y-1">
-                {localizeParserWarnings(parseWarnings, parseStructuredWarnings).map((w, i) => (
-                  <li key={i}>{w}</li>
-                ))}
-              </ul>
-              <button
-                type="button"
-                onClick={() => navigate('/contact', {
-                  state: {
-                    topic: 'support',
-                    subject: 'parseWarning',
-                    fileName,
-                    warnings: parseWarnings,
-                  },
-                })}
-                className="btn-primary inline-flex items-center gap-2"
-                data-testid="filing-parse-warning-contact-cta"
-              >
-                <MessageCircle className="w-4 h-4" />
-                {t('results:parseWarningCta')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ParseWarningsNotice
+          blocking
+          warnings={parseWarnings}
+          structuredWarnings={parseStructuredWarnings}
+          fileName={fileName}
+          testIdPrefix="filing-"
+        />
       </div>
     );
   }
@@ -169,6 +138,16 @@ export default function FilingGuidePage() {
           </button>
         </div>
       </div>
+
+      {/* Non-blocking parser notes (S11): info-severity warnings stay visible on
+          this surface too, without suppressing the D212 values or the export. */}
+      <ParseWarningsNotice
+        blocking={false}
+        warnings={parseWarnings}
+        structuredWarnings={parseStructuredWarnings}
+        fileName={fileName}
+        testIdPrefix="filing-"
+      />
 
       {/* Tax year scoping banner */}
       <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-xl flex gap-3">
