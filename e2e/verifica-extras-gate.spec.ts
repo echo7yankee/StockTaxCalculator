@@ -45,8 +45,10 @@ test.describe('/verifica-extras pre-pay gate (Revolut CSV)', () => {
       .setInputFiles(csvFile('revolut-merger-cash.csv', [...CLEAN_ROWS, MERGER_ROW]));
 
     await expect(page.getByTestId('preview-result')).toBeVisible({ timeout: 15_000 });
-    // The parser's warning surfaces verbatim on the verdict card.
-    await expect(page.getByText(/Unrecognised transaction types/)).toBeVisible();
+    // S6 phase B: the app defaults to Romanian (fallbackLng 'ro'; no querystring /
+    // localStorage in a fresh Playwright context), so the warning renders the RO
+    // template from parserWarnings.json, not the parser's English prose.
+    await expect(page.getByText(/tipuri de tranzacții nerecunoscute/)).toBeVisible();
     // Gate CLOSED: contact-only capture, no unlock (pay) CTA anywhere.
     await expect(page.getByTestId('preview-contact-cta')).toBeVisible();
     await expect(page.getByTestId('preview-unlock-cta')).toHaveCount(0);

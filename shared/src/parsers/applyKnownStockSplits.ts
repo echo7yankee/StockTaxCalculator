@@ -83,6 +83,7 @@ export function applyKnownStockSplits(
       sink.push(
         'splits_reverse_split_unapplied',
         `Reverse stock split for ${split.ticker} on ${split.effectiveDate} could not be applied automatically. Verify this position before filing.`,
+        { ticker: split.ticker, date: split.effectiveDate },
       );
       continue;
     }

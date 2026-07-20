@@ -25,6 +25,7 @@ import {
 import { writePendingParse, markParseVerified } from '../lib/pendingParse';
 import { analytics } from '../lib/analytics';
 import { CSV_BROKERS, BROKERS, type BrokerId } from '../lib/brokers';
+import { localizeParserWarnings } from '../lib/parserWarningText';
 import EmailCapture from '../components/common/EmailCapture';
 import PageMeta from '../components/common/PageMeta';
 
@@ -639,7 +640,7 @@ export default function PreviewPage() {
                 <AlertTriangle className="w-4 h-4 text-yellow-600" />
                 <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">{t('warnings')}</p>
               </div>
-              {preview.warnings.map((w, i) => (
+              {localizeParserWarnings(preview.warnings, preview.structuredWarnings).map((w, i) => (
                 <p key={i} className="text-sm text-yellow-600 dark:text-yellow-500">{w}</p>
               ))}
             </div>

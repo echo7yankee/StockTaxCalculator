@@ -81,6 +81,18 @@ describe('createWarningSink', () => {
     sink.push('ibkr_unreadable_row_date', 'x');
     expect(sink.structuredWarnings[0].severity).toBe('fatal');
   });
+
+  // S6 phase B: params carry the raw interpolated values for the i18n render
+  // boundary; absent params leave the property off entirely (pre-phase-B shape),
+  // so a JSON round-trip of old and new results stays byte-comparable.
+  it('stores params when given and omits the property when not', () => {
+    const sink = createWarningSink();
+    sink.push('t212_unreadable_numeric_value', 'msg', { count: 3, examples: '"$1", "x"' });
+    sink.push('t212_csv_empty', 'plain');
+
+    expect(sink.structuredWarnings[0].params).toEqual({ count: 3, examples: '"$1", "x"' });
+    expect('params' in sink.structuredWarnings[1]).toBe(false);
+  });
 });
 
 describe('hasFatalWarning', () => {

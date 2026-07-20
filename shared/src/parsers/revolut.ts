@@ -264,9 +264,11 @@ export function parseRevolutStatement(rows: string[][]): ParseResult {
       // share drops proportionally). A negative quantity would be a reverse split,
       // which we do not model, so warn instead of guessing.
       if (quantity <= 0) {
+        const splitTicker = cell(row, tickerIdx) || 'an unknown security';
         sink.push(
           'revolut_reverse_split_unapplied',
-          `Stock split for "${cell(row, tickerIdx) || 'an unknown security'}" on row ${rowNumber} could not be applied automatically. Check this position before filing.`
+          `Stock split for "${splitTicker}" on row ${rowNumber} could not be applied automatically. Check this position before filing.`,
+          { ticker: splitTicker, row: rowNumber }
         );
         continue;
       }
@@ -327,15 +329,19 @@ export function parseRevolutStatement(rows: string[][]): ParseResult {
   }
 
   if (unsupportedCurrencies.size > 0) {
+    const currencies = [...unsupportedCurrencies].join(', ');
     sink.push(
       'revolut_unsupported_currencies_skipped',
-      `Unsupported currencies found (${[...unsupportedCurrencies].join(', ')}). InvesTax supports USD, EUR, GBP and RON; those rows were skipped.`
+      `Unsupported currencies found (${currencies}). InvesTax supports USD, EUR, GBP and RON; those rows were skipped.`,
+      { currencies }
     );
   }
   if (unknownTypes.size > 0) {
+    const types = [...unknownTypes].join(', ');
     sink.push(
       'revolut_unrecognised_types_skipped',
-      `Unrecognised transaction types found (${[...unknownTypes].join(', ')}). Those rows were skipped; check them before filing.`
+      `Unrecognised transaction types found (${types}). Those rows were skipped; check them before filing.`,
+      { types }
     );
   }
   if (transactions.length === 0 && skipped.length === 0) {

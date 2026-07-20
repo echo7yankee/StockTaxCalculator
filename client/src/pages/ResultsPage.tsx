@@ -8,6 +8,7 @@ import { useCountry } from '../contexts/CountryContext';
 import { useAuth } from '../contexts/AuthContext';
 import { analytics } from '../lib/analytics';
 import { getBrokerMeta } from '../lib/brokers';
+import { localizeParserWarnings } from '../lib/parserWarningText';
 import PageMeta from '../components/common/PageMeta';
 import D212Download from '../components/D212Download';
 import AuditTrailDownload from '../components/AuditTrailDownload';
@@ -18,7 +19,7 @@ import { cassBracketLabelKey } from '../utils/cassBracket';
 export default function ResultsPage() {
   const { t, i18n } = useTranslation(['results', 'common']);
   const navigate = useNavigate();
-  const { taxResult, correctedTaxResult, securities, fileName, taxYear, transactions, auditRows, pdfNetFromOverview, parseWarnings, broker, carriedPositions, carryForwardYear, setUploadData } = useUpload();
+  const { taxResult, correctedTaxResult, securities, fileName, taxYear, transactions, auditRows, pdfNetFromOverview, parseWarnings, parseStructuredWarnings, broker, carriedPositions, carryForwardYear, setUploadData } = useUpload();
   const hasWarnings = parseWarnings.length > 0;
   // Beta brokers (parser built to the broker's published format without a real
   // account to validate against) must always carry a verify-before-filing caveat,
@@ -239,7 +240,7 @@ export default function ResultsPage() {
                 {t('results:parseWarningListIntro')}
               </p>
               <ul className="text-xs text-red-600 dark:text-red-400 mb-4 list-disc pl-5 space-y-1">
-                {parseWarnings.map((w, i) => (
+                {localizeParserWarnings(parseWarnings, parseStructuredWarnings).map((w, i) => (
                   <li key={i}>{w}</li>
                 ))}
               </ul>

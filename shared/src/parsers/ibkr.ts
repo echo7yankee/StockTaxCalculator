@@ -324,7 +324,8 @@ export function parseIbkrCsv(rows: string[][]): ParseResult {
         // not drop silently: warn so the #24A hard-stop catches it.
         sink.push(
           'ibkr_unreadable_row_date',
-          `Could not read the date "${get('Date')}" in the ${section} section; that row was skipped. Please report this so we can support your statement's date format.`
+          `Could not read the date "${get('Date')}" in the ${section} section; that row was skipped. Please report this so we can support your statement's date format.`,
+          { date: get('Date'), section }
         );
         continue;
       }
@@ -369,7 +370,8 @@ export function parseIbkrCsv(rows: string[][]): ParseResult {
           } else {
             sink.push(
               'ibkr_withholding_security_unidentified',
-              `Could not identify the security for a withholding-tax row dated ${get('Date')}; tax credit not applied.`
+              `Could not identify the security for a withholding-tax row dated ${get('Date')}; tax credit not applied.`,
+              { date: get('Date') }
             );
           }
           continue;
@@ -407,28 +409,34 @@ export function parseIbkrCsv(rows: string[][]): ParseResult {
     } else {
       sink.push(
         'ibkr_withholding_no_matching_dividend',
-        `Withholding tax of ${total} for "${key}" (${year}) has no matching dividend and was not applied.`
+        `Withholding tax of ${total} for "${key}" (${year}) has no matching dividend and was not applied.`,
+        { amount: total, security: key, year }
       );
     }
   }
   transactions.push(...tradeRows, ...dividends);
 
   if (skippedCategories.size > 0) {
+    const categories = [...skippedCategories].join(', ');
     sink.push(
       'ibkr_non_stock_positions_skipped',
-      `Skipped non-stock positions (${[...skippedCategories].join(', ')}). InvesTax currently supports stocks and ETFs only.`
+      `Skipped non-stock positions (${categories}). InvesTax currently supports stocks and ETFs only.`,
+      { categories }
     );
   }
   if (unsupportedCurrencies.size > 0) {
+    const currencies = [...unsupportedCurrencies].join(', ');
     sink.push(
       'ibkr_unsupported_currencies_skipped',
-      `Unsupported currencies found (${[...unsupportedCurrencies].join(', ')}). InvesTax supports USD, EUR, GBP and RON; those rows were skipped.`
+      `Unsupported currencies found (${currencies}). InvesTax supports USD, EUR, GBP and RON; those rows were skipped.`,
+      { currencies }
     );
   }
   if (interestWithholdingCount > 0) {
     sink.push(
       'ibkr_interest_withholding_skipped',
-      `Skipped ${interestWithholdingCount} withholding-tax row(s) on interest income (not on a dividend). InvesTax currently calculates dividends and capital gains only, not interest income.`
+      `Skipped ${interestWithholdingCount} withholding-tax row(s) on interest income (not on a dividend). InvesTax currently calculates dividends and capital gains only, not interest income.`,
+      { count: interestWithholdingCount }
     );
   }
   if (!recognisedSection) {

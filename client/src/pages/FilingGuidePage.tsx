@@ -5,6 +5,7 @@ import { ArrowLeft, Copy, CheckCircle, ClipboardList, Download, Info, AlertTrian
 import { useUpload } from '../contexts/UploadContext';
 import { useCountry } from '../contexts/CountryContext';
 import { analytics } from '../lib/analytics';
+import { localizeParserWarnings } from '../lib/parserWarningText';
 import PageMeta from '../components/common/PageMeta';
 import { isEarlyFilingDiscountAvailable } from '@shared/taxRules/taxYears';
 import { d212Sections, formatD212Summary, formatD212Value } from '@shared/taxRules/d212Fields';
@@ -16,7 +17,7 @@ import type { TaxCalculationResult } from '@shared/types/tax';
 export default function FilingGuidePage() {
   const { t } = useTranslation(['filing', 'common', 'd212', 'results']);
   const navigate = useNavigate();
-  const { taxResult, correctedTaxResult, taxYear, parseWarnings, fileName } = useUpload();
+  const { taxResult, correctedTaxResult, taxYear, parseWarnings, parseStructuredWarnings, fileName } = useUpload();
   const { countryConfig } = useCountry();
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [allCopied, setAllCopied] = useState(false);
@@ -78,7 +79,7 @@ export default function FilingGuidePage() {
                 {t('results:parseWarningListIntro')}
               </p>
               <ul className="text-xs text-red-600 dark:text-red-400 mb-4 list-disc pl-5 space-y-1">
-                {parseWarnings.map((w, i) => (
+                {localizeParserWarnings(parseWarnings, parseStructuredWarnings).map((w, i) => (
                   <li key={i}>{w}</li>
                 ))}
               </ul>

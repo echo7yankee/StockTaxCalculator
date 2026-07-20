@@ -95,6 +95,15 @@ export interface ParserWarning {
   severity: ParserWarningSeverity;
   /** The human-readable English prose, identical to the `warnings[]` entry. */
   message: string;
+  /**
+   * The raw values interpolated into `message`, so a render boundary can
+   * re-format the warning in another language (S6 phase B) without parsing
+   * prose. List-shaped values (currencies, examples) are pre-joined to a single
+   * display string by the parser, keeping locale templates simple. Optional:
+   * absent on codes whose message is fully static and on pre-phase-B persisted
+   * results; consumers must fall back to `message` when a param is missing.
+   */
+  params?: Readonly<Record<string, string | number>>;
 }
 
 /**
@@ -186,8 +195,12 @@ export interface WarningSink {
   readonly warnings: string[];
   /** The same warnings with their code and severity attached. */
   readonly structuredWarnings: ParserWarning[];
-  /** Record one warning in both channels. */
-  push(code: ParserWarningCode, message: string): void;
+  /**
+   * Record one warning in both channels. `params` carries the raw values the
+   * message interpolates, for the i18n render boundary (S6 phase B); the prose
+   * `message` stays the canonical English channel either way.
+   */
+  push(code: ParserWarningCode, message: string, params?: Readonly<Record<string, string | number>>): void;
 }
 
 export function createWarningSink(): WarningSink {
@@ -196,9 +209,14 @@ export function createWarningSink(): WarningSink {
   return {
     warnings,
     structuredWarnings,
-    push(code, message) {
+    push(code, message, params) {
       warnings.push(message);
-      structuredWarnings.push({ code, severity: WARNING_SEVERITY[code], message });
+      structuredWarnings.push({
+        code,
+        severity: WARNING_SEVERITY[code],
+        message,
+        ...(params ? { params } : {}),
+      });
     },
   };
 }
