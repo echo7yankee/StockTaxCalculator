@@ -17,6 +17,7 @@ import { analytics } from '../lib/analytics';
 import { reportParseEvent } from '../lib/parseMonitor';
 import { CSV_BROKERS, type BrokerId } from '../lib/brokers';
 import { readPendingParse, clearPendingParse } from '../lib/pendingParse';
+import { localizeParserWarnings } from '../lib/parserWarningText';
 import { useStatementPreview } from '../hooks/useStatementPreview';
 import PageMeta from '../components/common/PageMeta';
 
@@ -486,6 +487,9 @@ export default function UploadPage() {
     setUploadData({
       parseResult: parsed,
       parseWarnings: parsed.warnings,
+      // Defensive ?? []: a pre-#266 sessionStorage stash rehydrates without the
+      // structured channel despite the type (same posture as useStatementPreview).
+      parseStructuredWarnings: parsed.structuredWarnings ?? [],
       transactions: enrichedTransactions,
       taxResult,
       securities,
@@ -544,6 +548,10 @@ export default function UploadPage() {
     setUploadData({
       parseResult: null,
       parseWarnings: [...pdf.warnings, ...engineWarnings],
+      // Engine warnings (#24C) carry no ParserWarningCode, so only the parser's
+      // structured channel is stored; the render boundary shows twinless prose
+      // (the engine warnings) verbatim.
+      parseStructuredWarnings: pdf.structuredWarnings ?? [],
       transactions: [],
       taxResult,
       securities,
@@ -1047,7 +1055,7 @@ export default function UploadPage() {
                 <AlertTriangle className="w-4 h-4 text-yellow-600" />
                 <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">{t('warnings')}</p>
               </div>
-              {preview.warnings.map((w, i) => (
+              {localizeParserWarnings(preview.warnings, preview.structuredWarnings).map((w, i) => (
                 <p key={i} className="text-sm text-yellow-600 dark:text-yellow-500">{w}</p>
               ))}
             </div>

@@ -472,7 +472,7 @@ export function parseTrading212AnnualStatement(pageTexts: string[]): PdfParseRes
     );
   } else {
     if (yearFallback) {
-      sink.push('t212pdf_year_not_detected', `Could not detect year from PDF. Defaulting to ${year}.`);
+      sink.push('t212pdf_year_not_detected', `Could not detect year from PDF. Defaulting to ${year}.`, { year });
     }
     if (sellTrades.length === 0) {
       if (matchesAny(fullText, KEYWORDS.sellTrades)) {
@@ -514,7 +514,8 @@ export function parseTrading212AnnualStatement(pageTexts: string[]): PdfParseRes
     if (diff > 1) {
       sink.push(
         't212pdf_sell_total_mismatch',
-        `Parsed sell-trade per-row sum (${parsedTotal.toFixed(2)}) differs from overview (${overview.closedResult.toFixed(2)}). Engine will pick the most reliable source based on transaction currency consistency.`
+        `Parsed sell-trade per-row sum (${parsedTotal.toFixed(2)}) differs from overview (${overview.closedResult.toFixed(2)}). Engine will pick the most reliable source based on transaction currency consistency.`,
+        { parsed: parsedTotal.toFixed(2), overview: overview.closedResult.toFixed(2) }
       );
     }
   }
@@ -527,7 +528,8 @@ export function parseTrading212AnnualStatement(pageTexts: string[]): PdfParseRes
     if (diff > 1) {
       sink.push(
         't212pdf_dividend_gross_mismatch',
-        `Parsed dividend gross (${parsedGross.toFixed(2)}) differs from overview gross dividends (${overview.grossDividends.toFixed(2)}). Some rows may not have been parsed.`
+        `Parsed dividend gross (${parsedGross.toFixed(2)}) differs from overview gross dividends (${overview.grossDividends.toFixed(2)}). Some rows may not have been parsed.`,
+        { parsed: parsedGross.toFixed(2), overview: overview.grossDividends.toFixed(2) }
       );
     }
   }

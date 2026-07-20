@@ -275,21 +275,25 @@ export function parseTrading212Csv(rows: RawCsvRow[]): ParseResult {
   if (interestRowCount > 0) {
     sink.push(
       't212_interest_income_out_of_scope',
-      `Detected ${interestRowCount} interest-income row(s) (e.g. "Interest on cash"). InvesTax does not calculate interest income; it is taxable (venituri din dobanzi) and must be declared separately.`
+      `Detected ${interestRowCount} interest-income row(s) (e.g. "Interest on cash"). InvesTax does not calculate interest income; it is taxable (venituri din dobanzi) and must be declared separately.`,
+      { count: interestRowCount }
     );
   }
 
   if (missingTotalRowCount > 0) {
     sink.push(
       't212_missing_total_column',
-      `Could not find a total column on ${missingTotalRowCount} row(s). Trading212 names it "Total" or "Total (<currency>)" after your account's base currency. Without it the amounts on those rows read as zero, which would under-report your declaration.`
+      `Could not find a total column on ${missingTotalRowCount} row(s). Trading212 names it "Total" or "Total (<currency>)" after your account's base currency. Without it the amounts on those rows read as zero, which would under-report your declaration.`,
+      { count: missingTotalRowCount }
     );
   }
 
   if (unreadableValueCount > 0) {
+    const examples = [...unreadableExamples].join(', ');
     sink.push(
       't212_unreadable_numeric_value',
-      `Could not read ${unreadableValueCount} numeric value(s) in this file (e.g. ${[...unreadableExamples].join(', ')}). Trading212 exports plain numbers such as "1505.00". A value we cannot read falls back to a default (zero, or a 1:1 exchange rate), which would misstate your declaration.`
+      `Could not read ${unreadableValueCount} numeric value(s) in this file (e.g. ${examples}). Trading212 exports plain numbers such as "1505.00". A value we cannot read falls back to a default (zero, or a 1:1 exchange rate), which would misstate your declaration.`,
+      { count: unreadableValueCount, examples }
     );
   }
 

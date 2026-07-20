@@ -1,11 +1,15 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import type { Transaction, TaxCalculationResult, SecurityBreakdown, PdfAuditRow, ParseResult, OpeningPosition } from '@shared/index';
+import type { Transaction, TaxCalculationResult, SecurityBreakdown, PdfAuditRow, ParseResult, OpeningPosition, ParserWarning } from '@shared/index';
 import { getCurrentTaxYearConfig } from '@shared/taxRules/taxYears';
 import type { BrokerId } from '../lib/brokers';
 
 interface UploadState {
   parseResult: ParseResult | null;
   parseWarnings: string[];
+  /** The same warnings with code + severity + params, for the i18n render
+   *  boundary (S6 phase B). Prose entries without a structured twin (engine
+   *  warnings, pre-phase-A stashes) render verbatim; see parserWarningText.ts. */
+  parseStructuredWarnings: ParserWarning[];
   transactions: Transaction[];
   taxResult: TaxCalculationResult | null;
   /** The withholding-credit-corrected result the user sees on Results after entering a
@@ -50,6 +54,7 @@ function createDefaultState(): UploadState {
   return {
     parseResult: null,
     parseWarnings: [],
+    parseStructuredWarnings: [],
     transactions: [],
     taxResult: null,
     correctedTaxResult: null,

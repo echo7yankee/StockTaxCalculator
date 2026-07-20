@@ -22,6 +22,7 @@ import enContact from './locales/en/contact.json';
 import enSubscribe from './locales/en/subscribe.json';
 import enPricing from './locales/en/pricing.json';
 import enMeta from './locales/en/meta.json';
+import enParserWarnings from './locales/en/parserWarnings.json';
 
 // RO
 import roCommon from './locales/ro/common.json';
@@ -43,6 +44,7 @@ import roContact from './locales/ro/contact.json';
 import roSubscribe from './locales/ro/subscribe.json';
 import roPricing from './locales/ro/pricing.json';
 import roMeta from './locales/ro/meta.json';
+import roParserWarnings from './locales/ro/parserWarnings.json';
 
 // LanguageDetector reads navigator + localStorage at init, so it must only run
 // in the browser. During Vite's prerender pass (Node), we skip detection and
@@ -75,6 +77,7 @@ i18n
         subscribe: enSubscribe,
         pricing: enPricing,
         meta: enMeta,
+        parserWarnings: enParserWarnings,
       },
       ro: {
         common: roCommon,
@@ -96,6 +99,7 @@ i18n
         subscribe: roSubscribe,
         pricing: roPricing,
         meta: roMeta,
+        parserWarnings: roParserWarnings,
       },
     },
     // Romania is the launch market; default everyone to Romanian unless

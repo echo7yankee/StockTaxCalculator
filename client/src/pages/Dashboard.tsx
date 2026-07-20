@@ -159,6 +159,7 @@ export default function Dashboard() {
         // state so a prior warned/unreliable upload never leaks its hard-stop banner,
         // PDF audit rows, overview-net honesty note, or broker into the saved view.
         parseWarnings: [],
+        parseStructuredWarnings: [],
         auditRows: [],
         pdfNetFromOverview: false,
         broker: (ty.broker as BrokerId) || 'trading212',
