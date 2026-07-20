@@ -61,14 +61,14 @@ appear the later one is the decimal (`1,234.56` US and `1.234,56` EU both read a
 
 ## Type -> action mapping
 
-| `Type` value (contains)            | Mapped to | Notes |
+| `Type` value                       | Mapped to | Notes |
 |------------------------------------|-----------|-------|
-| `BUY` (e.g. `BUY - MARKET`)        | buy       | Cost basis. |
-| `SELL` (e.g. `SELL - MARKET`)      | sell      | Proceeds. |
-| `DIVIDEND`                         | dividend  | See withholding limitation below. |
-| `STOCK SPLIT`                      | zero-cost buy | Adds the new shares at $0, so the weighted-average cost per share drops proportionally (a forward split). A negative quantity (reverse split) is not modelled and emits a warning. |
-| `CASH TOP-UP`, `CASH WITHDRAWAL`, `CUSTODY FEE`, `TRANSFER FROM..TO..` | ignored | Non-taxable cash movements, account fees, and the UK->EU custodian migration ($0 bookkeeping). |
-| anything else                      | warning   | Unrecognised type is skipped and pushes a parse warning, which trips the #24A red hard-stop so an unseen row can never be silently miscomputed. |
+| contains `BUY` (e.g. `BUY - MARKET`) | buy     | Cost basis. |
+| contains `SELL` (e.g. `SELL - MARKET`) | sell  | Proceeds. |
+| contains `DIVIDEND`                | dividend  | See withholding limitation below. |
+| contains `STOCK SPLIT`             | zero-cost buy | Adds the new shares at $0, so the weighted-average cost per share drops proportionally (a forward split). A negative quantity (reverse split) is not modelled and emits a warning. |
+| **exactly** `CASH TOP-UP`, `CASH WITHDRAWAL`, `CUSTODY FEE`, or matching `TRANSFER FROM REVOLUT .. TO REVOLUT ..` | ignored | Non-taxable cash movements, account fees, and the UK->EU custodian migration ($0 bookkeeping). Anchored exactly (SUGGESTIONS S14): a bare-substring ignore set would let a never-seen income type such as `MERGER - CASH` vanish silently, and an in-kind transfer from an EXTERNAL broker (cost-basis information we cannot model) must warn, not disappear. All five shapes are evidenced in the real anonymized sample. |
+| anything else                      | warning   | Unrecognised type is skipped and pushes a parse warning, which trips the #24A red hard-stop AND the fatal pre-pay gate block, so an unseen row can never be silently miscomputed or paid for. |
 
 Currencies: USD / EUR / GBP / RON supported. Others (e.g. CHF, GBX pence) are
 skipped with a warning rather than guessed (GBX is never symbol-mapped to GBP, to

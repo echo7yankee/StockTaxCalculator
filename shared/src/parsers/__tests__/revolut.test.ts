@@ -45,7 +45,7 @@ describe('parseRevolutStatement', () => {
     expect(sell.totalAmountOriginal).toBe(1500);
   });
 
-  it('ignores cash top-up, custody fee, and transfer rows', () => {
+  it('ignores cash top-up, cash withdrawal, custody fee, and internal transfer rows', () => {
     const rows = generateRevolutStatement({
       trades: [{ ticker: 'MSFT', side: 'buy', quantity: 1, pricePerShare: 200, totalAmount: 200, date: '2025-03-01T10:00:00.000Z' }],
       includeNoise: true,
@@ -53,8 +53,9 @@ describe('parseRevolutStatement', () => {
     const r = parseRevolutStatement(rows);
     expect(r.transactions).toHaveLength(1);
     expect(r.transactions[0].ticker).toBe('MSFT');
-    // top-up + custody fee + transfer = 3 skipped, none warned (known non-taxable)
-    expect(r.skipped.length).toBe(3);
+    // top-up + withdrawal + custody fee + both migration transfers = 5 skipped,
+    // none warned (all five known non-taxable shapes from the real sample)
+    expect(r.skipped.length).toBe(5);
     expect(r.warnings).toHaveLength(0);
   });
 
@@ -122,6 +123,53 @@ describe('parseRevolutStatement', () => {
     expect(r.warnings.some((w) => w.includes('Unrecognised transaction types'))).toBe(true);
   });
 
+  // SUGGESTIONS S14: the ignore set is anchored to the exact known non-taxable
+  // types. A never-seen income-bearing type that merely CONTAINS an ignore word
+  // ("MERGER - CASH", "CASH DISBURSEMENT") must warn fatally, not vanish.
+  describe('S14: never-seen types containing ignore words warn instead of vanishing', () => {
+    const HEADER = ['Date', 'Ticker', 'Type', 'Quantity', 'Price per share', 'Total Amount', 'Currency', 'FX Rate'];
+
+    it.each(['MERGER - CASH', 'CASH DISBURSEMENT', 'STOCK GIFT FEE'])(
+      'classifies "%s" as unrecognised and pushes the fatal warning',
+      (type) => {
+        const r = parseRevolutStatement([
+          HEADER,
+          ['2025-04-01T10:00:00.000Z', 'AAPL', type, '', '', '$120', 'USD', '1'],
+        ]);
+        expect(r.transactions).toHaveLength(0);
+        expect(r.warnings.some((w) => w.includes(`Unrecognised transaction types found (${type})`))).toBe(true);
+        expect(r.structuredWarnings.some((w) => w.code === 'revolut_unrecognised_types_skipped')).toBe(true);
+      }
+    );
+
+    it('warns on a transfer that is not an internal Revolut entity migration', () => {
+      // An in-kind transfer from an external broker carries cost-basis
+      // information we cannot model; it must not be silently dropped.
+      const r = parseRevolutStatement([
+        HEADER,
+        ['2025-04-01T10:00:00.000Z', 'AAPL', 'TRANSFER FROM DEGIRO TO REVOLUT SECURITIES EUROPE UAB', '3', '', '$0', 'USD', '1'],
+      ]);
+      expect(r.transactions).toHaveLength(0);
+      expect(r.warnings.some((w) => w.includes('Unrecognised transaction types'))).toBe(true);
+    });
+
+    it('still silently skips all five known non-taxable shapes from the real sample', () => {
+      const r = parseRevolutStatement([
+        HEADER,
+        ['2025-02-01T10:00:00.000Z', 'AAPL', 'BUY - MARKET', '1', '$10', '$10', 'USD', '1'],
+        ['2019-11-15T23:15:55.878985Z', '', 'CASH TOP-UP', '', '', '$5.22', 'USD', '1.1055'],
+        ['2019-12-02T08:23:08.459586Z', '', 'CASH WITHDRAWAL', '', '', '-$30.93', 'USD', '1.1019'],
+        ['2021-09-01T07:40:54.539038Z', '', 'CUSTODY FEE', '', '', '-$0.01', 'USD', '1.18'],
+        ['2023-08-06T09:06:58.899860Z', 'WBD', 'TRANSFER FROM REVOLUT TRADING LTD TO REVOLUT SECURITIES EUROPE UAB', '0.0004562', '', '$0', 'USD', '1.1018'],
+        ['2023-09-09T07:59:34.452648Z', '', 'TRANSFER FROM REVOLUT BANK UAB TO REVOLUT SECURITIES EUROPE UAB', '', '', '-$0.01', 'USD', '0.0902'],
+      ]);
+      expect(r.transactions).toHaveLength(1);
+      expect(r.skipped).toHaveLength(5);
+      expect(r.warnings).toHaveLength(0);
+      expect(r.structuredWarnings).toHaveLength(0);
+    });
+  });
+
   it('parses a Romanian-locale export (comma decimals, inline euro symbol)', () => {
     const rows = generateRevolutStatement({
       trades: [{ ticker: 'ASML', side: 'buy', quantity: 0.76672417, pricePerShare: 26.09, totalAmount: 20, date: '2025-09-08T07:29:03.333Z', currency: 'EUR' }],
@@ -172,17 +220,19 @@ describe('parseRevolutStatement', () => {
     const rows = [
       ['Date', 'Ticker', 'Type', 'Quantity', 'Price per share', 'Total Amount', 'Currency', 'FX Rate'],
       ['2019-11-15T23:15:55.878985Z', '', 'CASH TOP-UP', '', '', '$5.22', 'USD', '1.1055'],
+      ['2019-12-02T08:23:08.459586Z', '', 'CASH WITHDRAWAL', '', '', '-$30.93', 'USD', '1.1019'],
       ['2023-09-22T13:30:10.514Z', 'O', 'BUY - MARKET', '1.63453043', '$52.07', '$85.11', 'USD', '1.0665'],
       ['2023-07-14T13:30:00.797Z', 'MA', 'SELL - MARKET', '0.1998348', '$402.13', '$80.34', 'USD', '1.1241'],
       ['2019-12-13T08:40:00.835101Z', 'MSFT', 'DIVIDEND', '', '', '$0.08', 'USD', '1.1179'],
       ['2021-09-01T07:40:54.539038Z', '', 'CUSTODY FEE', '', '', '-$0.01', 'USD', '1.18'],
       ['2022-08-25T08:27:46.419568Z', 'TSLA', 'STOCK SPLIT', '0.16431924', '', '$0', 'USD', '0.0947'],
       ['2023-08-06T09:06:58.899860Z', 'WBD', 'TRANSFER FROM REVOLUT TRADING LTD TO REVOLUT SECURITIES EUROPE UAB', '0.0004562', '', '$0', 'USD', '1.1018'],
+      ['2023-09-09T07:59:34.452648Z', '', 'TRANSFER FROM REVOLUT BANK UAB TO REVOLUT SECURITIES EUROPE UAB', '', '', '-$0.01', 'USD', '0.0902'],
       ['2025-09-08T07:29:03.333Z', 'MSFT', 'BUY - MARKET', '0,76672417', '€26.09', '€20', 'EUR', '1'],
     ];
     const r = parseRevolutStatement(rows);
-    // top-up + custody fee + transfer = 3 ignored, no warnings
-    expect(r.skipped.length).toBe(3);
+    // top-up + withdrawal + custody fee + both transfers = 5 ignored, no warnings
+    expect(r.skipped.length).toBe(5);
     expect(r.warnings).toHaveLength(0);
     const buys = r.transactions.filter((t) => t.action === 'buy');
     const sells = r.transactions.filter((t) => t.action === 'sell');

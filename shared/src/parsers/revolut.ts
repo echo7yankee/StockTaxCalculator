@@ -37,7 +37,8 @@ import { createWarningSink } from './parserWarnings.js';
  *   STOCK SPLIT    -> zero-cost buy  (adds shares at $0, so the weighted-average
  *                                     cost basis per share drops proportionally,
  *                                     which is exactly a forward split)
- *   CASH TOP-UP / CASH WITHDRAWAL / CUSTODY FEE / TRANSFER FROM..TO.. -> ignored
+ *   CASH TOP-UP / CASH WITHDRAWAL / CUSTODY FEE (exact) and the internal
+ *     TRANSFER FROM REVOLUT..TO REVOLUT.. migration rows -> ignored
  *   anything else  -> a parse warning (trips the #24A hard-stop) so an unseen row
  *                     type can never be silently miscomputed.
  *
@@ -104,6 +105,27 @@ function parseRevolutNumber(value: string | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/**
+ * Non-taxable row types, anchored EXACTLY (post-normalizeHeader: lowercased,
+ * whitespace collapsed). Every entry is evidenced by the real anonymized Account
+ * Statement sample this parser is pinned to (`dickwolff/Export-To-Ghostfolio`
+ * `samples/revolut-invest-export.csv`; see docs/revolut-csv-format.md). Bare
+ * substrings ('cash', 'fee', 'transfer', ...) previously classified a never-seen
+ * income-bearing type such as "MERGER - CASH" as ignore, dropping the row
+ * SILENTLY; anything outside this set now falls through to 'unknown', whose
+ * warning is fatal (closes the pre-pay gate), so the failure direction is safe.
+ */
+const IGNORED_TYPES = new Set(['cash top-up', 'cash withdrawal', 'custody fee']);
+
+/**
+ * Internal Revolut entity-migration bookkeeping rows, e.g. "TRANSFER FROM
+ * REVOLUT TRADING LTD TO REVOLUT SECURITIES EUROPE UAB" ($0 custodian moves; the
+ * cost-basis buys remain in the same All-time export). Anchored Revolut-to-Revolut
+ * deliberately: an in-kind transfer from an EXTERNAL broker would carry cost-basis
+ * information we cannot model, so it must warn, not vanish.
+ */
+const REVOLUT_INTERNAL_TRANSFER = /^transfer from revolut .+ to revolut .+$/;
+
 function classifyType(typeRaw: string): RowClass {
   const t = normalizeHeader(typeRaw);
   if (t === '') return 'unknown';
@@ -111,17 +133,7 @@ function classifyType(typeRaw: string): RowClass {
   if (t.includes('sell')) return 'sell';
   if (t.includes('buy')) return 'buy';
   if (t.includes('dividend')) return 'dividend';
-  if (
-    t.includes('transfer') ||
-    t.includes('top-up') ||
-    t.includes('top up') ||
-    t.includes('withdrawal') ||
-    t.includes('fee') ||
-    t.includes('deposit') ||
-    t.includes('cash')
-  ) {
-    return 'ignore';
-  }
+  if (IGNORED_TYPES.has(t) || REVOLUT_INTERNAL_TRANSFER.test(t)) return 'ignore';
   return 'unknown';
 }
 

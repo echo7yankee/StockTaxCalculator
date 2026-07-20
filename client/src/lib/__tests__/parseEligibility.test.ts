@@ -600,4 +600,54 @@ describe('evaluateParseEligibility', () => {
       expect(result).toEqual({ eligible: true, blockReason: null });
     });
   });
+
+  /**
+   * SUGGESTIONS S14, through the REAL Revolut parser: the ignore set is anchored
+   * to the exact known non-taxable types, so a never-seen income-bearing type
+   * that merely contains an ignore word ("MERGER - CASH") reaches the fatal
+   * unrecognised-type warning and closes the gate, instead of being silently
+   * dropped as it was under the substring set.
+   */
+  describe('S14: ignore-word-containing unknown types close the gate', () => {
+    function revolutPreview(rows: string[][]): CsvPreviewData {
+      const parsed = parseRevolutStatement(rows);
+      const sells = parsed.transactions.filter((t) => t.action === 'sell').length;
+      return csvPreview({
+        warnings: parsed.warnings,
+        structuredWarnings: parsed.structuredWarnings,
+        sells: Math.max(sells, 1),
+        dividends: 0,
+        distributions: 0,
+      });
+    }
+
+    it('blocks a real Revolut parse that dropped a MERGER - CASH row', () => {
+      const preview = revolutPreview([
+        ['Date', 'Ticker', 'Type', 'Quantity', 'Price per share', 'Total Amount', 'Currency', 'FX Rate'],
+        ['2025-03-04T10:00:00.000Z', 'MSFT', 'SELL - MARKET', '1', '$100', '$100', 'USD', '1'],
+        ['2025-03-06T10:00:00.000Z', 'ATVI', 'MERGER - CASH', '', '', '$950', 'USD', '1'],
+      ]);
+      // Sanity: the real parser really did warn (guards a silent no-op pin).
+      expect(preview.warnings.length).toBeGreaterThan(0);
+
+      const result = evaluateParseEligibility(input({ preview }));
+      expect(result).toEqual({ eligible: false, blockReason: 'unreliable_amounts' });
+    });
+
+    it('keeps a real Revolut parse with all five exact known non-taxable shapes eligible', () => {
+      const preview = revolutPreview([
+        ['Date', 'Ticker', 'Type', 'Quantity', 'Price per share', 'Total Amount', 'Currency', 'FX Rate'],
+        ['2025-03-04T10:00:00.000Z', 'MSFT', 'SELL - MARKET', '1', '$100', '$100', 'USD', '1'],
+        ['2025-01-05T10:00:00.000Z', '', 'CASH TOP-UP', '', '', '$500', 'USD', '1'],
+        ['2025-01-06T10:00:00.000Z', '', 'CASH WITHDRAWAL', '', '', '-$30.93', 'USD', '1'],
+        ['2025-01-07T10:00:00.000Z', '', 'CUSTODY FEE', '', '', '-$0.01', 'USD', '1'],
+        ['2025-01-08T10:00:00.000Z', 'WBD', 'TRANSFER FROM REVOLUT TRADING LTD TO REVOLUT SECURITIES EUROPE UAB', '0.0004562', '', '$0', 'USD', '1'],
+        ['2025-01-09T10:00:00.000Z', '', 'TRANSFER FROM REVOLUT BANK UAB TO REVOLUT SECURITIES EUROPE UAB', '', '', '-$0.01', 'USD', '1'],
+      ]);
+      expect(preview.warnings).toHaveLength(0);
+
+      const result = evaluateParseEligibility(input({ preview }));
+      expect(result).toEqual({ eligible: true, blockReason: null });
+    });
+  });
 });
