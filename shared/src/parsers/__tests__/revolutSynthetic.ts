@@ -6,9 +6,11 @@
  * built to. It emits the flat `string[][]` shape an xlsx sheet (or a header:false
  * CSV parse) produces, faithful to the real format: inline currency symbols on
  * amounts (`$52.07`, `-$0.01`, `€50`), ISO-8601 UTC dates, the verbose Type
- * labels (`BUY - MARKET`, `SELL - MARKET`, `DIVIDEND`, `STOCK SPLIT`), and the
- * non-taxable noise rows (`CASH TOP-UP`, `CUSTODY FEE`, `TRANSFER FROM..TO..`)
- * the parser must ignore. `euroDecimals` reproduces a Romanian-locale export
+ * labels (`BUY - MARKET`, `SELL - MARKET`, `DIVIDEND`, `STOCK SPLIT`), and ALL
+ * FIVE non-taxable noise shapes from the real sample (`CASH TOP-UP`,
+ * `CASH WITHDRAWAL`, `CUSTODY FEE`, and both `TRANSFER FROM REVOLUT..TO
+ * REVOLUT..` entity-migration labels) the parser must ignore. `euroDecimals`
+ * reproduces a Romanian-locale export
  * (comma decimal separator, e.g. `€26,09`, quantity `0,76672417`).
  *
  * Schema (8 columns, verbatim):
@@ -84,6 +86,7 @@ export function generateRevolutStatement(spec: RevolutStatementSpec): string[][]
 
   if (includeNoise) {
     rows.push(['2019-11-15T23:15:55.878985Z', '', 'CASH TOP-UP', '', '', formatAmount(5.22, 'USD', euro), 'USD', '1.1055']);
+    rows.push(['2019-12-02T08:23:08.459586Z', '', 'CASH WITHDRAWAL', '', '', formatAmount(-30.93, 'USD', euro), 'USD', '1.1019']);
   }
 
   for (const t of spec.trades ?? []) {
@@ -130,6 +133,17 @@ export function generateRevolutStatement(spec: RevolutStatementSpec): string[][]
       formatAmount(0, 'USD', euro),
       'USD',
       '1.1018',
+    ]);
+    // Second migration label from the real sample: no ticker, a -$0.01 residual.
+    rows.push([
+      '2023-09-09T07:59:34.452648Z',
+      '',
+      'TRANSFER FROM REVOLUT BANK UAB TO REVOLUT SECURITIES EUROPE UAB',
+      '',
+      '',
+      formatAmount(-0.01, 'USD', euro),
+      'USD',
+      '0.0902',
     ]);
   }
 
