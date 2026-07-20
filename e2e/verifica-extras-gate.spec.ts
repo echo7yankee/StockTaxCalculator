@@ -45,10 +45,10 @@ test.describe('/verifica-extras pre-pay gate (Revolut CSV)', () => {
       .setInputFiles(csvFile('revolut-merger-cash.csv', [...CLEAN_ROWS, MERGER_ROW]));
 
     await expect(page.getByTestId('preview-result')).toBeVisible({ timeout: 15_000 });
-    // S6 phase B: the app defaults to Romanian (fallbackLng 'ro'; no querystring /
-    // localStorage in a fresh Playwright context), so the warning renders the RO
-    // template from parserWarnings.json, not the parser's English prose.
-    await expect(page.getByText(/tipuri de tranzacții nerecunoscute/)).toBeVisible();
+    // The E2E suite seeds localStorage.language='en' (playwright.config.ts), so
+    // this renders the EN parserWarnings template (S6 phase B), which mirrors the
+    // parser's canonical prose. The RO rendering has its own test below.
+    await expect(page.getByText(/Unrecognised transaction types/)).toBeVisible();
     // Gate CLOSED: contact-only capture, no unlock (pay) CTA anywhere.
     await expect(page.getByTestId('preview-contact-cta')).toBeVisible();
     await expect(page.getByTestId('preview-unlock-cta')).toHaveCount(0);
@@ -62,5 +62,25 @@ test.describe('/verifica-extras pre-pay gate (Revolut CSV)', () => {
     await expect(page.getByTestId('preview-result')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('preview-unlock-cta')).toBeVisible();
     await expect(page.getByTestId('preview-contact-cta')).toHaveCount(0);
+  });
+
+  test('renders the warning in Romanian for the default RO audience (S6 phase B)', async ({ page }) => {
+    // ?lng=ro is first in the i18n detection order, overriding the suite-wide
+    // localStorage.language='en' seed. Production users with no stored language
+    // get RO via fallbackLng, so this is the path real RO users see.
+    await page.goto('/verifica-extras?lng=ro');
+    await page.getByRole('button', { name: /CSV/ }).click();
+    await page.getByRole('button', { name: /Revolut/ }).click();
+
+    await page
+      .locator('input[type="file"]')
+      .setInputFiles(csvFile('revolut-merger-cash.csv', [...CLEAN_ROWS, MERGER_ROW]));
+
+    await expect(page.getByTestId('preview-result')).toBeVisible({ timeout: 15_000 });
+    // The RO parserWarnings template, with the file-derived type interpolated.
+    await expect(page.getByText(/tipuri de tranzacții nerecunoscute \(MERGER - CASH\)/)).toBeVisible();
+    // The parser's English prose must NOT be on screen in the RO locale.
+    await expect(page.getByText(/Unrecognised transaction types/)).toHaveCount(0);
+    await expect(page.getByTestId('preview-unlock-cta')).toHaveCount(0);
   });
 });
