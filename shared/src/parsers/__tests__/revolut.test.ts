@@ -153,20 +153,40 @@ describe('parseRevolutStatement', () => {
       expect(r.warnings.some((w) => w.includes('Unrecognised transaction types'))).toBe(true);
     });
 
-    it('still silently skips all five known non-taxable shapes from the real sample', () => {
+    it('still silently skips every evidenced non-taxable shape', () => {
+      // Five shapes from the dickwolff real sample, plus two surveyed in the
+      // PR #270 review: CUSTODY FEE REVERSAL (real 2025 fixture in
+      // ulyssetsd/revoprofit) and the underscore CUSTODY_FEE variant (real
+      // statement in segoy89/stockary).
       const r = parseRevolutStatement([
         HEADER,
         ['2025-02-01T10:00:00.000Z', 'AAPL', 'BUY - MARKET', '1', '$10', '$10', 'USD', '1'],
         ['2019-11-15T23:15:55.878985Z', '', 'CASH TOP-UP', '', '', '$5.22', 'USD', '1.1055'],
         ['2019-12-02T08:23:08.459586Z', '', 'CASH WITHDRAWAL', '', '', '-$30.93', 'USD', '1.1019'],
         ['2021-09-01T07:40:54.539038Z', '', 'CUSTODY FEE', '', '', '-$0.01', 'USD', '1.18'],
+        ['2025-01-03T07:40:54.539038Z', '', 'CUSTODY FEE REVERSAL', '', '', '$0.01', 'USD', '1.05'],
+        ['2020-06-01T07:40:54.539038Z', '', 'CUSTODY_FEE', '', '', '-$0.02', 'USD', '1.12'],
         ['2023-08-06T09:06:58.899860Z', 'WBD', 'TRANSFER FROM REVOLUT TRADING LTD TO REVOLUT SECURITIES EUROPE UAB', '0.0004562', '', '$0', 'USD', '1.1018'],
         ['2023-09-09T07:59:34.452648Z', '', 'TRANSFER FROM REVOLUT BANK UAB TO REVOLUT SECURITIES EUROPE UAB', '', '', '-$0.01', 'USD', '0.0902'],
       ]);
       expect(r.transactions).toHaveLength(1);
-      expect(r.skipped).toHaveLength(5);
+      expect(r.skipped).toHaveLength(7);
       expect(r.warnings).toHaveLength(0);
       expect(r.structuredWarnings).toHaveLength(0);
+    });
+
+    it('folds underscore type variants into their spaced form without widening the net', () => {
+      // CUSTODY_FEE REVERSAL -> "custody fee reversal" (ignored), but an
+      // underscored never-seen type still warns fatally.
+      const r = parseRevolutStatement([
+        HEADER,
+        ['2025-01-03T10:00:00.000Z', '', 'CUSTODY_FEE_REVERSAL', '', '', '$0.01', 'USD', '1'],
+        ['2025-01-04T10:00:00.000Z', 'ATVI', 'MERGER_-_CASH', '', '', '$950', 'USD', '1'],
+      ]);
+      expect(r.transactions).toHaveLength(0);
+      expect(r.skipped).toHaveLength(2);
+      expect(r.warnings.some((w) => w.includes('Unrecognised transaction types found (MERGER_-_CASH)'))).toBe(true);
+      expect(r.warnings.some((w) => w.includes('CUSTODY_FEE_REVERSAL'))).toBe(false);
     });
   });
 

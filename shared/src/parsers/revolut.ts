@@ -109,13 +109,17 @@ function parseRevolutNumber(value: string | undefined): number {
  * Non-taxable row types, anchored EXACTLY (post-normalizeHeader: lowercased,
  * whitespace collapsed). Every entry is evidenced by the real anonymized Account
  * Statement sample this parser is pinned to (`dickwolff/Export-To-Ghostfolio`
- * `samples/revolut-invest-export.csv`; see docs/revolut-csv-format.md). Bare
- * substrings ('cash', 'fee', 'transfer', ...) previously classified a never-seen
- * income-bearing type such as "MERGER - CASH" as ignore, dropping the row
- * SILENTLY; anything outside this set now falls through to 'unknown', whose
+ * `samples/revolut-invest-export.csv`) or in another real export surveyed in the
+ * PR #270 review: CUSTODY FEE REVERSAL (a fee refund; real 2025 fixture in
+ * `ulyssetsd/revoprofit`, mapped as a fee by revoprofit + hackmajoris/brokers-sync)
+ * and the underscore variant CUSTODY_FEE (real statement in `segoy89/stockary`),
+ * which classifyType folds into the spaced form. See docs/revolut-csv-format.md.
+ * Bare substrings ('cash', 'fee', 'transfer', ...) previously classified a
+ * never-seen income-bearing type such as "MERGER - CASH" as ignore, dropping the
+ * row SILENTLY; anything outside this set now falls through to 'unknown', whose
  * warning is fatal (closes the pre-pay gate), so the failure direction is safe.
  */
-const IGNORED_TYPES = new Set(['cash top-up', 'cash withdrawal', 'custody fee']);
+const IGNORED_TYPES = new Set(['cash top-up', 'cash withdrawal', 'custody fee', 'custody fee reversal']);
 
 /**
  * Internal Revolut entity-migration bookkeeping rows, e.g. "TRANSFER FROM
@@ -127,7 +131,9 @@ const IGNORED_TYPES = new Set(['cash top-up', 'cash withdrawal', 'custody fee'])
 const REVOLUT_INTERNAL_TRANSFER = /^transfer from revolut .+ to revolut .+$/;
 
 function classifyType(typeRaw: string): RowClass {
-  const t = normalizeHeader(typeRaw);
+  // Underscore variants ("CUSTODY_FEE", seen in a real older-format statement)
+  // classify exactly like their spaced form.
+  const t = normalizeHeader(typeRaw.replace(/_/g, ' '));
   if (t === '') return 'unknown';
   if (t.includes('stock split') || t === 'split') return 'split';
   if (t.includes('sell')) return 'sell';
