@@ -787,8 +787,8 @@ describe('PreviewPage - CTA scroll-into-view on parse outcome (S9)', () => {
 
   beforeEach(() => {
     scrollCalls = [];
-    Element.prototype.scrollIntoView = function (opts?: unknown) {
-      scrollCalls.push({ el: this as Element, opts });
+    Element.prototype.scrollIntoView = function (this: Element, opts?: unknown) {
+      scrollCalls.push({ el: this, opts });
     } as typeof Element.prototype.scrollIntoView;
   });
 
