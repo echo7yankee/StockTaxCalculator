@@ -42,8 +42,15 @@ const VERIFIED_MARKER_KEY = 'investax.parseVerified';
 
 /** Schema version tag. Bump when the stored shape changes; a read of a mismatched
  *  version returns null so the caller falls back to a clean re-upload rather than
- *  feeding a stale shape to the engine. */
-const SCHEMA_VERSION = 'v1' as const;
+ *  feeding a stale shape to the engine.
+ *
+ *  v2 (SUGGESTIONS S18-N1): parser results carry `structuredWarnings` (required
+ *  since PR #266). A v1 stash predates that -- its warnings are prose with no
+ *  severities, which is exactly the twinless-prose window the S11 review
+ *  flagged on the paid surfaces. Rejecting v1 retires every pre-#266 stash
+ *  structurally; the cost is one graceful re-upload fallback for a tab that
+ *  somehow survived since then. */
+const SCHEMA_VERSION = 'v2' as const;
 
 /** Serialized-size ceiling. A very large IBKR history can blow past the ~5 MB
  *  sessionStorage quota; rather than risk a QuotaExceededError throw mid-write, we

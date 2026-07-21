@@ -93,20 +93,33 @@ describe('pendingParse - read guards', () => {
     expect(readPendingParse()).toBeNull();
   });
 
+  it('returns null on a v1 envelope (pre-#266 stash retired by S18-N1)', () => {
+    // A v1 payload predates required structuredWarnings on parser results;
+    // rehydrating it would hand the paid surfaces prose with no severities (the
+    // twinless-prose window S11 documented). The read must fall back to a clean
+    // re-upload instead. This pins the bump as deliberate: reverting
+    // SCHEMA_VERSION to 'v1' re-opens that window and must fail here.
+    window.sessionStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ version: 'v1', payload: makePdfPending() }),
+    );
+    expect(readPendingParse()).toBeNull();
+  });
+
   it('returns null when the version tag is absent', () => {
     window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ payload: makePdfPending() }));
     expect(readPendingParse()).toBeNull();
   });
 
   it('returns null when the payload is missing', () => {
-    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 'v1' }));
+    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 'v2' }));
     expect(readPendingParse()).toBeNull();
   });
 
   it('returns null when the payload discriminant is unrecognized', () => {
     window.sessionStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ version: 'v1', payload: { fileType: 'xlsx', fileName: 'x' } }),
+      JSON.stringify({ version: 'v2', payload: { fileType: 'xlsx', fileName: 'x' } }),
     );
     expect(readPendingParse()).toBeNull();
   });

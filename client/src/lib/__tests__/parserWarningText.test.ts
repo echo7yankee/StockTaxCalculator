@@ -40,6 +40,34 @@ describe('locale key parity', () => {
       ).toEqual(placeholders((enWarnings as Record<string, string>)[code]));
     }
   });
+
+  it('codes sharing one byte-identical prose template share one severity (S15)', () => {
+    // The EN templates mirror each push site's prose exactly (key parity above,
+    // template-equals-prose pinned by the phase B render tests), so grouping
+    // them finds every cross-parser shared sentence: today the IBKR/Revolut
+    // unsupported-currency pair and the t212/ibkr/revolut no-transactions trio.
+    // The merge dedupe keys on code + message and the gate's prose-twin check
+    // matches on message alone, so two codes sharing prose but differing in
+    // severity would let an info twin mask a fatal one in a cross-broker merge
+    // (SUGGESTIONS S13/S15). This sweep turns that divergence into a test
+    // failure for every current AND future code, which is what lets single-
+    // sided severity flips stay safe.
+    const byTemplate = new Map<string, ParserWarningCode[]>();
+    for (const code of codes) {
+      const template = (enWarnings as Record<string, string>)[code];
+      byTemplate.set(template, [...(byTemplate.get(template) ?? []), code]);
+    }
+    const shared = [...byTemplate.entries()].filter(([, group]) => group.length > 1);
+    // Premise guard: the shared templates genuinely exist, else the sweep is a no-op.
+    expect(shared.length).toBeGreaterThanOrEqual(2);
+    for (const [template, group] of shared) {
+      const severities = new Set(group.map((c) => WARNING_SEVERITY[c]));
+      expect(
+        severities.size,
+        `codes [${group.join(', ')}] share the template "${template}" but differ in severity`
+      ).toBe(1);
+    }
+  });
 });
 
 describe('localizeParserWarnings', () => {

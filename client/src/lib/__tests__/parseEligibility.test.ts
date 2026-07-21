@@ -10,9 +10,13 @@ import {
   parseIbkrCsv,
   parseRevolutStatement,
   mergeParseResults,
+  calculateTaxesFromPdf,
+  romaniaTaxConfig,
   type AppliedSplit,
   type RawCsvRow,
   type ParserWarning,
+  type PdfParseResult,
+  type PdfSellTrade,
 } from '@shared/index';
 import { WARNING_SEVERITY, type ParserWarningCode } from '@shared/parsers/parserWarnings';
 import enParserWarnings from '../../i18n/locales/en/parserWarnings.json';
@@ -726,6 +730,70 @@ describe('hasBlockingParseWarning (S11 shared predicate)', () => {
 
   it('does NOT block twinless prose that matches no marker (benign unknown note)', () => {
     expect(hasBlockingParseWarning(['Some benign note from an old preview.'], [])).toBe(false);
+  });
+
+  /**
+   * S18-N2 cross-module pin: ENGINE_REFUSAL_MARKERS are prose-coupled to
+   * template literals in shared/src/engine/pdfTaxCalculator.ts with no shared
+   * constant, and the marker cases above assert against hardcoded copies. An
+   * engine wording edit could therefore orphan the markers and silently
+   * un-block the #24C refusal on the paid surfaces. These cases run the REAL
+   * engine on mismatch fixtures and feed its ACTUAL warnings to the predicate,
+   * so the coupling breaks a test instead of the paid surface.
+   */
+  describe('engine #24C refusals block through the REAL engine (S18)', () => {
+    // Mirrors the engine suite's fixture: a single same-currency (RON) sell so
+    // the per-row vs overview cross-check is armed, dividends empty, rate 1.
+    function pdfData(totalResult: number, closedResult: number): PdfParseResult {
+      return {
+        overview: {
+          closedResult,
+          profit: Math.max(0, closedResult),
+          loss: Math.max(0, -closedResult),
+          netDividends: 0,
+          grossDividends: 0,
+          taxWithheld: 0,
+          openResult: 0,
+          accountValue: 1000,
+          currency: 'RON',
+        } as PdfParseResult['overview'],
+        sellTrades: [
+          {
+            executionTime: '01.03.2025 10:00',
+            instrument: 'XYZ', isin: 'RO0000000001', instrumentType: 'Stock',
+            instrumentCurrency: 'RON', positionSize: 100, averagePrice: 10,
+            executionPrice: 42.74, fxRate: 1, transactionCurrency: 'RON', totalResult,
+          } as PdfSellTrade,
+        ],
+        dividends: [],
+        distributions: [],
+        year: 2025,
+        warnings: [],
+        structuredWarnings: [],
+      };
+    }
+
+    it('a real sign-mismatch refusal blocks (Florin pre-fix shape)', () => {
+      const result = calculateTaxesFromPdf(pdfData(3273.75, -226.80), romaniaTaxConfig, 1);
+      // Sanity: the real engine actually refused (guards a silent no-op pin).
+      expect(result.warnings.some((w) => w.startsWith('Sign mismatch'))).toBe(true);
+      // Engine warnings are never structured (finalizePdf appends them to prose
+      // only), so the paid surfaces always see them twinless -- exactly this call.
+      expect(hasBlockingParseWarning(result.warnings, [])).toBe(true);
+    });
+
+    it('a real magnitude-mismatch refusal blocks (same sign, >10x)', () => {
+      const result = calculateTaxesFromPdf(pdfData(100, 5000), romaniaTaxConfig, 1);
+      expect(result.warnings.some((w) => w.startsWith('Magnitude mismatch'))).toBe(true);
+      expect(result.warnings.some((w) => w.startsWith('Sign mismatch'))).toBe(false);
+      expect(hasBlockingParseWarning(result.warnings, [])).toBe(true);
+    });
+
+    it('a clean statement produces no engine warnings and no block (no false-stop)', () => {
+      const result = calculateTaxesFromPdf(pdfData(100, 100), romaniaTaxConfig, 1);
+      expect(result.warnings).toEqual([]);
+      expect(hasBlockingParseWarning(result.warnings, [])).toBe(false);
+    });
   });
 
   it('no info-severity warning template contains ANY blocking prose marker', () => {
