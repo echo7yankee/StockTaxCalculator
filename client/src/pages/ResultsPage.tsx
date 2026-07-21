@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, TrendingUp, DollarSign, Heart, Percent, FileText, Save, Check, ClipboardList, LogIn, AlertTriangle, MessageCircle, Coins } from 'lucide-react';
+import { ArrowLeft, TrendingUp, DollarSign, Heart, Percent, FileText, Save, Check, ClipboardList, LogIn, AlertTriangle, Coins } from 'lucide-react';
 import { calculateTaxes, getTaxConfigForYear } from '@shared/index';
 import { useUpload } from '../contexts/UploadContext';
 import { useCountry } from '../contexts/CountryContext';
 import { useAuth } from '../contexts/AuthContext';
 import { analytics } from '../lib/analytics';
 import { getBrokerMeta } from '../lib/brokers';
-import { localizeParserWarnings } from '../lib/parserWarningText';
+import { hasBlockingParseWarning } from '../lib/parseEligibility';
 import PageMeta from '../components/common/PageMeta';
+import ParseWarningsNotice from '../components/ParseWarningsNotice';
 import D212Download from '../components/D212Download';
 import AuditTrailDownload from '../components/AuditTrailDownload';
 import { taxYearInterpVarsForYear } from '../utils/taxYearVars';
@@ -20,7 +21,13 @@ export default function ResultsPage() {
   const { t, i18n } = useTranslation(['results', 'common']);
   const navigate = useNavigate();
   const { taxResult, correctedTaxResult, securities, fileName, taxYear, transactions, auditRows, pdfNetFromOverview, parseWarnings, parseStructuredWarnings, broker, carriedPositions, carryForwardYear, setUploadData } = useUpload();
-  const hasWarnings = parseWarnings.length > 0;
+  // #24A hard-stop, aligned with the pre-pay gate (SUGGESTIONS S11): only a
+  // BLOCKING warning (fatal severity, a legacy fatal-prose marker, or an
+  // engine #24C refusal) suppresses the D212 / audit trail / filing CTA.
+  // Info-severity warnings render as a non-blocking note instead -- the
+  // pre-pay gate deliberately let those files through to checkout, so hiding
+  // the paid output on them re-created the paid-then-blocked shape.
+  const hasBlockingWarnings = hasBlockingParseWarning(parseWarnings, parseStructuredWarnings);
   // Beta brokers (parser built to the broker's published format without a real
   // account to validate against) must always carry a verify-before-filing caveat,
   // even on a clean parse (Regression Firewall, 09-backlog 8.6 #5).
@@ -221,51 +228,14 @@ export default function ResultsPage() {
         </div>
       )}
 
-      {hasWarnings && (
-        <div
-          className="mb-8 p-5 bg-red-50 dark:bg-red-900/20 border-2 border-red-400 dark:border-red-600 rounded-xl"
-          role="alert"
-          data-testid="parse-warning-banner"
-        >
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-6 h-6 text-red-500 shrink-0 mt-0.5" />
-            <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-red-700 dark:text-red-400 text-base mb-2">
-                {t('results:parseWarningTitle')}
-              </h3>
-              <p className="text-sm text-red-600 dark:text-red-400 mb-3">
-                {t('results:parseWarningBody')}
-              </p>
-              <p className="text-xs font-medium text-red-700 dark:text-red-400 mb-1">
-                {t('results:parseWarningListIntro')}
-              </p>
-              <ul className="text-xs text-red-600 dark:text-red-400 mb-4 list-disc pl-5 space-y-1">
-                {localizeParserWarnings(parseWarnings, parseStructuredWarnings).map((w, i) => (
-                  <li key={i}>{w}</li>
-                ))}
-              </ul>
-              <button
-                type="button"
-                onClick={() => navigate('/contact', {
-                  state: {
-                    topic: 'support',
-                    subject: 'parseWarning',
-                    fileName,
-                    warnings: parseWarnings,
-                  },
-                })}
-                className="btn-primary inline-flex items-center gap-2"
-                data-testid="parse-warning-contact-cta"
-              >
-                <MessageCircle className="w-4 h-4" />
-                {t('results:parseWarningCta')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ParseWarningsNotice
+        blocking={hasBlockingWarnings}
+        warnings={parseWarnings}
+        structuredWarnings={parseStructuredWarnings}
+        fileName={fileName}
+      />
 
-      {!hasWarnings && (
+      {!hasBlockingWarnings && (
         <div className="mb-8 p-4 bg-accent/5 dark:bg-accent/10 border border-accent/20 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h3 className="font-semibold">{t('results:readyToFile')}</h3>
@@ -285,15 +255,15 @@ export default function ResultsPage() {
       )}
 
       {/* D212 declaration generator: the primary "ready to file" action, kept high
-          up next to the filing-guide CTA. Only on a clean parse (the warning
-          hard-stop hides it). Generates the ANAF v11 XML in the browser. */}
-      {!hasWarnings && (
+          up next to the filing-guide CTA. Suppressed only by a BLOCKING warning
+          (the S11-aligned hard-stop). Generates the ANAF v11 XML in the browser. */}
+      {!hasBlockingWarnings && (
         <D212Download result={result} securities={securities} taxYear={taxYear} />
       )}
 
       {/* Audit-trail CSV: the determinism/auditability moat surface (per-trade BNR
-          breakdown + summary). Engine output, so paid + clean-parse only, like D212. */}
-      {!hasWarnings && (
+          breakdown + summary). Engine output, so paid + non-blocked only, like D212. */}
+      {!hasBlockingWarnings && (
         <AuditTrailDownload
           result={result}
           securities={securities}

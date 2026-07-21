@@ -48,6 +48,8 @@
   "parseWarningBody": "The numbers below may be wrong. Contact me before filing and we will verify together what does not match.",
   "parseWarningListIntro": "Parser warnings:",
   "parseWarningCta": "Contact me",
+  "parseInfoTitle": "Processing notes",
+  "parseInfoBody": "Your statement was processed. The notes below are informational and do not block your declaration. Review them before filing.",
   "betaBrokerTitle": "{{broker}} support is in beta",
   "betaBrokerBody": "We built the {{broker}} parser from the broker's published export format, without a real account to validate against. Check these numbers against your statement before you file. If anything looks off, contact me.",
   "dividendCreditTitle": "Foreign tax withheld on dividends",

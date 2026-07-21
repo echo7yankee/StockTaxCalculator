@@ -48,6 +48,8 @@
   "parseWarningBody": "Calculele de mai jos pot fi gre\u0219ite. Contacteaz\u0103-m\u0103 \u00eenainte s\u0103 depui declara\u021bia \u0219i verific\u0103m manual ce nu se potrive\u0219te.",
   "parseWarningListIntro": "Avertismente de la parser:",
   "parseWarningCta": "Contacteaz\u0103-m\u0103",
+  "parseInfoTitle": "Observa\u021bii la procesare",
+  "parseInfoBody": "Extrasul a fost procesat. Notele de mai jos sunt informative \u0219i nu blocheaz\u0103 declara\u021bia. Verific\u0103-le \u00eenainte de depunere.",
   "betaBrokerTitle": "Suportul pentru {{broker}} este \u00een beta",
   "betaBrokerBody": "Am construit parserul pentru {{broker}} dup\u0103 formatul de export publicat de broker, f\u0103r\u0103 un cont real pentru validare. Verific\u0103 aceste cifre cu extrasul t\u0103u \u00eenainte s\u0103 depui declara\u021bia. Dac\u0103 ceva nu pare \u00een regul\u0103, contacteaz\u0103-m\u0103.",
   "dividendCreditTitle": "Impozit re\u021binut \u00een str\u0103in\u0103tate pe dividende",

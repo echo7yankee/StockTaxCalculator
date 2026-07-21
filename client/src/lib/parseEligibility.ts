@@ -1,4 +1,6 @@
 import { isEngineSupportedTaxYear } from '@shared/taxRules/taxYears';
+import { hasFatalWarning } from '@shared/parsers/parserWarnings';
+import type { ParserWarning } from '@shared/parsers/parserWarnings';
 import type { PreviewData } from '../hooks/useStatementPreview';
 
 /**
@@ -80,6 +82,60 @@ const LEGACY_UNRELIABLE_AMOUNT_MARKERS = [
 ] as const;
 
 /**
+ * Engine refusal markers (#24C, PR #120). The PDF engine cross-checks its
+ * per-row sell sum against the statement's overview total and warns on a sign
+ * or >10x magnitude mismatch -- the number itself is unreliable, not merely a
+ * row. Engine warnings carry no ParserWarningCode (they are not parser
+ * warnings), so on the paid surface they are ALWAYS twinless prose; these
+ * markers are how the blocking predicate keeps them refusal-grade. They can
+ * never fire pre-pay (the free checker never runs the engine, by moat design).
+ */
+const ENGINE_REFUSAL_MARKERS = [
+  'sign mismatch between per-row',
+  'magnitude mismatch (>10x)',
+] as const;
+
+const BLOCKING_PROSE_MARKERS = [
+  ...LEGACY_UNRELIABLE_AMOUNT_MARKERS,
+  ...ENGINE_REFUSAL_MARKERS,
+] as const;
+
+/**
+ * SINGLE shared notion of "these warnings make the number unsafe to act on",
+ * used by the pre-pay gate below AND the post-pay #24A hard-stop
+ * (ResultsPage / FilingGuidePage). SUGGESTIONS S11: the two surfaces used to
+ * disagree -- the gate blocked only on fatal severity while #24A fired on ANY
+ * warning, so a file whose only warning was the benign interest note opened
+ * the pay CTA and then hid the paid D212 (the Mihai paid-then-blocked shape,
+ * one step later in the funnel). One predicate ends the drift.
+ *
+ * Rule, in order:
+ *  1. Any structured warning with `severity: 'fatal'` blocks (the severity
+ *     table in shared/src/parsers/parserWarnings.ts is the source of truth).
+ *  2. Prose WITH an exact-message structured twin defers to that twin's
+ *     severity (already consulted in 1 -- the parser's call wins over its own
+ *     wording; see the S13 per-warning design).
+ *  3. Twinless prose blocks only when it matches a known blocking marker: the
+ *     two legacy T212 sentences (pre-S6 persisted results) or the two engine
+ *     #24C refusals (never structured). Anything else twinless renders as an
+ *     informational note and does not block.
+ */
+export function hasBlockingParseWarning(
+  warnings: readonly string[],
+  structuredWarnings: readonly ParserWarning[],
+): boolean {
+  if (hasFatalWarning(structuredWarnings)) {
+    return true;
+  }
+  const structuredMessages = new Set(structuredWarnings.map((w) => w.message));
+  return warnings.some((w) => {
+    if (structuredMessages.has(w)) return false;
+    const lower = w.toLowerCase();
+    return BLOCKING_PROSE_MARKERS.some((marker) => lower.includes(marker));
+  });
+}
+
+/**
  * True when the parse produced a number that would UNDER-state the declaration.
  *
  * A file can parse into a full preview (right broker, right year, non-empty) and
@@ -98,24 +154,14 @@ const LEGACY_UNRELIABLE_AMOUNT_MARKERS = [
  * default to harmless without someone choosing that in the severity table.
  */
 function hasUnreliableAmountWarning(preview: PreviewData): boolean {
-  const structured = preview.structuredWarnings ?? [];
-  if (structured.some((w) => w.severity === 'fatal')) {
-    return true;
-  }
-  // Prose fallback, applied PER WARNING rather than per preview (SUGGESTIONS
-  // S13): after a multi-file merge, `warnings` can carry prose from a sibling
-  // result that had no structured channel (a persisted pre-S6 preview merged
-  // with a fresh one). A preview-level either/or would let that sibling's fatal
-  // prose through whenever ANY other file contributed a structured warning. So
-  // each prose warning WITH a structured twin defers to that twin's severity
-  // (already consulted above -- the parser's call wins over its own wording),
-  // and only twinless prose falls back to the legacy markers.
-  const structuredMessages = new Set(structured.map((w) => w.message));
-  return preview.warnings.some((w) => {
-    if (structuredMessages.has(w)) return false;
-    const lower = w.toLowerCase();
-    return LEGACY_UNRELIABLE_AMOUNT_MARKERS.some((marker) => lower.includes(marker));
-  });
+  // Delegates to the shared predicate (S11) so the pre-pay gate and the
+  // post-pay #24A hard-stop can never drift apart again. The per-warning
+  // prose-fallback design (S13) lives inside hasBlockingParseWarning: prose
+  // with a structured twin defers to the twin's severity, twinless prose
+  // falls back to the marker list. The engine markers in that list are
+  // unreachable here (the free checker never runs the engine), so gate
+  // behavior is unchanged by construction.
+  return hasBlockingParseWarning(preview.warnings, preview.structuredWarnings ?? []);
 }
 
 /**
