@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -772,5 +772,59 @@ describe('PreviewPage - lead capture pre-fill', () => {
         }),
       }),
     );
+  });
+});
+
+describe('PreviewPage - CTA scroll-into-view on parse outcome (S9)', () => {
+  // With the cookie banner up, the verdict used to render with its pay/contact
+  // CTA beneath the fixed overlay (the qa screenshot in SUGGESTIONS S9). The
+  // page now scrolls the CTA section into view when a parse outcome lands;
+  // combined with the html scroll-padding-bottom rule fed by the banner's
+  // published height, the CTA ends up clear of the overlay. Geometry itself is
+  // E2E-covered (cookie-banner-occlusion.spec.ts); this pins the trigger.
+  let scrollCalls: Array<{ el: Element; opts: unknown }>;
+  const originalScrollIntoView = Element.prototype.scrollIntoView;
+
+  beforeEach(() => {
+    scrollCalls = [];
+    Element.prototype.scrollIntoView = function (opts?: unknown) {
+      scrollCalls.push({ el: this as Element, opts });
+    } as typeof Element.prototype.scrollIntoView;
+  });
+
+  afterEach(() => {
+    Element.prototype.scrollIntoView = originalScrollIntoView;
+  });
+
+  it('does not scroll on initial render, then scrolls the unlock CTA section into view when a clean parse lands', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    expect(scrollCalls).toHaveLength(0);
+
+    await user.upload(findHiddenFileInput(container), makePdfFile());
+    await waitFor(() => expect(screen.getByTestId('preview-unlock-cta')).toBeInTheDocument());
+
+    expect(scrollCalls.length).toBeGreaterThan(0);
+    const last = scrollCalls[scrollCalls.length - 1];
+    expect(last.opts).toEqual({ block: 'nearest' });
+    // The scrolled element is the section CARRYING the unlock CTA, so the CTA
+    // itself is what lands in view.
+    expect(last.el.querySelector('[data-testid="preview-unlock-cta"]')).not.toBeNull();
+  });
+
+  it('scrolls the contact CTA section into view on a fatally blocked parse', async () => {
+    sharedExports.parseTrading212AnnualStatement.mockReturnValueOnce(
+      makePdfParseResult({ year: 2022 }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderPage();
+
+    await user.upload(findHiddenFileInput(container), makePdfFile());
+    await waitFor(() => expect(screen.getByTestId('preview-contact-cta')).toBeInTheDocument());
+
+    expect(scrollCalls.length).toBeGreaterThan(0);
+    const last = scrollCalls[scrollCalls.length - 1];
+    expect(last.opts).toEqual({ block: 'nearest' });
+    expect(last.el.querySelector('[data-testid="preview-contact-cta"]')).not.toBeNull();
   });
 });
