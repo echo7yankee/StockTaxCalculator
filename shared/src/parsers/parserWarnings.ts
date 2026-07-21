@@ -111,6 +111,17 @@ export interface ParserWarning {
  * severity here is a compile error, which is the point -- a new warning cannot
  * silently default to "harmless" and slip past the pre-pay gate.
  *
+ * INVARIANT (SUGGESTIONS S13/S15): codes that share a byte-identical prose
+ * template MUST share one severity. The merge dedupe keys on code + message
+ * and the gate's prose-twin check matches on message alone, so a
+ * severity-asymmetric shared template could let an info twin mask a fatal one
+ * in a cross-broker merge. Today that means the IBKR/Revolut
+ * unsupported-currency pair and the t212/ibkr/revolut "No transactions could
+ * be parsed" trio. Pinned mechanically by the shared-template sweep in
+ * client/src/lib/__tests__/parserWarningText.test.ts, which groups the EN
+ * templates (byte-identical to prose by the S6 phase B pins) over the whole
+ * code union -- a future divergence fails there, not in production.
+ *
  * Six codes are 'fatal' today, and each one drops or defaults a real taxable
  * amount while still producing an otherwise-usable preview:
  *  - `t212_missing_total_column`             -> row proceeds read as zero (PR #263)

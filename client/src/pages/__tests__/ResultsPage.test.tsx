@@ -471,6 +471,9 @@ describe('ResultsPage info-severity warnings do NOT hard-stop (S11)', () => {
     const notice = screen.getByTestId('parse-info-notice');
     expect(notice).toBeInTheDocument();
     expect(notice).not.toHaveAttribute('role', 'alert');
+    // S18-N4: discoverable landmark semantics without alert urgency.
+    expect(notice).toHaveAttribute('role', 'note');
+    expect(notice).toHaveAttribute('aria-label');
     // The paid output stays reachable: D212, audit trail, filing CTA.
     expect(screen.getByTestId('d212-download')).toBeInTheDocument();
     expect(screen.getByTestId('filing-guide-cta')).toBeInTheDocument();

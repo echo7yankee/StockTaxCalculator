@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { mergeParseResults } from '../mergeParseResults.js';
+import { createWarningSink } from '../parserWarnings.js';
+import { parseIbkrCsv } from '../ibkr.js';
+import { parseRevolutStatement } from '../revolut.js';
 import type { ParseResult, SkippedRow } from '../trading212.js';
 import type { Transaction } from '../../types/transaction.js';
 
@@ -133,5 +136,50 @@ describe('mergeParseResults', () => {
     const merged = mergeParseResults([a, b]);
     expect(merged.transactions).toHaveLength(2);
     expect(merged.duplicatesRemoved).toBe(0);
+  });
+
+  it('keeps all THREE codes of the shared no-transactions prose across a merge (S15)', () => {
+    // "No transactions could be parsed from this file." is one byte-identical
+    // template shared by t212 / ibkr / revolut -- the same hazard class as the
+    // unsupported-currency pair pinned below: if one broker's severity ever
+    // diverged, a message-only dedupe would keep whichever twin merged first
+    // and could mask the fatal one. This pins that every code survives the
+    // code+message dedupe. IBKR and Revolut produce the warning through the
+    // REAL parsers (a recognised statement that yields no rows); the T212
+    // branch is defensive-only today (every T212 row lands in transactions or
+    // skipped, and an empty file returns early with its own code), so its
+    // entry goes through the real sink instead.
+    const NO_TRANSACTIONS = 'No transactions could be parsed from this file.';
+    const ibkr = parseIbkrCsv([
+      ['Trades', 'Header', 'DataDiscriminator', 'Asset Category', 'Currency', 'Symbol', 'Date/Time', 'Quantity', 'T. Price', 'Proceeds', 'Comm/Fee'],
+    ]);
+    const revolut = parseRevolutStatement([
+      ['Date', 'Ticker', 'Type', 'Quantity', 'Price per share', 'Total Amount', 'Currency', 'FX Rate'],
+    ]);
+    const t212Sink = createWarningSink();
+    t212Sink.push('t212_no_transactions_parsed', NO_TRANSACTIONS);
+    const t212: ParseResult = {
+      transactions: [],
+      skipped: [],
+      warnings: t212Sink.warnings,
+      structuredWarnings: t212Sink.structuredWarnings,
+    };
+
+    // Premise guard: the two real parsers really emit the shared sentence, so
+    // the pin cannot rot into a no-op if their empty-statement handling changes.
+    expect(ibkr.structuredWarnings.map((w) => w.code)).toContain('ibkr_no_transactions_parsed');
+    expect(revolut.structuredWarnings.map((w) => w.code)).toContain('revolut_no_transactions_parsed');
+    for (const r of [ibkr, revolut, t212]) {
+      expect(r.warnings).toContain(NO_TRANSACTIONS);
+    }
+
+    const merged = mergeParseResults([t212, ibkr, revolut]);
+
+    // Prose says the shared sentence once; structured keeps one entry per code.
+    expect(merged.warnings.filter((w) => w === NO_TRANSACTIONS)).toHaveLength(1);
+    const codes = merged.structuredWarnings.map((w) => w.code);
+    expect(codes).toContain('t212_no_transactions_parsed');
+    expect(codes).toContain('ibkr_no_transactions_parsed');
+    expect(codes).toContain('revolut_no_transactions_parsed');
   });
 });
