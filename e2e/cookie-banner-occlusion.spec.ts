@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import path from 'path';
 
 // SUGGESTIONS S9: on a fresh visit the fixed cookie banner used to cover the
 // pay CTA on /verifica-extras at the moment the verdict rendered (qa's
@@ -14,6 +15,8 @@ import { test, expect, type Page } from '@playwright/test';
 // banner is visible by default in every fresh context. Fixture rule (session
 // #210): buys cover sells and all dates sit in the engine-supported year, so
 // the gate stays OPEN and the unlock CTA is the element under test.
+
+const PDF_PATH = path.resolve(__dirname, '..', 'test-data', 'annual-statement-2025.pdf');
 
 const HEADER = 'Date,Ticker,Type,Quantity,Price per share,Total Amount,Currency,FX Rate';
 const CLEAN_ROWS = [
@@ -105,6 +108,39 @@ test.describe('/verifica-extras cookie banner vs pay CTA (S9)', () => {
     expect(paddedScrollHeight - shrunkScrollHeight).toBeGreaterThanOrEqual(
       Math.floor(spacerBox!.height) - 1,
     );
+  });
+
+  // S20-N1: the tests above drive the CSV/Revolut path; this variant pins the
+  // identical geometry contract on the Trading212 PDF flow (the default tab and
+  // the recommended path), using the committed fixture statement. Same S9
+  // mechanics under test: on-parse scroll + scroll-padding from the published
+  // banner height.
+  test('PDF tab: the pay CTA lands fully clear of the banner when the verdict renders', async ({
+    page,
+  }) => {
+    await page.goto('/verifica-extras');
+    // No tab click: PDF is the default tab on /verifica-extras.
+    await page.locator('input[type="file"]').setInputFiles(PDF_PATH);
+    await expect(page.getByTestId('preview-result')).toBeVisible({ timeout: 15_000 });
+
+    const banner = page.getByTestId('cookie-banner');
+    await expect(banner).toBeVisible();
+    const cta = page.getByTestId('preview-unlock-cta');
+    await expect(cta).toBeVisible();
+
+    await expect
+      .poll(
+        async () => {
+          const ctaBox = await cta.boundingBox();
+          const bannerBox = await banner.boundingBox();
+          if (!ctaBox || !bannerBox) return false;
+          return ctaBox.y + ctaBox.height <= bannerBox.y;
+        },
+        { message: 'pay CTA should sit fully above the cookie banner overlay (PDF tab)' },
+      )
+      .toBe(true);
+
+    await cta.click({ trial: true });
   });
 
   test('mobile viewport: the CTA still lands clear of the (taller) banner', async ({

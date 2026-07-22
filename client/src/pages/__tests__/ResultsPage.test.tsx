@@ -477,6 +477,9 @@ describe('ResultsPage info-severity warnings do NOT hard-stop (S11)', () => {
     // (aria-labelledby), so the two can never drift apart.
     const heading = within(notice).getByRole('heading');
     expect(notice).toHaveAttribute('aria-labelledby', heading.id);
+    // S21: an empty heading would make the accessible-name assertion below
+    // vacuously pass against ''; require real text first.
+    expect(heading.textContent).toBeTruthy();
     expect(notice).toHaveAccessibleName(heading.textContent ?? '');
     // The paid output stays reachable: D212, audit trail, filing CTA.
     expect(screen.getByTestId('d212-download')).toBeInTheDocument();
