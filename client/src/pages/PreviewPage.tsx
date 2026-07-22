@@ -187,6 +187,20 @@ export default function PreviewPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preview, error]);
 
+  // Bring the CTA section into view once a parse outcome lands (S9): with the
+  // cookie banner up, the verdict used to render with its pay/contact CTA
+  // beneath the fixed overlay. The html scroll-padding-bottom rule (the
+  // banner's published height) keeps the scroll target clear of the overlay,
+  // and block:'nearest' makes this a no-op when the CTA is already fully
+  // visible. Default (instant) behavior on purpose: smooth scrolls are
+  // animation-frame driven and get silently dropped in headless/automation
+  // browsers, which is exactly where the E2E contract for this runs.
+  const ctaSectionRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!preview && !error) return;
+    ctaSectionRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [preview, error]);
+
   // Which waitlist a blocked visitor can join (PR-4: every block reason except
   // the user-actionable missing-history one gets a capture path). The mapping
   // lives in lib/blockedCapture.ts: beta brokers keep their graduation list,
@@ -292,7 +306,7 @@ export default function PreviewPage() {
   };
 
   const blockedCtaSection = (
-    <div className="space-y-4">
+    <div className="space-y-4" ref={ctaSectionRef}>
       <div className="card">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -740,7 +754,10 @@ export default function PreviewPage() {
 
           {/* CTA: unlock (clean + supported) OR lead capture (warnings / unsupported) */}
           {canUnlock ? (
-            <div className="card bg-accent/5 dark:bg-accent/10 border border-accent/20">
+            <div
+              className="card bg-accent/5 dark:bg-accent/10 border border-accent/20"
+              ref={ctaSectionRef}
+            >
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <h2 className="font-semibold text-lg">{t('previewUnlockTitle')}</h2>

@@ -5,6 +5,10 @@
 @layer base {
   html {
     @apply antialiased;
+    /* While the cookie banner is visible it publishes its height into this var
+       (CookieBanner.tsx); padding programmatic scrolls keeps content the fixed
+       banner would otherwise cover reachable (S9). 0px when dismissed. */
+    scroll-padding-bottom: var(--cookie-banner-height, 0px);
   }
 
   /* Smooth theme transition — limited to 200ms for mobile perf */
