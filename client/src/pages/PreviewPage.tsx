@@ -187,12 +187,6 @@ export default function PreviewPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preview, error]);
 
-  // Which waitlist a blocked visitor can join (PR-4: every block reason except
-  // the user-actionable missing-history one gets a capture path). The mapping
-  // lives in lib/blockedCapture.ts: beta brokers keep their graduation list,
-  // unsupported years go to a year list, unreadable/mismatched/empty statements
-  // go to the statement-support list (or the crypto-interest list when the
-  // visitor self-identifies a crypto origin below).
   // Bring the CTA section into view once a parse outcome lands (S9): with the
   // cookie banner up, the verdict used to render with its pay/contact CTA
   // beneath the fixed overlay. The html scroll-padding-bottom rule (the
@@ -207,6 +201,12 @@ export default function PreviewPage() {
     ctaSectionRef.current?.scrollIntoView({ block: 'nearest' });
   }, [preview, error]);
 
+  // Which waitlist a blocked visitor can join (PR-4: every block reason except
+  // the user-actionable missing-history one gets a capture path). The mapping
+  // lives in lib/blockedCapture.ts: beta brokers keep their graduation list,
+  // unsupported years go to a year list, unreadable/mismatched/empty statements
+  // go to the statement-support list (or the crypto-interest list when the
+  // visitor self-identifies a crypto origin below).
   const blocked = !canUnlock && (preview !== null || error !== null);
   const blockedCapture = blocked
     ? resolveBlockedCapture({
