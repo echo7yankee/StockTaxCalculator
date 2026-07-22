@@ -143,7 +143,12 @@ describe('FilingGuidePage parse-warning hard-stop (#24A, S11-aligned)', () => {
     expect(screen.getByText('Copy All')).toBeInTheDocument();
     expect(screen.getByText('1000')).toBeInTheDocument();
     // The warning stays visible as a non-blocking note (never silent).
-    expect(screen.getByTestId('filing-parse-info-notice')).toBeInTheDocument();
+    // S19-N2: the testIdPrefix must also prefix the labelling heading's id,
+    // so the two page instances can never collide on a duplicate DOM id.
+    expect(screen.getByTestId('filing-parse-info-notice')).toHaveAttribute(
+      'aria-labelledby',
+      'filing-parse-info-title'
+    );
     expect(screen.getByText(infoStructured.message)).toBeInTheDocument();
   });
 });

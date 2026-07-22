@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
@@ -473,7 +473,11 @@ describe('ResultsPage info-severity warnings do NOT hard-stop (S11)', () => {
     expect(notice).not.toHaveAttribute('role', 'alert');
     // S18-N4: discoverable landmark semantics without alert urgency.
     expect(notice).toHaveAttribute('role', 'note');
-    expect(notice).toHaveAttribute('aria-label');
+    // S19-N2: the accessible name comes FROM the visible heading
+    // (aria-labelledby), so the two can never drift apart.
+    const heading = within(notice).getByRole('heading');
+    expect(notice).toHaveAttribute('aria-labelledby', heading.id);
+    expect(notice).toHaveAccessibleName(heading.textContent ?? '');
     // The paid output stays reachable: D212, audit trail, filing CTA.
     expect(screen.getByTestId('d212-download')).toBeInTheDocument();
     expect(screen.getByTestId('filing-guide-cta')).toBeInTheDocument();

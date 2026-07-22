@@ -44,15 +44,19 @@ export default function ParseWarningsNotice({
         className="mb-8 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl"
         // Landmark semantics for assistive tech WITHOUT alert urgency: an info
         // notice must be discoverable, but role="alert" would announce it as a
-        // hard-stop (S18-N4).
+        // hard-stop (S18-N4). Named FROM the visible heading so the accessible
+        // name can never drift from what sighted users read (S19-N2).
         role="note"
-        aria-label={t('results:parseInfoTitle')}
+        aria-labelledby={`${testIdPrefix}parse-info-title`}
         data-testid={`${testIdPrefix}parse-info-notice`}
       >
         <div className="flex items-start gap-3">
           <Info className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-amber-800 dark:text-amber-300 mb-1">
+            <h3
+              id={`${testIdPrefix}parse-info-title`}
+              className="font-semibold text-amber-800 dark:text-amber-300 mb-1"
+            >
               {t('results:parseInfoTitle')}
             </h3>
             <p className="text-sm text-amber-700 dark:text-amber-400 mb-2">

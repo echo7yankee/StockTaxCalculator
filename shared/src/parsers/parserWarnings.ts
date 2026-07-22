@@ -122,6 +122,12 @@ export interface ParserWarning {
  * templates (byte-identical to prose by the S6 phase B pins) over the whole
  * code union -- a future divergence fails there, not in production.
  *
+ * The sweep groups by byte-identical TEMPLATE, not rendered prose: two
+ * DISTINCT templates that interpolate to identical prose for some param
+ * values would evade it (S19-N1). No such pair exists among today's
+ * templates -- keep it that way; never write near-duplicate templates that
+ * differ only in an interpolated segment.
+ *
  * Six codes are 'fatal' today, and each one drops or defaults a real taxable
  * amount while still producing an otherwise-usable preview:
  *  - `t212_missing_total_column`             -> row proceeds read as zero (PR #263)
