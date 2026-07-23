@@ -76,8 +76,16 @@ async function listBackupFiles(dir: string): Promise<BackupFileInfo[]> {
   const files: BackupFileInfo[] = [];
   for (const name of names) {
     if (!BACKUP_FILE_RE.test(name)) continue;
-    const info = await stat(path.join(dir, name));
-    files.push({ name, mtimeMs: info.mtimeMs });
+    try {
+      const info = await stat(path.join(dir, name));
+      files.push({ name, mtimeMs: info.mtimeMs });
+    } catch (err) {
+      // Retention pruning in backup-db.sh can delete a file between readdir
+      // and stat; a vanished file is not a broken pipeline, so skip it and
+      // judge freshness on what remains. Anything else (EACCES etc.) still
+      // classifies the episode as dir_unreadable.
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+    }
   }
   return files;
 }
@@ -162,6 +170,24 @@ export async function runBackupFreshnessCheck(
   return status;
 }
 
+// Config-drift guard (S23-N3): when either var is unset, email.ts soft-skips
+// the admin alert with only a console.warn, while the check still resolves and
+// bumps the 24h throttle - so a real staleness episode would be dashboard-only
+// with no email, silently. Both vars are set in prod today; this warns loudly
+// at startup (visible in pm2 logs on every deploy) if that ever drifts.
+const ALERT_CONFIG_VARS = ['ADMIN_NOTIFICATION_EMAIL', 'RESEND_API_KEY'] as const;
+
+export function warnOnMissingAlertConfig(env: NodeJS.ProcessEnv = process.env): string[] {
+  const missing = ALERT_CONFIG_VARS.filter((name) => !env[name]);
+  if (missing.length > 0) {
+    console.warn(
+      `[backupFreshness] ${missing.join(' and ')} not set: staleness would still be ` +
+        'recorded for /admin/analytics, but the admin alert email would be silently skipped'
+    );
+  }
+  return [...missing];
+}
+
 // Start the periodic monitor. Called once from index.ts after listen.
 //   - test env: never runs (unit tests drive runBackupFreshnessCheck directly).
 //   - dev: runs only when BACKUP_DIR is explicitly set (the prod default path
@@ -178,6 +204,7 @@ export function startBackupFreshnessMonitor(): NodeJS.Timeout | null {
   console.log(
     `[backupFreshness] monitoring ${dir} (stale threshold ${MAX_BACKUP_AGE_HOURS}h, check every 6h)`
   );
+  warnOnMissingAlertConfig();
   void runBackupFreshnessCheck(dir);
   const timer = setInterval(() => void runBackupFreshnessCheck(dir), CHECK_INTERVAL_MS);
   // Never keep the process alive for the monitor's sake.
