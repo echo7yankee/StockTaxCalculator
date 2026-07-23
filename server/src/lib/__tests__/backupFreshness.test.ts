@@ -24,6 +24,7 @@ const {
   runBackupFreshnessCheck,
   resetBackupFreshnessStateForTests,
   startBackupFreshnessMonitor,
+  warnOnMissingAlertConfig,
   MAX_BACKUP_AGE_HOURS,
 } = await import('../backupFreshness.js');
 
@@ -52,6 +53,7 @@ beforeEach(() => {
   resetBackupFreshnessStateForTests();
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'log').mockImplementation(() => {});
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
 afterEach(() => {
@@ -63,6 +65,63 @@ describe('startBackupFreshnessMonitor', () => {
     expect(process.env.NODE_ENV).toBe('test');
     expect(startBackupFreshnessMonitor()).toBeNull();
     expect(readdirMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('warnOnMissingAlertConfig (S23-N3)', () => {
+  it('warns naming each missing var when the alert email channel would silently skip', () => {
+    const missing = warnOnMissingAlertConfig({} as NodeJS.ProcessEnv);
+    expect(missing).toEqual(['ADMIN_NOTIFICATION_EMAIL', 'RESEND_API_KEY']);
+    expect(console.warn).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(console.warn).mock.calls[0][0]).toContain(
+      'ADMIN_NOTIFICATION_EMAIL and RESEND_API_KEY not set'
+    );
+  });
+
+  it('warns for a single missing var and treats empty-string as missing', () => {
+    const missing = warnOnMissingAlertConfig({
+      ADMIN_NOTIFICATION_EMAIL: 'cosminifrim19@gmail.com',
+      RESEND_API_KEY: '',
+    } as NodeJS.ProcessEnv);
+    expect(missing).toEqual(['RESEND_API_KEY']);
+    expect(vi.mocked(console.warn).mock.calls[0][0]).toContain('RESEND_API_KEY not set');
+  });
+
+  it('stays silent when both vars are set (the prod steady state)', () => {
+    const missing = warnOnMissingAlertConfig({
+      ADMIN_NOTIFICATION_EMAIL: 'cosminifrim19@gmail.com',
+      RESEND_API_KEY: 're_test_123',
+    } as NodeJS.ProcessEnv);
+    expect(missing).toEqual([]);
+    expect(console.warn).not.toHaveBeenCalled();
+  });
+
+  it('is WIRED into startBackupFreshnessMonitor whenever the monitor is active', async () => {
+    // The monitor never schedules under NODE_ENV=test, so drive the real
+    // startup path under a temporary dev env with BACKUP_DIR set (fs, email
+    // and errorMonitor are all mocked at module scope). Restores env + timer.
+    const originalNodeEnv = process.env.NODE_ENV;
+    const originalBackupDir = process.env.BACKUP_DIR;
+    const originalResendKey = process.env.RESEND_API_KEY;
+    stubBackupDir({ 'prod-20260723-030001.db': NOW - 1 * HOUR });
+    let timer: NodeJS.Timeout | null = null;
+    try {
+      process.env.NODE_ENV = 'development';
+      process.env.BACKUP_DIR = DIR;
+      delete process.env.RESEND_API_KEY;
+      timer = startBackupFreshnessMonitor();
+      expect(timer).not.toBeNull();
+      expect(
+        vi.mocked(console.warn).mock.calls.some((call) => String(call[0]).includes('RESEND_API_KEY not set'))
+      ).toBe(true);
+    } finally {
+      if (timer) clearInterval(timer);
+      process.env.NODE_ENV = originalNodeEnv;
+      if (originalBackupDir === undefined) delete process.env.BACKUP_DIR;
+      else process.env.BACKUP_DIR = originalBackupDir;
+      if (originalResendKey === undefined) delete process.env.RESEND_API_KEY;
+      else process.env.RESEND_API_KEY = originalResendKey;
+    }
   });
 });
 
@@ -175,6 +234,43 @@ describe('runBackupFreshnessCheck', () => {
       ageHours: 40,
       maxAgeHours: MAX_BACKUP_AGE_HOURS,
     });
+  });
+
+  it('S23-N1: a file pruned between readdir and stat (ENOENT) is skipped, not a false alarm', async () => {
+    // Retention prune races the check: readdir still lists the old file, but
+    // stat finds it gone. Freshness must be judged on the surviving file, NOT
+    // misclassified as dir_unreadable (which would email a false alarm).
+    stubBackupDir({ 'prod-20260723-030001.db': NOW - 18 * HOUR });
+    readdirMock.mockResolvedValue(['prod-20260622-030001.db', 'prod-20260723-030001.db']);
+    statMock.mockImplementation(async (fullPath: string) => {
+      if (String(fullPath).includes('prod-20260622-030001.db')) {
+        throw Object.assign(new Error('ENOENT: no such file'), { code: 'ENOENT' });
+      }
+      return { mtimeMs: NOW - 18 * HOUR };
+    });
+
+    const status = await runBackupFreshnessCheck(DIR, NOW);
+
+    expect(status).toEqual({
+      stale: false,
+      reason: 'fresh',
+      newestBackup: 'prod-20260723-030001.db',
+      ageHours: 18,
+    });
+    expect(recordErrorMock).not.toHaveBeenCalled();
+    expect(sendBackupAlertMock).not.toHaveBeenCalled();
+  });
+
+  it('S23-N1 guard: a NON-ENOENT per-file stat failure still classifies as dir_unreadable', async () => {
+    // Only a vanished file is benign; a permission error on a backup file is
+    // a broken pipeline and must keep alerting.
+    stubBackupDir({ 'prod-20260723-030001.db': NOW - 18 * HOUR });
+    statMock.mockRejectedValue(Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' }));
+
+    const status = await runBackupFreshnessCheck(DIR, NOW);
+
+    expect(status).toMatchObject({ stale: true, reason: 'dir_unreadable' });
+    expect(sendBackupAlertMock).toHaveBeenCalledTimes(1);
   });
 
   it('unreadable directory: treated as stale (the pipeline is broken, not idle)', async () => {
