@@ -37,14 +37,18 @@ function parseCurrency(value: string): Currency {
 // calibrated to the real export rather than, as the pre-fix version was, to a
 // guess carried since the initial commit.
 //
-// Grouping ("1,505.00") is still accepted. We have no evidence Trading212 emits
-// it, but reading it was the pre-fix behaviour, so accepting it costs nothing
-// while rejecting it could hard-stop a file that parses correctly today. A comma
-// that is NOT in a grouping position ("1505,00", or the EU-decimal "1.505,00")
-// matches nothing here and fails loud below instead of being silently mis-read.
-// "1,505" stays ambiguous (grouped 1505 or EU-decimal 1.505) and keeps the
-// pre-fix grouped reading; only a real localized export could settle it.
-const NUMERIC_PATTERN = /^[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][+-]?\d+)?$/;
+// Grouping ("1,505.00") is REJECTED (SUGGESTIONS S7). The #264 fix kept it
+// purely to preserve the pre-fix reading, but the evidence pass over 5 real
+// T212 exports (143 distinct numeric cells, 2020-2024, GBP/USD/EUR bases)
+// found NO thousands separator at any magnitude ("32453.25" is a five-digit
+// cell with no comma), and both OSS parsers above raise on any comma. Given
+// that, a comma is more plausibly a European decimal marker than grouping,
+// and reading "1,505" as 1505 when it meant 1.505 would be a silent 1000x
+// over-statement -- the exact failure mode this grammar exists to prevent.
+// So ANY comma now classifies as unreadable and fails loud below ("1,505.00",
+// "1,505", "1505,00", "1.505,00" alike), feeding the aggregated warning and
+// the #24A hard-stop instead of a silent read under an assumed convention.
+const NUMERIC_PATTERN = /^[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$/;
 
 // Trading212 leaves the exchange rate empty, or writes the literal "Not
 // available", when a row needed no conversion (the instrument trades in the
@@ -60,6 +64,22 @@ type NumericCell =
   | { kind: 'absent' }
   | { kind: 'unreadable' };
 
+// Bounds each cell value echoed into the unreadable-value warning (SUGGESTIONS
+// S5). The parse-alert endpoint validates warnings with a Zod `.max(500)` that
+// REJECTS rather than truncates, so one pathological cell (a pasted paragraph,
+// binary junk) would push the aggregated warning past 500 chars and silently
+// drop the entire parse-alert report -- and a weird export is exactly the
+// report worth keeping. 32 chars is plenty to locate the cell in the file, and
+// three capped examples keep the whole warning comfortably under the limit.
+// Secondary benefit: bounds the verbatim-user-content surface that lands in
+// ParseAlertLog.
+const MAX_EXAMPLE_VALUE_LENGTH = 32;
+
+function truncateExampleValue(value: string): string {
+  if (value.length <= MAX_EXAMPLE_VALUE_LENGTH) return value;
+  return `${value.slice(0, MAX_EXAMPLE_VALUE_LENGTH)}...`;
+}
+
 // Splits what the pre-fix parseNumber collapsed into a bare 0: a legitimately
 // absent value, and a value we genuinely cannot read. The caller defaults the
 // former and warns about the latter.
@@ -68,7 +88,7 @@ function classifyNumber(value: string | undefined): NumericCell {
   const trimmed = value.trim();
   if (ABSENT_NUMERIC_VALUES.has(trimmed.toLowerCase())) return { kind: 'absent' };
   if (!NUMERIC_PATTERN.test(trimmed)) return { kind: 'unreadable' };
-  const parsed = parseFloat(trimmed.replace(/,/g, ''));
+  const parsed = parseFloat(trimmed);
   // The grammar admits an exponent, so an overflowing "9e999" would reach
   // parseFloat as Infinity and poison the engine as a number. Treat it as
   // unreadable rather than let a non-finite value through.
@@ -217,7 +237,7 @@ export function parseTrading212Csv(rows: RawCsvRow[]): ParseResult {
       if (cell.kind === 'unreadable') {
         unreadableValueCount++;
         if (unreadableExamples.size < 3) {
-          unreadableExamples.add(`${column}: "${(row[column] ?? '').trim()}"`);
+          unreadableExamples.add(`${column}: "${truncateExampleValue((row[column] ?? '').trim())}"`);
         }
         return 0;
       }

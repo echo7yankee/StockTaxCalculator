@@ -120,10 +120,14 @@ describe('parseTrading212Csv', () => {
     expect(result.skipped[0].reason).toContain('Invalid date');
   });
 
-  it('parses numbers with commas', () => {
+  it('warns on comma-grouped numbers instead of reading them (S7)', () => {
+    // Pre-S7 these read as grouped 1505 / 1000. Real T212 exports never emit a
+    // thousands separator, so a comma is more plausibly an EU decimal marker;
+    // reading it under the grouping assumption risks a silent 1000x misread.
     const result = parseTrading212Csv([makeRow({ Total: '1,505.00', 'No. of shares': '1,000' })]);
-    expect(result.transactions[0].totalAmountOriginal).toBe(1505);
-    expect(result.transactions[0].shares).toBe(1000);
+    expect(result.warnings.some(w => w.includes('Could not read'))).toBe(true);
+    expect(result.transactions[0].totalAmountOriginal).toBe(0);
+    expect(result.transactions[0].shares).toBe(0);
   });
 
   it('handles missing/empty number fields gracefully', () => {
@@ -324,6 +328,36 @@ describe('parseTrading212Csv', () => {
       expect(warnings[0]).toContain('Price / share: "$150.50"');
     });
 
+    // S5: /api/parse-reports validates each warning with a Zod .max(500) that
+    // REJECTS rather than truncates, so an unbounded cell echo would silently
+    // drop the whole parse-alert report -- and a weird export is exactly the
+    // report worth keeping. Echoed examples are therefore capped at 32 chars.
+    it('truncates a pathological cell value in the warning examples (S5)', () => {
+      const junk = 'x'.repeat(200);
+      const result = parseTrading212Csv([makeRow({ Total: junk })]);
+      const warning = result.warnings.find(unreadable)!;
+      expect(warning).toContain(`Total: "${'x'.repeat(32)}..."`);
+      expect(warning).not.toContain('x'.repeat(33));
+    });
+
+    it('does not truncate a value at or under the 32-char cap', () => {
+      const exactly32 = 'a'.repeat(32);
+      const result = parseTrading212Csv([makeRow({ Total: exactly32 })]);
+      const warning = result.warnings.find(unreadable)!;
+      expect(warning).toContain(`Total: "${exactly32}"`);
+      expect(warning).not.toContain(`${exactly32}...`);
+    });
+
+    it('keeps the aggregated warning under the 500-char parse-report cap with 3 pathological examples', () => {
+      const result = parseTrading212Csv([
+        makeRow({ Total: 'y'.repeat(400) }),
+        makeRow({ 'Price / share': 'z'.repeat(400) }),
+        makeRow({ 'No. of shares': 'w'.repeat(400) }),
+      ]);
+      const warning = result.warnings.find(unreadable)!;
+      expect(warning.length).toBeLessThanOrEqual(500);
+    });
+
     // The false-positive guard that matters most: Trading212 writes an empty
     // cell or the literal "Not available" for a base-currency row's exchange
     // rate (no conversion happened). Both OSS parsers we calibrated against
@@ -366,17 +400,25 @@ describe('parseTrading212Csv', () => {
       expect(result.transactions[0].totalAmountOriginal).toBeCloseTo(1505, 2);
     });
 
-    // Grouping is accepted purely to preserve the pre-fix reading; we have no
-    // evidence Trading212 emits it. "1,505" stays genuinely ambiguous (grouped
-    // 1505 vs EU-decimal 1.505) and keeps the pre-fix grouped reading.
-    it.each([
-      ['1,505.00', 1505],
-      ['1,505', 1505],
-      ['1505.00', 1505],
-    ])('reads "%s" as %d without warning, as the pre-fix parser did', (total, expected) => {
-      const result = parseTrading212Csv([makeRow({ Total: total })]);
+    // S7: the grouping branch is gone. 143 real numeric cells across 5 real
+    // T212 exports carried NO thousands separator at any magnitude, and both
+    // OSS parsers we calibrate against raise on any comma. Every comma-bearing
+    // shape now warns instead of being read under an assumed convention -- the
+    // ambiguous "1,505" (grouped 1505 vs EU-decimal 1.505, a 1000x spread) was
+    // the one shape the pre-S7 grammar still read silently.
+    it.each(['1,505.00', '1,505', '12,345,678.90'])(
+      'warns on comma-bearing "%s" instead of reading it as grouped',
+      (total) => {
+        const result = parseTrading212Csv([makeRow({ Total: total })]);
+        expect(result.warnings.some(unreadable)).toBe(true);
+        expect(result.transactions[0].totalAmountOriginal).toBe(0);
+      }
+    );
+
+    it('reads a plain "1505.00" without warning', () => {
+      const result = parseTrading212Csv([makeRow({ Total: '1505.00' })]);
       expect(result.warnings.some(unreadable)).toBe(false);
-      expect(result.transactions[0].totalAmountOriginal).toBeCloseTo(expected, 2);
+      expect(result.transactions[0].totalAmountOriginal).toBeCloseTo(1505, 2);
     });
   });
 });
