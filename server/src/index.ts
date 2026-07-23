@@ -6,6 +6,7 @@ import { sessionMiddleware, requirePaidPlan } from './middleware/auth.js';
 import { requireAdmin } from './middleware/requireAdmin.js';
 import { jsonErrorHandler } from './middleware/errorHandler.js';
 import { recordError, toCapturedError, recordCaughtError } from './lib/errorMonitor.js';
+import { startBackupFreshnessMonitor } from './lib/backupFreshness.js';
 import passport from './config/passport.js';
 import { authRouter } from './routes/auth.js';
 import { calculatorRouter } from './routes/calculator.js';
@@ -134,4 +135,7 @@ app.use(jsonErrorHandler);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
+  // Asserts the nightly SQLite backup on this box is recent and alerts loudly
+  // when it is not (SUGGESTIONS S12). No-op in tests; opt-in via BACKUP_DIR in dev.
+  startBackupFreshnessMonitor();
 });

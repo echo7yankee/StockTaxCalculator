@@ -539,6 +539,64 @@ export async function sendAnalyticsDigestNotification(
   return true;
 }
 
+export interface BackupAlertNotificationParams {
+  backupDir: string;
+  reason: 'no_backups' | 'too_old' | 'dir_unreadable';
+  newestBackup: string | null;
+  ageHours: number | null;
+  maxAgeHours: number;
+}
+
+// Operator alert for a stale nightly database backup (SUGGESTIONS S12), fired by
+// lib/backupFreshness.ts, throttled there to one per 24h while stale. Routed
+// through postToResend on purpose: a send failure records an 'email.send' error
+// (which the new-fingerprint alert skips, so no loop) and throws back to the
+// caller, whose un-bumped throttle retries on the next check.
+export async function sendBackupAlertNotification(
+  params: BackupAlertNotificationParams
+): Promise<boolean> {
+  const adminTo = process.env.ADMIN_NOTIFICATION_EMAIL;
+  if (!adminTo) {
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn('[Email] ADMIN_NOTIFICATION_EMAIL not set; backup alert skipped');
+    }
+    return false;
+  }
+
+  const detail =
+    params.reason === 'no_backups'
+      ? `No prod-*.db backups exist in ${params.backupDir}.`
+      : params.reason === 'dir_unreadable'
+        ? `The backup directory ${params.backupDir} is missing or unreadable.`
+        : `Newest backup: ${params.newestBackup} (${params.ageHours}h old, threshold ${params.maxAgeHours}h).`;
+
+  const lines = [
+    `The nightly database backup is STALE. Until this is fixed, data written since`,
+    `the newest backup is unprotected.`,
+    ``,
+    detail,
+    ``,
+    `Likely causes, in the order they have actually happened:`,
+    `  1. The cron entry is missing/disabled (crontab -l as investax).`,
+    `  2. scripts/backup-db.sh failed - check /home/investax/backups/backup.log.`,
+    `  3. The disk is full (df -h).`,
+    ``,
+    `This alert repeats daily while the condition persists and stops on recovery.`,
+    ``,
+    `Sent automatically from the InvesTax production server.`,
+  ];
+  const body = lines.join('\n');
+
+  await postToResend({
+    from: FROM_ADDRESS,
+    to: adminTo,
+    subject: '[InvesTax] ALERT: nightly database backup is stale',
+    html: `<pre style="font-family:ui-monospace,monospace;font-size:13px;line-height:1.5;white-space:pre-wrap;">${escapeHtml(body)}</pre>`,
+    text: body,
+  });
+  return true;
+}
+
 export interface ContactMessageNotificationParams {
   fromName: string;
   fromEmail: string;

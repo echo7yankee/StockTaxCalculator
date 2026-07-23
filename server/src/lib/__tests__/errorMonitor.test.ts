@@ -392,6 +392,24 @@ describe('recordError -> new-fingerprint alert', () => {
     expect(sendErrorAlertNotificationMock).not.toHaveBeenCalled(); // but no alert
   });
 
+  it("SELF-ALERTING: never fires the generic alert for context 'backup.freshness'", async () => {
+    upsertMock.mockResolvedValueOnce(createReturn());
+    // The backup freshness monitor sends its own episode-aware, throttled admin
+    // email (lib/backupFreshness.ts). The generic first-fingerprint alert would
+    // duplicate the first episode and then never fire again, so it is skipped;
+    // the grouped row is still recorded for the dashboard + CLI.
+    await recordError({
+      name: 'BackupFreshnessAlert',
+      message: 'Nightly database backup is stale: newest backup prod-20260713-030001.db is 40h old (threshold 36h)',
+      source: 'server',
+      context: 'backup.freshness',
+    });
+    await drainPendingDispatch();
+
+    expect(upsertMock).toHaveBeenCalledTimes(1); // the row is still recorded
+    expect(sendErrorAlertNotificationMock).not.toHaveBeenCalled(); // but no generic alert
+  });
+
   it('never throws even if the alert send REJECTS (recordError stays clean)', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     upsertMock.mockResolvedValueOnce(createReturn());

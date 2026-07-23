@@ -200,17 +200,28 @@ interface NewFingerprintAlert {
   sampleStack: string | undefined;
 }
 
+// Contexts whose errors are recorded but never fed to the generic
+// new-fingerprint alert email:
+//   - 'email.send': the alert delivery channel itself. A Resend outage records
+//     an 'email.send' error, and alerting on it would close the loop the alert
+//     path's local error-swallowing already breaks.
+//   - 'backup.freshness': the backup freshness monitor owns its own
+//     episode-aware, throttled admin alert (lib/backupFreshness.ts). Its stale
+//     message normalizes to one stable fingerprint, so the generic alert would
+//     duplicate the first episode's email and then never fire again for later
+//     episodes; the row is still recorded here for the dashboard + CLI.
+const SELF_ALERTING_CONTEXTS: ReadonlySet<string> = new Set(['email.send', 'backup.freshness']);
+
 // Fire the new-fingerprint operator alert, with the loop guard. Self-contained:
 // it dynamic-imports the email module (email.ts statically imports this file, so a
 // static import here would be a cycle), and sendErrorAlertNotification swallows its
 // own failures with console.error and never routes back through recordError /
-// recordCaughtError. As a second, independent guard we never alert on the alert
-// delivery channel itself (context 'email.send'): a Resend outage records an
-// 'email.send' error, and alerting on it would close the very loop the first guard
-// already breaks. Belt and suspenders by design. Awaited only inside the voided
-// promise; any rejection from the import is caught so recordError stays clean.
+// recordCaughtError. As a second, independent guard we never alert for
+// SELF_ALERTING_CONTEXTS (see above). Belt and suspenders by design. Awaited only
+// inside the voided promise; any rejection from the import is caught so
+// recordError stays clean.
 async function maybeAlertOnNewFingerprint(alert: NewFingerprintAlert): Promise<void> {
-  if (alert.context === 'email.send') return;
+  if (alert.context !== undefined && SELF_ALERTING_CONTEXTS.has(alert.context)) return;
   try {
     const { sendErrorAlertNotification } = await import('../services/email.js');
     await sendErrorAlertNotification(alert);
