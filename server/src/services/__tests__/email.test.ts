@@ -7,6 +7,7 @@ import {
   sendContactMessageNotification,
   sendParseAlertNotification,
   sendAnalyticsDigestNotification,
+  sendBackupAlertNotification,
   sendErrorAlertNotification,
   sendSubscribeWelcomeEmail,
   pickLanguage,
@@ -980,5 +981,83 @@ describe('sendSubscribeWelcomeEmail - every topic has a specific line (no fallba
     expect(JSON.parse(fetchMock.mock.calls[1][1].body as string).text).toContain(
       'crypto exchange statements'
     );
+  });
+});
+
+describe('sendBackupAlertNotification', () => {
+  const originalFetch = global.fetch;
+  const originalResend = process.env.RESEND_API_KEY;
+  const originalAdmin = process.env.ADMIN_NOTIFICATION_EMAIL;
+
+  const staleParams = {
+    backupDir: '/home/investax/backups',
+    reason: 'too_old' as const,
+    newestBackup: 'prod-20260713-030001.db',
+    ageHours: 40,
+    maxAgeHours: 36,
+  };
+
+  beforeEach(() => {
+    process.env.RESEND_API_KEY = 'test_key_123';
+    process.env.ADMIN_NOTIFICATION_EMAIL = 'admin@example.com';
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.RESEND_API_KEY = originalResend;
+    if (originalAdmin === undefined) delete process.env.ADMIN_NOTIFICATION_EMAIL;
+    else process.env.ADMIN_NOTIFICATION_EMAIL = originalAdmin;
+    vi.restoreAllMocks();
+  });
+
+  it('posts a stale-backup alert to ADMIN_NOTIFICATION_EMAIL naming the newest backup and its age', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    await expect(sendBackupAlertNotification(staleParams)).resolves.toBe(true);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.to).toBe('admin@example.com');
+    expect(body.subject).toBe('[InvesTax] ALERT: nightly database backup is stale');
+    expect(body.text).toContain('prod-20260713-030001.db');
+    expect(body.text).toContain('40h old, threshold 36h');
+    expect(body.text).toContain('backup.log');
+  });
+
+  it('describes the no_backups and dir_unreadable reasons without a filename', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    global.fetch = fetchMock;
+
+    await sendBackupAlertNotification({
+      ...staleParams, reason: 'no_backups', newestBackup: null, ageHours: null,
+    });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).text)
+      .toContain('No prod-*.db backups exist in /home/investax/backups');
+
+    fetchMock.mockClear();
+    await sendBackupAlertNotification({
+      ...staleParams, reason: 'dir_unreadable', newestBackup: null, ageHours: null,
+    });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).text)
+      .toContain('missing or unreadable');
+  });
+
+  it('returns false and does NOT call fetch when ADMIN_NOTIFICATION_EMAIL is unset', async () => {
+    delete process.env.ADMIN_NOTIFICATION_EMAIL;
+    const fetchMock = vi.fn();
+    global.fetch = fetchMock;
+
+    await expect(sendBackupAlertNotification(staleParams)).resolves.toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('THROWS on a Resend failure so the caller can retry (throttle stays un-bumped)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('nope', { status: 500 }));
+    global.fetch = fetchMock;
+
+    await expect(sendBackupAlertNotification(staleParams)).rejects.toThrow('Resend API 500');
+    // The send failure is still recorded on the email.send channel (loop-guarded).
+    expect(recordCaughtError).toHaveBeenCalledWith(expect.any(Error), 'email.send');
   });
 });
